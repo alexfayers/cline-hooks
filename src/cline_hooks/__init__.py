@@ -1,0 +1,44 @@
+from __future__ import annotations
+
+import logging
+from pathlib import Path
+from typing import NoReturn
+
+import cline_hooks.handlers  # noqa: F401
+from cline_hooks.models import parse_data
+from cline_hooks.registry import HOOK_HANDLERS
+from cline_hooks.response import allow
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    filename=Path(__file__).parent.parent.parent / "cline-hooks.log",
+    filemode="a",
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    datefmt="%Y-%m-%dT%H:%M:%S",
+)
+logging.getLogger("hooks").addHandler(logging.StreamHandler())
+
+logger = logging.getLogger("hooks")
+
+
+def main() -> NoReturn:
+    """Busybox-style entrypoint - dispatches to a handler based on argv[0] basename."""
+    try:
+        hook = parse_data(input())
+    except Exception:
+        logger.exception("Failed to parse hook input")
+        allow()
+
+    handler = HOOK_HANDLERS.get(hook.hookName)
+    if handler is not None:
+        handler(hook)
+
+    allow()
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:
+        logger.exception("Unexpected error", exc_info=e)
+        raise
