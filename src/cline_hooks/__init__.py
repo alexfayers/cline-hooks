@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import logging
+import sys
 from pathlib import Path
 from typing import NoReturn
 
 import cline_hooks.handlers  # noqa: F401
+from cline_hooks.install import install
 from cline_hooks.models import parse_data
 from cline_hooks.registry import HOOK_HANDLERS
 from cline_hooks.response import allow
@@ -23,6 +25,13 @@ logger = logging.getLogger("hooks")
 
 def main() -> NoReturn:
     """Busybox-style entrypoint - dispatches to a handler based on argv[0] basename."""
+    if len(sys.argv) >= 2 and sys.argv[1] == "install":
+        if len(sys.argv) < 3:
+            print("Usage: cline-hook install <target-directory>", file=sys.stderr)
+            sys.exit(1)
+        install(sys.argv[2])
+        sys.exit(0)
+
     try:
         hook = parse_data(input())
     except Exception:

@@ -104,7 +104,11 @@ class TestHandleUserPromptSubmit:
         assert "persisted" in cast(str, result.get("contextModification", "")).lower()
 
     def test_neutral_message_with_high_random_no_reminder(self) -> None:
-        with patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0):
+        with (
+            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
+            patch("cline_hooks.handlers.user_prompt.datetime") as mock_dt,
+        ):
+            mock_dt.now.return_value.hour = 12
             result = _run("Can you implement this feature?")
         assert result is None
 
@@ -136,6 +140,8 @@ class TestHandleUserPromptSubmit:
         with (
             patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
             patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
+            patch("cline_hooks.handlers.user_prompt.datetime") as mock_dt,
         ):
+            mock_dt.now.return_value.hour = 12
             handle_user_prompt_submit(hook)
         assert not output
