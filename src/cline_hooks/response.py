@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from pathlib import Path
 from typing import NoReturn
 
 logger = logging.getLogger("hooks")
@@ -48,9 +47,6 @@ def allow(message: str | None = None, *, prefix: str = "REMINDER") -> NoReturn:
     respond(cancel=False, context_modification=message)
 
 
-_STATE_PATH = Path(__file__).parent.parent.parent / ".hook-state.json"
-
-
 def block(
     message: str, *, task_id: str | None = None, tool_name: str | None = None
 ) -> NoReturn:
@@ -65,5 +61,5 @@ def block(
     if task_id is not None and tool_name is not None:
         from cline_hooks.state import TaskStateStore  # noqa: PLC0415
 
-        TaskStateStore(_STATE_PATH).record_block(task_id, tool_name, message)
+        TaskStateStore().record_block(task_id, tool_name, message)
     respond(cancel=True, error_message=message)

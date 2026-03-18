@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 import logging
-from pathlib import Path
+
+from cline_hooks.paths import get_data_dir
 
 logger = logging.getLogger("hooks")
 
@@ -11,7 +12,7 @@ _SKILL_REQUIREMENTS: dict[str, str] = {
     "cr": "cr",
 }
 
-_STATE_PATH = Path(__file__).parent.parent.parent / ".skill-state.json"
+_STATE_PATH = get_data_dir() / "skill-state.json"
 
 
 def _read() -> dict[str, list[str]]:

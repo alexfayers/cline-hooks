@@ -2,18 +2,18 @@ from __future__ import annotations
 
 import logging
 import sys
-from pathlib import Path
 from typing import NoReturn
 
 import cline_hooks.handlers  # noqa: F401
 from cline_hooks.install import install
 from cline_hooks.models import parse_data
+from cline_hooks.paths import get_data_dir
 from cline_hooks.registry import HOOK_HANDLERS
 from cline_hooks.response import allow
 
 logging.basicConfig(
     level=logging.DEBUG,
-    filename=Path(__file__).parent.parent.parent / "cline-hooks.log",
+    filename=get_data_dir() / "cline-hooks.log",
     filemode="a",
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     datefmt="%Y-%m-%dT%H:%M:%S",

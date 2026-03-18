@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import json
 import logging
-from pathlib import Path
+
+from cline_hooks.paths import get_data_dir
 
 logger = logging.getLogger("hooks")
 
 _MEMORY_BLOCK_THRESHOLD = 10
-_STATE_PATH = Path(__file__).parent.parent.parent / ".memory-tracker-state.json"
+_STATE_PATH = get_data_dir() / "memory-tracker-state.json"
 
 
 def _read() -> dict[str, int]:

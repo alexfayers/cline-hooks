@@ -7,9 +7,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
 
+from cline_hooks.paths import get_data_dir
+
 logger = logging.getLogger("hooks")
 
-_STATE_PATH = Path(__file__).parent.parent.parent / ".hook-state.json"
+_STATE_PATH = get_data_dir() / "hook-state.json"
 
 
 @dataclass
