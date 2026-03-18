@@ -140,7 +140,7 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: C901, PLR09
                 )
                 if line_count > _LARGE_FILE_THRESHOLD:
                     block(
-                        f"{path} is {line_count} lines. Use WorkspaceSearch or search_files with specific patterns instead of reading the whole file.",
+                        f"{path} is {line_count} lines. Use a tool such as search_files with specific patterns instead of reading the whole file.",
                         task_id=hook.taskId,
                         tool_name=tool_name,
                     )

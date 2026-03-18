@@ -4,13 +4,20 @@ Cline hooks framework for enforcing coding standards and workflow rules.
 
 ## Installation
 
+Install from GitHub and link hooks to your Cline hooks directory:
+
 ```bash
-uv tool install cline-hooks
+uv tool install git+https://github.com/alexfayers/cline-hooks
+cline-hook install ~/Documents/Cline/Hooks
 ```
 
-## Usage
+Or clone and install locally:
 
-Run `install-hooks.sh <target-directory>` to symlink the hook binary into a Cline hooks directory.
+```bash
+git clone https://github.com/alexfayers/cline-hooks
+cd cline-hooks
+bash install-hooks.sh ~/Documents/Cline/Hooks
+```
 
 ## Plugins
 

@@ -82,7 +82,7 @@ class TestGrepBlock:
     def test_grep_with_build_command_is_blocked(self) -> None:
         result = _run("execute_command", {"command": "just | grep foo"})
         assert result is not None
-        assert "WorkspaceSearch" in cast(str, result.get("errorMessage", ""))
+        assert "tool" in cast(str, result.get("errorMessage", ""))
 
     def test_grep_standalone_is_not_blocked(self) -> None:
         result = _run("execute_command", {"command": "grep -r foo ."})

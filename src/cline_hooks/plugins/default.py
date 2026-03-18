@@ -43,7 +43,7 @@ class DefaultPlugin(ClineHooksPlugin):
             ),
             CommandRule(
                 command="grep",
-                message="Use the WorkspaceSearch MCP tool instead of grep for searching files.",
+                message="Use an MCP tool instead of grep for searching files.",
                 validator=_requires_build_context,
             ),
             CommandRule(
