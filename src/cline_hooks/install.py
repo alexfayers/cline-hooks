@@ -72,9 +72,9 @@ def _powershell_script(binary: Path) -> str:
 
 def _install_windows_hooks(binary: Path, target: Path) -> None:
     linked = 0
+    script = _powershell_script(binary)
     for hook in _HOOKS:
         dest = target / f"{hook}.ps1"
-        script = _powershell_script(binary)
         if dest.exists():
             if dest.is_symlink():
                 dest.unlink(missing_ok=True)
