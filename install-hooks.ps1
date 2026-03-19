@@ -10,5 +10,5 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Write-Host "Installing cline-hooks as uv tool..."
 uv tool install --editable "$ScriptDir" --force
 
-Write-Host "Linking hooks to $TargetDir..."
+Write-Host "Writing hook scripts to $TargetDir..."
 cline-hook install "$TargetDir"
