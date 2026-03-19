@@ -79,7 +79,20 @@ def _install_windows_hooks(binary: Path, target: Path) -> None:
             if dest.is_symlink():
                 dest.unlink(missing_ok=True)
             else:
-                existing = dest.read_text(encoding="utf-8")
+                if not dest.is_file():
+                    print(
+                        f"warning: {dest.name} exists but is not a file, skipping",
+                        file=sys.stderr,
+                    )
+                    continue
+                try:
+                    existing = dest.read_text(encoding="utf-8")
+                except UnicodeDecodeError:
+                    print(
+                        f"warning: {dest.name} exists with non-UTF-8 content, skipping",
+                        file=sys.stderr,
+                    )
+                    continue
                 if existing == script:
                     continue
                 if not existing.startswith(_PS1_HEADER):
