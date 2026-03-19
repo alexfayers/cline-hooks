@@ -116,10 +116,15 @@ def _install_unix_hooks(binary: Path, target: Path) -> None:
 
 
 def install(target_dir: str) -> None:
-    """Symlink all hook names to the cline-hook binary in target_dir.
+    """Install cline hook entry points into target_dir.
+
+    On Unix-like systems, this creates symlinks for all hook names that point
+    to the cline-hook binary. On Windows, this writes PowerShell ``.ps1``
+    hook scripts for each hook name that invoke the cline-hook binary.
 
     Args:
-        target_dir: Directory to create hook symlinks in.
+        target_dir: Directory in which to create hook entry points
+            (symlinks on Unix, PowerShell ``.ps1`` scripts on Windows).
     """
     binary = _resolve_binary()
     target = Path(target_dir)
