@@ -19,6 +19,14 @@ cd cline-hooks
 bash install-hooks.sh ~/Documents/Cline/Hooks
 ```
 
+Windows local install:
+
+```powershell
+git clone https://github.com/alexfayers/cline-hooks
+Set-Location cline-hooks
+.\install-hooks.ps1 "$HOME\Documents\Cline\Hooks"
+```
+
 ## Plugins
 
 Extend behaviour by implementing `ClineHooksPlugin` and registering via entry points:
