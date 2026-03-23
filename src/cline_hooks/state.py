@@ -26,8 +26,8 @@ class TaskBlockEvent:
 class TaskStateStore:
     """Persists per-task block events in a JSON file for cross-hook recall."""
 
-    def __init__(self, path: Path = _STATE_PATH) -> None:
-        self._path = path
+    def __init__(self, path: Path | None = None) -> None:
+        self._path = path if path is not None else _STATE_PATH
 
     def _read(self) -> dict[str, list[dict[str, str]]]:
         """Read state from disk, returning empty dict on missing or corrupt file."""

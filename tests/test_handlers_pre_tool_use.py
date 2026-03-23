@@ -7,6 +7,7 @@ from unittest.mock import patch
 import pytest
 
 import cline_hooks.memory_tracker as memory_tracker_module
+from cline_hooks.state import TaskStateStore
 from cline_hooks.handlers.pre_tool_use import (
     _is_memory_write_mcp,
     _starts_with_emoji,
@@ -234,3 +235,27 @@ class TestMemoryBlockCheck:
         result = _run("read_file", {"path": "README.md"})
         assert result is not None
         assert "memory" in cast(str, result.get("errorMessage", "")).lower()
+
+
+class TestClearBlocksOnPass:
+    def test_stale_block_cleared_after_successful_run(self) -> None:
+        store = TaskStateStore()
+        store.record_block("task-1", "execute_command", "some old reason")
+        assert len(store.get_blocks("task-1")) == 1
+        _run("execute_command", {"command": "echo hello"})
+        assert store.get_blocks("task-1") == []
+
+    def test_block_re_recorded_when_check_still_fails(self) -> None:
+        store = TaskStateStore()
+        store.record_block("task-1", "execute_command", "old reason")
+        for _ in range(10):
+            memory_tracker_module.increment("task-1")
+        _run("execute_command", {"command": "echo hello"})
+        blocks = store.get_blocks("task-1")
+        assert len(blocks) == 1
+        assert "memory" in blocks[0].reason.lower()
+
+    def test_no_stale_blocks_when_no_previous_blocks(self) -> None:
+        store = TaskStateStore()
+        _run("execute_command", {"command": "echo hello"})
+        assert store.get_blocks("task-1") == []

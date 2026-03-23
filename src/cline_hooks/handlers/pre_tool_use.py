@@ -20,6 +20,7 @@ from cline_hooks.models import HookInputPreToolUse, McpToolUse
 from cline_hooks.plugin import load_plugins
 from cline_hooks.registry import hook_handler
 from cline_hooks.response import allow, block
+from cline_hooks.state import TaskStateStore
 from cline_hooks.skill_tracker import (
     is_skill_called as _is_skill_called,
     required_skill_for,
@@ -118,6 +119,8 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: C901, PLR09
         return
 
     logger.info("Called %s", tool_name)
+
+    TaskStateStore().clear_blocks(hook.taskId)
 
     _check_memory_block(hook.taskId, tool_name, parameters)
 
