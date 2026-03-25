@@ -1,23 +1,36 @@
 from __future__ import annotations
 
+import contextlib
 import logging
 import random
-from dataclasses import asdict
+from typing import TYPE_CHECKING
+
+import git
+import git.exc
 
 import cline_hooks.memory_tracker as _memory_tracker
-from cline_hooks.models import HookInputPostToolUse, McpToolUse
+from cline_hooks.models import McpToolUse
 from cline_hooks.registry import hook_handler
 from cline_hooks.response import allow
 from cline_hooks.skill_tracker import record_skill as _record_skill
 
+if TYPE_CHECKING:
+    from cline_hooks.models import HookInputPostToolUse
+
 logger = logging.getLogger("hooks")
 
 _MEMORY_REMINDER = (
-    "MEMORY UPDATE REQUIRED: Update both memory servers (project and global) now.\n"
+    "MEMORY UPDATE REQUIRED: Update the project and global scopes in the memory server now.\n"
     "Record what you just did and why. One fact per observation."
 )
 _MEMORY_REMINDER_CHANCE = 0.6
 _MEMORY_COOLDOWN_STEPS = 5
+
+_COMMIT_REMINDER = (
+    "COMMIT REMINDER: There are a large number of uncommitted changes. "
+    "Consider committing your work now to keep changes manageable."
+)
+_COMMIT_LINE_THRESHOLD = 200
 
 _MEMORY_TOOL_NAMES = {
     "create_entities",
@@ -38,20 +51,62 @@ _MEMORY_WRITE_TOOL_NAMES = {
     "delete_observations",
 }
 
-_current_memory_chance = _MEMORY_REMINDER_CHANCE
+
+class _MemoryChanceTracker:
+    """Tracks the current probability of triggering a memory reminder."""
+
+    def __init__(self) -> None:
+        self.chance: float = _MEMORY_REMINDER_CHANCE
+
+    def step(self) -> None:
+        """Increment the reminder chance by one cooldown step."""
+        increment = _MEMORY_REMINDER_CHANCE / _MEMORY_COOLDOWN_STEPS
+        self.chance = min(_MEMORY_REMINDER_CHANCE, self.chance + increment)
+
+    def reset(self) -> None:
+        """Reset the reminder chance to zero after a reminder fires."""
+        self.chance = 0.0
 
 
-def _step_memory_chance() -> None:
-    global _current_memory_chance  # noqa: PLW0603
-    increment = _MEMORY_REMINDER_CHANCE / _MEMORY_COOLDOWN_STEPS
-    _current_memory_chance = min(
-        _MEMORY_REMINDER_CHANCE, _current_memory_chance + increment
-    )
+_memory_chance = _MemoryChanceTracker()
 
 
-def _reset_memory_chance() -> None:
-    global _current_memory_chance  # noqa: PLW0603
-    _current_memory_chance = 0.0
+def _parse_diff_stat_line(line: str) -> int:
+    """Extract inserted+deleted line count from a single git diff --stat output line.
+
+    Args:
+        line: A single line from git diff --stat output.
+
+    Returns:
+        Total line count for this stat line.
+    """
+    total = 0
+    for part in line.split(","):
+        stripped = part.strip()
+        if "insertion" in stripped or "deletion" in stripped:
+            with contextlib.suppress(ValueError, IndexError):
+                total += int(stripped.split()[0])
+    return total
+
+
+def _get_diff_line_count(workspace_roots: list[str]) -> int:
+    """Return total added+removed lines in the working tree of the first valid repo.
+
+    Args:
+        workspace_roots: Workspace root paths to search for a git repo.
+
+    Returns:
+        Total diff line count, or 0 if no repo or no diff.
+    """
+    for root in workspace_roots:
+        try:
+            repo = git.Repo(root)
+            diff = repo.git.diff("--stat", "HEAD")
+        except (git.exc.InvalidGitRepositoryError, git.exc.GitCommandError, git.exc.NoSuchPathError):
+            continue
+        else:
+            return sum(_parse_diff_stat_line(line) for line in diff.splitlines())
+    return 0
 
 
 def handle_post_mcp_tool_use(tool: McpToolUse, task_id: str) -> None:
@@ -61,11 +116,10 @@ def handle_post_mcp_tool_use(tool: McpToolUse, task_id: str) -> None:
         tool: The MCP tool invocation that completed.
         task_id: The Cline task identifier.
     """
-    logger.debug("Post MCP tool usage: %s", asdict(tool))
     if tool.tool_name in _MEMORY_WRITE_TOOL_NAMES:
         _memory_tracker.reset(task_id)
     if tool.tool_name in _MEMORY_TOOL_NAMES:
-        _reset_memory_chance()
+        _memory_chance.reset()
 
 
 @hook_handler("PostToolUse")
@@ -95,13 +149,21 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> None:
         "execute_command",
         "plan_mode_respond",
     }:
-        _step_memory_chance()
+        _memory_chance.step()
         notes: list[str] = []
-        if random.random() < _current_memory_chance:  # noqa: S311
+        if random.random() < _memory_chance.chance:
             notes.append(_MEMORY_REMINDER)
-            _reset_memory_chance()
+            _memory_chance.reset()
         if notes:
             allow("\n\n".join(notes), prefix="")
+
+    if tool_name in {"replace_in_file", "write_to_file"}:
+        diff_lines = _get_diff_line_count(hook.workspaceRoots)
+        if diff_lines > _COMMIT_LINE_THRESHOLD:
+            allow(
+                f"{_COMMIT_REMINDER} ({diff_lines} lines changed)",
+                prefix="",
+            )
 
     if tool_name == "execute_command":
         result = hook.postToolUse.result

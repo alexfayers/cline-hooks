@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import json
 from io import StringIO
+import json
 from typing import cast
 from unittest.mock import patch
 
@@ -15,27 +15,23 @@ def _capture_respond(**kwargs: object) -> dict[str, object]:
     with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
         respond(**kwargs)  # type: ignore[arg-type]
     assert exc.value.code == 0
-    return cast(dict[str, object], json.loads(buf.getvalue()))
+    return cast("dict[str, object]", json.loads(buf.getvalue()))
 
 
-def _capture_allow(
-    message: str | None = None, *, prefix: str = "REMINDER"
-) -> dict[str, object]:
+def _capture_allow(message: str | None = None, *, prefix: str = "REMINDER") -> dict[str, object]:
     buf = StringIO()
     with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
         allow(message, prefix=prefix)
     assert exc.value.code == 0
-    return cast(dict[str, object], json.loads(buf.getvalue()))
+    return cast("dict[str, object]", json.loads(buf.getvalue()))
 
 
-def _capture_block(
-    message: str, *, task_id: str | None = None, tool_name: str | None = None
-) -> dict[str, object]:
+def _capture_block(message: str, *, task_id: str | None = None, tool_name: str | None = None) -> dict[str, object]:
     buf = StringIO()
     with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
         block(message, task_id=task_id, tool_name=tool_name)
     assert exc.value.code == 0
-    return cast(dict[str, object], json.loads(buf.getvalue()))
+    return cast("dict[str, object]", json.loads(buf.getvalue()))
 
 
 class TestRespond:

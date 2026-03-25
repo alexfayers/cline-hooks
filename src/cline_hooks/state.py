@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-import json
-import logging
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
-from pathlib import Path
-from typing import cast
+import json
+import logging
+from typing import TYPE_CHECKING, cast
 
 from cline_hooks.paths import get_data_dir
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = logging.getLogger("hooks")
 
@@ -30,11 +32,13 @@ class TaskStateStore:
         self._path = path if path is not None else _STATE_PATH
 
     def _read(self) -> dict[str, list[dict[str, str]]]:
-        """Read state from disk, returning empty dict on missing or corrupt file."""
+        """Read state from disk, returning empty dict on missing or corrupt file.
+
+        Returns:
+            Mapping of task IDs to lists of block event dicts.
+        """
         try:
-            return cast(
-                dict[str, list[dict[str, str]]], json.loads(self._path.read_text())
-            )
+            return cast("dict[str, list[dict[str, str]]]", json.loads(self._path.read_text()))
         except FileNotFoundError:
             return {}
         except (json.JSONDecodeError, OSError):

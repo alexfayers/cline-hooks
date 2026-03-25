@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import random
 import re
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from cline_hooks.registry import hook_handler
@@ -69,12 +69,10 @@ def handle_user_prompt_submit(hook: HookInputUserPromptSubmit) -> None:
 
     hour = datetime.now(tz=UTC).hour
     if hour >= _LATE_NIGHT_START or hour < _EARLY_MORNING_END:
-        notes.append(
-            "You're working late/early. Double-check before committing or making major changes."
-        )
+        notes.append("You're working late/early. Double-check before committing or making major changes.")
 
     message = hook.userPromptSubmit.userMessage if hook.userPromptSubmit else ""
-    if _contains_persist_signal(message) or random.random() < _PERSIST_REMINDER_CHANCE:  # noqa: S311
+    if _contains_persist_signal(message) or random.random() < _PERSIST_REMINDER_CHANCE:
         notes.append(_PERSIST_REMINDER)
 
     if notes:

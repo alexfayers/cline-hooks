@@ -13,6 +13,9 @@ def hook_handler(hook_name: str) -> Callable[[Callable[..., Any]], Callable[...,
 
     Args:
         hook_name: The Cline hook name to register the handler for.
+
+    Returns:
+        A decorator that registers the decorated function as the handler.
     """
 
     def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:

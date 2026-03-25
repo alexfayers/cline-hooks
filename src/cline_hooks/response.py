@@ -47,9 +47,7 @@ def allow(message: str | None = None, *, prefix: str = "REMINDER") -> NoReturn:
     respond(cancel=False, context_modification=message)
 
 
-def block(
-    message: str, *, task_id: str | None = None, tool_name: str | None = None
-) -> NoReturn:
+def block(message: str, *, task_id: str | None = None, tool_name: str | None = None) -> NoReturn:
     """Cancel the tool call with an error message.
 
     Args:

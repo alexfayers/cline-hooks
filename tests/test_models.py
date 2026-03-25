@@ -134,17 +134,13 @@ class TestParseData:
         assert result.taskStart.task == ""
 
     def test_task_start_unknown_only_dict_defaults_task(self) -> None:
-        result = parse_data(
-            _make_json(hookName="TaskStart", taskStart={"taskMetadata": {}})
-        )
+        result = parse_data(_make_json(hookName="TaskStart", taskStart={"taskMetadata": {}}))
         assert isinstance(result, HookInputTaskStart)
         assert result.taskStart is not None
         assert result.taskStart.task == ""
 
     def test_task_start_with_task_field(self) -> None:
-        result = parse_data(
-            _make_json(hookName="TaskStart", taskStart={"task": "do something"})
-        )
+        result = parse_data(_make_json(hookName="TaskStart", taskStart={"task": "do something"}))
         assert isinstance(result, HookInputTaskStart)
         assert result.taskStart is not None
         assert result.taskStart.task == "do something"

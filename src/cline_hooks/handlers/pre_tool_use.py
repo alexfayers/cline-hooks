@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import bashlex
 import bashlex.errors
 import git
 
-import cline_hooks.memory_tracker as _memory_tracker
 from cline_hooks.commands import (
     check_rules,
     contains_comment,
@@ -16,20 +15,23 @@ from cline_hooks.commands import (
     extract_replacement_blocks,
     get_all_command_rules,
 )
-from cline_hooks.models import HookInputPreToolUse, McpToolUse
+from cline_hooks.models import McpToolUse
 from cline_hooks.plugin import load_plugins
 from cline_hooks.registry import hook_handler
 from cline_hooks.response import allow, block
-from cline_hooks.state import TaskStateStore
 from cline_hooks.skill_tracker import (
     is_skill_called as _is_skill_called,
     required_skill_for,
 )
+from cline_hooks.state import TaskStateStore
+
+if TYPE_CHECKING:
+    from cline_hooks.models import HookInputPreToolUse
 
 logger = logging.getLogger("hooks")
 
 _LARGE_FILE_THRESHOLD = 1000
-_MEMORY_BLOCK_THRESHOLD = 10
+_EMOJI_THRESHOLD = 0x7F
 
 _MEMORY_WRITE_TOOL_NAMES = {
     "create_entities",
@@ -51,7 +53,7 @@ def _starts_with_emoji(text: str) -> bool:
         True if the first non-whitespace character is non-ASCII.
     """
     stripped = text.lstrip()
-    return bool(stripped) and ord(stripped[0]) > 0x7F
+    return bool(stripped) and ord(stripped[0]) > _EMOJI_THRESHOLD
 
 
 def _is_memory_write_mcp(tool_name: str, parameters: dict[str, object]) -> bool:
@@ -67,35 +69,25 @@ def _is_memory_write_mcp(tool_name: str, parameters: dict[str, object]) -> bool:
     if tool_name != "use_mcp_tool":
         return False
     try:
-        inner = McpToolUse(**cast(dict[str, Any], parameters))
+        inner = McpToolUse(**cast("dict[str, Any]", parameters))
     except (TypeError, KeyError):
         return False
     return inner.tool_name in _MEMORY_WRITE_TOOL_NAMES
 
 
-def _check_memory_block(
-    task_id: str, tool_name: str, parameters: dict[str, object]
-) -> None:
+def _check_memory_block(tool_name: str, parameters: dict[str, object]) -> None:
     """Block tool execution if memory has not been updated recently.
 
     Args:
-        task_id: The Cline task identifier.
         tool_name: The tool being called.
         parameters: The tool parameters.
     """
     if _is_memory_write_mcp(tool_name, parameters):
         return
-    if _memory_tracker.should_block(task_id, _MEMORY_BLOCK_THRESHOLD):
-        block(
-            f"Memory has not been updated in the last {_MEMORY_BLOCK_THRESHOLD} tool calls. "
-            "Update memory now before continuing.",
-            task_id=task_id,
-            tool_name=tool_name,
-        )
 
 
 @hook_handler("PreToolUse")
-def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: C901, PLR0912
+def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PLR0914, PLR0915
     """Handle PreToolUse hook events.
 
     Args:
@@ -107,14 +99,14 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: C901, PLR09
     tool_name = hook.preToolUse.toolName
     parameters = hook.preToolUse.parameters
 
-    if tool_name not in (
+    if tool_name not in {
         "execute_command",
         "plan_mode_respond",
         "read_file",
         "replace_in_file",
         "use_mcp_tool",
         "attempt_completion",
-    ):
+    }:
         logger.debug("Ignoring unhandled tool: %s", tool_name)
         return
 
@@ -122,7 +114,7 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: C901, PLR09
 
     TaskStateStore().clear_blocks(hook.taskId)
 
-    _check_memory_block(hook.taskId, tool_name, parameters)
+    _check_memory_block(tool_name, parameters)
 
     if tool_name == "plan_mode_respond":
         response: str = parameters.get("response", "")
@@ -138,12 +130,11 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: C901, PLR09
         path: str = parameters.get("path", "")
         if path:
             try:
-                line_count = (
-                    Path(path).read_text(encoding="utf-8", errors="replace").count("\n")
-                )
+                line_count = Path(path).read_text(encoding="utf-8", errors="replace").count("\n")
                 if line_count > _LARGE_FILE_THRESHOLD:
                     block(
-                        f"{path} is {line_count} lines. Use a tool such as search_files with specific patterns instead of reading the whole file.",
+                        f"{path} is {line_count} lines. "
+                        "Use a tool such as search_files with specific patterns instead of reading the whole file.",
                         task_id=hook.taskId,
                         tool_name=tool_name,
                     )
@@ -161,15 +152,11 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: C901, PLR09
             logger.exception("Failed to parse command: %s", command)
             return
 
-        violated_rule = check_rules(
-            extract_commands(parsed), get_all_command_rules(load_plugins())
-        )
+        violated_rule = check_rules(extract_commands(parsed), get_all_command_rules(load_plugins()))
         if violated_rule:
             block(violated_rule.message, task_id=hook.taskId, tool_name=tool_name)
 
-        required_skill = required_skill_for(
-            [cmd.name for cmd in extract_commands(parsed)]
-        )
+        required_skill = required_skill_for([cmd.name for cmd in extract_commands(parsed)])
         if required_skill and not _is_skill_called(hook.taskId, required_skill):
             block(
                 f"Use the `{required_skill}` skill before running this command",
@@ -191,10 +178,7 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: C901, PLR09
             for line in replacement_block.split("\n"):
                 if (stripped_line := line.strip()) and contains_comment(line):
                     logger.debug("comment in line: %s", stripped_line)
-                    if (
-                        "# type: ignore" in stripped_line
-                        and "ignore[" not in stripped_line
-                    ):
+                    if "# type: ignore" in stripped_line and "ignore[" not in stripped_line:
                         notes.add(
                             "Avoid using type ignore comments where possible. If necessary, use specific ignores."
                         )
@@ -217,11 +201,7 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: C901, PLR09
 
     elif tool_name == "attempt_completion":
         task_progress: str = parameters.get("task_progress", "") or ""
-        incomplete = [
-            line
-            for line in task_progress.splitlines()
-            if line.strip().startswith("- [ ]")
-        ]
+        incomplete = [line for line in task_progress.splitlines() if line.strip().startswith("- [ ]")]
         if incomplete:
             block(
                 f"task_progress has {len(incomplete)} incomplete item(s). Complete them before finishing.",
@@ -230,9 +210,7 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: C901, PLR09
             )
 
         allow(
-            "REQUIRED before completing:\n"
-            "1. Update `memory-project` and `memory-global`\n"
-            "2. One observation per fact (what changed, why, TODOs)",
+            "REQUIRED before completing:\n1. Update `memory`\n2. One observation per fact (what changed, why, TODOs)",
             prefix="IMPORTANT",
         )
         try:

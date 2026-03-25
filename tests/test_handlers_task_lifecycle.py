@@ -15,13 +15,13 @@ from cline_hooks.handlers.task_lifecycle import (
     handle_task_resume,
     handle_task_start,
 )
-from cline_hooks.skill_tracker import is_skill_called, record_skill
 from cline_hooks.models import (
     HookInputTaskCancel,
     HookInputTaskComplete,
     HookInputTaskResume,
     HookInputTaskStart,
 )
+from cline_hooks.skill_tracker import is_skill_called, record_skill
 from cline_hooks.state import TaskBlockEvent, TaskStateStore
 
 BASE = {
@@ -84,10 +84,11 @@ def _task_complete(roots: list[str] | None = None) -> HookInputTaskComplete:
 
 def _capture_output(hook_fn, hook_input):
     """Run a handler and capture its stdout JSON output."""
-    with patch("sys.stdout") as mock_stdout, pytest.raises(SystemExit):
-        captured = []
-        mock_stdout.write = lambda s: captured.append(s)
-        hook_fn(hook_input)
+    captured: list[str] = []
+    with patch("sys.stdout") as mock_stdout:
+        mock_stdout.write = captured.append
+        with pytest.raises(SystemExit):
+            hook_fn(hook_input)
     return captured
 
 
@@ -112,9 +113,7 @@ class TestGetDirtyCount:
         mock_repo = MagicMock()
         mock_repo.index.diff.return_value = [1, 2]
         mock_repo.untracked_files = ["file.txt"]
-        with patch(
-            "cline_hooks.handlers.task_lifecycle.git.Repo", return_value=mock_repo
-        ):
+        with patch("cline_hooks.handlers.task_lifecycle.git.Repo", return_value=mock_repo):
             assert _get_dirty_count([str(tmp_path)]) == 3
 
     def test_returns_none_for_invalid_repo(self, tmp_path: Path) -> None:
@@ -138,14 +137,12 @@ class TestHandleTaskStart:
             pytest.raises(SystemExit),
         ):
             handle_task_start(hook)
-        return cast(dict[str, object], json.loads(output[0]))
+        return cast("dict[str, object]", json.loads(output[0]))
 
     def test_includes_memory_reminder(self, tmp_path: Path) -> None:
-        with patch(
-            "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
-        ):
+        with patch("cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None):
             result = self._run(_task_start([str(tmp_path)]))
-        assert "memory" in cast(str, result["contextModification"]).lower()
+        assert "memory" in cast("str", result["contextModification"]).lower()
 
     def test_git_context_included_when_present(self, tmp_path: Path) -> None:
         with patch(
@@ -153,120 +150,84 @@ class TestHandleTaskStart:
             return_value="Branch: main",
         ):
             result = self._run(_task_start([str(tmp_path)]))
-        assert "Branch: main" in cast(str, result["contextModification"])
+        assert "Branch: main" in cast("str", result["contextModification"])
 
     def test_cancel_is_false(self, tmp_path: Path) -> None:
-        with patch(
-            "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
-        ):
+        with patch("cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None):
             result = self._run(_task_start([str(tmp_path)]))
         assert result["cancel"] is False
 
 
 class TestHandleTaskResume:
-    def _run(
-        self, hook: HookInputTaskResume, store: TaskStateStore | None = None
-    ) -> dict[str, object]:
+    def _run(self, hook: HookInputTaskResume, store: TaskStateStore | None = None) -> dict[str, object]:
         output: list[str] = []
-        with patch("builtins.print", side_effect=lambda s, **kw: output.append(s)):
-            with patch(
+        with (
+            patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
+            patch(
                 "cline_hooks.handlers.task_lifecycle._store",
                 store or TaskStateStore(Path("/nonexistent")),
-            ):
-                with pytest.raises(SystemExit):
-                    handle_task_resume(hook)
-        return cast(dict[str, object], json.loads(output[0]))
+            ),
+            pytest.raises(SystemExit),
+        ):
+            handle_task_resume(hook)
+        return cast("dict[str, object]", json.loads(output[0]))
 
     def test_includes_memory_reminder(self, tmp_path: Path) -> None:
-        with patch(
-            "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
-        ):
+        with patch("cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None):
             result = self._run(_task_resume([str(tmp_path)]))
-        assert "memory" in cast(str, result["contextModification"]).lower()
+        assert "memory" in cast("str", result["contextModification"]).lower()
 
     def test_block_history_included_when_present(self, tmp_path: Path) -> None:
         store = TaskStateStore(tmp_path / "state.json")
         store.record_block("task-1", "tool", "reason")
-        with patch(
-            "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
-        ):
+        with patch("cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None):
             result = self._run(_task_resume([str(tmp_path)]), store=store)
-        assert "interrupted" in cast(str, result["contextModification"])
+        assert "interrupted" in cast("str", result["contextModification"])
 
     def test_no_block_history_when_none(self, tmp_path: Path) -> None:
-        with patch(
-            "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
-        ):
+        with patch("cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None):
             result = self._run(_task_resume([str(tmp_path)]))
-        assert "interrupted" not in cast(str, result["contextModification"])
+        assert "interrupted" not in cast("str", result["contextModification"])
 
     def test_skills_preserved_on_resume(self, tmp_path: Path) -> None:
         record_skill("task-1", "git-usage")
-        with patch(
-            "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
-        ):
+        with patch("cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None):
             self._run(_task_resume([str(tmp_path)]))
         assert is_skill_called("task-1", "git-usage")
 
 
 class TestHandleTaskCancel:
-    def _run(
-        self, hook: HookInputTaskCancel, store: TaskStateStore | None = None
-    ) -> dict[str, object]:
+    def _run(self, hook: HookInputTaskCancel, store: TaskStateStore | None = None) -> dict[str, object]:
         output: list[str] = []
-        with patch("builtins.print", side_effect=lambda s, **kw: output.append(s)):
-            with patch(
+        with (
+            patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
+            patch(
                 "cline_hooks.handlers.task_lifecycle._store",
                 store or TaskStateStore(Path("/nonexistent")),
-            ):
-                with pytest.raises(SystemExit):
-                    handle_task_cancel(hook)
-        return cast(dict[str, object], json.loads(output[0]))
-
-    def test_dirty_files_warning_shown(self, tmp_path: Path) -> None:
-        mock_repo = MagicMock()
-        mock_repo.index.diff.return_value = [1]
-        mock_repo.untracked_files = []
-        with patch(
-            "cline_hooks.handlers.task_lifecycle.git.Repo", return_value=mock_repo
+            ),
+            pytest.raises(SystemExit),
         ):
-            result = self._run(_task_cancel([str(tmp_path)]))
-        assert "uncommitted" in cast(str, result["contextModification"])
+            handle_task_cancel(hook)
+        return cast("dict[str, object]", json.loads(output[0]))
 
-    def test_no_dirty_warning_when_clean(self, tmp_path: Path) -> None:
-        mock_repo = MagicMock()
-        mock_repo.index.diff.return_value = []
-        mock_repo.untracked_files = []
-        with patch(
-            "cline_hooks.handlers.task_lifecycle.git.Repo", return_value=mock_repo
-        ):
-            result = self._run(_task_cancel([str(tmp_path)]))
-        assert "uncommitted" not in cast(str, result["contextModification"])
-
-    def test_includes_memory_reminder(self, tmp_path: Path) -> None:
-        import git.exc
-
-        with patch(
-            "cline_hooks.handlers.task_lifecycle.git.Repo",
-            side_effect=git.exc.InvalidGitRepositoryError,
-        ):
-            result = self._run(_task_cancel([str(tmp_path)]))
-        assert "memory" in cast(str, result["contextModification"]).lower()
+    def test_no_output_when_no_blocks(self, tmp_path: Path) -> None:
+        result = self._run(_task_cancel([str(tmp_path)]))
+        assert cast("str", result.get("contextModification", "")) == ""
 
 
 class TestHandleTaskComplete:
-    def _run(
-        self, hook: HookInputTaskComplete, store: TaskStateStore | None = None
-    ) -> dict[str, object]:
+    def _run(self, hook: HookInputTaskComplete, store: TaskStateStore | None = None) -> dict[str, object]:
         output: list[str] = []
-        with patch("builtins.print", side_effect=lambda s, **kw: output.append(s)):
-            with patch(
+        with (
+            patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
+            patch(
                 "cline_hooks.handlers.task_lifecycle._store",
                 store or TaskStateStore(Path("/nonexistent")),
-            ):
-                with pytest.raises(SystemExit):
-                    handle_task_complete(hook)
-        return cast(dict[str, object], json.loads(output[0]))
+            ),
+            pytest.raises(SystemExit),
+        ):
+            handle_task_complete(hook)
+        return cast("dict[str, object]", json.loads(output[0]))
 
     def test_clears_blocks_on_complete(self, tmp_path: Path) -> None:
         store = TaskStateStore(tmp_path / "state.json")

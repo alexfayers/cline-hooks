@@ -1,9 +1,9 @@
 # ruff: noqa: N815
 from __future__ import annotations
 
+from dataclasses import dataclass, field, fields
 import json
 import logging
-from dataclasses import dataclass, field, fields
 from typing import Any, cast
 
 logger = logging.getLogger("hooks")
@@ -110,9 +110,7 @@ class HookInputPreToolUse(HookInput):
 
     def __post_init__(self) -> None:
         if isinstance(self.preToolUse, dict):
-            self.preToolUse = PreToolUseFields(
-                **_filter_fields(PreToolUseFields, self.preToolUse)
-            )
+            self.preToolUse = PreToolUseFields(**_filter_fields(PreToolUseFields, self.preToolUse))
 
 
 @dataclass
@@ -124,9 +122,7 @@ class HookInputPostToolUse(HookInput):
 
     def __post_init__(self) -> None:
         if isinstance(self.postToolUse, dict):
-            self.postToolUse = PostToolUseFields(
-                **_filter_fields(PostToolUseFields, self.postToolUse)
-            )
+            self.postToolUse = PostToolUseFields(**_filter_fields(PostToolUseFields, self.postToolUse))
 
 
 @dataclass
@@ -138,9 +134,7 @@ class HookInputTaskStart(HookInput):
 
     def __post_init__(self) -> None:
         if isinstance(self.taskStart, dict):
-            self.taskStart = TaskStartFields(
-                **_filter_fields(TaskStartFields, self.taskStart)
-            )
+            self.taskStart = TaskStartFields(**_filter_fields(TaskStartFields, self.taskStart))
 
 
 @dataclass
@@ -152,9 +146,7 @@ class HookInputTaskResume(HookInput):
 
     def __post_init__(self) -> None:
         if isinstance(self.taskResume, dict):
-            self.taskResume = TaskResumeFields(
-                **_filter_fields(TaskResumeFields, self.taskResume)
-            )
+            self.taskResume = TaskResumeFields(**_filter_fields(TaskResumeFields, self.taskResume))
 
 
 @dataclass
@@ -166,9 +158,7 @@ class HookInputTaskCancel(HookInput):
 
     def __post_init__(self) -> None:
         if isinstance(self.taskCancel, dict):
-            self.taskCancel = TaskCancelFields(
-                **_filter_fields(TaskCancelFields, self.taskCancel)
-            )
+            self.taskCancel = TaskCancelFields(**_filter_fields(TaskCancelFields, self.taskCancel))
 
 
 @dataclass
@@ -180,9 +170,7 @@ class HookInputTaskComplete(HookInput):
 
     def __post_init__(self) -> None:
         if isinstance(self.taskComplete, dict):
-            self.taskComplete = TaskCompleteFields(
-                **_filter_fields(TaskCompleteFields, self.taskComplete)
-            )
+            self.taskComplete = TaskCompleteFields(**_filter_fields(TaskCompleteFields, self.taskComplete))
 
 
 @dataclass
@@ -208,9 +196,7 @@ class HookInputPreCompact(HookInput):
 
     def __post_init__(self) -> None:
         if isinstance(self.preCompact, dict):
-            self.preCompact = PreCompactFields(
-                **_filter_fields(PreCompactFields, self.preCompact)
-            )
+            self.preCompact = PreCompactFields(**_filter_fields(PreCompactFields, self.preCompact))
 
 
 @dataclass
@@ -227,9 +213,7 @@ class McpToolUse:
             try:
                 self.arguments = json.loads(self.arguments)
             except json.JSONDecodeError:
-                logger.warning(
-                    "Failed to parse MCP arguments as JSON: %s", self.arguments
-                )
+                logger.warning("Failed to parse MCP arguments as JSON: %s", self.arguments)
 
         if not self.arguments:
             logger.warning("No arguments found for tool %s", self.tool_name)
@@ -267,6 +251,6 @@ def parse_data(raw_data: str) -> HookInput:
 
     for subclass in inheritors(HookInput):
         if getattr(subclass, "hookName", None) == hook_name:
-            return cast(HookInput, subclass(**_filter_fields(subclass, data)))
+            return cast("HookInput", subclass(**_filter_fields(subclass, data)))
 
     return HookInput(**_filter_fields(HookInput, data))

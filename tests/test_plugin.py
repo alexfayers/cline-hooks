@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-from unittest.mock import patch
-
-
 from cline_hooks.commands import (
     CommandRule,
     get_all_build_commands,
     get_all_command_rules,
 )
-from cline_hooks.plugin import ClineHooksPlugin, load_plugins
+from cline_hooks.plugin import ClineHooksPlugin, _plugin_cache, load_plugins
 from cline_hooks.plugins.default import DefaultPlugin
 
 
@@ -32,24 +29,24 @@ class TestClineHooksPluginDefaults:
 
 class TestLoadPlugins:
     def test_returns_list(self) -> None:
-        with patch("cline_hooks.plugin._plugins", None):
-            plugins = load_plugins()
+        _plugin_cache._loaded = None
+        plugins = load_plugins()
         assert isinstance(plugins, list)
 
     def test_includes_default_plugin(self) -> None:
-        with patch("cline_hooks.plugin._plugins", None):
-            plugins = load_plugins()
+        _plugin_cache._loaded = None
+        plugins = load_plugins()
         assert any(isinstance(p, DefaultPlugin) for p in plugins)
 
     def test_result_is_cached(self) -> None:
-        with patch("cline_hooks.plugin._plugins", None):
-            first = load_plugins()
-            second = load_plugins()
+        _plugin_cache._loaded = None
+        first = load_plugins()
+        second = load_plugins()
         assert first is second
 
     def test_cache_reset_reloads(self) -> None:
-        with patch("cline_hooks.plugin._plugins", None):
-            plugins = load_plugins()
+        _plugin_cache._loaded = None
+        plugins = load_plugins()
         assert plugins is not None
 
 

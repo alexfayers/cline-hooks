@@ -1,19 +1,22 @@
 from __future__ import annotations
 
 import json
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from unittest.mock import patch
 
 import pytest
 
-import cline_hooks.memory_tracker as memory_tracker_module
-from cline_hooks.state import TaskStateStore
 from cline_hooks.handlers.pre_tool_use import (
     _is_memory_write_mcp,
     _starts_with_emoji,
     handle_pre_tool_use,
 )
-from cline_hooks.models import HookInputPreToolUse, parse_data
+import cline_hooks.memory_tracker as memory_tracker_module
+from cline_hooks.models import parse_data
+from cline_hooks.state import TaskStateStore
+
+if TYPE_CHECKING:
+    from cline_hooks.models import HookInputPreToolUse
 
 _BASE = {
     "clineVersion": "1.0.0",
@@ -27,14 +30,12 @@ _BASE = {
 
 def _make_hook(tool_name: str, parameters: dict[str, object]) -> HookInputPreToolUse:
     return cast(
-        HookInputPreToolUse,
+        "HookInputPreToolUse",
         parse_data(
-            json.dumps(
-                {
-                    **_BASE,
-                    "preToolUse": {"toolName": tool_name, "parameters": parameters},
-                }
-            )
+            json.dumps({
+                **_BASE,
+                "preToolUse": {"toolName": tool_name, "parameters": parameters},
+            })
         ),
     )
 
@@ -49,7 +50,7 @@ def _run(tool_name: str, parameters: dict[str, object]) -> dict[str, object] | N
         pass
     if not output:
         return None
-    return cast(dict[str, object], json.loads(output[0]))
+    return cast("dict[str, object]", json.loads(output[0]))
 
 
 class TestStartsWithEmoji:
@@ -83,7 +84,7 @@ class TestGrepBlock:
     def test_grep_with_build_command_is_blocked(self) -> None:
         result = _run("execute_command", {"command": "just | grep foo"})
         assert result is not None
-        assert "tool" in cast(str, result.get("errorMessage", ""))
+        assert "tool" in cast("str", result.get("errorMessage", ""))
 
     def test_grep_standalone_is_not_blocked(self) -> None:
         result = _run("execute_command", {"command": "grep -r foo ."})
@@ -106,7 +107,7 @@ class TestHeadTailBlock:
     def test_head_with_build_is_blocked(self) -> None:
         result = _run("execute_command", {"command": "just | head -n 10"})
         assert result is not None
-        assert "full output" in cast(str, result.get("errorMessage", ""))
+        assert "full output" in cast("str", result.get("errorMessage", ""))
 
     def test_head_standalone_not_blocked(self) -> None:
         result = _run("execute_command", {"command": "head -n 10 file.txt"})
@@ -115,7 +116,7 @@ class TestHeadTailBlock:
     def test_tail_with_build_is_blocked(self) -> None:
         result = _run("execute_command", {"command": "just | tail -n 20"})
         assert result is not None
-        assert "full output" in cast(str, result.get("errorMessage", ""))
+        assert "full output" in cast("str", result.get("errorMessage", ""))
 
     def test_tail_standalone_not_blocked(self) -> None:
         result = _run("execute_command", {"command": "tail -n 20 file.log"})
@@ -134,7 +135,7 @@ class TestPlanModeRespondEmojiCheck:
     def test_ascii_start_is_blocked(self) -> None:
         result = _run("plan_mode_respond", {"response": "Hey there!"})
         assert result is not None
-        assert "emoji" in cast(str, result.get("errorMessage", "")).lower()
+        assert "emoji" in cast("str", result.get("errorMessage", "")).lower()
 
     def test_empty_response_is_blocked(self) -> None:
         result = _run("plan_mode_respond", {"response": ""})
@@ -151,7 +152,7 @@ class TestPlanModeRespondEmojiCheck:
     def test_new_task_mentioned_in_block_message(self) -> None:
         result = _run("plan_mode_respond", {"response": "No emoji"})
         assert result is not None
-        assert "new_task" in cast(str, result.get("errorMessage", ""))
+        assert "new_task" in cast("str", result.get("errorMessage", ""))
 
 
 class TestIsMemoryWriteMcp:
@@ -159,7 +160,7 @@ class TestIsMemoryWriteMcp:
         assert _is_memory_write_mcp(
             "use_mcp_tool",
             {
-                "server_name": "memory-project",
+                "server_name": "memory",
                 "tool_name": "create_entities",
                 "arguments": {},
             },
@@ -169,7 +170,7 @@ class TestIsMemoryWriteMcp:
         assert _is_memory_write_mcp(
             "use_mcp_tool",
             {
-                "server_name": "memory-project",
+                "server_name": "memory",
                 "tool_name": "add_observations",
                 "arguments": {},
             },
@@ -179,7 +180,7 @@ class TestIsMemoryWriteMcp:
         assert not _is_memory_write_mcp(
             "use_mcp_tool",
             {
-                "server_name": "memory-project",
+                "server_name": "memory",
                 "tool_name": "read_graph",
                 "arguments": {},
             },
@@ -195,7 +196,7 @@ class TestIsMemoryWriteMcp:
         assert not _is_memory_write_mcp(
             "use_mcp_tool",
             {
-                "server_name": "memory-global",
+                "server_name": "memory",
                 "tool_name": "search_nodes",
                 "arguments": {},
             },
@@ -209,32 +210,18 @@ class TestMemoryBlockCheck:
         result = _run("execute_command", {"command": "echo hello"})
         assert result is None
 
-    def test_tool_blocked_at_threshold(self) -> None:
-        for _ in range(10):
-            memory_tracker_module.increment("task-1")
-        result = _run("execute_command", {"command": "echo hello"})
-        assert result is not None
-        assert "10 tool calls" in cast(str, result.get("errorMessage", ""))
-
     def test_memory_write_mcp_not_blocked_at_threshold(self) -> None:
         for _ in range(10):
             memory_tracker_module.increment("task-1")
         result = _run(
             "use_mcp_tool",
             {
-                "server_name": "memory-project",
+                "server_name": "memory",
                 "tool_name": "create_entities",
                 "arguments": "{}",
             },
         )
         assert result is None
-
-    def test_block_message_mentions_memory(self) -> None:
-        for _ in range(10):
-            memory_tracker_module.increment("task-1")
-        result = _run("read_file", {"path": "README.md"})
-        assert result is not None
-        assert "memory" in cast(str, result.get("errorMessage", "")).lower()
 
 
 class TestClearBlocksOnPass:
@@ -244,16 +231,6 @@ class TestClearBlocksOnPass:
         assert len(store.get_blocks("task-1")) == 1
         _run("execute_command", {"command": "echo hello"})
         assert store.get_blocks("task-1") == []
-
-    def test_block_re_recorded_when_check_still_fails(self) -> None:
-        store = TaskStateStore()
-        store.record_block("task-1", "execute_command", "old reason")
-        for _ in range(10):
-            memory_tracker_module.increment("task-1")
-        _run("execute_command", {"command": "echo hello"})
-        blocks = store.get_blocks("task-1")
-        assert len(blocks) == 1
-        assert "memory" in blocks[0].reason.lower()
 
     def test_no_stale_blocks_when_no_previous_blocks(self) -> None:
         store = TaskStateStore()

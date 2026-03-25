@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.scripts]
-cline-hook = "cline_hooks:main"
+cline-hook = "cline_hooks._main:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/cline_hooks"]
@@ -48,9 +48,6 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = "tests.*"
 disallow_untyped_defs = false
-
-[tool.ruff]
-extend-exclude = [".venv"]
 
 [dependency-groups]
 dev = [

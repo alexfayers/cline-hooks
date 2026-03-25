@@ -6,12 +6,12 @@ import logging
 import pkgutil
 from typing import TYPE_CHECKING
 
+import cline_hooks.plugins as _plugins_pkg
+
 if TYPE_CHECKING:
     from cline_hooks.commands import CommandRule
 
 logger = logging.getLogger("hooks")
-
-_plugins: list[ClineHooksPlugin] | None = None
 
 
 class ClineHooksPlugin:
@@ -37,7 +37,7 @@ class ClineHooksPlugin:
         """
         return []
 
-    def get_workspace_context(self, workspace_roots: list[str]) -> str | None:
+    def get_workspace_context(self, workspace_roots: list[str]) -> str | None:  # noqa: ARG002
         """Return a context string to inject on TaskStart, or None.
 
         Args:
@@ -49,7 +49,9 @@ class ClineHooksPlugin:
         return None
 
     def validate_mcp_tool(
-        self, tool_name: str, arguments: dict[str, object]
+        self,
+        tool_name: str,  # noqa: ARG002
+        arguments: dict[str, object],  # noqa: ARG002
     ) -> str | None:
         """Validate an MCP tool call, returning a block message or None.
 
@@ -63,6 +65,24 @@ class ClineHooksPlugin:
         return None
 
 
+class _PluginCache:
+    """Holds the cached list of loaded plugins for the process lifetime."""
+
+    def __init__(self) -> None:
+        self._loaded: list[ClineHooksPlugin] | None = None
+
+    def get(self) -> list[ClineHooksPlugin] | None:
+        """Return the cached plugin list, or None if not yet loaded."""
+        return self._loaded
+
+    def set(self, plugins: list[ClineHooksPlugin]) -> None:
+        """Store the loaded plugin list in the cache."""
+        self._loaded = plugins
+
+
+_plugin_cache = _PluginCache()
+
+
 def load_plugins() -> list[ClineHooksPlugin]:
     """Load all plugins: bundled from cline_hooks.plugins, then external entry points.
 
@@ -71,25 +91,17 @@ def load_plugins() -> list[ClineHooksPlugin]:
     Returns:
         List of loaded ClineHooksPlugin instances.
     """
-    global _plugins
-    if _plugins is not None:
-        return _plugins
+    cached = _plugin_cache.get()
+    if cached is not None:
+        return cached
 
     loaded: list[ClineHooksPlugin] = []
 
-    import cline_hooks.plugins as plugins_pkg
-
-    for finder, name, _ispkg in pkgutil.iter_modules(
-        plugins_pkg.__path__, plugins_pkg.__name__ + "."
-    ):
+    for _finder, name, _ispkg in pkgutil.iter_modules(_plugins_pkg.__path__, _plugins_pkg.__name__ + "."):
         try:
             module = importlib.import_module(name)
             for attr in vars(module).values():
-                if (
-                    isinstance(attr, type)
-                    and issubclass(attr, ClineHooksPlugin)
-                    and attr is not ClineHooksPlugin
-                ):
+                if isinstance(attr, type) and issubclass(attr, ClineHooksPlugin) and attr is not ClineHooksPlugin:
                     loaded.append(attr())
                     logger.debug("Loaded bundled plugin: %s", attr.__name__)
         except Exception:
@@ -104,5 +116,5 @@ def load_plugins() -> list[ClineHooksPlugin]:
         except Exception:
             logger.exception("Failed to load external plugin: %s", ep.name)
 
-    _plugins = loaded
-    return _plugins
+    _plugin_cache.set(loaded)
+    return loaded

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 import cline_hooks.skill_tracker as module
 from cline_hooks.skill_tracker import (
     is_skill_called,

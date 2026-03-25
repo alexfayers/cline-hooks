@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from unittest.mock import patch
 
 import pytest
@@ -10,7 +10,10 @@ from cline_hooks.handlers.user_prompt import (
     _contains_persist_signal,
     handle_user_prompt_submit,
 )
-from cline_hooks.models import HookInputUserPromptSubmit, parse_data
+from cline_hooks.models import parse_data
+
+if TYPE_CHECKING:
+    from cline_hooks.models import HookInputUserPromptSubmit
 
 _BASE = {
     "clineVersion": "1.0.0",
@@ -24,14 +27,12 @@ _BASE = {
 
 def _make_hook(user_message: str = "") -> HookInputUserPromptSubmit:
     return cast(
-        HookInputUserPromptSubmit,
+        "HookInputUserPromptSubmit",
         parse_data(
-            json.dumps(
-                {
-                    **_BASE,
-                    "userPromptSubmit": {"userMessage": user_message},
-                }
-            )
+            json.dumps({
+                **_BASE,
+                "userPromptSubmit": {"userMessage": user_message},
+            })
         ),
     )
 
@@ -46,7 +47,7 @@ def _run(user_message: str = "") -> dict[str, object] | None:
         pass
     if not output:
         return None
-    return cast(dict[str, object], json.loads(output[0]))
+    return cast("dict[str, object]", json.loads(output[0]))
 
 
 class TestContainsPersistSignal:
@@ -95,13 +96,13 @@ class TestHandleUserPromptSubmit:
         with patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0):
             result = _run("Actually, you should use ruff")
         assert result is not None
-        assert "persisted" in cast(str, result.get("contextModification", "")).lower()
+        assert "persisted" in cast("str", result.get("contextModification", "")).lower()
 
     def test_neutral_message_with_low_random_fires_reminder(self) -> None:
         with patch("cline_hooks.handlers.user_prompt.random.random", return_value=0.0):
             result = _run("Can you implement this feature?")
         assert result is not None
-        assert "persisted" in cast(str, result.get("contextModification", "")).lower()
+        assert "persisted" in cast("str", result.get("contextModification", "")).lower()
 
     def test_neutral_message_with_high_random_no_reminder(self) -> None:
         with (
@@ -120,7 +121,7 @@ class TestHandleUserPromptSubmit:
             mock_dt.now.return_value.hour = 23
             result = _run("neutral message")
         assert result is not None
-        assert "late" in cast(str, result.get("contextModification", "")).lower()
+        assert "late" in cast("str", result.get("contextModification", "")).lower()
 
     def test_daytime_no_late_warning(self) -> None:
         with (
@@ -133,7 +134,7 @@ class TestHandleUserPromptSubmit:
 
     def test_no_userPromptSubmit_field_emits_no_error(self) -> None:
         hook = cast(
-            HookInputUserPromptSubmit,
+            "HookInputUserPromptSubmit",
             parse_data(json.dumps({**_BASE})),
         )
         output: list[str] = []

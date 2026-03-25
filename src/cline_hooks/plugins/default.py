@@ -1,14 +1,17 @@
 from __future__ import annotations
 
-from cline_hooks.commands import CommandRule, ParsedCommand, validate_git_commit_message
+from typing import TYPE_CHECKING
+
+from cline_hooks.commands import CommandRule, validate_git_commit_message
 from cline_hooks.plugin import ClineHooksPlugin
 
-_BUILD_COMMANDS = frozenset({"just"})
+if TYPE_CHECKING:
+    from cline_hooks.commands import ParsedCommand
+
+_BUILD_COMMANDS = frozenset({"just", "pnpm", "npm"})
 
 
-def _requires_build_context(
-    _cmd: ParsedCommand, all_commands: list[ParsedCommand]
-) -> bool:
+def _requires_build_context(_cmd: ParsedCommand, all_commands: list[ParsedCommand]) -> bool:
     """Return True only when a build tool is present in the same command list."""
     return any(cmd.name in _BUILD_COMMANDS for cmd in all_commands)
 
