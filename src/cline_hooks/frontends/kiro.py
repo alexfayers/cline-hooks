@@ -21,6 +21,7 @@ from cline_hooks.models import (
     _filter_fields,
 )
 from cline_hooks.protocol import Protocol
+from cline_hooks.registry import hook_handler
 
 _KIRO_HOOK_MAP: dict[str, str] = {
     "preToolUse": "PreToolUse",
@@ -54,7 +55,7 @@ class KiroProtocol(Protocol):
 
 
 def _map_tool_name(kiro_name: str) -> str:
-    """Map a Kiro tool name to its Cline equivalent.
+    """Map a Kiro tool name to its canonical equivalent.
 
     Args:
         kiro_name: The tool name from Kiro's hook event.
@@ -141,6 +142,11 @@ def parse_kiro_data(raw_data: str) -> HookInput:
         return HookInputUserPromptSubmit(**_filter_fields(HookInputUserPromptSubmit, base_fields))
 
     return HookInput(**_filter_fields(HookInput, base_fields))
+
+
+@hook_handler("Stop")
+def handle_stop(_hook: HookInput) -> None:
+    """Handle Stop hook events (Kiro only)."""
 
 
 # -- Installation -------------------------------------------------------------

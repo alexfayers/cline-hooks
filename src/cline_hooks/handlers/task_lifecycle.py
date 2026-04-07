@@ -20,7 +20,6 @@ from cline_hooks.state import TaskStateStore
 
 if TYPE_CHECKING:
     from cline_hooks.models import (
-        HookInput,
         HookInputTaskCancel,
         HookInputTaskComplete,
         HookInputTaskResume,
@@ -154,12 +153,3 @@ def handle_task_complete(hook: HookInputTaskComplete) -> None:
     """
     _store.clear_blocks(hook.taskId)
     allow()
-
-
-@hook_handler("Stop")
-def handle_stop(hook: HookInput) -> None:
-    """Handle Stop hook events (Kiro only).
-
-    Args:
-        hook: The hook input data.
-    """

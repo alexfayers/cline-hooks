@@ -42,7 +42,7 @@ _PERSIST_PATTERNS: list[re.Pattern[str]] = [
 
 _PERSIST_REMINDER = (
     "REMINDER: Has the user said anything that should be persisted?\n"
-    "Check: preferences, decisions, corrections -> memory or .clinerules/skills."
+    "Check: preferences, decisions, corrections -> persist to memory or config."
 )
 
 

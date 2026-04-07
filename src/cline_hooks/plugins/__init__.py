@@ -1,1 +1,1 @@
-"""Bundled cline-hooks plugins."""
+"""Bundled hook plugins."""

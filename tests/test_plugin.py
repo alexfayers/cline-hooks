@@ -5,25 +5,25 @@ from cline_hooks.commands import (
     get_all_build_commands,
     get_all_command_rules,
 )
-from cline_hooks.plugin import ClineHooksPlugin, _plugin_cache, load_plugins
+from cline_hooks.plugin import HooksPlugin, _plugin_cache, load_plugins
 from cline_hooks.plugins.default import DefaultPlugin
 
 
-class TestClineHooksPluginDefaults:
+class TestHooksPluginDefaults:
     def test_get_build_commands_returns_empty(self) -> None:
-        plugin = ClineHooksPlugin()
+        plugin = HooksPlugin()
         assert plugin.get_build_commands() == frozenset()
 
     def test_get_command_rules_returns_empty(self) -> None:
-        plugin = ClineHooksPlugin()
+        plugin = HooksPlugin()
         assert plugin.get_command_rules() == []
 
     def test_get_workspace_context_returns_none(self) -> None:
-        plugin = ClineHooksPlugin()
+        plugin = HooksPlugin()
         assert plugin.get_workspace_context([]) is None
 
     def test_validate_mcp_tool_returns_none(self) -> None:
-        plugin = ClineHooksPlugin()
+        plugin = HooksPlugin()
         assert plugin.validate_mcp_tool("any_tool", {}) is None
 
 
@@ -101,11 +101,11 @@ class TestGetAllBuildCommands:
         assert get_all_build_commands([]) == frozenset()
 
     def test_aggregates_from_multiple_plugins(self) -> None:
-        class PluginA(ClineHooksPlugin):
+        class PluginA(HooksPlugin):
             def get_build_commands(self) -> frozenset[str]:
                 return frozenset({"make"})
 
-        class PluginB(ClineHooksPlugin):
+        class PluginB(HooksPlugin):
             def get_build_commands(self) -> frozenset[str]:
                 return frozenset({"gradle"})
 
@@ -113,11 +113,11 @@ class TestGetAllBuildCommands:
         assert result == frozenset({"make", "gradle"})
 
     def test_deduplicates_commands(self) -> None:
-        class PluginA(ClineHooksPlugin):
+        class PluginA(HooksPlugin):
             def get_build_commands(self) -> frozenset[str]:
                 return frozenset({"make"})
 
-        class PluginB(ClineHooksPlugin):
+        class PluginB(HooksPlugin):
             def get_build_commands(self) -> frozenset[str]:
                 return frozenset({"make"})
 
@@ -133,11 +133,11 @@ class TestGetAllCommandRules:
         rule_a = CommandRule(command="foo", message="foo blocked")
         rule_b = CommandRule(command="bar", message="bar blocked")
 
-        class PluginA(ClineHooksPlugin):
+        class PluginA(HooksPlugin):
             def get_command_rules(self) -> list[CommandRule]:
                 return [rule_a]
 
-        class PluginB(ClineHooksPlugin):
+        class PluginB(HooksPlugin):
             def get_command_rules(self) -> list[CommandRule]:
                 return [rule_b]
 

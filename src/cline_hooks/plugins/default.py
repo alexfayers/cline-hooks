@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from cline_hooks.commands import CommandRule, validate_git_commit_message
-from cline_hooks.plugin import ClineHooksPlugin
+from cline_hooks.plugin import HooksPlugin
 
 if TYPE_CHECKING:
     from cline_hooks.commands import ParsedCommand
@@ -16,8 +16,8 @@ def _requires_build_context(_cmd: ParsedCommand, all_commands: list[ParsedComman
     return any(cmd.name in _BUILD_COMMANDS for cmd in all_commands)
 
 
-class DefaultPlugin(ClineHooksPlugin):
-    """Default bundled plugin providing standard cline-hooks behaviour."""
+class DefaultPlugin(HooksPlugin):
+    """Default bundled plugin providing standard hook behaviour."""
 
     def get_build_commands(self) -> frozenset[str]:
         """Return the standard set of build tool command names.

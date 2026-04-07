@@ -1,4 +1,4 @@
-"""cline-hooks: Cline AI lifecycle hook integration."""
+"""cline-hooks: AI coding assistant lifecycle hook integration."""
 
 from cline_hooks._main import main
 

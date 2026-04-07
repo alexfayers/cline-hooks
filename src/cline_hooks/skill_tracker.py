@@ -30,7 +30,7 @@ def record_skill(task_id: str, skill_name: str) -> None:
     """Record that a skill has been called for a task.
 
     Args:
-        task_id: The Cline task identifier.
+        task_id: The session or task identifier.
         skill_name: The name of the skill that was called.
     """
     data = _read()
@@ -44,7 +44,7 @@ def is_skill_called(task_id: str, skill_name: str) -> bool:
     """Check whether a skill has been called for a task.
 
     Args:
-        task_id: The Cline task identifier.
+        task_id: The session or task identifier.
         skill_name: The skill name to check.
 
     Returns:
@@ -72,7 +72,7 @@ def reset(task_id: str) -> None:
     """Clear recorded skills for a task session.
 
     Args:
-        task_id: The Cline task identifier.
+        task_id: The session or task identifier.
     """
     data = _read()
     if task_id in data:

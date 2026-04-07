@@ -26,7 +26,7 @@ def increment(task_id: str) -> int:
     """Increment the tool-call counter for a task and return the new value.
 
     Args:
-        task_id: The Cline task identifier.
+        task_id: The session or task identifier.
 
     Returns:
         The updated counter value.
@@ -41,7 +41,7 @@ def reset(task_id: str) -> None:
     """Reset the tool-call counter to zero after a memory write.
 
     Args:
-        task_id: The Cline task identifier.
+        task_id: The session or task identifier.
     """
     data = _read()
     data[task_id] = 0
@@ -52,7 +52,7 @@ def should_block(task_id: str, threshold: int = _MEMORY_BLOCK_THRESHOLD) -> bool
     """Return True if the counter has reached the blocking threshold.
 
     Args:
-        task_id: The Cline task identifier.
+        task_id: The session or task identifier.
         threshold: Number of tool calls without a memory write before blocking.
 
     Returns:
@@ -65,7 +65,7 @@ def clear(task_id: str) -> None:
     """Remove the counter entry for a completed task.
 
     Args:
-        task_id: The Cline task identifier.
+        task_id: The session or task identifier.
     """
     data = _read()
     if task_id in data:

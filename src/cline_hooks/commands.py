@@ -10,7 +10,7 @@ import bashlex.ast
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
-    from cline_hooks.plugin import ClineHooksPlugin
+    from cline_hooks.plugin import HooksPlugin
 
 logger = logging.getLogger("hooks")
 
@@ -59,7 +59,7 @@ def validate_git_commit_message(cmd: ParsedCommand, _all: list[ParsedCommand]) -
     return False
 
 
-def get_all_build_commands(plugins: list[ClineHooksPlugin]) -> frozenset[str]:
+def get_all_build_commands(plugins: list[HooksPlugin]) -> frozenset[str]:
     """Aggregate build command names from all plugins.
 
     Args:
@@ -74,7 +74,7 @@ def get_all_build_commands(plugins: list[ClineHooksPlugin]) -> frozenset[str]:
     return frozenset(result)
 
 
-def get_all_command_rules(plugins: list[ClineHooksPlugin]) -> list[CommandRule]:
+def get_all_command_rules(plugins: list[HooksPlugin]) -> list[CommandRule]:
     """Aggregate command rules from all plugins.
 
     Args:

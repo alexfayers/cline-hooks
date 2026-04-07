@@ -53,7 +53,7 @@ class TaskStateStore:
         """Store that a tool was blocked for a given task.
 
         Args:
-            task_id: The Cline task identifier.
+            task_id: The session or task identifier.
             tool_name: The tool that was blocked.
             reason: The reason for blocking.
         """
@@ -70,7 +70,7 @@ class TaskStateStore:
         """Retrieve all block events for a task.
 
         Args:
-            task_id: The Cline task identifier.
+            task_id: The session or task identifier.
 
         Returns:
             List of block events, oldest first.
@@ -82,7 +82,7 @@ class TaskStateStore:
         """Clear block history for a completed task.
 
         Args:
-            task_id: The Cline task identifier.
+            task_id: The session or task identifier.
         """
         data = self._read()
         if task_id in data:
