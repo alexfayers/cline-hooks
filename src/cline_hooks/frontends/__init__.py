@@ -1,1 +1,1 @@
-"""Frontend protocol implementations for different AI coding assistants."""
+"""Frontend implementations for different AI coding assistants."""

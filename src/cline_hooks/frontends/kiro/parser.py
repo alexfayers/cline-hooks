@@ -1,12 +1,9 @@
-"""Kiro frontend: exit-code protocol, input parsing, tool name mapping, and installation."""
-# ruff: noqa: T201
+"""Kiro input parser and tool name mapping."""
 from __future__ import annotations
 
 import hashlib
 import json
-from pathlib import Path
-import sys
-from typing import Any, NoReturn, cast
+from typing import Any, cast
 
 from cline_hooks.models import (
     HookInput,
@@ -20,8 +17,6 @@ from cline_hooks.models import (
     UserPromptSubmitFields,
     _filter_fields,
 )
-from cline_hooks.protocol import Protocol
-from cline_hooks.registry import hook_handler
 
 _KIRO_HOOK_MAP: dict[str, str] = {
     "preToolUse": "PreToolUse",
@@ -37,21 +32,6 @@ _KIRO_TOOL_MAP: dict[str, str] = {
     "fs_write": "replace_in_file",
     "use_aws": "execute_command",
 }
-
-
-class KiroProtocol(Protocol):
-    """Kiro exit-code protocol: exit 0 + stdout for allow, exit 2 + stderr for block."""
-
-    def allow(self, message: str | None = None) -> NoReturn:
-        """Allow via exit 0, context on stdout."""
-        if message is not None:
-            print(message, end="")
-        sys.exit(0)
-
-    def block(self, message: str) -> NoReturn:
-        """Block via exit 2, error on stderr."""
-        print(message, end="", file=sys.stderr)
-        sys.exit(2)
 
 
 def _map_tool_name(kiro_name: str) -> str:
@@ -142,61 +122,3 @@ def parse_kiro_data(raw_data: str) -> HookInput:
         return HookInputUserPromptSubmit(**_filter_fields(HookInputUserPromptSubmit, base_fields))
 
     return HookInput(**_filter_fields(HookInput, base_fields))
-
-
-@hook_handler("Stop")
-def handle_stop(_hook: HookInput) -> None:
-    """Handle Stop hook events (Kiro only)."""
-
-
-# -- Installation -------------------------------------------------------------
-
-_KIRO_HOOKS: dict[str, str | None] = {
-    "agentSpawn": None,
-    "userPromptSubmit": None,
-    "preToolUse": "*",
-    "postToolUse": "*",
-    "stop": None,
-}
-
-
-def _build_kiro_hooks(binary: Path) -> dict[str, list[dict[str, str]]]:
-    """Build the hooks section for a Kiro agent config.
-
-    Args:
-        binary: Path to the cline-hook binary.
-
-    Returns:
-        A dict suitable for the "hooks" key in a Kiro agent JSON.
-    """
-    hooks: dict[str, list[dict[str, str]]] = {}
-    for hook_name, matcher in _KIRO_HOOKS.items():
-        entry: dict[str, str] = {
-            "command": str(binary),
-            "description": f"cline-hooks {hook_name}",
-        }
-        if matcher is not None:
-            entry["matcher"] = matcher
-        hooks[hook_name] = [entry]
-    return hooks
-
-
-def install_kiro(agent_config_path: str) -> None:
-    """Patch a Kiro agent config JSON file with cline-hooks entries.
-
-    Args:
-        agent_config_path: Path to the agent JSON file to patch.
-    """
-    from cline_hooks.install import resolve_binary  # noqa: PLC0415
-
-    binary = resolve_binary()
-    config_path = Path(agent_config_path)
-
-    if not config_path.exists():
-        print(f"error: {config_path} does not exist", file=sys.stderr)
-        sys.exit(1)
-
-    config = json.loads(config_path.read_text(encoding="utf-8"))
-    config["hooks"] = _build_kiro_hooks(binary)
-    config_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
-    print(f"Patched {config_path} with {len(_KIRO_HOOKS)} hooks.")

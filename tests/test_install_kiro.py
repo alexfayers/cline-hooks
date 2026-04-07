@@ -3,7 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from cline_hooks.frontends.kiro import _build_kiro_hooks, install_kiro
+from cline_hooks.frontends.kiro import install_kiro
+from cline_hooks.frontends.kiro.install import _build_kiro_hooks
 
 
 class TestBuildKiroHooks:

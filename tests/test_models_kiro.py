@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 
-from cline_hooks.frontends.kiro import _map_tool_name, parse_kiro_data
+from cline_hooks.frontends.kiro import parse_kiro_data
+from cline_hooks.frontends.kiro.parser import _map_tool_name
 from cline_hooks.models import (
     HookInput,
     HookInputPostToolUse,
