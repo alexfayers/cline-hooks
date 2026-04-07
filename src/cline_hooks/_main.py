@@ -23,7 +23,6 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     datefmt="%Y-%m-%dT%H:%M:%S",
 )
-logging.getLogger("hooks").addHandler(logging.StreamHandler())
 
 logger = logging.getLogger("hooks")
 
@@ -45,6 +44,8 @@ def _build_parser() -> argparse.ArgumentParser:
 
     kiro_parser = install_sub.add_parser("kiro", help="Install Kiro hooks into agent config")
     kiro_parser.add_argument("agent_config", help="Path to Kiro agent config JSON file")
+
+    sub.add_parser("plugins", help="List installed plugins")
 
     return parser
 
@@ -79,6 +80,7 @@ def _parse_input(raw_data: str) -> HookInput:
 
 def _run_hook() -> NoReturn:
     """Read hook input from stdin and dispatch to the appropriate handler."""
+    logging.getLogger("hooks").addHandler(logging.StreamHandler())
     try:
         hook = _parse_input(input())
     except Exception:
@@ -92,6 +94,27 @@ def _run_hook() -> NoReturn:
     allow()
 
 
+def _list_plugins() -> None:
+    """Print all loaded plugins and their capabilities."""
+    from cline_hooks.core.plugin import load_plugins  # noqa: PLC0415
+
+    plugins = load_plugins()
+    if not plugins:
+        print("No plugins loaded.")  # noqa: T201
+        return
+
+    for plugin in plugins:
+        name = type(plugin).__name__
+        module = type(plugin).__module__
+        build_cmds = plugin.get_build_commands()
+        rules = plugin.get_command_rules()
+        print(f"{name} ({module})")  # noqa: T201
+        if build_cmds:
+            print(f"  build commands: {', '.join(sorted(build_cmds))}")  # noqa: T201
+        if rules:
+            print(f"  command rules:  {len(rules)}")  # noqa: T201
+
+
 def main() -> NoReturn:
     """Entrypoint - dispatches to install subcommands or hook processing."""
     args = _build_parser().parse_args()
@@ -103,6 +126,10 @@ def main() -> NoReturn:
             install_cline(args.target_dir)
         else:
             _build_parser().parse_args(["install", "--help"])
+        sys.exit(0)
+
+    if args.command == "plugins":
+        _list_plugins()
         sys.exit(0)
 
     _run_hook()

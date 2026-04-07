@@ -4,10 +4,9 @@ import json
 import subprocess
 import sys
 
-import cline_hooks.core.protocol as protocol_module
-
 from cline_hooks._main import _detect_kiro, _parse_input
 from cline_hooks.core.models import HookInputPreToolUse, HookInputTaskStart
+import cline_hooks.core.protocol as protocol_module
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.frontends.kiro import KiroProtocol
 
