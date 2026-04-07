@@ -74,13 +74,13 @@ def _parse_input(raw_data: str) -> HookInput:
     if _detect_kiro(raw_data):
         set_protocol(KiroProtocol())
         return parse_kiro_data(raw_data)
+    logging.getLogger("hooks").addHandler(logging.StreamHandler())
     set_protocol(ClineProtocol())
     return parse_cline_data(raw_data)
 
 
 def _run_hook() -> NoReturn:
     """Read hook input from stdin and dispatch to the appropriate handler."""
-    logging.getLogger("hooks").addHandler(logging.StreamHandler())
     try:
         hook = _parse_input(input())
     except Exception:
