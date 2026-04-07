@@ -7,15 +7,9 @@ from unittest.mock import patch
 
 import pytest
 
-from cline_hooks.response import allow, block, respond
-
-
-def _capture_respond(**kwargs: object) -> dict[str, object]:
-    buf = StringIO()
-    with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
-        respond(**kwargs)  # type: ignore[arg-type]
-    assert exc.value.code == 0
-    return cast("dict[str, object]", json.loads(buf.getvalue()))
+from cline_hooks.frontends.cline import ClineProtocol
+from cline_hooks.frontends.kiro import KiroProtocol
+from cline_hooks.response import allow, block
 
 
 def _capture_allow(message: str | None = None, *, prefix: str = "REMINDER") -> dict[str, object]:
@@ -34,23 +28,56 @@ def _capture_block(message: str, *, task_id: str | None = None, tool_name: str |
     return cast("dict[str, object]", json.loads(buf.getvalue()))
 
 
-class TestRespond:
+class TestClineProtocol:
     def test_allow_no_message(self) -> None:
-        result = _capture_respond(cancel=False)
-        assert result == {"cancel": False}
+        proto = ClineProtocol()
+        buf = StringIO()
+        with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
+            proto.allow()
+        assert exc.value.code == 0
+        assert json.loads(buf.getvalue()) == {"cancel": False}
 
-    def test_cancel_with_error(self) -> None:
-        result = _capture_respond(cancel=True, error_message="oops")
+    def test_allow_with_message(self) -> None:
+        proto = ClineProtocol()
+        buf = StringIO()
+        with patch("sys.stdout", buf), pytest.raises(SystemExit):
+            proto.allow("ctx")
+        assert json.loads(buf.getvalue())["contextModification"] == "ctx"
+
+    def test_block(self) -> None:
+        proto = ClineProtocol()
+        buf = StringIO()
+        with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
+            proto.block("oops")
+        assert exc.value.code == 0
+        result = json.loads(buf.getvalue())
         assert result == {"cancel": True, "errorMessage": "oops"}
 
-    def test_context_modification_included(self) -> None:
-        result = _capture_respond(cancel=False, context_modification="ctx")
-        assert result["contextModification"] == "ctx"
 
-    def test_exits_zero(self) -> None:
-        with patch("sys.stdout", StringIO()), pytest.raises(SystemExit) as exc:
-            respond(cancel=False)
+class TestKiroProtocol:
+    def test_allow_no_message(self) -> None:
+        proto = KiroProtocol()
+        buf = StringIO()
+        with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
+            proto.allow()
         assert exc.value.code == 0
+        assert buf.getvalue() == ""
+
+    def test_allow_with_message(self) -> None:
+        proto = KiroProtocol()
+        buf = StringIO()
+        with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
+            proto.allow("context here")
+        assert exc.value.code == 0
+        assert buf.getvalue() == "context here"
+
+    def test_block(self) -> None:
+        proto = KiroProtocol()
+        err = StringIO()
+        with patch("sys.stderr", err), pytest.raises(SystemExit) as exc:
+            proto.block("bad")
+        assert exc.value.code == 2
+        assert err.getvalue() == "bad"
 
 
 class TestAllow:

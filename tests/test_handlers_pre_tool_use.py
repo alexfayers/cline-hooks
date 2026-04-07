@@ -6,13 +6,13 @@ from unittest.mock import patch
 
 import pytest
 
+from cline_hooks.frontends.cline import parse_cline_data as parse_data
 from cline_hooks.handlers.pre_tool_use import (
     _is_memory_write_mcp,
     _starts_with_emoji,
     handle_pre_tool_use,
 )
 import cline_hooks.memory_tracker as memory_tracker_module
-from cline_hooks.models import parse_data
 from cline_hooks.state import TaskStateStore
 
 if TYPE_CHECKING:

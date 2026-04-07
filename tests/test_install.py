@@ -5,7 +5,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
-from cline_hooks.install import _HOOKS, install
+from cline_hooks.frontends.cline import (
+    _HOOKS,
+    install_cline as install,
+)
 
 if TYPE_CHECKING:
     import pytest
@@ -31,7 +34,7 @@ class TestInstall:
 
         with (
             patch("cline_hooks.install.sys.executable", str(scripts_dir / "python.exe")),
-            patch("cline_hooks.install._is_windows", return_value=True),
+            patch("cline_hooks.frontends.cline._is_windows", return_value=True),
         ):
             install(str(tmp_path / "hooks"))
 
@@ -42,7 +45,7 @@ class TestInstall:
         target = tmp_path / "hooks"
         with (
             patch("cline_hooks.install.sys.executable", self._FAKE_PYTHON),
-            patch("cline_hooks.install._is_windows", return_value=False),
+            patch("cline_hooks.frontends.cline._is_windows", return_value=False),
         ):
             install(str(target))
         assert target.is_dir()
@@ -50,7 +53,7 @@ class TestInstall:
     def test_creates_symlinks_for_all_hooks(self, tmp_path: Path) -> None:
         with (
             patch("cline_hooks.install.sys.executable", self._FAKE_PYTHON),
-            patch("cline_hooks.install._is_windows", return_value=False),
+            patch("cline_hooks.frontends.cline._is_windows", return_value=False),
         ):
             install(str(tmp_path))
         for hook in _HOOKS:
@@ -59,7 +62,7 @@ class TestInstall:
     def test_symlinks_point_to_binary(self, tmp_path: Path) -> None:
         with (
             patch("cline_hooks.install.sys.executable", self._FAKE_PYTHON),
-            patch("cline_hooks.install._is_windows", return_value=False),
+            patch("cline_hooks.frontends.cline._is_windows", return_value=False),
         ):
             install(str(tmp_path))
         binary = self._expected_binary()
@@ -71,7 +74,7 @@ class TestInstall:
         (tmp_path / _HOOKS[0]).symlink_to(binary)
         with (
             patch("cline_hooks.install.sys.executable", self._FAKE_PYTHON),
-            patch("cline_hooks.install._is_windows", return_value=False),
+            patch("cline_hooks.frontends.cline._is_windows", return_value=False),
         ):
             install(str(tmp_path))
         assert self._normalize_link_target(str((tmp_path / _HOOKS[0]).readlink())) == self._normalize_link_target(
@@ -82,7 +85,7 @@ class TestInstall:
         (tmp_path / _HOOKS[0]).write_text("existing file")
         with (
             patch("cline_hooks.install.sys.executable", self._FAKE_PYTHON),
-            patch("cline_hooks.install._is_windows", return_value=False),
+            patch("cline_hooks.frontends.cline._is_windows", return_value=False),
         ):
             install(str(tmp_path))
         assert not (tmp_path / _HOOKS[0]).is_symlink()
@@ -92,7 +95,7 @@ class TestInstall:
         (tmp_path / _HOOKS[0]).symlink_to("stale-cline-hook")
         with (
             patch("cline_hooks.install.sys.executable", self._FAKE_PYTHON),
-            patch("cline_hooks.install._is_windows", return_value=False),
+            patch("cline_hooks.frontends.cline._is_windows", return_value=False),
         ):
             install(str(tmp_path))
         binary = self._expected_binary()
@@ -103,7 +106,7 @@ class TestInstall:
     def test_windows_writes_ps1_files_for_all_hooks(self, tmp_path: Path) -> None:
         with (
             patch("cline_hooks.install.sys.executable", "C:/fake/Scripts/python.exe"),
-            patch("cline_hooks.install._is_windows", return_value=True),
+            patch("cline_hooks.frontends.cline._is_windows", return_value=True),
         ):
             install(str(tmp_path))
 
@@ -119,7 +122,7 @@ class TestInstall:
 
         with (
             patch("cline_hooks.install.sys.executable", "C:/fake/Scripts/python.exe"),
-            patch("cline_hooks.install._is_windows", return_value=True),
+            patch("cline_hooks.frontends.cline._is_windows", return_value=True),
         ):
             install(str(tmp_path))
 

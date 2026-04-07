@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, fields
 import json
 import logging
-from typing import Any, cast
+from typing import Any
 
 logger = logging.getLogger("hooks")
 
@@ -28,19 +28,15 @@ def inheritors(klass: type) -> set[type]:
 
 @dataclass
 class HookInput:
-    """Base class for all Cline hook inputs.
+    """Base class for all hook inputs.
 
     Subclasses should set `hookName` as a class-level default to enable
     automatic dispatch in `parse_data`.
     """
 
-    clineVersion: str
-    timestamp: str
-    taskId: str
-    userId: str
-    workspaceRoots: list[str]
     hookName: str
-    model: str | None = None
+    taskId: str = ""
+    workspaceRoots: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -232,25 +228,3 @@ def _filter_fields(cls: type, data: dict[str, Any]) -> dict[str, Any]:
     """
     known = {f.name for f in fields(cls)}
     return {k: v for k, v in data.items() if k in known}
-
-
-def parse_data(raw_data: str) -> HookInput:
-    """Parse raw JSON from Cline into a typed HookInput subclass.
-
-    Unknown fields in the JSON are silently ignored to remain forward-compatible
-    as Cline adds new fields.
-
-    Args:
-        raw_data: The raw JSON string from Cline.
-
-    Returns:
-        HookInput: The most specific matching subclass, or base HookInput.
-    """
-    data = json.loads(raw_data)
-    hook_name = data.get("hookName")
-
-    for subclass in inheritors(HookInput):
-        if getattr(subclass, "hookName", None) == hook_name:
-            return cast("HookInput", subclass(**_filter_fields(subclass, data)))
-
-    return HookInput(**_filter_fields(HookInput, data))

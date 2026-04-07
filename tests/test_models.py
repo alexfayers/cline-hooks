@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 
+from cline_hooks.frontends.cline import parse_cline_data as parse_data
 from cline_hooks.models import (
     HookInput,
     HookInputPostToolUse,
@@ -14,7 +15,6 @@ from cline_hooks.models import (
     HookInputUserPromptSubmit,
     _filter_fields,
     inheritors,
-    parse_data,
 )
 
 BASE_FIELDS = {
@@ -53,13 +53,13 @@ class TestInheritors:
 class TestFilterFields:
     def test_keeps_known_fields(self) -> None:
         data = {
-            "clineVersion": "1",
-            "timestamp": "t",
+            "hookName": "TaskStart",
             "taskId": "id",
             "unknown": "drop",
         }
         result = _filter_fields(HookInput, data)
-        assert "clineVersion" in result
+        assert "hookName" in result
+        assert "taskId" in result
         assert "unknown" not in result
 
     def test_empty_data(self) -> None:

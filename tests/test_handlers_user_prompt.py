@@ -6,11 +6,11 @@ from unittest.mock import patch
 
 import pytest
 
+from cline_hooks.frontends.cline import parse_cline_data as parse_data
 from cline_hooks.handlers.user_prompt import (
     _contains_persist_signal,
     handle_user_prompt_submit,
 )
-from cline_hooks.models import parse_data
 
 if TYPE_CHECKING:
     from cline_hooks.models import HookInputUserPromptSubmit

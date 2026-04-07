@@ -36,48 +36,32 @@ BASE = {
 
 def _task_start(roots: list[str] | None = None) -> HookInputTaskStart:
     return HookInputTaskStart(
-        clineVersion="1.0",
-        timestamp="2024-01-01T00:00:00Z",
         taskId="task-1",
-        userId="user-1",
         workspaceRoots=roots or ["/workspace"],
-        model=None,
         hookName="TaskStart",
     )
 
 
 def _task_resume(roots: list[str] | None = None) -> HookInputTaskResume:
     return HookInputTaskResume(
-        clineVersion="1.0",
-        timestamp="2024-01-01T00:00:00Z",
         taskId="task-1",
-        userId="user-1",
         workspaceRoots=roots or ["/workspace"],
-        model=None,
         hookName="TaskResume",
     )
 
 
 def _task_cancel(roots: list[str] | None = None) -> HookInputTaskCancel:
     return HookInputTaskCancel(
-        clineVersion="1.0",
-        timestamp="2024-01-01T00:00:00Z",
         taskId="task-1",
-        userId="user-1",
         workspaceRoots=roots or ["/workspace"],
-        model=None,
         hookName="TaskCancel",
     )
 
 
 def _task_complete(roots: list[str] | None = None) -> HookInputTaskComplete:
     return HookInputTaskComplete(
-        clineVersion="1.0",
-        timestamp="2024-01-01T00:00:00Z",
         taskId="task-1",
-        userId="user-1",
         workspaceRoots=roots or ["/workspace"],
-        model=None,
         hookName="TaskComplete",
     )
 
