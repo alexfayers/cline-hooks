@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 import sys
 
-from cline_hooks.install import resolve_binary
+from cline_hooks.core.install import resolve_binary
 
 _KIRO_HOOKS: dict[str, str | None] = {
     "agentSpawn": None,

@@ -7,9 +7,9 @@ from unittest.mock import patch
 
 import pytest
 
+from cline_hooks.core.response import allow, block
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.frontends.kiro import KiroProtocol
-from cline_hooks.response import allow, block
 
 
 def _capture_allow(message: str | None = None, *, prefix: str = "REMINDER") -> dict[str, object]:
@@ -109,11 +109,11 @@ class TestBlock:
         assert result["errorMessage"] == "bad command"
 
     def test_records_block_event_when_task_and_tool_given(self) -> None:
-        with patch("cline_hooks.state.TaskStateStore.record_block") as mock_record:
+        with patch("cline_hooks.state.store.TaskStateStore.record_block") as mock_record:
             _capture_block("reason", task_id="task-1", tool_name="execute_command")
         mock_record.assert_called_once_with("task-1", "execute_command", "reason")
 
     def test_no_state_store_call_without_task_id(self) -> None:
-        with patch("cline_hooks.state.TaskStateStore.record_block") as mock_record:
+        with patch("cline_hooks.state.store.TaskStateStore.record_block") as mock_record:
             _capture_block("reason")
         mock_record.assert_not_called()

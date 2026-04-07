@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from cline_hooks.commands import CommandRule, validate_git_commit_message
-from cline_hooks.plugin import HooksPlugin
+from cline_hooks.core.plugin import HooksPlugin
+from cline_hooks.handlers.commands import CommandRule, validate_git_commit_message
 
 if TYPE_CHECKING:
-    from cline_hooks.commands import ParsedCommand
+    from cline_hooks.handlers.commands import ParsedCommand
 
 _BUILD_COMMANDS = frozenset({"just", "pnpm", "npm"})
 

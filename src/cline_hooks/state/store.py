@@ -6,7 +6,7 @@ import json
 import logging
 from typing import TYPE_CHECKING, cast
 
-from cline_hooks.paths import get_data_dir
+from cline_hooks.state.paths import get_data_dir
 
 if TYPE_CHECKING:
     from pathlib import Path

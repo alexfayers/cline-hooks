@@ -10,7 +10,7 @@ import bashlex.ast
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
-    from cline_hooks.plugin import HooksPlugin
+    from cline_hooks.core.plugin import HooksPlugin
 
 logger = logging.getLogger("hooks")
 

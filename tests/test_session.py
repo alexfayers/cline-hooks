@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from cline_hooks.session import SessionContext
+from cline_hooks.core.session import SessionContext
 
 
 class TestFromCline:

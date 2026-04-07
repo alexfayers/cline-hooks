@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from cline_hooks.models import HookInput
+from cline_hooks.core.models import HookInput
 
 
 @dataclass

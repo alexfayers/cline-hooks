@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import cline_hooks.memory_tracker as module
-from cline_hooks.memory_tracker import clear, increment, reset, should_block
+import cline_hooks.state.memory as module
+from cline_hooks.state.memory import clear, increment, reset, should_block
 
 _TASK = "task-1"
 

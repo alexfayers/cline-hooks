@@ -7,25 +7,25 @@ from typing import TYPE_CHECKING
 import git
 import git.exc
 
-from cline_hooks.git_context import get_git_context
-import cline_hooks.memory_tracker as _memory_tracker
-from cline_hooks.plugin import load_plugins
-from cline_hooks.registry import hook_handler
-from cline_hooks.response import allow
-from cline_hooks.skill_tracker import (
+from cline_hooks.core.plugin import load_plugins
+from cline_hooks.core.registry import hook_handler
+from cline_hooks.core.response import allow
+from cline_hooks.handlers.git_context import get_git_context
+import cline_hooks.state.memory as _memory_tracker
+from cline_hooks.state.skills import (
     _SKILL_REQUIREMENTS,
     reset as _reset_skills,
 )
-from cline_hooks.state import TaskStateStore
+from cline_hooks.state.store import TaskStateStore
 
 if TYPE_CHECKING:
-    from cline_hooks.models import (
+    from cline_hooks.core.models import (
         HookInputTaskCancel,
         HookInputTaskComplete,
         HookInputTaskResume,
         HookInputTaskStart,
     )
-    from cline_hooks.state import TaskBlockEvent
+    from cline_hooks.state.store import TaskBlockEvent
 
 logger = logging.getLogger("hooks")
 

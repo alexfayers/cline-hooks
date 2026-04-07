@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from cline_hooks.commands import (
+from cline_hooks.core.plugin import HooksPlugin, _plugin_cache, load_plugins
+from cline_hooks.handlers.commands import (
     CommandRule,
     get_all_build_commands,
     get_all_command_rules,
 )
-from cline_hooks.plugin import HooksPlugin, _plugin_cache, load_plugins
 from cline_hooks.plugins.default import DefaultPlugin
 
 

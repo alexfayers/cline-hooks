@@ -12,11 +12,11 @@ from cline_hooks.handlers.pre_tool_use import (
     _starts_with_emoji,
     handle_pre_tool_use,
 )
-import cline_hooks.memory_tracker as memory_tracker_module
-from cline_hooks.state import TaskStateStore
+import cline_hooks.state.memory as memory_tracker_module
+from cline_hooks.state.store import TaskStateStore
 
 if TYPE_CHECKING:
-    from cline_hooks.models import HookInputPreToolUse
+    from cline_hooks.core.models import HookInputPreToolUse
 
 _BASE = {
     "clineVersion": "1.0.0",

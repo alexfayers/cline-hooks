@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from cline_hooks.registry import HOOK_HANDLERS, hook_handler
+from cline_hooks.core.registry import HOOK_HANDLERS, hook_handler
 
 
 class TestHookHandler:

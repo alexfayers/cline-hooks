@@ -7,6 +7,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from cline_hooks.core.models import (
+    HookInputTaskCancel,
+    HookInputTaskComplete,
+    HookInputTaskResume,
+    HookInputTaskStart,
+)
 from cline_hooks.handlers.task_lifecycle import (
     _format_block_history,
     _get_dirty_count,
@@ -15,14 +21,8 @@ from cline_hooks.handlers.task_lifecycle import (
     handle_task_resume,
     handle_task_start,
 )
-from cline_hooks.models import (
-    HookInputTaskCancel,
-    HookInputTaskComplete,
-    HookInputTaskResume,
-    HookInputTaskStart,
-)
-from cline_hooks.skill_tracker import is_skill_called, record_skill
-from cline_hooks.state import TaskBlockEvent, TaskStateStore
+from cline_hooks.state.skills import is_skill_called, record_skill
+from cline_hooks.state.store import TaskBlockEvent, TaskStateStore
 
 BASE = {
     "clineVersion": "1.0",

@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
+from cline_hooks.core.models import HookInputPostToolUse
 from cline_hooks.frontends.cline import parse_cline_data as parse_data
 import cline_hooks.handlers.post_tool_use as module
 from cline_hooks.handlers.post_tool_use import (
@@ -14,8 +15,7 @@ from cline_hooks.handlers.post_tool_use import (
     _memory_chance,
     handle_post_tool_use,
 )
-import cline_hooks.memory_tracker as memory_tracker_module
-from cline_hooks.models import HookInputPostToolUse
+import cline_hooks.state.memory as memory_tracker_module
 
 _BASE = {
     "clineVersion": "1.0",

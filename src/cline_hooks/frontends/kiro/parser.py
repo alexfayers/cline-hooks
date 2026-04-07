@@ -5,7 +5,7 @@ import hashlib
 import json
 from typing import Any, cast
 
-from cline_hooks.models import (
+from cline_hooks.core.models import (
     HookInput,
     HookInputPostToolUse,
     HookInputPreToolUse,

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from cline_hooks.registry import hook_handler
-from cline_hooks.response import allow
+from cline_hooks.core.registry import hook_handler
+from cline_hooks.core.response import allow
 
 if TYPE_CHECKING:
-    from cline_hooks.models import HookInputPreCompact
+    from cline_hooks.core.models import HookInputPreCompact
 
 
 @hook_handler("PreCompact")

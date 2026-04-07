@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from cline_hooks.state import TaskStateStore
+from cline_hooks.state.store import TaskStateStore
 
 if TYPE_CHECKING:
     from pathlib import Path

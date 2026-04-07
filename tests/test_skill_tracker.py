@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import cline_hooks.skill_tracker as module
-from cline_hooks.skill_tracker import (
+import cline_hooks.state.skills as module
+from cline_hooks.state.skills import (
     is_skill_called,
     record_skill,
     required_skill_for,

@@ -5,16 +5,16 @@ import logging
 import sys
 from typing import TYPE_CHECKING, NoReturn
 
+from cline_hooks.core.protocol import set_protocol
+from cline_hooks.core.registry import HOOK_HANDLERS
+from cline_hooks.core.response import allow
 from cline_hooks.frontends.cline import ClineProtocol, install_cline, parse_cline_data
 from cline_hooks.frontends.kiro import KiroProtocol, install_kiro, parse_kiro_data
 import cline_hooks.handlers  # noqa: F401
-from cline_hooks.paths import get_data_dir
-from cline_hooks.protocol import set_protocol
-from cline_hooks.registry import HOOK_HANDLERS
-from cline_hooks.response import allow
+from cline_hooks.state.paths import get_data_dir
 
 if TYPE_CHECKING:
-    from cline_hooks.models import HookInput
+    from cline_hooks.core.models import HookInput
 
 logging.basicConfig(
     level=logging.DEBUG,

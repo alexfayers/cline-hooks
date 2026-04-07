@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import json
 
-from cline_hooks.frontends.cline import parse_cline_data as parse_data
-from cline_hooks.models import (
+from cline_hooks.core.models import (
     HookInput,
     HookInputPostToolUse,
     HookInputPreCompact,
@@ -16,6 +15,7 @@ from cline_hooks.models import (
     _filter_fields,
     inheritors,
 )
+from cline_hooks.frontends.cline import parse_cline_data as parse_data
 
 BASE_FIELDS = {
     "clineVersion": "1.0",

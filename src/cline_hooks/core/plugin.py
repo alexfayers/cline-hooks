@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 import cline_hooks.plugins as _plugins_pkg
 
 if TYPE_CHECKING:
-    from cline_hooks.commands import CommandRule
+    from cline_hooks.handlers.commands import CommandRule
 
 logger = logging.getLogger("hooks")
 

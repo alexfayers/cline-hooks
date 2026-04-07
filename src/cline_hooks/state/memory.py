@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 
-from cline_hooks.paths import get_data_dir
+from cline_hooks.state.paths import get_data_dir
 
 logger = logging.getLogger("hooks")
 

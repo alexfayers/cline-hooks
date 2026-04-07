@@ -2,15 +2,15 @@ from __future__ import annotations
 
 import json
 
-from cline_hooks.frontends.kiro import parse_kiro_data
-from cline_hooks.frontends.kiro.parser import _map_tool_name
-from cline_hooks.models import (
+from cline_hooks.core.models import (
     HookInput,
     HookInputPostToolUse,
     HookInputPreToolUse,
     HookInputTaskStart,
     HookInputUserPromptSubmit,
 )
+from cline_hooks.frontends.kiro import parse_kiro_data
+from cline_hooks.frontends.kiro.parser import _map_tool_name
 
 
 class TestMapToolName:

@@ -5,11 +5,11 @@ import random
 import re
 from typing import TYPE_CHECKING
 
-from cline_hooks.registry import hook_handler
-from cline_hooks.response import allow
+from cline_hooks.core.registry import hook_handler
+from cline_hooks.core.response import allow
 
 if TYPE_CHECKING:
-    from cline_hooks.models import HookInputUserPromptSubmit
+    from cline_hooks.core.models import HookInputUserPromptSubmit
 
 _LATE_NIGHT_START = 22
 _EARLY_MORNING_END = 6

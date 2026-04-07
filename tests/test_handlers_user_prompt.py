@@ -13,7 +13,7 @@ from cline_hooks.handlers.user_prompt import (
 )
 
 if TYPE_CHECKING:
-    from cline_hooks.models import HookInputUserPromptSubmit
+    from cline_hooks.core.models import HookInputUserPromptSubmit
 
 _BASE = {
     "clineVersion": "1.0.0",

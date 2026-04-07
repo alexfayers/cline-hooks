@@ -8,14 +8,14 @@ from typing import TYPE_CHECKING
 import git
 import git.exc
 
-import cline_hooks.memory_tracker as _memory_tracker
-from cline_hooks.models import McpToolUse
-from cline_hooks.registry import hook_handler
-from cline_hooks.response import allow
-from cline_hooks.skill_tracker import record_skill as _record_skill
+from cline_hooks.core.models import McpToolUse
+from cline_hooks.core.registry import hook_handler
+from cline_hooks.core.response import allow
+import cline_hooks.state.memory as _memory_tracker
+from cline_hooks.state.skills import record_skill as _record_skill
 
 if TYPE_CHECKING:
-    from cline_hooks.models import HookInputPostToolUse
+    from cline_hooks.core.models import HookInputPostToolUse
 
 logger = logging.getLogger("hooks")
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import NoReturn
 
-from cline_hooks.protocol import get_protocol
+from cline_hooks.core.protocol import get_protocol
 
 logger = logging.getLogger("hooks")
 
@@ -32,7 +32,7 @@ def block(message: str, *, task_id: str | None = None, tool_name: str | None = N
     """
     logger.warning("Blocking: %s", message)
     if task_id is not None and tool_name is not None:
-        from cline_hooks.state import TaskStateStore  # noqa: PLC0415
+        from cline_hooks.state.store import TaskStateStore  # noqa: PLC0415
 
         TaskStateStore().record_block(task_id, tool_name, message)
     get_protocol().block(message)

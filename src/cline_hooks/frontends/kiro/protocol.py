@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 from typing import NoReturn
 
-from cline_hooks.protocol import Protocol
+from cline_hooks.core.protocol import Protocol
 
 
 class KiroProtocol(Protocol):

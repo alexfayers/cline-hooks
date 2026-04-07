@@ -3,10 +3,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from cline_hooks.registry import hook_handler
+from cline_hooks.core.registry import hook_handler
 
 if TYPE_CHECKING:
-    from cline_hooks.models import HookInput
+    from cline_hooks.core.models import HookInput
 
 
 @hook_handler("Stop")

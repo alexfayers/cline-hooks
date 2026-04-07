@@ -6,7 +6,7 @@ import json
 import sys
 from typing import NoReturn
 
-from cline_hooks.protocol import Protocol
+from cline_hooks.core.protocol import Protocol
 
 
 class ClineProtocol(Protocol):

@@ -8,25 +8,25 @@ import bashlex
 import bashlex.errors
 import git
 
-from cline_hooks.commands import (
+from cline_hooks.core.models import McpToolUse
+from cline_hooks.core.plugin import load_plugins
+from cline_hooks.core.registry import hook_handler
+from cline_hooks.core.response import allow, block
+from cline_hooks.handlers.commands import (
     check_rules,
     contains_comment,
     extract_commands,
     extract_replacement_blocks,
     get_all_command_rules,
 )
-from cline_hooks.models import McpToolUse
-from cline_hooks.plugin import load_plugins
-from cline_hooks.registry import hook_handler
-from cline_hooks.response import allow, block
-from cline_hooks.skill_tracker import (
+from cline_hooks.state.skills import (
     is_skill_called as _is_skill_called,
     required_skill_for,
 )
-from cline_hooks.state import TaskStateStore
+from cline_hooks.state.store import TaskStateStore
 
 if TYPE_CHECKING:
-    from cline_hooks.models import HookInputPreToolUse
+    from cline_hooks.core.models import HookInputPreToolUse
 
 logger = logging.getLogger("hooks")
 

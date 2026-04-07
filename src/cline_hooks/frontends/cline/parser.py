@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from typing import Any, cast
 
-from cline_hooks.models import HookInput, _filter_fields, inheritors
+from cline_hooks.core.models import HookInput, _filter_fields, inheritors
 
 
 def parse_cline_data(raw_data: str) -> HookInput:
