@@ -49,7 +49,7 @@ class TestEndToEndKiro:
         data = json.dumps({
             "hook_event_name": "preToolUse",
             "cwd": "/tmp/test",  # noqa: S108
-            "tool_name": "execute_bash",
+            "tool_name": "shell",
             "tool_input": {"command": "rm -rf /tmp/test"},
         })
         result = subprocess.run(
@@ -67,7 +67,7 @@ class TestEndToEndKiro:
         data = json.dumps({
             "hook_event_name": "preToolUse",
             "cwd": "/tmp/test",  # noqa: S108
-            "tool_name": "execute_bash",
+            "tool_name": "shell",
             "tool_input": {"command": "ls -la"},
         })
         result = subprocess.run(

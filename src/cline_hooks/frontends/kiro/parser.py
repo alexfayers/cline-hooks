@@ -1,4 +1,5 @@
 """Kiro input parser and tool name mapping."""
+
 from __future__ import annotations
 
 import hashlib
@@ -27,10 +28,11 @@ _KIRO_HOOK_MAP: dict[str, str] = {
 }
 
 _KIRO_TOOL_MAP: dict[str, str] = {
-    "execute_bash": "execute_command",
-    "fs_read": "read_file",
-    "fs_write": "replace_in_file",
+    "shell": "execute_command",
+    "read": "read_file",
+    "write": "replace_in_file",
     "use_aws": "execute_command",
+    "call_aws": "execute_command",
 }
 
 

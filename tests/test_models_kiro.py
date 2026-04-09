@@ -14,14 +14,14 @@ from cline_hooks.frontends.kiro.parser import _map_tool_name
 
 
 class TestMapToolName:
-    def test_execute_bash(self) -> None:
-        assert _map_tool_name("execute_bash") == "execute_command"
+    def test_shell(self) -> None:
+        assert _map_tool_name("shell") == "execute_command"
 
-    def test_fs_read(self) -> None:
-        assert _map_tool_name("fs_read") == "read_file"
+    def test_read(self) -> None:
+        assert _map_tool_name("read") == "read_file"
 
-    def test_fs_write(self) -> None:
-        assert _map_tool_name("fs_write") == "replace_in_file"
+    def test_write(self) -> None:
+        assert _map_tool_name("write") == "replace_in_file"
 
     def test_mcp_tool(self) -> None:
         assert _map_tool_name("@memory/create_entities") == "use_mcp_tool"
@@ -29,13 +29,19 @@ class TestMapToolName:
     def test_unknown_passthrough(self) -> None:
         assert _map_tool_name("grep") == "grep"
 
+    def test_use_aws(self) -> None:
+        assert _map_tool_name("use_aws") == "execute_command"
+
+    def test_call_aws(self) -> None:
+        assert _map_tool_name("call_aws") == "execute_command"
+
 
 class TestParseKiroPreToolUse:
     def test_basic(self) -> None:
         data = json.dumps({
             "hook_event_name": "preToolUse",
             "cwd": "/home/user/project",
-            "tool_name": "execute_bash",
+            "tool_name": "shell",
             "tool_input": {"command": "ls"},
         })
         hook = parse_kiro_data(data)
@@ -66,7 +72,7 @@ class TestParseKiroPostToolUse:
         data = json.dumps({
             "hook_event_name": "postToolUse",
             "cwd": "/project",
-            "tool_name": "fs_read",
+            "tool_name": "read",
             "tool_input": {"path": "/file.py"},
             "tool_response": {"success": True, "result": ["content"]},
         })
@@ -80,7 +86,7 @@ class TestParseKiroPostToolUse:
         data = json.dumps({
             "hook_event_name": "postToolUse",
             "cwd": "/project",
-            "tool_name": "execute_bash",
+            "tool_name": "shell",
             "tool_input": {"command": "false"},
             "tool_response": {"success": False},
         })
