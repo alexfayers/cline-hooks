@@ -207,3 +207,29 @@ class TestMemoryTrackerIntegration:
         )
         _run(hook)
         assert memory_tracker_module.should_block("task-1")
+
+
+class TestSkillDetectionViaRead:
+    def test_skill_md_read_records_skill(self) -> None:
+        hook = _make_hook("read_file", parameters={"path": "/home/user/.kiro/skills/git-usage/SKILL.md"})
+        with patch("cline_hooks.handlers.post_tool_use._record_skill") as mock_record:
+            _run(hook)
+        mock_record.assert_called_once_with("task-1", "git-usage")
+
+    def test_non_skill_read_does_not_record(self) -> None:
+        hook = _make_hook("read_file", parameters={"path": "/home/user/project/README.md"})
+        with patch("cline_hooks.handlers.post_tool_use._record_skill") as mock_record:
+            _run(hook)
+        mock_record.assert_not_called()
+
+    def test_skill_md_in_nested_path(self) -> None:
+        hook = _make_hook("read_file", parameters={"path": "/deep/nested/skills/pre-implementation/SKILL.md"})
+        with patch("cline_hooks.handlers.post_tool_use._record_skill") as mock_record:
+            _run(hook)
+        mock_record.assert_called_once_with("task-1", "pre-implementation")
+
+    def test_empty_path_does_not_record(self) -> None:
+        hook = _make_hook("read_file", parameters={})
+        with patch("cline_hooks.handlers.post_tool_use._record_skill") as mock_record:
+            _run(hook)
+        mock_record.assert_not_called()

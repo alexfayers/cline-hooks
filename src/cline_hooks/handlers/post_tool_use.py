@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+from pathlib import PurePosixPath
 import random
 from typing import TYPE_CHECKING
 
@@ -123,7 +124,7 @@ def handle_post_mcp_tool_use(tool: McpToolUse, task_id: str) -> None:
 
 
 @hook_handler("PostToolUse")
-def handle_post_tool_use(hook: HookInputPostToolUse) -> None:
+def handle_post_tool_use(hook: HookInputPostToolUse) -> None:  # noqa: PLR0912
     """Handle PostToolUse hook events.
 
     Args:
@@ -169,6 +170,13 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> None:
         result = hook.postToolUse.result
         if result and "BUILD FAILED" in result:
             allow("The build failed! It did NOT pass. It FAILED!!", prefix="")
+
+    elif tool_name == "read_file":
+        path = parameters.get("path", "")
+        if path:
+            file_path = PurePosixPath(path)
+            if file_path.name == "SKILL.md":
+                _record_skill(hook.taskId, file_path.parent.name)
 
     elif tool_name == "use_skill":
         skill_name = parameters.get("skill_name", "")
