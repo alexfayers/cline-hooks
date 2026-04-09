@@ -1,5 +1,6 @@
 # ruff: noqa: T201
 """Kiro exit-code protocol."""
+
 from __future__ import annotations
 
 import sys

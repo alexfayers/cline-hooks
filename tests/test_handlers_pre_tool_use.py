@@ -8,11 +8,9 @@ import pytest
 
 from cline_hooks.frontends.cline import parse_cline_data as parse_data
 from cline_hooks.handlers.pre_tool_use import (
-    _is_memory_write_mcp,
     _starts_with_emoji,
     handle_pre_tool_use,
 )
-import cline_hooks.state.memory as memory_tracker_module
 from cline_hooks.state.store import TaskStateStore
 
 if TYPE_CHECKING:
@@ -153,75 +151,6 @@ class TestPlanModeRespondEmojiCheck:
         result = _run("plan_mode_respond", {"response": "No emoji"})
         assert result is not None
         assert "new_task" in cast("str", result.get("errorMessage", ""))
-
-
-class TestIsMemoryWriteMcp:
-    def test_returns_true_for_create_entities(self) -> None:
-        assert _is_memory_write_mcp(
-            "use_mcp_tool",
-            {
-                "server_name": "memory",
-                "tool_name": "create_entities",
-                "arguments": {},
-            },
-        )
-
-    def test_returns_true_for_add_observations(self) -> None:
-        assert _is_memory_write_mcp(
-            "use_mcp_tool",
-            {
-                "server_name": "memory",
-                "tool_name": "add_observations",
-                "arguments": {},
-            },
-        )
-
-    def test_returns_false_for_read_graph(self) -> None:
-        assert not _is_memory_write_mcp(
-            "use_mcp_tool",
-            {
-                "server_name": "memory",
-                "tool_name": "read_graph",
-                "arguments": {},
-            },
-        )
-
-    def test_returns_false_for_non_mcp_tool(self) -> None:
-        assert not _is_memory_write_mcp(
-            "execute_command",
-            {"command": "echo hi"},
-        )
-
-    def test_returns_false_for_search_nodes(self) -> None:
-        assert not _is_memory_write_mcp(
-            "use_mcp_tool",
-            {
-                "server_name": "memory",
-                "tool_name": "search_nodes",
-                "arguments": {},
-            },
-        )
-
-
-class TestMemoryBlockCheck:
-    def test_tool_allowed_below_threshold(self) -> None:
-        for _ in range(9):
-            memory_tracker_module.increment("task-1")
-        result = _run("execute_command", {"command": "echo hello"})
-        assert result is None
-
-    def test_memory_write_mcp_not_blocked_at_threshold(self) -> None:
-        for _ in range(10):
-            memory_tracker_module.increment("task-1")
-        result = _run(
-            "use_mcp_tool",
-            {
-                "server_name": "memory",
-                "tool_name": "create_entities",
-                "arguments": "{}",
-            },
-        )
-        assert result is None
 
 
 class TestClearBlocksOnPass:

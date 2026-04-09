@@ -1,4 +1,5 @@
 """Kiro frontend."""
+
 from __future__ import annotations
 
 from cline_hooks.frontends.kiro.handlers import handle_stop

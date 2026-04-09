@@ -24,7 +24,7 @@ class TestHooksPluginDefaults:
 
     def test_validate_mcp_tool_returns_none(self) -> None:
         plugin = HooksPlugin()
-        assert plugin.validate_mcp_tool("any_tool", {}) is None
+        assert plugin.validate_mcp_tool("task-1", "any_tool", {}) is None
 
 
 class TestLoadPlugins:

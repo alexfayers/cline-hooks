@@ -1,5 +1,6 @@
 # ruff: noqa: T201
 """Cline hook installation - symlinks on Unix, PowerShell scripts on Windows."""
+
 from __future__ import annotations
 
 import os

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING
 
 import bashlex
 import bashlex.errors
@@ -33,15 +33,6 @@ logger = logging.getLogger("hooks")
 _LARGE_FILE_THRESHOLD = 1000
 _EMOJI_THRESHOLD = 0x7F
 
-_MEMORY_WRITE_TOOL_NAMES = {
-    "create_entities",
-    "create_relations",
-    "add_observations",
-    "delete_entity",
-    "delete_relation",
-    "delete_observations",
-}
-
 
 def _starts_with_emoji(text: str) -> bool:
     """Check if text starts with a non-ASCII character (emoji canary).
@@ -54,36 +45,6 @@ def _starts_with_emoji(text: str) -> bool:
     """
     stripped = text.lstrip()
     return bool(stripped) and ord(stripped[0]) > _EMOJI_THRESHOLD
-
-
-def _is_memory_write_mcp(tool_name: str, parameters: dict[str, object]) -> bool:
-    """Return True if the tool call is a write to a memory MCP server.
-
-    Args:
-        tool_name: The outer tool name (must be use_mcp_tool).
-        parameters: The tool parameters dict.
-
-    Returns:
-        True if this is a memory write operation.
-    """
-    if tool_name != "use_mcp_tool":
-        return False
-    try:
-        inner = McpToolUse(**cast("dict[str, Any]", parameters))
-    except (TypeError, KeyError):
-        return False
-    return inner.tool_name in _MEMORY_WRITE_TOOL_NAMES
-
-
-def _check_memory_block(tool_name: str, parameters: dict[str, object]) -> None:
-    """Block tool execution if memory has not been updated recently.
-
-    Args:
-        tool_name: The tool being called.
-        parameters: The tool parameters.
-    """
-    if _is_memory_write_mcp(tool_name, parameters):
-        return
 
 
 @hook_handler("PreToolUse")
@@ -114,7 +75,10 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
 
     TaskStateStore().clear_blocks(hook.taskId)
 
-    _check_memory_block(tool_name, parameters)
+    for plugin in load_plugins():
+        reason = plugin.validate_tool(hook.taskId, tool_name, parameters)
+        if reason:
+            block(reason, task_id=hook.taskId, tool_name=tool_name)
 
     if tool_name == "plan_mode_respond":
         response: str = parameters.get("response", "")
@@ -195,7 +159,7 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
     elif tool_name == "use_mcp_tool":
         tool = McpToolUse(**parameters)
         for plugin in load_plugins():
-            reason = plugin.validate_mcp_tool(tool.tool_name, tool.arguments)
+            reason = plugin.validate_mcp_tool(hook.taskId, tool.tool_name, tool.arguments)
             if reason:
                 block(reason, task_id=hook.taskId, tool_name=tool_name)
 

@@ -48,14 +48,34 @@ class HooksPlugin:
         """
         return None
 
+    def validate_tool(
+        self,
+        task_id: str,  # noqa: ARG002
+        tool_name: str,  # noqa: ARG002
+        parameters: dict[str, object],  # noqa: ARG002
+    ) -> str | None:
+        """Validate any tool call, returning a block message or None.
+
+        Args:
+            task_id: The session or task identifier.
+            tool_name: The canonical tool name being called.
+            parameters: The tool parameters.
+
+        Returns:
+            A block reason string if the call should be blocked, else None.
+        """
+        return None
+
     def validate_mcp_tool(
         self,
+        task_id: str,  # noqa: ARG002
         tool_name: str,  # noqa: ARG002
         arguments: dict[str, object],  # noqa: ARG002
     ) -> str | None:
         """Validate an MCP tool call, returning a block message or None.
 
         Args:
+            task_id: The session or task identifier.
             tool_name: The inner MCP tool name being called.
             arguments: The tool arguments.
 
@@ -63,6 +83,38 @@ class HooksPlugin:
             A block reason string if the call should be blocked, else None.
         """
         return None
+
+    def on_post_tool_use(
+        self,
+        task_id: str,  # noqa: ARG002
+        tool_name: str,  # noqa: ARG002
+        is_memory_write: bool,  # noqa: ARG002
+    ) -> str | None:
+        """Called after every tool use. Return a note string to emit, or None.
+
+        Args:
+            task_id: The session or task identifier.
+            tool_name: The tool that was just used.
+            is_memory_write: Whether the tool call was a memory write operation.
+
+        Returns:
+            A note string to emit via allow(), or None.
+        """
+        return None
+
+    def on_task_start(self, task_id: str) -> None:
+        """Called when a new task starts.
+
+        Args:
+            task_id: The session or task identifier.
+        """
+
+    def on_task_end(self, task_id: str) -> None:
+        """Called when a task ends (complete or cancel).
+
+        Args:
+            task_id: The session or task identifier.
+        """
 
 
 class _PluginCache:

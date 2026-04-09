@@ -1,4 +1,5 @@
 """Cline frontend."""
+
 from __future__ import annotations
 
 from cline_hooks.frontends.cline.install import install_cline

@@ -1,5 +1,6 @@
 # ruff: noqa: T201
 """Kiro hook installation - patches agent config JSON."""
+
 from __future__ import annotations
 
 import json

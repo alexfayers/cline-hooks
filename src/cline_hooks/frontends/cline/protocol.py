@@ -1,5 +1,6 @@
 # ruff: noqa: T201
 """Cline JSON stdout protocol."""
+
 from __future__ import annotations
 
 import json

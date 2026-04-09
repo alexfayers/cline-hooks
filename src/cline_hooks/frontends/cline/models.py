@@ -1,5 +1,6 @@
 # ruff: noqa: N815
 """Cline-specific HookInput subclass."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
