@@ -29,8 +29,12 @@ _KIRO_HOOK_MAP: dict[str, str] = {
 
 _KIRO_TOOL_MAP: dict[str, str] = {
     "shell": "execute_command",
+    "execute_bash": "execute_command",
     "read": "read_file",
+    "fs_read": "read_file",
     "write": "replace_in_file",
+    "fs_write": "replace_in_file",
+    "grep": "read_file",
     "use_aws": "execute_command",
     "call_aws": "execute_command",
 }
@@ -70,23 +74,23 @@ def _build_mcp_parameters(kiro_name: str, tool_input: dict[str, Any]) -> dict[st
     }
 
 
-def _normalise_parameters(kiro_name: str, tool_input: dict[str, Any]) -> dict[str, Any]:
+def _normalise_parameters(canonical_name: str, tool_input: dict[str, Any]) -> dict[str, Any]:
     """Normalise Kiro tool parameters to match canonical handler expectations.
 
     Args:
-        kiro_name: The original Kiro tool name (before mapping).
+        canonical_name: The mapped canonical tool name.
         tool_input: The raw tool input from Kiro.
 
     Returns:
         Parameters dict matching the canonical tool's expected shape.
     """
-    if kiro_name == "read":
+    if canonical_name == "read_file":
         operations: list[dict[str, Any]] = tool_input.get("operations", [])
         if operations:
             return {"path": operations[0].get("path", "")}
         return {}
 
-    if kiro_name == "write":
+    if canonical_name == "replace_in_file":
         new_content = tool_input.get("newStr", "") or tool_input.get("content", "")
         if new_content:
             return {"diff": f"------- SEARCH\n=======\n{new_content}\n+++++++ REPLACE"}
@@ -125,7 +129,7 @@ def parse_kiro_data(raw_data: str) -> HookInput:
         if tool_name_raw.startswith("@"):
             params = _build_mcp_parameters(tool_name_raw, tool_input)
         else:
-            params = _normalise_parameters(tool_name_raw, tool_input)
+            params = _normalise_parameters(tool_name, tool_input)
         base_fields["preToolUse"] = PreToolUseFields(toolName=tool_name, parameters=params)
         return HookInputPreToolUse(**_filter_fields(HookInputPreToolUse, base_fields))
 
@@ -133,7 +137,7 @@ def parse_kiro_data(raw_data: str) -> HookInput:
         if tool_name_raw.startswith("@"):
             params = _build_mcp_parameters(tool_name_raw, tool_input)
         else:
-            params = _normalise_parameters(tool_name_raw, tool_input)
+            params = _normalise_parameters(tool_name, tool_input)
         tool_response = data.get("tool_response", {})
         base_fields["postToolUse"] = PostToolUseFields(
             toolName=tool_name,

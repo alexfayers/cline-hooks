@@ -27,7 +27,7 @@ class TestMapToolName:
         assert _map_tool_name("@memory/create_entities") == "use_mcp_tool"
 
     def test_unknown_passthrough(self) -> None:
-        assert _map_tool_name("grep") == "grep"
+        assert _map_tool_name("some_unknown_tool") == "some_unknown_tool"
 
     def test_use_aws(self) -> None:
         assert _map_tool_name("use_aws") == "execute_command"
@@ -38,31 +38,31 @@ class TestMapToolName:
 
 class TestNormaliseParameters:
     def test_read_extracts_path_from_operations(self) -> None:
-        params = _normalise_parameters("read", {"operations": [{"mode": "Line", "path": "/file.py"}]})
+        params = _normalise_parameters("read_file", {"operations": [{"mode": "Line", "path": "/file.py"}]})
         assert params == {"path": "/file.py"}
 
     def test_read_empty_operations(self) -> None:
-        assert _normalise_parameters("read", {"operations": []}) == {}
+        assert _normalise_parameters("read_file", {"operations": []}) == {}
 
     def test_read_no_operations(self) -> None:
-        assert _normalise_parameters("read", {}) == {}
+        assert _normalise_parameters("read_file", {}) == {}
 
     def test_write_str_replace(self) -> None:
-        params = _normalise_parameters("write", {"command": "strReplace", "newStr": "# new code"})
+        params = _normalise_parameters("replace_in_file", {"command": "strReplace", "newStr": "# new code"})
         assert "------- SEARCH" in params["diff"]
         assert "# new code" in params["diff"]
         assert "+++++++ REPLACE" in params["diff"]
 
     def test_write_create(self) -> None:
-        params = _normalise_parameters("write", {"command": "create", "content": "# file content"})
+        params = _normalise_parameters("replace_in_file", {"command": "create", "content": "# file content"})
         assert "# file content" in params["diff"]
 
     def test_write_no_content(self) -> None:
-        assert _normalise_parameters("write", {"command": "strReplace"}) == {}
+        assert _normalise_parameters("replace_in_file", {"command": "strReplace"}) == {}
 
     def test_passthrough_for_other_tools(self) -> None:
         original = {"command": "ls -la"}
-        assert _normalise_parameters("shell", original) is original
+        assert _normalise_parameters("execute_command", original) is original
 
 
 class TestParseKiroPreToolUse:
