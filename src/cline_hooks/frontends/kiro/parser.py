@@ -70,6 +70,31 @@ def _build_mcp_parameters(kiro_name: str, tool_input: dict[str, Any]) -> dict[st
     }
 
 
+def _normalise_parameters(kiro_name: str, tool_input: dict[str, Any]) -> dict[str, Any]:
+    """Normalise Kiro tool parameters to match canonical handler expectations.
+
+    Args:
+        kiro_name: The original Kiro tool name (before mapping).
+        tool_input: The raw tool input from Kiro.
+
+    Returns:
+        Parameters dict matching the canonical tool's expected shape.
+    """
+    if kiro_name == "read":
+        operations: list[dict[str, Any]] = tool_input.get("operations", [])
+        if operations:
+            return {"path": operations[0].get("path", "")}
+        return {}
+
+    if kiro_name == "write":
+        new_content = tool_input.get("newStr", "") or tool_input.get("content", "")
+        if new_content:
+            return {"diff": f"------- SEARCH\n=======\n{new_content}\n+++++++ REPLACE"}
+        return {}
+
+    return tool_input
+
+
 def parse_kiro_data(raw_data: str) -> HookInput:
     """Parse raw JSON from Kiro into a typed HookInput subclass.
 
@@ -97,12 +122,18 @@ def parse_kiro_data(raw_data: str) -> HookInput:
     tool_name = _map_tool_name(tool_name_raw) if tool_name_raw else ""
 
     if canonical_hook == "PreToolUse" and tool_name:
-        params = _build_mcp_parameters(tool_name_raw, tool_input) if tool_name_raw.startswith("@") else tool_input
+        if tool_name_raw.startswith("@"):
+            params = _build_mcp_parameters(tool_name_raw, tool_input)
+        else:
+            params = _normalise_parameters(tool_name_raw, tool_input)
         base_fields["preToolUse"] = PreToolUseFields(toolName=tool_name, parameters=params)
         return HookInputPreToolUse(**_filter_fields(HookInputPreToolUse, base_fields))
 
     if canonical_hook == "PostToolUse" and tool_name:
-        params = _build_mcp_parameters(tool_name_raw, tool_input) if tool_name_raw.startswith("@") else tool_input
+        if tool_name_raw.startswith("@"):
+            params = _build_mcp_parameters(tool_name_raw, tool_input)
+        else:
+            params = _normalise_parameters(tool_name_raw, tool_input)
         tool_response = data.get("tool_response", {})
         base_fields["postToolUse"] = PostToolUseFields(
             toolName=tool_name,

@@ -10,7 +10,7 @@ from cline_hooks.core.models import (
     HookInputUserPromptSubmit,
 )
 from cline_hooks.frontends.kiro import parse_kiro_data
-from cline_hooks.frontends.kiro.parser import _map_tool_name
+from cline_hooks.frontends.kiro.parser import _map_tool_name, _normalise_parameters
 
 
 class TestMapToolName:
@@ -34,6 +34,35 @@ class TestMapToolName:
 
     def test_call_aws(self) -> None:
         assert _map_tool_name("call_aws") == "execute_command"
+
+
+class TestNormaliseParameters:
+    def test_read_extracts_path_from_operations(self) -> None:
+        params = _normalise_parameters("read", {"operations": [{"mode": "Line", "path": "/file.py"}]})
+        assert params == {"path": "/file.py"}
+
+    def test_read_empty_operations(self) -> None:
+        assert _normalise_parameters("read", {"operations": []}) == {}
+
+    def test_read_no_operations(self) -> None:
+        assert _normalise_parameters("read", {}) == {}
+
+    def test_write_str_replace(self) -> None:
+        params = _normalise_parameters("write", {"command": "strReplace", "newStr": "# new code"})
+        assert "------- SEARCH" in params["diff"]
+        assert "# new code" in params["diff"]
+        assert "+++++++ REPLACE" in params["diff"]
+
+    def test_write_create(self) -> None:
+        params = _normalise_parameters("write", {"command": "create", "content": "# file content"})
+        assert "# file content" in params["diff"]
+
+    def test_write_no_content(self) -> None:
+        assert _normalise_parameters("write", {"command": "strReplace"}) == {}
+
+    def test_passthrough_for_other_tools(self) -> None:
+        original = {"command": "ls -la"}
+        assert _normalise_parameters("shell", original) is original
 
 
 class TestParseKiroPreToolUse:
@@ -65,6 +94,30 @@ class TestParseKiroPreToolUse:
         assert hook.preToolUse.toolName == "use_mcp_tool"
         assert hook.preToolUse.parameters["server_name"] == "memory"
         assert hook.preToolUse.parameters["tool_name"] == "create_entities"
+
+    def test_read_normalises_path(self) -> None:
+        data = json.dumps({
+            "hook_event_name": "preToolUse",
+            "cwd": "/project",
+            "tool_name": "read",
+            "tool_input": {"operations": [{"mode": "Line", "path": "/project/big.py"}]},
+        })
+        hook = parse_kiro_data(data)
+        assert isinstance(hook, HookInputPreToolUse)
+        assert hook.preToolUse is not None
+        assert hook.preToolUse.parameters == {"path": "/project/big.py"}
+
+    def test_write_normalises_diff(self) -> None:
+        data = json.dumps({
+            "hook_event_name": "preToolUse",
+            "cwd": "/project",
+            "tool_name": "write",
+            "tool_input": {"command": "strReplace", "newStr": "# a comment"},
+        })
+        hook = parse_kiro_data(data)
+        assert isinstance(hook, HookInputPreToolUse)
+        assert hook.preToolUse is not None
+        assert "# a comment" in hook.preToolUse.parameters["diff"]
 
 
 class TestParseKiroPostToolUse:
