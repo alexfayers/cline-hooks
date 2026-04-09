@@ -123,11 +123,6 @@ class TestHandleTaskStart:
             handle_task_start(hook)
         return cast("dict[str, object]", json.loads(output[0]))
 
-    def test_includes_memory_reminder(self, tmp_path: Path) -> None:
-        with patch("cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None):
-            result = self._run(_task_start([str(tmp_path)]))
-        assert "memory" in cast("str", result["contextModification"]).lower()
-
     def test_git_context_included_when_present(self, tmp_path: Path) -> None:
         with patch(
             "cline_hooks.handlers.task_lifecycle.get_git_context",
@@ -155,11 +150,6 @@ class TestHandleTaskResume:
         ):
             handle_task_resume(hook)
         return cast("dict[str, object]", json.loads(output[0]))
-
-    def test_includes_memory_reminder(self, tmp_path: Path) -> None:
-        with patch("cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None):
-            result = self._run(_task_resume([str(tmp_path)]))
-        assert "memory" in cast("str", result["contextModification"]).lower()
 
     def test_block_history_included_when_present(self, tmp_path: Path) -> None:
         store = TaskStateStore(tmp_path / "state.json")

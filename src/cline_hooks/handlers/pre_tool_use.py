@@ -9,7 +9,7 @@ import bashlex.errors
 import git
 
 from cline_hooks.core.models import McpToolUse
-from cline_hooks.core.plugin import load_plugins
+from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow, block
 from cline_hooks.handlers.commands import (
@@ -27,6 +27,7 @@ from cline_hooks.state.store import TaskStateStore
 
 if TYPE_CHECKING:
     from cline_hooks.core.models import HookInputPreToolUse
+    from cline_hooks.core.plugin import HooksPlugin
 
 logger = logging.getLogger("hooks")
 
@@ -45,6 +46,29 @@ def _starts_with_emoji(text: str) -> bool:
     """
     stripped = text.lstrip()
     return bool(stripped) and ord(stripped[0]) > _EMOJI_THRESHOLD
+
+
+def _apply_hook_result(
+    hook_name: str,
+    plugins: list[HooksPlugin],
+    task_id: str,
+    tool_name: str,
+    **kwargs: object,
+) -> None:
+    """Collect plugin results and block or emit notes.
+
+    Args:
+        hook_name: The hook event name.
+        plugins: Loaded plugin instances.
+        task_id: The task identifier.
+        tool_name: The tool being validated.
+        **kwargs: Additional kwargs passed to on_hook.
+    """
+    result = collect_hook_results(plugins, hook_name, task_id=task_id, tool_name=tool_name, **kwargs)
+    if result.block:
+        block(result.block, task_id=task_id, tool_name=tool_name)
+    if result.notes:
+        allow("\n\n".join(result.notes))
 
 
 @hook_handler("PreToolUse")
@@ -75,10 +99,8 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
 
     TaskStateStore().clear_blocks(hook.taskId)
 
-    for plugin in load_plugins():
-        reason = plugin.validate_tool(hook.taskId, tool_name, parameters)
-        if reason:
-            block(reason, task_id=hook.taskId, tool_name=tool_name)
+    plugins = load_plugins()
+    _apply_hook_result("PreToolUse", plugins, hook.taskId, tool_name, parameters=parameters)
 
     if tool_name == "plan_mode_respond":
         response: str = parameters.get("response", "")
@@ -116,7 +138,7 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
             logger.exception("Failed to parse command: %s", command)
             return
 
-        violated_rule = check_rules(extract_commands(parsed), get_all_command_rules(load_plugins()))
+        violated_rule = check_rules(extract_commands(parsed), get_all_command_rules(plugins))
         if violated_rule:
             block(violated_rule.message, task_id=hook.taskId, tool_name=tool_name)
 
@@ -158,10 +180,14 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
 
     elif tool_name == "use_mcp_tool":
         tool = McpToolUse(**parameters)
-        for plugin in load_plugins():
-            reason = plugin.validate_mcp_tool(hook.taskId, tool.tool_name, tool.arguments)
-            if reason:
-                block(reason, task_id=hook.taskId, tool_name=tool_name)
+        _apply_hook_result(
+            "PreMcpToolUse",
+            plugins,
+            hook.taskId,
+            tool_name,
+            mcp_tool_name=tool.tool_name,
+            mcp_arguments=tool.arguments,
+        )
 
     elif tool_name == "attempt_completion":
         task_progress: str = parameters.get("task_progress", "") or ""
@@ -173,10 +199,10 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
                 tool_name=tool_name,
             )
 
-        allow(
-            "REQUIRED before completing:\n1. Update `memory`\n2. One observation per fact (what changed, why, TODOs)",
-            prefix="IMPORTANT",
-        )
+        result = collect_hook_results(plugins, "AttemptCompletion", task_id=hook.taskId)
+        if result.notes:
+            allow("\n\n".join(result.notes), prefix="IMPORTANT")
+
         try:
             repo = git.Repo(".")
             if repo.is_dirty():

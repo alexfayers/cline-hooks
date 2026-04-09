@@ -9,13 +9,14 @@ import git
 import git.exc
 
 from cline_hooks.core.models import McpToolUse
-from cline_hooks.core.plugin import load_plugins
+from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
 from cline_hooks.state.skills import record_skill as _record_skill
 
 if TYPE_CHECKING:
     from cline_hooks.core.models import HookInputPostToolUse
+    from cline_hooks.core.plugin import HooksPlugin
 
 logger = logging.getLogger("hooks")
 
@@ -25,14 +26,20 @@ _COMMIT_REMINDER = (
 )
 _COMMIT_LINE_THRESHOLD = 200
 
-_MEMORY_WRITE_TOOL_NAMES = {
-    "create_entities",
-    "create_relations",
-    "add_observations",
-    "delete_entity",
-    "delete_relation",
-    "delete_observations",
-}
+
+def _get_all_state_write_tool_names(plugins: list[HooksPlugin]) -> frozenset[str]:
+    """Collect state-write tool names from all plugins.
+
+    Args:
+        plugins: Loaded plugin instances.
+
+    Returns:
+        Union of all plugin state-write tool name sets.
+    """
+    names: set[str] = set()
+    for plugin in plugins:
+        names.update(plugin.get_state_write_tool_names())
+    return frozenset(names)
 
 
 def _parse_diff_stat_line(line: str) -> int:
@@ -73,20 +80,6 @@ def _get_diff_line_count(workspace_roots: list[str]) -> int:
     return 0
 
 
-def handle_post_mcp_tool_use(tool: McpToolUse, task_id: str) -> None:
-    """Handle post-MCP tool usage.
-
-    Args:
-        tool: The MCP tool invocation that completed.
-        task_id: The Cline task identifier.
-    """
-    is_memory_write = tool.tool_name in _MEMORY_WRITE_TOOL_NAMES
-    for plugin in load_plugins():
-        note = plugin.on_post_tool_use(task_id, tool.tool_name, is_memory_write)
-        if note:
-            allow(note, prefix="")
-
-
 @hook_handler("PostToolUse")
 def handle_post_tool_use(hook: HookInputPostToolUse) -> None:  # noqa: PLR0912
     """Handle PostToolUse hook events.
@@ -106,16 +99,36 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> None:  # noqa: PLR0912
         logger.warning("Tool %s failed", tool_name)
         return
 
-    if tool_name in {
-        "replace_in_file",
-        "write_to_file",
-        "execute_command",
-        "plan_mode_respond",
-    }:
-        for plugin in load_plugins():
-            note = plugin.on_post_tool_use(hook.taskId, tool_name, is_memory_write=False)
-            if note:
-                allow(note, prefix="")
+    plugins = load_plugins()
+    state_write_names = _get_all_state_write_tool_names(plugins)
+
+    is_state_write = False
+    mcp_tool_name: str | None = None
+    if tool_name == "use_mcp_tool":
+        tool = McpToolUse(**parameters)
+        mcp_tool_name = tool.tool_name
+        is_state_write = tool.tool_name in state_write_names
+    elif tool_name == "use_skill":
+        skill_name = parameters.get("skill_name", "")
+        if skill_name:
+            _record_skill(hook.taskId, str(skill_name))
+    elif tool_name == "read_file":
+        path = parameters.get("path", "")
+        if path:
+            file_path = PurePosixPath(path)
+            if file_path.name == "SKILL.md":
+                _record_skill(hook.taskId, file_path.parent.name)
+
+    result = collect_hook_results(
+        plugins,
+        "PostToolUse",
+        task_id=hook.taskId,
+        tool_name=tool_name,
+        is_state_write=is_state_write,
+        mcp_tool_name=mcp_tool_name,
+    )
+    if result.notes:
+        allow("\n\n".join(result.notes), prefix="")
 
     if tool_name in {"replace_in_file", "write_to_file"}:
         diff_lines = _get_diff_line_count(hook.workspaceRoots)
@@ -126,21 +139,6 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> None:  # noqa: PLR0912
             )
 
     if tool_name == "execute_command":
-        result = hook.postToolUse.result
-        if result and "BUILD FAILED" in result:
+        result_text = hook.postToolUse.result
+        if result_text and "BUILD FAILED" in result_text:
             allow("The build failed! It did NOT pass. It FAILED!!", prefix="")
-
-    elif tool_name == "read_file":
-        path = parameters.get("path", "")
-        if path:
-            file_path = PurePosixPath(path)
-            if file_path.name == "SKILL.md":
-                _record_skill(hook.taskId, file_path.parent.name)
-
-    elif tool_name == "use_skill":
-        skill_name = parameters.get("skill_name", "")
-        if skill_name:
-            _record_skill(hook.taskId, str(skill_name))
-
-    elif tool_name == "use_mcp_tool":
-        handle_post_mcp_tool_use(McpToolUse(**parameters), hook.taskId)

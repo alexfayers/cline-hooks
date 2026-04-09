@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
 
@@ -19,9 +20,14 @@ def handle_pre_compact(hook: HookInputPreCompact) -> None:
     if hook.preCompact is None:
         return
 
-    message = (
-        f"Context compaction imminent: {hook.preCompact.conversationLength} messages, "
-        f"~{hook.preCompact.estimatedTokens} tokens will be truncated. "
-        "Save any important context, decisions, or progress to memory NOW before it's lost."
-    )
-    allow(message)
+    parts: list[str] = [
+        (
+            f"Context compaction imminent: {hook.preCompact.conversationLength} messages, "
+            f"~{hook.preCompact.estimatedTokens} tokens will be truncated."
+        ),
+    ]
+
+    result = collect_hook_results(load_plugins(), "PreCompact")
+    parts.extend(result.notes)
+
+    allow(" ".join(parts))

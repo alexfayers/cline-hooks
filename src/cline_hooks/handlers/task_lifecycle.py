@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import git
 import git.exc
 
-from cline_hooks.core.plugin import load_plugins
+from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
 from cline_hooks.handlers.git_context import get_git_context
@@ -71,32 +70,20 @@ def handle_task_start(hook: HookInputTaskStart) -> None:
         hook: The hook input data.
     """
     _reset_skills(hook.taskId)
-    for plugin in load_plugins():
-        plugin.on_task_start(hook.taskId)
     parts: list[str] = []
 
     git_context = get_git_context(hook.workspaceRoots)
     if git_context:
         parts.append(git_context)
 
-    for plugin in load_plugins():
-        ctx = plugin.get_workspace_context(hook.workspaceRoots)
-        if ctx:
-            parts.append(ctx)
-
-    workspace_name = Path(hook.workspaceRoots[0]).name if hook.workspaceRoots else None
-    if workspace_name:
-        parts.append(f"The project memory entity for this workspace is `project/{workspace_name}`.")
-
-    parts.append(
-        "REQUIRED before starting:\n"
-        "1. `read_graph` on BOTH `memory`\n"
-        "2. `search_nodes` for task keywords in both servers\n"
-        "3. `search_nodes` for `user-preferences` in global `memory`\n"
-        "4. `search_nodes` for `task/*` in `memory` (pending TODOs)\n"
-        "5. `search_related_nodes` on any relevant result\n"
-        "6. Include a `task_progress` checklist in your first tool call"
+    result = collect_hook_results(
+        load_plugins(),
+        "TaskStart",
+        task_id=hook.taskId,
+        workspace_roots=hook.workspaceRoots,
     )
+    parts.extend(result.notes)
+
     allow("\n\n".join(parts), prefix="")
 
 
@@ -121,9 +108,13 @@ def handle_task_resume(hook: HookInputTaskResume) -> None:
             skills_list = ", ".join(f"`{s}`" for s in sorted(pending_skills))
             parts.append(f"REQUIRED: use the {skills_list} skill(s) before retrying the blocked command.")
 
-    workspace_name = Path(hook.workspaceRoots[0]).name if hook.workspaceRoots else None
-    if workspace_name:
-        parts.append(f"The project memory entity for this workspace is `project/{workspace_name}`.")
+    result = collect_hook_results(
+        load_plugins(),
+        "TaskResume",
+        task_id=hook.taskId,
+        workspace_roots=hook.workspaceRoots,
+    )
+    parts.extend(result.notes)
 
     allow("\n\n".join(parts), prefix="")
 
@@ -141,8 +132,8 @@ def handle_task_cancel(hook: HookInputTaskCancel) -> None:
     if blocks:
         parts.append(_format_block_history(blocks))
 
-    for plugin in load_plugins():
-        plugin.on_task_end(hook.taskId)
+    result = collect_hook_results(load_plugins(), "TaskCancel", task_id=hook.taskId)
+    parts.extend(result.notes)
 
     allow("\n\n".join(parts), prefix="")
 
@@ -155,6 +146,5 @@ def handle_task_complete(hook: HookInputTaskComplete) -> None:
         hook: The hook input data.
     """
     _store.clear_blocks(hook.taskId)
-    for plugin in load_plugins():
-        plugin.on_task_end(hook.taskId)
+    collect_hook_results(load_plugins(), "TaskComplete", task_id=hook.taskId)
     allow()

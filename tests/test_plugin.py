@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from cline_hooks.core.plugin import HooksPlugin, _plugin_cache, load_plugins
+from cline_hooks.core.plugin import HookResult, HooksPlugin, _plugin_cache, collect_hook_results, load_plugins
 from cline_hooks.handlers.commands import (
     CommandRule,
     get_all_build_commands,
@@ -18,13 +18,80 @@ class TestHooksPluginDefaults:
         plugin = HooksPlugin()
         assert plugin.get_command_rules() == []
 
-    def test_get_workspace_context_returns_none(self) -> None:
+    def test_get_state_write_tool_names_returns_empty(self) -> None:
         plugin = HooksPlugin()
-        assert plugin.get_workspace_context([]) is None
+        assert plugin.get_state_write_tool_names() == frozenset()
 
-    def test_validate_mcp_tool_returns_none(self) -> None:
+    def test_on_hook_returns_none(self) -> None:
         plugin = HooksPlugin()
-        assert plugin.validate_mcp_tool("task-1", "any_tool", {}) is None
+        assert plugin.on_hook("AnyHook") is None
+
+
+class TestHookResult:
+    def test_defaults(self) -> None:
+        result = HookResult()
+        assert result.notes == []
+        assert result.block is None
+
+    def test_with_values(self) -> None:
+        result = HookResult(notes=["note1"], block="blocked")
+        assert result.notes == ["note1"]
+        assert result.block == "blocked"
+
+
+class TestCollectHookResults:
+    def test_no_plugins_returns_empty(self) -> None:
+        result = collect_hook_results([], "TestHook")
+        assert result.notes == []
+        assert result.block is None
+
+    def test_merges_notes(self) -> None:
+        class PluginA(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+                return HookResult(notes=["a"])
+
+        class PluginB(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+                return HookResult(notes=["b"])
+
+        result = collect_hook_results([PluginA(), PluginB()], "TestHook")
+        assert result.notes == ["a", "b"]
+        assert result.block is None
+
+    def test_first_block_wins(self) -> None:
+        class PluginA(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+                return HookResult(block="block-a")
+
+        class PluginB(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+                return HookResult(block="block-b")
+
+        result = collect_hook_results([PluginA(), PluginB()], "TestHook")
+        assert result.block == "block-a"
+
+    def test_none_results_skipped(self) -> None:
+        class PluginA(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+                return None
+
+        class PluginB(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+                return HookResult(notes=["b"])
+
+        result = collect_hook_results([PluginA(), PluginB()], "TestHook")
+        assert result.notes == ["b"]
+
+    def test_kwargs_passed_through(self) -> None:
+        received: dict[str, object] = {}
+
+        class PluginA(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+                received.update(kwargs)
+                return None
+
+        collect_hook_results([PluginA()], "TestHook", task_id="t1", tool_name="test")
+        assert received == {"task_id": "t1", "tool_name": "test"}
 
 
 class TestLoadPlugins:
@@ -91,9 +158,9 @@ class TestDefaultPluginCommandRules:
 
 
 class TestDefaultPluginWorkspaceContext:
-    def test_returns_none(self) -> None:
+    def test_on_hook_returns_none(self) -> None:
         plugin = DefaultPlugin()
-        assert plugin.get_workspace_context([]) is None
+        assert plugin.on_hook("TaskStart", workspace_roots=[]) is None
 
 
 class TestGetAllBuildCommands:

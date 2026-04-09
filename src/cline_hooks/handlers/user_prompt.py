@@ -5,6 +5,7 @@ import random
 import re
 from typing import TYPE_CHECKING
 
+from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
 
@@ -74,6 +75,9 @@ def handle_user_prompt_submit(hook: HookInputUserPromptSubmit) -> None:
     message = hook.userPromptSubmit.userMessage if hook.userPromptSubmit else ""
     if _contains_persist_signal(message) or random.random() < _PERSIST_REMINDER_CHANCE:
         notes.append(_PERSIST_REMINDER)
+
+    result = collect_hook_results(load_plugins(), "UserPromptSubmit", message=message)
+    notes.extend(result.notes)
 
     if notes:
         allow("\n\n".join(notes))

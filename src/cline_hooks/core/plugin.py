@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 import importlib
 import importlib.metadata
 import logging
@@ -12,6 +13,41 @@ if TYPE_CHECKING:
     from cline_hooks.handlers.commands import CommandRule
 
 logger = logging.getLogger("hooks")
+
+
+@dataclass
+class HookResult:
+    """Result from a plugin hook handler.
+
+    Attributes:
+        notes: Context strings to inject into the response.
+        block: If set, block the tool call with this reason.
+    """
+
+    notes: list[str] = field(default_factory=list)
+    block: str | None = None
+
+
+def collect_hook_results(plugins: list[HooksPlugin], hook_name: str, **kwargs: object) -> HookResult:
+    """Collect and merge HookResults from all plugins for a given hook.
+
+    Args:
+        plugins: The loaded plugin instances.
+        hook_name: The hook event name.
+        **kwargs: Hook-specific keyword arguments passed to each plugin.
+
+    Returns:
+        A merged HookResult with all notes and the first block reason found.
+    """
+    merged = HookResult()
+    for plugin in plugins:
+        result = plugin.on_hook(hook_name, **kwargs)
+        if result is None:
+            continue
+        merged.notes.extend(result.notes)
+        if result.block and merged.block is None:
+            merged.block = result.block
+    return merged
 
 
 class HooksPlugin:
@@ -37,84 +73,25 @@ class HooksPlugin:
         """
         return []
 
-    def get_workspace_context(self, workspace_roots: list[str]) -> str | None:  # noqa: ARG002
-        """Return a context string to inject on TaskStart, or None.
-
-        Args:
-            workspace_roots: The workspace root paths for the current task.
+    def get_state_write_tool_names(self) -> frozenset[str]:
+        """Return MCP tool names that are considered state-write operations.
 
         Returns:
-            A context string, or None if this plugin has nothing to add.
+            frozenset of tool name strings.
         """
-        return None
+        return frozenset()
 
-    def validate_tool(
-        self,
-        task_id: str,  # noqa: ARG002
-        tool_name: str,  # noqa: ARG002
-        parameters: dict[str, object],  # noqa: ARG002
-    ) -> str | None:
-        """Validate any tool call, returning a block message or None.
+    def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:  # noqa: ARG002
+        """Handle any hook event, returning notes and/or a block reason.
 
         Args:
-            task_id: The session or task identifier.
-            tool_name: The canonical tool name being called.
-            parameters: The tool parameters.
+            hook_name: The hook event name (e.g. "TaskStart", "PreToolUse").
+            **kwargs: Hook-specific keyword arguments.
 
         Returns:
-            A block reason string if the call should be blocked, else None.
+            A HookResult with notes/block, or None to do nothing.
         """
         return None
-
-    def validate_mcp_tool(
-        self,
-        task_id: str,  # noqa: ARG002
-        tool_name: str,  # noqa: ARG002
-        arguments: dict[str, object],  # noqa: ARG002
-    ) -> str | None:
-        """Validate an MCP tool call, returning a block message or None.
-
-        Args:
-            task_id: The session or task identifier.
-            tool_name: The inner MCP tool name being called.
-            arguments: The tool arguments.
-
-        Returns:
-            A block reason string if the call should be blocked, else None.
-        """
-        return None
-
-    def on_post_tool_use(
-        self,
-        task_id: str,  # noqa: ARG002
-        tool_name: str,  # noqa: ARG002
-        is_memory_write: bool,  # noqa: ARG002
-    ) -> str | None:
-        """Called after every tool use. Return a note string to emit, or None.
-
-        Args:
-            task_id: The session or task identifier.
-            tool_name: The tool that was just used.
-            is_memory_write: Whether the tool call was a memory write operation.
-
-        Returns:
-            A note string to emit via allow(), or None.
-        """
-        return None
-
-    def on_task_start(self, task_id: str) -> None:
-        """Called when a new task starts.
-
-        Args:
-            task_id: The session or task identifier.
-        """
-
-    def on_task_end(self, task_id: str) -> None:
-        """Called when a task ends (complete or cancel).
-
-        Args:
-            task_id: The session or task identifier.
-        """
 
 
 class _PluginCache:
