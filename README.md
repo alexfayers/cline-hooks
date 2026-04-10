@@ -87,10 +87,10 @@ my-plugin = "my_package:MyPlugin"
 
 ```python
 CommandRule(
-    command="rm",                              # command name to match
-    blocked_flags=frozenset({"-f", "--force"}), # flags that trigger a block
-    message="rm -f is not allowed.",           # message returned to the LLM
-    validator=my_validator_fn,                 # optional custom validator
+    command="rm",  # command name to match
+    blocked_flags=frozenset({"-f", "--force"}),  # flags that trigger a block
+    message="rm -f is not allowed.",  # message returned to the LLM
+    validator=my_validator_fn,  # optional custom validator
 )
 ```
 

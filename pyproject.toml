@@ -10,9 +10,13 @@ requires-python = ">=3.12"
 dependencies = [
     "bashlex",
     "gitpython",
+    "llm-prompts",
     "platformdirs",
 ]
 
+
+[tool.uv.sources]
+llm-prompts = { path = "../llm-prompts", editable = true }
 [project.scripts]
 cline-hook = "cline_hooks._main:main"
 
@@ -44,6 +48,10 @@ strict = true
 [[tool.mypy.overrides]]
 module = "bashlex.*"
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "llm_prompts.*"
+follow_untyped_imports = true
 
 [[tool.mypy.overrides]]
 module = "tests.*"

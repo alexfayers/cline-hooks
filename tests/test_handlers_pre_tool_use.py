@@ -8,6 +8,7 @@ import pytest
 
 from cline_hooks.frontends.cline import parse_cline_data as parse_data
 from cline_hooks.handlers.pre_tool_use import (
+    _is_managed_path,
     _starts_with_emoji,
     handle_pre_tool_use,
 )
@@ -165,3 +166,59 @@ class TestClearBlocksOnPass:
         store = TaskStateStore()
         _run("execute_command", {"command": "echo hello"})
         assert store.get_blocks("task-1") == []
+
+
+class TestManagedDirWriteGuard:
+    def test_is_managed_path_returns_dir_for_managed_file(self) -> None:
+        from llm_prompts.install import get_managed_dirs
+
+        dirs = get_managed_dirs()
+        if dirs:
+            managed_file = str(dirs[0] / "test-file.md")
+            assert _is_managed_path(managed_file) is not None
+
+    def test_is_managed_path_returns_none_for_unmanaged(self) -> None:
+        assert _is_managed_path("/some/random/file.md") is None
+
+    def test_is_managed_path_handles_invalid_path(self) -> None:
+        assert _is_managed_path("") is None
+
+    def test_replace_in_file_blocked_for_managed_path(self) -> None:
+        from llm_prompts.install import get_managed_dirs
+
+        dirs = get_managed_dirs()
+        if dirs:
+            result = _run(
+                "replace_in_file",
+                {
+                    "path": str(dirs[0] / "test.md"),
+                    "diff": "------- SEARCH\n=======\nnew\n+++++++ REPLACE",
+                },
+            )
+            assert result is not None
+            assert "source file" in cast("str", result.get("errorMessage", "")).lower()
+
+    def test_replace_in_file_allowed_for_unmanaged_path(self) -> None:
+        result = _run(
+            "replace_in_file",
+            {
+                "path": "/some/random/safe-file.md",
+                "diff": "------- SEARCH\n=======\nnew\n+++++++ REPLACE",
+            },
+        )
+        assert result is None or "source file" not in cast("str", result.get("errorMessage", "")).lower()
+
+    def test_write_to_file_blocked_for_managed_path(self) -> None:
+        from llm_prompts.install import get_managed_dirs
+
+        dirs = get_managed_dirs()
+        if dirs:
+            result = _run(
+                "write_to_file",
+                {
+                    "path": str(dirs[0] / "new-file.md"),
+                    "content": "# new file",
+                },
+            )
+            assert result is not None
+            assert "source file" in cast("str", result.get("errorMessage", "")).lower()

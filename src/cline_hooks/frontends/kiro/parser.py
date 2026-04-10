@@ -91,10 +91,14 @@ def _normalise_parameters(canonical_name: str, tool_input: dict[str, Any]) -> di
         return {}
 
     if canonical_name == "replace_in_file":
+        result: dict[str, Any] = {}
+        path = tool_input.get("path", "")
+        if path:
+            result["path"] = path
         new_content = tool_input.get("newStr", "") or tool_input.get("content", "")
         if new_content:
-            return {"diff": f"------- SEARCH\n=======\n{new_content}\n+++++++ REPLACE"}
-        return {}
+            result["diff"] = f"------- SEARCH\n=======\n{new_content}\n+++++++ REPLACE"
+        return result
 
     return tool_input
 

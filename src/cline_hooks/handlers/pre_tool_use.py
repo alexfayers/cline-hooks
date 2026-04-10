@@ -25,6 +25,11 @@ from cline_hooks.state.skills import (
 )
 from cline_hooks.state.store import TaskStateStore
 
+try:
+    from llm_prompts.install import get_managed_dirs as _get_managed_dirs_impl
+except ImportError:
+    _get_managed_dirs_impl = None  # type: ignore[assignment]
+
 if TYPE_CHECKING:
     from cline_hooks.core.models import HookInputPreToolUse
     from cline_hooks.core.plugin import HooksPlugin
@@ -33,6 +38,41 @@ logger = logging.getLogger("hooks")
 
 _LARGE_FILE_THRESHOLD = 1000
 _EMOJI_THRESHOLD = 0x7F
+_managed_dirs: list[Path] | None = None
+
+
+def _get_managed_dirs() -> list[Path]:
+    """Return cached list of managed prompt install directories."""
+    global _managed_dirs  # noqa: PLW0603
+    if _managed_dirs is None:
+        if _get_managed_dirs_impl is not None:
+            _managed_dirs = _get_managed_dirs_impl()
+        else:
+            _managed_dirs = []
+    return _managed_dirs
+
+
+def _is_managed_path(path: str) -> Path | None:
+    """Check if a path falls under a managed install directory.
+
+    Args:
+        path: The file path to check.
+
+    Returns:
+        The managed directory if the path is managed, None otherwise.
+    """
+    try:
+        resolved = Path(path).resolve()
+    except (OSError, ValueError):
+        return None
+    for managed_dir in _get_managed_dirs():
+        try:
+            resolved.relative_to(managed_dir.resolve())
+        except ValueError:
+            continue
+        else:
+            return managed_dir
+    return None
 
 
 def _starts_with_emoji(text: str) -> bool:
@@ -90,6 +130,7 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
         "read_file",
         "replace_in_file",
         "use_mcp_tool",
+        "write_to_file",
         "attempt_completion",
     }:
         logger.debug("Ignoring unhandled tool: %s", tool_name)
@@ -150,7 +191,18 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
                 tool_name=tool_name,
             )
 
-    elif tool_name == "replace_in_file":
+    elif tool_name in {"replace_in_file", "write_to_file"}:
+        file_path = parameters.get("path", "")
+        if file_path:
+            managed_dir = _is_managed_path(file_path)
+            if managed_dir:
+                block(
+                    f"{file_path} is in managed directory {managed_dir}. "
+                    "Edit the source file instead, then run `llm-prompts install`.",
+                    task_id=hook.taskId,
+                    tool_name=tool_name,
+                )
+
         diff = parameters.get("diff", "")
         if not diff:
             return

@@ -60,6 +60,21 @@ class TestNormaliseParameters:
     def test_write_no_content(self) -> None:
         assert _normalise_parameters("replace_in_file", {"command": "strReplace"}) == {}
 
+    def test_write_preserves_path(self) -> None:
+        params = _normalise_parameters(
+            "replace_in_file",
+            {"command": "strReplace", "path": "/home/user/file.py", "newStr": "new"},
+        )
+        assert params["path"] == "/home/user/file.py"
+        assert "new" in params["diff"]
+
+    def test_write_no_content_preserves_path(self) -> None:
+        params = _normalise_parameters(
+            "replace_in_file",
+            {"command": "strReplace", "path": "/home/user/file.py"},
+        )
+        assert params == {"path": "/home/user/file.py"}
+
     def test_passthrough_for_other_tools(self) -> None:
         original = {"command": "ls -la"}
         assert _normalise_parameters("execute_command", original) is original
