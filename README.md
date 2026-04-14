@@ -5,8 +5,20 @@ Lifecycle hooks framework for AI coding assistants. Supports Cline and Kiro.
 ## Installation
 
 ```bash
-uv tool install git+https://github.com/alexfayers/cline-hooks
+uv tool install cline-hooks
 ```
+
+### As part of the llm-prompts ecosystem
+
+Add cline-hooks to your `~/.config/llm-prompts/config.toml`:
+
+```toml
+[[tools]]
+name = "cline-hooks"
+source = "cline-hooks"
+```
+
+Then run `llm-prompts setup` to install everything.
 
 ### Cline
 
@@ -96,3 +108,8 @@ CommandRule(
 
 A `validator` receives `(cmd: ParsedCommand, all_commands: list[ParsedCommand])`
 and returns `True` if the command should be blocked.
+
+## Related
+
+- [llm-prompts](https://github.com/alexfayers/llm-prompts) - cross-agent rules, workflows, and skills
+- [mcp-memory](https://github.com/alexfayers/mcp-memory) - persistent memory MCP server (overlay for llm-prompts and cline-hooks)
