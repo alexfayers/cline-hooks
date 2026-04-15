@@ -5,7 +5,7 @@ Lifecycle hooks framework for AI coding assistants. Supports Cline and Kiro.
 ## Installation
 
 ```bash
-uv tool install cline-hooks
+uv tool install "git+https://github.com/alexfayers/cline-hooks.git"
 ```
 
 ### As part of the llm-prompts ecosystem
@@ -15,7 +15,7 @@ Add cline-hooks to your `~/.config/llm-prompts/config.toml`:
 ```toml
 [[tools]]
 name = "cline-hooks"
-source = "cline-hooks"
+source = "git+https://github.com/alexfayers/cline-hooks.git"
 ```
 
 Then run `llm-prompts setup` to install everything.
