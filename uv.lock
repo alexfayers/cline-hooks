@@ -48,7 +48,7 @@ typecheck = [
 requires-dist = [
     { name = "bashlex" },
     { name = "gitpython" },
-    { name = "llm-prompts", editable = "../llm-prompts" },
+    { name = "llm-prompts", git = "https://github.com/alexfayers/llm-prompts.git" },
     { name = "platformdirs" },
 ]
 
@@ -259,7 +259,7 @@ wheels = [
 [[package]]
 name = "llm-prompts"
 version = "0.1.0"
-source = { editable = "../llm-prompts" }
+source = { git = "https://github.com/alexfayers/llm-prompts.git#1452ea3ab100051018fdf074188fc757a8675500" }
 
 [[package]]
 name = "mypy"

@@ -14,9 +14,9 @@ dependencies = [
     "platformdirs",
 ]
 
-
 [tool.uv.sources]
-llm-prompts = { path = "../llm-prompts", editable = true }
+llm-prompts = { git = "https://github.com/alexfayers/llm-prompts.git" }
+
 [project.scripts]
 cline-hook = "cline_hooks._main:main"
 
