@@ -170,6 +170,7 @@ class TestClearBlocksOnPass:
 
 class TestManagedDirWriteGuard:
     def test_is_managed_path_returns_dir_for_managed_file(self) -> None:
+        pytest.importorskip("llm_prompts")
         from llm_prompts.install import get_managed_dirs
 
         dirs = get_managed_dirs()
@@ -184,6 +185,7 @@ class TestManagedDirWriteGuard:
         assert _is_managed_path("") is None
 
     def test_replace_in_file_blocked_for_managed_path(self) -> None:
+        pytest.importorskip("llm_prompts")
         from llm_prompts.install import get_managed_dirs
 
         dirs = get_managed_dirs()
@@ -209,6 +211,7 @@ class TestManagedDirWriteGuard:
         assert result is None or "source file" not in cast("str", result.get("errorMessage", "")).lower()
 
     def test_write_to_file_blocked_for_managed_path(self) -> None:
+        pytest.importorskip("llm_prompts")
         from llm_prompts.install import get_managed_dirs
 
         dirs = get_managed_dirs()

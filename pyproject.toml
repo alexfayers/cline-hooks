@@ -10,12 +10,8 @@ requires-python = ">=3.12"
 dependencies = [
     "bashlex",
     "gitpython",
-    "llm-prompts",
     "platformdirs",
 ]
-
-[tool.uv.sources]
-llm-prompts = { git = "https://github.com/alexfayers/llm-prompts.git" }
 
 [project.scripts]
 cline-hook = "cline_hooks._main:main"
