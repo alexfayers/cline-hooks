@@ -42,6 +42,9 @@ def _build_kiro_hooks(binary: Path) -> dict[str, list[dict[str, str]]]:
 def install_kiro(agent_config_path: str) -> None:
     """Patch a Kiro agent config JSON file with cline-hooks entries.
 
+    Merges hook entries into the existing hooks config, preserving entries
+    from other sources. Skips hooks that already have a cline-hooks entry.
+
     Args:
         agent_config_path: Path to the agent JSON file to patch.
     """
@@ -53,6 +56,22 @@ def install_kiro(agent_config_path: str) -> None:
         sys.exit(1)
 
     config = json.loads(config_path.read_text(encoding="utf-8"))
-    config["hooks"] = _build_kiro_hooks(binary)
+    existing_hooks: dict[str, list[dict[str, str]]] = config.get("hooks", {})
+    new_hooks = _build_kiro_hooks(binary)
+
+    added = 0
+    for hook_name, entries in new_hooks.items():
+        current = existing_hooks.get(hook_name, [])
+        commands = {e.get("command") for e in current}
+        for entry in entries:
+            if entry["command"] not in commands:
+                current.append(entry)
+                added += 1
+        existing_hooks[hook_name] = current
+
+    config["hooks"] = existing_hooks
     config_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
-    print(f"Patched {config_path} with {len(_KIRO_HOOKS)} hooks.")
+    if added:
+        print(f"Patched {config_path} with {added} hook(s).")
+    else:
+        print(f"{config_path} already has all cline-hooks entries.")
