@@ -141,7 +141,14 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
     TaskStateStore().clear_blocks(hook.taskId)
 
     plugins = load_plugins()
-    _apply_hook_result("PreToolUse", plugins, hook.taskId, tool_name, parameters=parameters)
+    _apply_hook_result(
+        "PreToolUse",
+        plugins,
+        hook.taskId,
+        tool_name,
+        parameters=parameters,
+        workspace_roots=hook.workspaceRoots,
+    )
 
     if tool_name == "plan_mode_respond":
         response: str = parameters.get("response", "")

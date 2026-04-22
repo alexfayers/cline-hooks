@@ -124,8 +124,10 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> None:  # noqa: PLR0912
         "PostToolUse",
         task_id=hook.taskId,
         tool_name=tool_name,
+        parameters=hook.postToolUse.parameters,
         is_state_write=is_state_write,
         mcp_tool_name=mcp_tool_name,
+        workspace_roots=hook.workspaceRoots,
     )
     if result.notes:
         allow("\n\n".join(result.notes), prefix="")
