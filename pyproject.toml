@@ -16,6 +16,9 @@ dependencies = [
 [project.scripts]
 cline-hook = "cline_hooks._main:main"
 
+[project.entry-points."llm_prompts"]
+hooks = "cline_hooks"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/cline_hooks"]
 
