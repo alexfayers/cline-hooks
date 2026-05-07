@@ -97,6 +97,11 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> None:  # noqa: PLR0912
 
     if not hook.postToolUse.success:
         logger.warning("Tool %s failed", tool_name)
+        allow(
+            "A tool just failed. When you fix this, persist what went wrong and the fix "
+            "to memory (and to rules/skills if it reveals a missing process step).",
+            prefix="",
+        )
         return
 
     plugins = load_plugins()

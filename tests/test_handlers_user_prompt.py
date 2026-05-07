@@ -8,7 +8,8 @@ import pytest
 
 from cline_hooks.frontends.cline import parse_cline_data as parse_data
 from cline_hooks.handlers.user_prompt import (
-    _contains_persist_signal,
+    _contains_correction_signal,
+    _contains_info_signal,
     handle_user_prompt_submit,
 )
 
@@ -50,28 +51,64 @@ def _run(user_message: str = "") -> dict[str, object] | None:
     return cast("dict[str, object]", json.loads(output[0]))
 
 
-class TestContainsPersistSignal:
+class TestContainsCorrectionSignal:
     @pytest.mark.parametrize(
         "message",
         [
-            "Actually, you should use ruff instead",
             "You should always use type hints",
-            "Remember that we prefer Google docstrings",
-            "Never use the -f flag with rm",
             "Don't add comments explaining changes",
             "Please don't use emdash characters",
-            "I prefer minimal comments in code",
             "From now on, use British English",
             "Going forward, always run just before committing",
             "In future, check for tests before committing",
             "Correction: the method is called parse_data",
             "That's not the right approach",
-            "Note that this file uses camelCase",
             "Stop doing that",
+            "Why didn't you check the tests first?",
+            "You keep making the same mistake",
+            "You always forget to run lint",
+            "You never persist things properly",
+            "Not like that, do it differently",
+            "Wrong, it should be the other way",
         ],
     )
-    def test_returns_true_for_persist_signal(self, message: str) -> None:
-        assert _contains_persist_signal(message) is True
+    def test_returns_true_for_correction_signal(self, message: str) -> None:
+        assert _contains_correction_signal(message) is True
+
+    @pytest.mark.parametrize(
+        "message",
+        [
+            "Can you implement this feature?",
+            "What does this function do?",
+            "Run the tests please",
+            "Create a new file",
+            "Actually, the API returns JSON",
+            "Remember that the deadline is Friday",
+            "",
+        ],
+    )
+    def test_returns_false_for_non_correction(self, message: str) -> None:
+        assert _contains_correction_signal(message) is False
+
+    def test_case_insensitive(self) -> None:
+        assert _contains_correction_signal("STOP doing that") is True
+        assert _contains_correction_signal("YOU SHOULD check first") is True
+
+
+class TestContainsInfoSignal:
+    @pytest.mark.parametrize(
+        "message",
+        [
+            "Actually, the API returns JSON",
+            "Remember that we prefer Google docstrings",
+            "Never use the -f flag with rm",
+            "I prefer minimal comments in code",
+            "Note that this file uses camelCase",
+            "Always run tests before pushing",
+        ],
+    )
+    def test_returns_true_for_info_signal(self, message: str) -> None:
+        assert _contains_info_signal(message) is True
 
     @pytest.mark.parametrize(
         "message",
@@ -84,25 +121,40 @@ class TestContainsPersistSignal:
         ],
     )
     def test_returns_false_for_neutral_message(self, message: str) -> None:
-        assert _contains_persist_signal(message) is False
+        assert _contains_info_signal(message) is False
 
     def test_case_insensitive(self) -> None:
-        assert _contains_persist_signal("ALWAYS use type hints") is True
-        assert _contains_persist_signal("NEVER skip tests") is True
+        assert _contains_info_signal("ALWAYS use type hints") is True
+        assert _contains_info_signal("NEVER skip tests") is True
 
 
 class TestHandleUserPromptSubmit:
-    def test_persist_signal_message_always_fires_reminder(self) -> None:
+    def test_correction_signal_fires_correction_reminder(self) -> None:
         with patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0):
-            result = _run("Actually, you should use ruff")
+            result = _run("You should always run lint first")
         assert result is not None
-        assert "persisted" in cast("str", result.get("contextModification", "")).lower()
+        assert "correction" in cast("str", result.get("contextModification", "")).lower()
 
-    def test_neutral_message_with_low_random_fires_reminder(self) -> None:
+    def test_correction_takes_priority_over_info(self) -> None:
+        with patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0):
+            result = _run("You should always use type hints")
+        assert result is not None
+        context = cast("str", result.get("contextModification", ""))
+        assert "correction" in context.lower()
+        assert "persist to memory" not in context.lower()
+
+    def test_info_signal_fires_info_reminder(self) -> None:
+        with patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0):
+            result = _run("Actually, the deadline is Friday")
+        assert result is not None
+        context = cast("str", result.get("contextModification", ""))
+        assert "persist to memory" in context.lower()
+
+    def test_neutral_message_with_low_random_fires_info_reminder(self) -> None:
         with patch("cline_hooks.handlers.user_prompt.random.random", return_value=0.0):
             result = _run("Can you implement this feature?")
         assert result is not None
-        assert "persisted" in cast("str", result.get("contextModification", "")).lower()
+        assert "persist to memory" in cast("str", result.get("contextModification", "")).lower()
 
     def test_neutral_message_with_high_random_no_reminder(self) -> None:
         with (

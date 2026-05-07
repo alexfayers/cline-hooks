@@ -54,10 +54,13 @@ def _run(hook: HookInputPostToolUse) -> dict[str, object] | None:
 
 
 class TestHandlePostToolUse:
-    def test_failed_tool_produces_no_output(self) -> None:
+    def test_failed_tool_fires_persist_reminder(self) -> None:
         hook = _make_hook("replace_in_file", success=False)
         result = _run(hook)
-        assert result is None
+        assert result is not None
+        context = str(result.get("contextModification", ""))
+        assert "failed" in context.lower()
+        assert "persist" in context.lower()
 
     def test_build_failed_triggers_alert(self) -> None:
         hook = _make_hook("execute_command", result="BUILD FAILED: something went wrong")
