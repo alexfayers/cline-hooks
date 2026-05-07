@@ -10,6 +10,7 @@ from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
 from cline_hooks.handlers.git_context import get_git_context
+from cline_hooks.state.memory import reset as _reset_memory
 from cline_hooks.state.skills import (
     _SKILL_REQUIREMENTS,
     reset as _reset_skills,
@@ -70,6 +71,7 @@ def handle_task_start(hook: HookInputTaskStart) -> None:
         hook: The hook input data.
     """
     _reset_skills(hook.taskId)
+    _reset_memory(hook.taskId)
     parts: list[str] = []
 
     git_context = get_git_context(hook.workspaceRoots)
@@ -146,5 +148,6 @@ def handle_task_complete(hook: HookInputTaskComplete) -> None:
         hook: The hook input data.
     """
     _store.clear_blocks(hook.taskId)
+    _reset_memory(hook.taskId)
     collect_hook_results(load_plugins(), "TaskComplete", task_id=hook.taskId)
     allow()

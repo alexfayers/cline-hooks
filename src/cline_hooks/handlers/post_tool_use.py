@@ -12,6 +12,11 @@ from cline_hooks.core.models import McpToolUse
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
+from cline_hooks.state.memory import (
+    has_memory_writes as _has_memory_writes,
+    is_memory_write as _is_memory_write,
+    record_memory_write as _record_memory_write,
+)
 from cline_hooks.state.skills import record_skill as _record_skill
 
 if TYPE_CHECKING:
@@ -25,6 +30,12 @@ _COMMIT_REMINDER = (
     "Consider committing your work now to keep changes manageable."
 )
 _COMMIT_LINE_THRESHOLD = 200
+
+_MEMORY_WARNING = (
+    "WARNING: No memory writes have been made this session. "
+    "You MUST persist your work to memory NOW before completing. "
+    "Knowledge not persisted is permanently lost."
+)
 
 
 def _get_all_state_write_tool_names(plugins: list[HooksPlugin]) -> frozenset[str]:
@@ -80,6 +91,26 @@ def _get_diff_line_count(workspace_roots: list[str]) -> int:
     return 0
 
 
+def _is_session_end_skill(tool_name: str, parameters: dict[str, object]) -> bool:
+    """Check whether the current tool call is invoking the session-end skill.
+
+    Args:
+        tool_name: The tool name as reported by the frontend.
+        parameters: The tool parameters.
+
+    Returns:
+        True if this is a session-end skill invocation.
+    """
+    if tool_name == "Skill":
+        return parameters.get("skill") == "session-end"
+    if tool_name == "use_skill":
+        return parameters.get("skill_name") == "session-end"
+    if tool_name in {"read_file", "Read"}:
+        path = str(parameters.get("path", "") or parameters.get("file_path", ""))
+        return path.endswith("session-end/SKILL.md")
+    return False
+
+
 @hook_handler("PostToolUse")
 def handle_post_tool_use(hook: HookInputPostToolUse) -> None:  # noqa: PLR0912
     """Handle PostToolUse hook events.
@@ -113,12 +144,20 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> None:  # noqa: PLR0912
         tool = McpToolUse(**parameters)
         mcp_tool_name = tool.tool_name
         is_state_write = tool.tool_name in state_write_names
+        if _is_memory_write(tool.tool_name):
+            _record_memory_write(hook.taskId, tool.tool_name)
+    elif _is_memory_write(tool_name):
+        _record_memory_write(hook.taskId, tool_name)
     elif tool_name == "use_skill":
         skill_name = parameters.get("skill_name", "")
         if skill_name:
             _record_skill(hook.taskId, str(skill_name))
-    elif tool_name == "read_file":
-        path = parameters.get("path", "")
+    elif tool_name == "Skill":
+        skill_name = parameters.get("skill", "")
+        if skill_name:
+            _record_skill(hook.taskId, str(skill_name))
+    elif tool_name in {"read_file", "Read"}:
+        path = parameters.get("path", "") or parameters.get("file_path", "")
         if path:
             file_path = PurePosixPath(path)
             if file_path.name == "SKILL.md":
@@ -149,3 +188,6 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> None:  # noqa: PLR0912
         result_text = hook.postToolUse.result
         if result_text and "BUILD FAILED" in result_text:
             allow("The build failed! It did NOT pass. It FAILED!!", prefix="")
+
+    if _is_session_end_skill(tool_name, parameters) and not _has_memory_writes(hook.taskId):
+        allow(_MEMORY_WARNING, prefix="")

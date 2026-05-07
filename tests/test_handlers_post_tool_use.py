@@ -7,8 +7,10 @@ from unittest.mock import patch
 from cline_hooks.core.models import HookInputPostToolUse
 from cline_hooks.frontends.cline import parse_cline_data as parse_data
 from cline_hooks.handlers.post_tool_use import (
+    _is_session_end_skill,
     handle_post_tool_use,
 )
+from cline_hooks.state.memory import record_memory_write
 
 _BASE = {
     "clineVersion": "1.0",
@@ -94,3 +96,53 @@ class TestSkillDetectionViaRead:
         with patch("cline_hooks.handlers.post_tool_use._record_skill") as mock_record:
             _run(hook)
         mock_record.assert_not_called()
+
+    def test_claude_code_read_skill_detected(self) -> None:
+        hook = _make_hook("Read", parameters={"file_path": "/Users/me/.claude/skills/git-usage/SKILL.md"})
+        with patch("cline_hooks.handlers.post_tool_use._record_skill") as mock_record:
+            _run(hook)
+        mock_record.assert_called_once_with("task-1", "git-usage")
+
+
+class TestIsSessionEndSkill:
+    def test_claude_code_skill_tool(self) -> None:
+        assert _is_session_end_skill("Skill", {"skill": "session-end"})
+
+    def test_cline_use_skill(self) -> None:
+        assert _is_session_end_skill("use_skill", {"skill_name": "session-end"})
+
+    def test_read_skill_md(self) -> None:
+        assert _is_session_end_skill("read_file", {"path": "/home/user/.kiro/skills/session-end/SKILL.md"})
+
+    def test_claude_code_read_skill_md(self) -> None:
+        assert _is_session_end_skill("Read", {"file_path": "/Users/me/.claude/skills/session-end/SKILL.md"})
+
+    def test_other_skill_not_detected(self) -> None:
+        assert not _is_session_end_skill("Skill", {"skill": "git-usage"})
+
+    def test_unrelated_tool_not_detected(self) -> None:
+        assert not _is_session_end_skill("Bash", {"command": "echo hi"})
+
+
+class TestMemoryWarningOnSessionEnd:
+    def test_warns_when_no_memory_writes(self) -> None:
+        hook = _make_hook("Skill", parameters={"skill": "session-end"})
+        result = _run(hook)
+        assert result is not None
+        context = str(result.get("contextModification", ""))
+        assert "No memory writes" in context
+
+    def test_no_warning_when_memory_written(self) -> None:
+        record_memory_write("task-1", "create_entities")
+        hook = _make_hook("Skill", parameters={"skill": "session-end"})
+        result = _run(hook)
+        if result is not None:
+            context = str(result.get("contextModification", ""))
+            assert "No memory writes" not in context
+
+    def test_no_warning_for_non_session_end_skill(self) -> None:
+        hook = _make_hook("Skill", parameters={"skill": "git-usage"})
+        result = _run(hook)
+        if result is not None:
+            context = str(result.get("contextModification", ""))
+            assert "No memory writes" not in context
