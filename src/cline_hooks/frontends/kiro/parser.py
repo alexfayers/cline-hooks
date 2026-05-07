@@ -25,6 +25,7 @@ _KIRO_HOOK_MAP: dict[str, str] = {
     "agentSpawn": "TaskStart",
     "userPromptSubmit": "UserPromptSubmit",
     "stop": "Stop",
+    "SessionStart": "TaskStart",
 }
 
 _KIRO_TOOL_MAP: dict[str, str] = {

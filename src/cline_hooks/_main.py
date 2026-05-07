@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, NoReturn
 from cline_hooks.core.protocol import set_protocol
 from cline_hooks.core.registry import HOOK_HANDLERS
 from cline_hooks.core.response import allow
+from cline_hooks.frontends.claude_code import install_claude_code
 from cline_hooks.frontends.cline import ClineProtocol, install_cline, parse_cline_data
 from cline_hooks.frontends.kiro import KiroProtocol, install_kiro, parse_kiro_data
 import cline_hooks.handlers  # noqa: F401
@@ -44,6 +45,8 @@ def _build_parser() -> argparse.ArgumentParser:
 
     kiro_parser = install_sub.add_parser("kiro", help="Install Kiro hooks into agent config")
     kiro_parser.add_argument("agent_config", help="Path to Kiro agent config JSON file")
+
+    install_sub.add_parser("claude-code", help="Install Claude Code hooks into settings")
 
     sub.add_parser("plugins", help="List installed plugins")
 
@@ -124,6 +127,8 @@ def main() -> NoReturn:
             install_kiro(args.agent_config)
         elif args.install_mode == "cline":
             install_cline(args.target_dir)
+        elif args.install_mode == "claude-code":
+            install_claude_code()
         else:
             _build_parser().parse_args(["install", "--help"])
         sys.exit(0)

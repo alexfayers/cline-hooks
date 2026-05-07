@@ -1,6 +1,6 @@
 # cline-hooks
 
-Lifecycle hooks framework for AI coding assistants. Supports Cline and Kiro.
+Lifecycle hooks framework for AI coding assistants. Supports Cline, Kiro, and Claude Code.
 
 ## Installation
 
@@ -30,6 +30,12 @@ cline-hook install cline ~/Documents/Cline/Hooks
 
 ```bash
 cline-hook install kiro ~/.kiro/agents/my-agent.json
+```
+
+### Claude Code
+
+```bash
+cline-hook install claude-code
 ```
 
 ### List installed plugins
