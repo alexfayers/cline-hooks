@@ -148,6 +148,9 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> None:  # noqa: PLR0912
             _record_memory_write(hook.taskId, tool.tool_name)
     elif _is_memory_write(tool_name):
         _record_memory_write(hook.taskId, tool_name)
+        if "__" in tool_name:
+            mcp_tool_name = tool_name.rsplit("__", 1)[-1]
+            is_state_write = mcp_tool_name in state_write_names
     elif tool_name == "use_skill":
         skill_name = parameters.get("skill_name", "")
         if skill_name:

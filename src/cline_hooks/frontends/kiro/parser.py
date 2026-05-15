@@ -75,6 +75,27 @@ def _build_mcp_parameters(kiro_name: str, tool_input: dict[str, Any]) -> dict[st
     }
 
 
+def _ensure_dict(value: dict[str, Any] | str | list[Any] | None) -> dict[str, Any]:
+    """Normalise a value that should be a dict.
+
+    Args:
+        value: The raw value (may be dict, str, list, or None).
+
+    Returns:
+        A dict, falling back to {} for non-dict types.
+    """
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+            if isinstance(parsed, dict):
+                return parsed
+        except (json.JSONDecodeError, ValueError):
+            pass
+    return {}
+
+
 def _normalise_parameters(canonical_name: str, tool_input: dict[str, Any]) -> dict[str, Any]:
     """Normalise Kiro tool parameters to match canonical handler expectations.
 
@@ -127,7 +148,7 @@ def parse_kiro_data(raw_data: str) -> HookInput:
     }
 
     tool_name_raw = data.get("tool_name", "")
-    tool_input: dict[str, Any] = data.get("tool_input", {})
+    tool_input: dict[str, Any] = _ensure_dict(data.get("tool_input", {}))
     tool_name = _map_tool_name(tool_name_raw) if tool_name_raw else ""
 
     if canonical_hook == "PreToolUse" and tool_name:
@@ -143,7 +164,7 @@ def parse_kiro_data(raw_data: str) -> HookInput:
             params = _build_mcp_parameters(tool_name_raw, tool_input)
         else:
             params = _normalise_parameters(tool_name, tool_input)
-        tool_response = data.get("tool_response", {})
+        tool_response = _ensure_dict(data.get("tool_response", {}))
         base_fields["postToolUse"] = PostToolUseFields(
             toolName=tool_name,
             parameters=params,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import sys
 from typing import TYPE_CHECKING, NoReturn
@@ -60,9 +61,13 @@ def _detect_kiro(raw_data: str) -> bool:
         raw_data: The raw JSON string from stdin.
 
     Returns:
-        True if the input contains hook_event_name (Kiro format).
+        True if hook_event_name is a top-level key (Kiro format).
     """
-    return '"hook_event_name"' in raw_data
+    try:
+        data = json.loads(raw_data)
+    except (json.JSONDecodeError, ValueError):
+        return False
+    return isinstance(data, dict) and "hook_event_name" in data
 
 
 def _parse_input(raw_data: str) -> HookInput:

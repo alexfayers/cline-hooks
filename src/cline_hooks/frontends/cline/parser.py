@@ -21,7 +21,7 @@ def parse_cline_data(raw_data: str) -> HookInput:
     hook_name = data.get("hookName")
 
     for subclass in inheritors(HookInput):
-        if getattr(subclass, "hookName", None) == hook_name:
+        if hook_name is not None and getattr(subclass, "hookName", None) == hook_name:
             return cast("HookInput", subclass(**_filter_fields(subclass, data)))
 
     return HookInput(**_filter_fields(HookInput, data))

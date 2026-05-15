@@ -20,6 +20,20 @@ class TestDetectKiro:
         data = json.dumps({"hookName": "PreToolUse", "taskId": "abc"})
         assert _detect_kiro(data) is False
 
+    def test_hook_event_name_in_tool_args_not_detected_as_kiro(self) -> None:
+        data = json.dumps({
+            "hookName": "PostToolUse",
+            "taskId": "abc",
+            "postToolUse": {
+                "toolName": "Read",
+                "parameters": {"file_path": "/some/file.py"},
+                "success": True,
+                "executionTimeMs": 10,
+                "result": 'content with "hook_event_name" in it',
+            },
+        })
+        assert _detect_kiro(data) is False
+
 
 class TestParseInput:
     def test_kiro_sets_kiro_protocol(self) -> None:

@@ -124,7 +124,8 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
     tool_name = hook.preToolUse.toolName
     parameters = hook.preToolUse.parameters
 
-    if tool_name not in {
+    is_claude_code_mcp = "__" in tool_name
+    if not is_claude_code_mcp and tool_name not in {
         "execute_command",
         "plan_mode_respond",
         "read_file",
@@ -132,6 +133,11 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
         "use_mcp_tool",
         "write_to_file",
         "attempt_completion",
+        "Bash",
+        "Read",
+        "Edit",
+        "Write",
+        "Skill",
     }:
         logger.debug("Ignoring unhandled tool: %s", tool_name)
         return

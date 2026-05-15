@@ -163,6 +163,44 @@ class TestParseKiroPostToolUse:
         assert hook.postToolUse is not None
         assert hook.postToolUse.success is False
 
+    def test_string_tool_response(self) -> None:
+        data = json.dumps({
+            "hook_event_name": "postToolUse",
+            "cwd": "/project",
+            "tool_name": "read",
+            "tool_input": {"path": "/file.py"},
+            "tool_response": "some string result",
+        })
+        hook = parse_kiro_data(data)
+        assert isinstance(hook, HookInputPostToolUse)
+        assert hook.postToolUse is not None
+        assert hook.postToolUse.success is True
+
+    def test_list_tool_response(self) -> None:
+        data = json.dumps({
+            "hook_event_name": "postToolUse",
+            "cwd": "/project",
+            "tool_name": "shell",
+            "tool_input": {"command": "ls"},
+            "tool_response": ["line1", "line2"],
+        })
+        hook = parse_kiro_data(data)
+        assert isinstance(hook, HookInputPostToolUse)
+        assert hook.postToolUse is not None
+        assert hook.postToolUse.success is True
+
+    def test_string_tool_input(self) -> None:
+        data = json.dumps({
+            "hook_event_name": "preToolUse",
+            "cwd": "/project",
+            "tool_name": "shell",
+            "tool_input": "not a dict",
+        })
+        hook = parse_kiro_data(data)
+        assert isinstance(hook, HookInputPreToolUse)
+        assert hook.preToolUse is not None
+        assert hook.preToolUse.parameters == {}
+
 
 class TestParseKiroAgentSpawn:
     def test_maps_to_task_start(self) -> None:
