@@ -16,6 +16,11 @@ def _requires_build_context(_cmd: ParsedCommand, all_commands: list[ParsedComman
     return any(cmd.name in _BUILD_COMMANDS for cmd in all_commands)
 
 
+def _is_standalone_cat(_cmd: ParsedCommand, all_commands: list[ParsedCommand]) -> bool:
+    """Return True when cat is the only command (not piped into something else)."""
+    return len(all_commands) == 1
+
+
 class DefaultPlugin(HooksPlugin):
     """Default bundled plugin providing standard hook behaviour."""
 
@@ -43,6 +48,11 @@ class DefaultPlugin(HooksPlugin):
                 command="git",
                 message="Commit messages must be single-line. Do not add a body.",
                 validator=validate_git_commit_message,
+            ),
+            CommandRule(
+                command="cat",
+                message="Use the Read tool instead of cat to read files.",
+                validator=_is_standalone_cat,
             ),
             CommandRule(
                 command="grep",

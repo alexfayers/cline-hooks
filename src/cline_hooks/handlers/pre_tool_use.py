@@ -180,7 +180,7 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
             except OSError:
                 pass
 
-    elif tool_name == "execute_command":
+    elif tool_name in {"execute_command", "Bash"}:
         command: str = parameters.get("command", "")
         if not command:
             return

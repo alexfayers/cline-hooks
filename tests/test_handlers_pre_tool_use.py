@@ -126,6 +126,41 @@ class TestHeadTailBlock:
         assert result is None
 
 
+class TestCatBlock:
+    def test_standalone_cat_is_blocked(self) -> None:
+        result = _run("execute_command", {"command": "cat /path/to/file.py"})
+        assert result is not None
+        assert "Read tool" in cast("str", result.get("errorMessage", ""))
+
+    def test_cat_piped_to_other_command_is_allowed(self) -> None:
+        result = _run("execute_command", {"command": "cat file.json | python3 -c 'import json'"})
+        assert result is None
+
+    def test_cat_piped_to_grep_is_allowed(self) -> None:
+        result = _run("execute_command", {"command": "cat file.txt | grep foo"})
+        assert result is None
+
+    def test_standalone_cat_via_bash_tool_is_blocked(self) -> None:
+        result = _run("Bash", {"command": "cat /path/to/file.py"})
+        assert result is not None
+        assert "Read tool" in cast("str", result.get("errorMessage", ""))
+
+    def test_bash_tool_piped_cat_is_allowed(self) -> None:
+        result = _run("Bash", {"command": "cat file.json | python3 -m json.tool"})
+        assert result is None
+
+
+class TestBashToolCommandRules:
+    def test_rm_f_blocked_via_bash_tool(self) -> None:
+        result = _run("Bash", {"command": "rm -f file.txt"})
+        assert result is not None
+        assert "rm -f" in cast("str", result.get("errorMessage", "")).lower()
+
+    def test_safe_command_allowed_via_bash_tool(self) -> None:
+        result = _run("Bash", {"command": "ls -la"})
+        assert result is None
+
+
 class TestPlanModeRespondEmojiCheck:
     def test_emoji_start_is_allowed(self) -> None:
         result = _run("plan_mode_respond", {"response": "👋 Hey there!"})
