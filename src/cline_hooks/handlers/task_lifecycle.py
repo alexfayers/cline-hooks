@@ -16,6 +16,7 @@ from cline_hooks.state.skills import (
     reset as _reset_skills,
 )
 from cline_hooks.state.store import TaskStateStore
+from cline_hooks.state.turns import reset as _reset_turns
 
 if TYPE_CHECKING:
     from cline_hooks.core.models import (
@@ -72,6 +73,7 @@ def handle_task_start(hook: HookInputTaskStart) -> None:
     """
     _reset_skills(hook.taskId)
     _reset_memory(hook.taskId)
+    _reset_turns(hook.taskId)
     parts: list[str] = []
 
     git_context = get_git_context(hook.workspaceRoots)
@@ -149,5 +151,6 @@ def handle_task_complete(hook: HookInputTaskComplete) -> None:
     """
     _store.clear_blocks(hook.taskId)
     _reset_memory(hook.taskId)
+    _reset_turns(hook.taskId)
     collect_hook_results(load_plugins(), "TaskComplete", task_id=hook.taskId)
     allow()

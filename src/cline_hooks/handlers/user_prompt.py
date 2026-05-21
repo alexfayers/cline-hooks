@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
+from cline_hooks.state.turns import increment, should_remind
 
 if TYPE_CHECKING:
     from cline_hooks.core.models import HookInputUserPromptSubmit
@@ -52,6 +53,13 @@ _INFO_PATTERNS: list[re.Pattern[str]] = [
     ]
 ]
 
+_SCOPE_CHECK_REMINDER = (
+    "SESSION LENGTH CHECK: This session has reached {turns} user turns. "
+    "Pause and assess: is this still one coherent change, or has scope crept? "
+    "If multiple unrelated changes have accumulated, commit what's done, note remaining work as TODOs, "
+    "and suggest splitting into a new session."
+)
+
 _CORRECTION_REMINDER = (
     "CORRECTION DETECTED: The user is correcting your behavior. "
     "Find and edit the relevant rule or skill SOURCE FILE now. "
@@ -90,6 +98,10 @@ def handle_user_prompt_submit(hook: HookInputUserPromptSubmit) -> None:
         hook: The hook input data.
     """
     notes: list[str] = []
+
+    turn_count = increment(hook.taskId)
+    if should_remind(turn_count):
+        notes.append(_SCOPE_CHECK_REMINDER.format(turns=turn_count))
 
     hour = datetime.now(tz=UTC).hour
     if hour >= _LATE_NIGHT_START or hour < _EARLY_MORNING_END:
