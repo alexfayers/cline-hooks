@@ -26,9 +26,9 @@ from cline_hooks.state.skills import (
 from cline_hooks.state.store import TaskStateStore
 
 try:
-    from llm_prompts.install import get_managed_dirs as _get_managed_dirs_impl
+    from llm_prompts.install import get_managed_files as _get_managed_files_impl
 except ImportError:
-    _get_managed_dirs_impl = None  # type: ignore[assignment]
+    _get_managed_files_impl = None  # type: ignore[assignment]
 
 if TYPE_CHECKING:
     from cline_hooks.core.models import HookInputPreToolUse
@@ -38,41 +38,40 @@ logger = logging.getLogger("hooks")
 
 _LARGE_FILE_THRESHOLD = 1000
 _EMOJI_THRESHOLD = 0x7F
-_managed_dirs: list[Path] | None = None
+_managed_files: set[str] | None = None
 
 
-def _get_managed_dirs() -> list[Path]:
-    """Return cached list of managed prompt install directories."""
-    global _managed_dirs  # noqa: PLW0603
-    if _managed_dirs is None:
-        if _get_managed_dirs_impl is not None:
-            _managed_dirs = _get_managed_dirs_impl()
+def _get_managed_files() -> set[str]:
+    """Return cached set of managed file paths from the manifest."""
+    global _managed_files  # noqa: PLW0603
+    if _managed_files is None:
+        if _get_managed_files_impl is not None:
+            _managed_files = _get_managed_files_impl()
         else:
-            _managed_dirs = []
-    return _managed_dirs
+            _managed_files = set()
+    return _managed_files
 
 
-def _is_managed_path(path: str) -> Path | None:
-    """Check if a path falls under a managed install directory.
+def _is_managed_path(path: str) -> bool:
+    """Check if a file path is tracked in the llm-prompts manifest.
 
     Args:
         path: The file path to check.
 
     Returns:
-        The managed directory if the path is managed, None otherwise.
+        True if the file is managed by llm-prompts.
     """
     try:
-        resolved = Path(path).resolve()
+        resolved = str(Path(path).resolve())
     except (OSError, ValueError):
-        return None
-    for managed_dir in _get_managed_dirs():
-        try:
-            resolved.relative_to(managed_dir.resolve())
-        except ValueError:
-            continue
-        else:
-            return managed_dir
-    return None
+        return False
+    managed = _get_managed_files()
+    if resolved in managed:
+        return True
+    for managed_path in managed:
+        if resolved.startswith(managed_path + "/"):
+            return True
+    return False
 
 
 def _starts_with_emoji(text: str) -> bool:
@@ -206,15 +205,13 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
 
     elif tool_name in {"replace_in_file", "write_to_file", "Edit", "Write"}:
         file_path = parameters.get("path", "") or parameters.get("file_path", "")
-        if file_path:
-            managed_dir = _is_managed_path(file_path)
-            if managed_dir:
-                block(
-                    f"{file_path} is in managed directory {managed_dir}. "
-                    "Edit the source file instead, then run `llm-prompts install`.",
-                    task_id=hook.taskId,
-                    tool_name=tool_name,
-                )
+        if file_path and _is_managed_path(file_path):
+            block(
+                f"{file_path} is managed by llm-prompts. "
+                "Edit the source file instead, then run `llm-prompts update`.",
+                task_id=hook.taskId,
+                tool_name=tool_name,
+            )
 
         diff = parameters.get("diff", "")
         if not diff:

@@ -168,109 +168,88 @@ class TestClearBlocksOnPass:
         assert store.get_blocks("task-1") == []
 
 
-class TestManagedDirWriteGuard:
-    def test_is_managed_path_returns_dir_for_managed_file(self) -> None:
-        pytest.importorskip("llm_prompts")
-        from llm_prompts.install import get_managed_dirs
+class TestManagedFileWriteGuard:
+    _MANAGED_FILE = "/Users/test/.claude/rules/managed-rule.md"
 
-        dirs = get_managed_dirs()
-        if dirs:
-            managed_file = str(dirs[0] / "test-file.md")
-            assert _is_managed_path(managed_file) is not None
+    @pytest.fixture(autouse=True)
+    def _mock_managed_files(self) -> None:
+        import cline_hooks.handlers.pre_tool_use as module
 
-    def test_is_managed_path_returns_none_for_unmanaged(self) -> None:
-        assert _is_managed_path("/some/random/file.md") is None
+        module._managed_files = {self._MANAGED_FILE}
+
+    def test_is_managed_path_returns_true_for_managed_file(self) -> None:
+        assert _is_managed_path(self._MANAGED_FILE) is True
+
+    def test_is_managed_path_returns_false_for_unmanaged(self) -> None:
+        assert _is_managed_path("/some/random/file.md") is False
+
+    def test_is_managed_path_returns_false_for_unmanaged_in_same_dir(self) -> None:
+        assert _is_managed_path("/Users/test/.claude/rules/my-custom-rule.md") is False
 
     def test_is_managed_path_handles_invalid_path(self) -> None:
-        assert _is_managed_path("") is None
+        assert _is_managed_path("") is False
 
-    def test_replace_in_file_blocked_for_managed_path(self) -> None:
-        pytest.importorskip("llm_prompts")
-        from llm_prompts.install import get_managed_dirs
-
-        dirs = get_managed_dirs()
-        if dirs:
-            result = _run(
-                "replace_in_file",
-                {
-                    "path": str(dirs[0] / "test.md"),
-                    "diff": "------- SEARCH\n=======\nnew\n+++++++ REPLACE",
-                },
-            )
-            assert result is not None
-            assert "source file" in cast("str", result.get("errorMessage", "")).lower()
-
-    def test_replace_in_file_allowed_for_unmanaged_path(self) -> None:
+    def test_replace_in_file_blocked_for_managed_file(self) -> None:
         result = _run(
             "replace_in_file",
             {
-                "path": "/some/random/safe-file.md",
+                "path": self._MANAGED_FILE,
+                "diff": "------- SEARCH\n=======\nnew\n+++++++ REPLACE",
+            },
+        )
+        assert result is not None
+        assert "source file" in cast("str", result.get("errorMessage", "")).lower()
+
+    def test_replace_in_file_allowed_for_unmanaged_file(self) -> None:
+        result = _run(
+            "replace_in_file",
+            {
+                "path": "/Users/test/.claude/rules/my-custom-rule.md",
                 "diff": "------- SEARCH\n=======\nnew\n+++++++ REPLACE",
             },
         )
         assert result is None or "source file" not in cast("str", result.get("errorMessage", "")).lower()
 
-    def test_write_to_file_blocked_for_managed_path(self) -> None:
-        pytest.importorskip("llm_prompts")
-        from llm_prompts.install import get_managed_dirs
+    def test_write_to_file_blocked_for_managed_file(self) -> None:
+        result = _run(
+            "write_to_file",
+            {"path": self._MANAGED_FILE, "content": "# overwrite"},
+        )
+        assert result is not None
+        assert "source file" in cast("str", result.get("errorMessage", "")).lower()
 
-        dirs = get_managed_dirs()
-        if dirs:
-            result = _run(
-                "write_to_file",
-                {
-                    "path": str(dirs[0] / "new-file.md"),
-                    "content": "# new file",
-                },
-            )
-            assert result is not None
-            assert "source file" in cast("str", result.get("errorMessage", "")).lower()
-
-    def test_edit_blocked_for_managed_path(self) -> None:
-        pytest.importorskip("llm_prompts")
-        from llm_prompts.install import get_managed_dirs
-
-        dirs = get_managed_dirs()
-        if dirs:
-            result = _run(
-                "Edit",
-                {
-                    "file_path": str(dirs[0] / "test.md"),
-                    "old_string": "old",
-                    "new_string": "new",
-                },
-            )
-            assert result is not None
-            assert "source file" in cast("str", result.get("errorMessage", "")).lower()
-
-    def test_edit_allowed_for_unmanaged_path(self) -> None:
+    def test_edit_blocked_for_managed_file(self) -> None:
         result = _run(
             "Edit",
             {
-                "file_path": "/some/random/safe-file.md",
+                "file_path": self._MANAGED_FILE,
+                "old_string": "old",
+                "new_string": "new",
+            },
+        )
+        assert result is not None
+        assert "source file" in cast("str", result.get("errorMessage", "")).lower()
+
+    def test_edit_allowed_for_unmanaged_file_in_same_dir(self) -> None:
+        result = _run(
+            "Edit",
+            {
+                "file_path": "/Users/test/.claude/rules/my-custom-rule.md",
                 "old_string": "old",
                 "new_string": "new",
             },
         )
         assert result is None or "source file" not in cast("str", result.get("errorMessage", "")).lower()
 
-    def test_write_blocked_for_managed_path(self) -> None:
-        pytest.importorskip("llm_prompts")
-        from llm_prompts.install import get_managed_dirs
+    def test_write_blocked_for_managed_file(self) -> None:
+        result = _run(
+            "Write",
+            {"file_path": self._MANAGED_FILE, "content": "# overwrite"},
+        )
+        assert result is not None
+        assert "source file" in cast("str", result.get("errorMessage", "")).lower()
 
-        dirs = get_managed_dirs()
-        if dirs:
-            result = _run(
-                "Write",
-                {
-                    "file_path": str(dirs[0] / "new-file.md"),
-                    "content": "# new file",
-                },
-            )
-            assert result is not None
-            assert "source file" in cast("str", result.get("errorMessage", "")).lower()
-
-    def test_write_allowed_for_unmanaged_path(self) -> None:
+    def test_write_allowed_for_unmanaged_file(self) -> None:
         result = _run(
             "Write",
             {
