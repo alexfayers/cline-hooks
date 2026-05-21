@@ -204,8 +204,8 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
                 tool_name=tool_name,
             )
 
-    elif tool_name in {"replace_in_file", "write_to_file"}:
-        file_path = parameters.get("path", "")
+    elif tool_name in {"replace_in_file", "write_to_file", "Edit", "Write"}:
+        file_path = parameters.get("path", "") or parameters.get("file_path", "")
         if file_path:
             managed_dir = _is_managed_path(file_path)
             if managed_dir:

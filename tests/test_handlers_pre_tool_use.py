@@ -225,3 +225,57 @@ class TestManagedDirWriteGuard:
             )
             assert result is not None
             assert "source file" in cast("str", result.get("errorMessage", "")).lower()
+
+    def test_edit_blocked_for_managed_path(self) -> None:
+        pytest.importorskip("llm_prompts")
+        from llm_prompts.install import get_managed_dirs
+
+        dirs = get_managed_dirs()
+        if dirs:
+            result = _run(
+                "Edit",
+                {
+                    "file_path": str(dirs[0] / "test.md"),
+                    "old_string": "old",
+                    "new_string": "new",
+                },
+            )
+            assert result is not None
+            assert "source file" in cast("str", result.get("errorMessage", "")).lower()
+
+    def test_edit_allowed_for_unmanaged_path(self) -> None:
+        result = _run(
+            "Edit",
+            {
+                "file_path": "/some/random/safe-file.md",
+                "old_string": "old",
+                "new_string": "new",
+            },
+        )
+        assert result is None or "source file" not in cast("str", result.get("errorMessage", "")).lower()
+
+    def test_write_blocked_for_managed_path(self) -> None:
+        pytest.importorskip("llm_prompts")
+        from llm_prompts.install import get_managed_dirs
+
+        dirs = get_managed_dirs()
+        if dirs:
+            result = _run(
+                "Write",
+                {
+                    "file_path": str(dirs[0] / "new-file.md"),
+                    "content": "# new file",
+                },
+            )
+            assert result is not None
+            assert "source file" in cast("str", result.get("errorMessage", "")).lower()
+
+    def test_write_allowed_for_unmanaged_path(self) -> None:
+        result = _run(
+            "Write",
+            {
+                "file_path": "/some/random/safe-file.md",
+                "content": "# new file",
+            },
+        )
+        assert result is None or "source file" not in cast("str", result.get("errorMessage", "")).lower()
