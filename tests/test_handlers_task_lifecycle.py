@@ -21,6 +21,7 @@ from cline_hooks.handlers.task_lifecycle import (
     handle_task_resume,
     handle_task_start,
 )
+from cline_hooks.state.agents import has_agent_use, record_agent_use
 from cline_hooks.state.skills import is_skill_called, record_skill
 from cline_hooks.state.store import TaskBlockEvent, TaskStateStore
 
@@ -136,6 +137,12 @@ class TestHandleTaskStart:
             result = self._run(_task_start([str(tmp_path)]))
         assert result["cancel"] is False
 
+    def test_agent_use_reset_on_start(self, tmp_path: Path) -> None:
+        record_agent_use("task-1", "Agent")
+        with patch("cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None):
+            self._run(_task_start([str(tmp_path)]))
+        assert not has_agent_use("task-1")
+
 
 class TestHandleTaskResume:
     def _run(self, hook: HookInputTaskResume, store: TaskStateStore | None = None) -> dict[str, object]:
@@ -168,6 +175,12 @@ class TestHandleTaskResume:
         with patch("cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None):
             self._run(_task_resume([str(tmp_path)]))
         assert is_skill_called("task-1", "git-usage")
+
+    def test_agent_use_preserved_on_resume(self, tmp_path: Path) -> None:
+        record_agent_use("task-1", "Agent")
+        with patch("cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None):
+            self._run(_task_resume([str(tmp_path)]))
+        assert has_agent_use("task-1")
 
 
 class TestHandleTaskCancel:
@@ -218,3 +231,14 @@ class TestHandleTaskComplete:
     def test_no_context_injected(self, tmp_path: Path) -> None:
         result = self._run(_task_complete([str(tmp_path)]))
         assert "contextModification" not in result
+
+    def test_agent_use_reset_on_complete(self, tmp_path: Path) -> None:
+        record_agent_use("task-1", "Agent")
+        import git.exc
+
+        with patch(
+            "cline_hooks.handlers.task_lifecycle.git.Repo",
+            side_effect=git.exc.InvalidGitRepositoryError,
+        ):
+            self._run(_task_complete([str(tmp_path)]))
+        assert not has_agent_use("task-1")

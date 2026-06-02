@@ -13,6 +13,7 @@ _STATE_PATH = get_data_dir() / "turns-state.json"
 
 _SCOPE_CHECK_THRESHOLD = 80
 _REMINDER_INTERVAL = 40
+_AGENT_NUDGE_THRESHOLD = 50
 
 
 def _read() -> dict[str, int]:
@@ -57,6 +58,22 @@ def should_remind(turn_count: int) -> bool:
     if turn_count < _SCOPE_CHECK_THRESHOLD:
         return False
     return (turn_count - _SCOPE_CHECK_THRESHOLD) % _REMINDER_INTERVAL == 0
+
+
+def should_nudge_agents(turn_count: int) -> bool:
+    """Check whether the current turn count should trigger an agent fan-out nudge.
+
+    Triggers at the agent-nudge threshold, then every REMINDER_INTERVAL turns after.
+
+    Args:
+        turn_count: The current turn count.
+
+    Returns:
+        True if an agent fan-out nudge should be shown.
+    """
+    if turn_count < _AGENT_NUDGE_THRESHOLD:
+        return False
+    return (turn_count - _AGENT_NUDGE_THRESHOLD) % _REMINDER_INTERVAL == 0
 
 
 def reset(task_id: str) -> None:

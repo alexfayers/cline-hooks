@@ -3,7 +3,7 @@ from __future__ import annotations
 import contextlib
 import logging
 from pathlib import PurePosixPath
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import git
 import git.exc
@@ -12,6 +12,10 @@ from cline_hooks.core.models import McpToolUse
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
+from cline_hooks.state.agents import (
+    is_agent_tool as _is_agent_tool,
+    record_agent_use as _record_agent_use,
+)
 from cline_hooks.state.memory import (
     has_memory_writes as _has_memory_writes,
     is_memory_write as _is_memory_write,
@@ -111,8 +115,59 @@ def _is_session_end_skill(tool_name: str, parameters: dict[str, object]) -> bool
     return False
 
 
+def _record_tool_use(
+    task_id: str,
+    tool_name: str,
+    parameters: dict[str, Any],
+    state_write_names: frozenset[str],
+) -> tuple[bool, str | None]:
+    """Record memory/skill/agent use for a tool call and resolve its MCP identity.
+
+    Args:
+        task_id: The session or task identifier.
+        tool_name: The tool name as reported by the frontend.
+        parameters: The tool parameters.
+        state_write_names: Tool names that count as plugin state writes.
+
+    Returns:
+        A tuple of (is_state_write, mcp_tool_name).
+    """
+    is_state_write = False
+    mcp_tool_name: str | None = None
+    if tool_name == "use_mcp_tool":
+        tool = McpToolUse(**parameters)
+        mcp_tool_name = tool.tool_name
+        is_state_write = tool.tool_name in state_write_names
+        if _is_memory_write(tool.tool_name):
+            _record_memory_write(task_id, tool.tool_name)
+    elif _is_memory_write(tool_name):
+        _record_memory_write(task_id, tool_name)
+        if "__" in tool_name:
+            mcp_tool_name = tool_name.rsplit("__", 1)[-1]
+            is_state_write = mcp_tool_name in state_write_names
+    elif tool_name == "use_skill":
+        skill_name = parameters.get("skill_name", "")
+        if skill_name:
+            _record_skill(task_id, str(skill_name))
+    elif tool_name == "Skill":
+        skill_name = parameters.get("skill", "")
+        if skill_name:
+            _record_skill(task_id, str(skill_name))
+    elif tool_name in {"read_file", "Read"}:
+        path = parameters.get("path", "") or parameters.get("file_path", "")
+        if path:
+            file_path = PurePosixPath(str(path))
+            if file_path.name == "SKILL.md":
+                _record_skill(task_id, file_path.parent.name)
+
+    if _is_agent_tool(tool_name):
+        _record_agent_use(task_id, tool_name)
+
+    return is_state_write, mcp_tool_name
+
+
 @hook_handler("PostToolUse")
-def handle_post_tool_use(hook: HookInputPostToolUse) -> None:  # noqa: PLR0912
+def handle_post_tool_use(hook: HookInputPostToolUse) -> None:
     """Handle PostToolUse hook events.
 
     Args:
@@ -138,33 +193,7 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> None:  # noqa: PLR0912
     plugins = load_plugins()
     state_write_names = _get_all_state_write_tool_names(plugins)
 
-    is_state_write = False
-    mcp_tool_name: str | None = None
-    if tool_name == "use_mcp_tool":
-        tool = McpToolUse(**parameters)
-        mcp_tool_name = tool.tool_name
-        is_state_write = tool.tool_name in state_write_names
-        if _is_memory_write(tool.tool_name):
-            _record_memory_write(hook.taskId, tool.tool_name)
-    elif _is_memory_write(tool_name):
-        _record_memory_write(hook.taskId, tool_name)
-        if "__" in tool_name:
-            mcp_tool_name = tool_name.rsplit("__", 1)[-1]
-            is_state_write = mcp_tool_name in state_write_names
-    elif tool_name == "use_skill":
-        skill_name = parameters.get("skill_name", "")
-        if skill_name:
-            _record_skill(hook.taskId, str(skill_name))
-    elif tool_name == "Skill":
-        skill_name = parameters.get("skill", "")
-        if skill_name:
-            _record_skill(hook.taskId, str(skill_name))
-    elif tool_name in {"read_file", "Read"}:
-        path = parameters.get("path", "") or parameters.get("file_path", "")
-        if path:
-            file_path = PurePosixPath(path)
-            if file_path.name == "SKILL.md":
-                _record_skill(hook.taskId, file_path.parent.name)
+    is_state_write, mcp_tool_name = _record_tool_use(hook.taskId, tool_name, parameters, state_write_names)
 
     result = collect_hook_results(
         plugins,

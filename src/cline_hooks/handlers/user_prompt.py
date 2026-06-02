@@ -8,7 +8,8 @@ from typing import TYPE_CHECKING
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
-from cline_hooks.state.turns import increment, should_remind
+from cline_hooks.state.agents import has_agent_use
+from cline_hooks.state.turns import increment, should_nudge_agents, should_remind
 
 if TYPE_CHECKING:
     from cline_hooks.core.models import HookInputUserPromptSubmit
@@ -66,6 +67,12 @@ _CORRECTION_REMINDER = (
     "Memory alone is not enough - rules/skills are always loaded into context, memory must be searched for."
 )
 
+_AGENT_NUDGE_REMINDER = (
+    "FAN-OUT CHECK: {turns} turns in and no subagent has been used yet. "
+    "If this is non-trivial work, parallelise with subagents (research, independent edits, verification) "
+    "rather than working sequentially."
+)
+
 _INFO_REMINDER = (
     "REMINDER: Has the user said anything that should be persisted?\n"
     "Check: new information, preferences, decisions -> persist to memory."
@@ -102,6 +109,9 @@ def handle_user_prompt_submit(hook: HookInputUserPromptSubmit) -> None:
     turn_count = increment(hook.taskId)
     if should_remind(turn_count):
         notes.append(_SCOPE_CHECK_REMINDER.format(turns=turn_count))
+
+    if should_nudge_agents(turn_count) and not has_agent_use(hook.taskId):
+        notes.append(_AGENT_NUDGE_REMINDER.format(turns=turn_count))
 
     hour = datetime.now(tz=UTC).hour
     if hour >= _LATE_NIGHT_START or hour < _EARLY_MORNING_END:

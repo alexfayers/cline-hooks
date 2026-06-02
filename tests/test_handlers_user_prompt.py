@@ -12,6 +12,8 @@ from cline_hooks.handlers.user_prompt import (
     _contains_info_signal,
     handle_user_prompt_submit,
 )
+from cline_hooks.state.agents import record_agent_use
+from cline_hooks.state.turns import _AGENT_NUDGE_THRESHOLD
 
 if TYPE_CHECKING:
     from cline_hooks.core.models import HookInputUserPromptSubmit
@@ -49,6 +51,14 @@ def _run(user_message: str = "") -> dict[str, object] | None:
     if not output:
         return None
     return cast("dict[str, object]", json.loads(output[0]))
+
+
+def _run_n_turns(n: int) -> dict[str, object] | None:
+    """Submit n neutral prompts and return the output from the last turn."""
+    last: dict[str, object] | None = None
+    for _ in range(n):
+        last = _run("neutral")
+    return last
 
 
 class TestContainsCorrectionSignal:
@@ -183,6 +193,36 @@ class TestHandleUserPromptSubmit:
             mock_dt.now.return_value.hour = 12
             result = _run("neutral message")
         assert result is None
+
+    def test_no_agent_nudge_below_threshold(self) -> None:
+        with (
+            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
+            patch("cline_hooks.handlers.user_prompt.datetime") as mock_dt,
+        ):
+            mock_dt.now.return_value.hour = 12
+            last = _run_n_turns(_AGENT_NUDGE_THRESHOLD - 1)
+        assert last is None
+
+    def test_agent_nudge_at_threshold_without_agent_use(self) -> None:
+        with (
+            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
+            patch("cline_hooks.handlers.user_prompt.datetime") as mock_dt,
+        ):
+            mock_dt.now.return_value.hour = 12
+            last = _run_n_turns(_AGENT_NUDGE_THRESHOLD)
+        assert last is not None
+        assert "FAN-OUT CHECK" in cast("str", last.get("contextModification", ""))
+
+    def test_no_agent_nudge_when_agent_already_used(self) -> None:
+        record_agent_use("task-1", "Agent")
+        with (
+            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
+            patch("cline_hooks.handlers.user_prompt.datetime") as mock_dt,
+        ):
+            mock_dt.now.return_value.hour = 12
+            last = _run_n_turns(_AGENT_NUDGE_THRESHOLD)
+        if last is not None:
+            assert "FAN-OUT CHECK" not in cast("str", last.get("contextModification", ""))
 
     def test_no_userPromptSubmit_field_emits_no_error(self) -> None:
         hook = cast(

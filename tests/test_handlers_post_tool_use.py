@@ -104,6 +104,36 @@ class TestSkillDetectionViaRead:
         mock_record.assert_called_once_with("task-1", "git-usage")
 
 
+class TestAgentUseRecording:
+    def test_agent_tool_records_use(self) -> None:
+        hook = _make_hook("Agent", parameters={"description": "research"})
+        with patch("cline_hooks.handlers.post_tool_use._record_agent_use") as mock_record:
+            _run(hook)
+        mock_record.assert_called_once_with("task-1", "Agent")
+
+    def test_new_task_records_use(self) -> None:
+        hook = _make_hook("new_task", parameters={})
+        with patch("cline_hooks.handlers.post_tool_use._record_agent_use") as mock_record:
+            _run(hook)
+        mock_record.assert_called_once_with("task-1", "new_task")
+
+    def test_non_agent_tool_does_not_record(self) -> None:
+        hook = _make_hook("Bash", parameters={"command": "echo hi"})
+        with patch("cline_hooks.handlers.post_tool_use._record_agent_use") as mock_record:
+            _run(hook)
+        mock_record.assert_not_called()
+
+    def test_agent_tool_does_not_record_skill_or_memory(self) -> None:
+        hook = _make_hook("Agent", parameters={"description": "research"})
+        with (
+            patch("cline_hooks.handlers.post_tool_use._record_skill") as mock_skill,
+            patch("cline_hooks.handlers.post_tool_use._record_memory_write") as mock_memory,
+        ):
+            _run(hook)
+        mock_skill.assert_not_called()
+        mock_memory.assert_not_called()
+
+
 class TestIsSessionEndSkill:
     def test_claude_code_skill_tool(self) -> None:
         assert _is_session_end_skill("Skill", {"skill": "session-end"})

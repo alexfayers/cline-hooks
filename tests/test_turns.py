@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from unittest.mock import patch
 
 import pytest
@@ -9,12 +9,17 @@ import pytest
 from cline_hooks.frontends.cline import parse_cline_data as parse_data
 from cline_hooks.handlers.user_prompt import handle_user_prompt_submit
 from cline_hooks.state.turns import (
+    _AGENT_NUDGE_THRESHOLD,
     _REMINDER_INTERVAL,
     _SCOPE_CHECK_THRESHOLD,
     increment,
     reset,
+    should_nudge_agents,
     should_remind,
 )
+
+if TYPE_CHECKING:
+    from cline_hooks.core.models import HookInputUserPromptSubmit
 
 _BASE = {
     "clineVersion": "1.0.0",
@@ -58,6 +63,23 @@ class TestShouldRemind:
         assert should_remind(_SCOPE_CHECK_THRESHOLD + _REMINDER_INTERVAL - 1) is False
 
 
+class TestShouldNudgeAgents:
+    def test_below_threshold_no_nudge(self) -> None:
+        for i in range(1, _AGENT_NUDGE_THRESHOLD):
+            assert should_nudge_agents(i) is False
+
+    def test_at_threshold_fires(self) -> None:
+        assert should_nudge_agents(_AGENT_NUDGE_THRESHOLD) is True
+
+    def test_fires_at_intervals_after_threshold(self) -> None:
+        assert should_nudge_agents(_AGENT_NUDGE_THRESHOLD + _REMINDER_INTERVAL) is True
+        assert should_nudge_agents(_AGENT_NUDGE_THRESHOLD + 2 * _REMINDER_INTERVAL) is True
+
+    def test_does_not_fire_between_intervals(self) -> None:
+        assert should_nudge_agents(_AGENT_NUDGE_THRESHOLD + 1) is False
+        assert should_nudge_agents(_AGENT_NUDGE_THRESHOLD + _REMINDER_INTERVAL - 1) is False
+
+
 class TestReset:
     def test_reset_clears_count(self) -> None:
         for _ in range(5):
@@ -72,8 +94,6 @@ class TestReset:
 class TestIntegration:
     def _run_n_turns(self, n: int) -> dict[str, object] | None:
         """Run n turns and return the output from the last one."""
-        from cline_hooks.core.models import HookInputUserPromptSubmit
-
         last_output: dict[str, object] | None = None
         for _ in range(n):
             hook = cast(
@@ -88,7 +108,7 @@ class TestIntegration:
             output: list[str] = []
             try:
                 with (
-                    patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
+                    patch("builtins.print", side_effect=lambda s, _out=output, **kw: _out.append(s)),
                     patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
                     patch("cline_hooks.handlers.user_prompt.datetime") as mock_dt,
                 ):
