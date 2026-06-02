@@ -68,10 +68,7 @@ def _is_managed_path(path: str) -> bool:
     managed = _get_managed_files()
     if resolved in managed:
         return True
-    for managed_path in managed:
-        if resolved.startswith(managed_path + "/"):
-            return True
-    return False
+    return any(resolved.startswith(managed_path + "/") for managed_path in managed)
 
 
 def _starts_with_emoji(text: str) -> bool:
@@ -207,8 +204,7 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
         file_path = parameters.get("path", "") or parameters.get("file_path", "")
         if file_path and _is_managed_path(file_path):
             block(
-                f"{file_path} is managed by llm-prompts. "
-                "Edit the source file instead, then run `llm-prompts update`.",
+                f"{file_path} is managed by llm-prompts. Edit the source file instead, then run `llm-prompts update`.",
                 task_id=hook.taskId,
                 tool_name=tool_name,
             )
