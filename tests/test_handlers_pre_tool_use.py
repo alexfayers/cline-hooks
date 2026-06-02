@@ -85,8 +85,13 @@ class TestGrepBlock:
         assert result is not None
         assert "tool" in cast("str", result.get("errorMessage", ""))
 
-    def test_grep_standalone_is_not_blocked(self) -> None:
+    def test_grep_standalone_is_blocked(self) -> None:
         result = _run("execute_command", {"command": "grep -r foo ."})
+        assert result is not None
+        assert "Grep tool" in cast("str", result.get("errorMessage", ""))
+
+    def test_grep_piped_to_non_build_is_not_blocked(self) -> None:
+        result = _run("execute_command", {"command": "ps aux | grep python"})
         assert result is None
 
     def test_grep_with_just_is_blocked(self) -> None:
@@ -108,8 +113,13 @@ class TestHeadTailBlock:
         assert result is not None
         assert "full output" in cast("str", result.get("errorMessage", ""))
 
-    def test_head_standalone_not_blocked(self) -> None:
+    def test_head_standalone_is_blocked(self) -> None:
         result = _run("execute_command", {"command": "head -n 10 file.txt"})
+        assert result is not None
+        assert "Read tool" in cast("str", result.get("errorMessage", ""))
+
+    def test_head_piped_to_non_build_not_blocked(self) -> None:
+        result = _run("execute_command", {"command": "ls | head"})
         assert result is None
 
     def test_tail_with_build_is_blocked(self) -> None:
@@ -117,12 +127,21 @@ class TestHeadTailBlock:
         assert result is not None
         assert "full output" in cast("str", result.get("errorMessage", ""))
 
-    def test_tail_standalone_not_blocked(self) -> None:
+    def test_tail_standalone_is_blocked(self) -> None:
         result = _run("execute_command", {"command": "tail -n 20 file.log"})
-        assert result is None
+        assert result is not None
+        assert "Read tool" in cast("str", result.get("errorMessage", ""))
 
     def test_tail_follow_without_build_not_blocked(self) -> None:
         result = _run("execute_command", {"command": "tail -f service.log"})
+        assert result is None
+
+    def test_tail_follow_uppercase_not_blocked(self) -> None:
+        result = _run("execute_command", {"command": "tail -F service.log"})
+        assert result is None
+
+    def test_tail_combined_follow_flag_not_blocked(self) -> None:
+        result = _run("execute_command", {"command": "tail -100f service.log"})
         assert result is None
 
 

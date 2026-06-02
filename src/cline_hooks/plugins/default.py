@@ -16,9 +16,28 @@ def _requires_build_context(_cmd: ParsedCommand, all_commands: list[ParsedComman
     return any(cmd.name in _BUILD_COMMANDS for cmd in all_commands)
 
 
-def _is_standalone_cat(_cmd: ParsedCommand, all_commands: list[ParsedCommand]) -> bool:
-    """Return True when cat is the only command (not piped into something else)."""
+def _is_standalone(_cmd: ParsedCommand, all_commands: list[ParsedCommand]) -> bool:
+    """Return True when the command is the only one (not piped into something else)."""
     return len(all_commands) == 1
+
+
+def _is_follow(cmd: ParsedCommand) -> bool:
+    """Return True when tail is following a file (-f / -F / --follow)."""
+    return any(
+        flag.startswith("--follow")
+        or (flag.startswith("-") and not flag.startswith("--") and ("f" in flag[1:] or "F" in flag[1:]))
+        for flag in cmd.flags
+    )
+
+
+def _is_standalone_grep(_cmd: ParsedCommand, all_commands: list[ParsedCommand]) -> bool:
+    """Return True when grep is standalone or filtering build output."""
+    return len(all_commands) == 1 or _requires_build_context(_cmd, all_commands)
+
+
+def _is_standalone_tail(cmd: ParsedCommand, all_commands: list[ParsedCommand]) -> bool:
+    """Return True when tail is standalone reading a file, excluding live follow."""
+    return len(all_commands) == 1 and not _is_follow(cmd)
 
 
 class DefaultPlugin(HooksPlugin):
@@ -52,12 +71,12 @@ class DefaultPlugin(HooksPlugin):
             CommandRule(
                 command="cat",
                 message="Use the Read tool instead of cat to read files.",
-                validator=_is_standalone_cat,
+                validator=_is_standalone,
             ),
             CommandRule(
                 command="grep",
-                message="Use an MCP tool instead of grep for searching files.",
-                validator=_requires_build_context,
+                message="Use the Grep tool instead of grep for searching files.",
+                validator=_is_standalone_grep,
             ),
             CommandRule(
                 command="head",
@@ -65,8 +84,18 @@ class DefaultPlugin(HooksPlugin):
                 validator=_requires_build_context,
             ),
             CommandRule(
+                command="head",
+                message="Use the Read tool instead of head to read files.",
+                validator=_is_standalone,
+            ),
+            CommandRule(
                 command="tail",
                 message="Do not filter build output with tail - always capture the full output.",
                 validator=_requires_build_context,
+            ),
+            CommandRule(
+                command="tail",
+                message="Use the Read tool instead of tail to read files.",
+                validator=_is_standalone_tail,
             ),
         ]
