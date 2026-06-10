@@ -61,6 +61,35 @@ def _run_n_turns(n: int) -> dict[str, object] | None:
     return last
 
 
+def _run_with_transcript(token_count: int | None) -> dict[str, object] | None:
+    """Run a neutral prompt with a transcript path, faking the reported token count."""
+    hook = cast(
+        "HookInputUserPromptSubmit",
+        parse_data(
+            json.dumps({
+                **_BASE,
+                "userPromptSubmit": {"userMessage": "neutral"},
+                "transcriptPath": "session.jsonl",
+            })
+        ),
+    )
+    output: list[str] = []
+    try:
+        with (
+            patch("builtins.print", side_effect=lambda s, _out=output, **kw: _out.append(s)),
+            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
+            patch("cline_hooks.handlers.user_prompt.get_context_tokens", return_value=token_count),
+            patch("cline_hooks.handlers.user_prompt.datetime") as mock_dt,
+        ):
+            mock_dt.now.return_value.hour = 12
+            handle_user_prompt_submit(hook)
+    except SystemExit:
+        pass
+    if not output:
+        return None
+    return cast("dict[str, object]", json.loads(output[0]))
+
+
 class TestContainsCorrectionSignal:
     @pytest.mark.parametrize(
         "message",
@@ -238,3 +267,41 @@ class TestHandleUserPromptSubmit:
             mock_dt.now.return_value.hour = 12
             handle_user_prompt_submit(hook)
         assert not output
+
+
+class TestContextNudge:
+    def test_no_nudge_when_no_transcript_path(self) -> None:
+        with (
+            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
+            patch("cline_hooks.handlers.user_prompt.datetime") as mock_dt,
+        ):
+            mock_dt.now.return_value.hour = 12
+            result = _run("neutral")
+        assert result is None
+
+    def test_no_nudge_when_token_count_unavailable(self) -> None:
+        assert _run_with_transcript(None) is None
+
+    def test_no_nudge_below_threshold(self) -> None:
+        assert _run_with_transcript(150_000) is None
+
+    def test_nudge_above_threshold(self) -> None:
+        result = _run_with_transcript(210_000)
+        assert result is not None
+        context = cast("str", result.get("contextModification", ""))
+        assert "CONTEXT USAGE HIGH" in context
+        assert "210,000" in context
+
+    def test_nudge_fires_once_per_band_across_turns(self) -> None:
+        first = _run_with_transcript(210_000)
+        assert first is not None
+        assert "CONTEXT USAGE HIGH" in cast("str", first.get("contextModification", ""))
+        second = _run_with_transcript(220_000)
+        if second is not None:
+            assert "CONTEXT USAGE HIGH" not in cast("str", second.get("contextModification", ""))
+
+    def test_nudge_refires_in_higher_band(self) -> None:
+        _run_with_transcript(210_000)
+        result = _run_with_transcript(260_000)
+        assert result is not None
+        assert "CONTEXT USAGE HIGH" in cast("str", result.get("contextModification", ""))

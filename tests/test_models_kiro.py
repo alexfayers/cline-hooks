@@ -228,6 +228,16 @@ class TestParseKiroUserPromptSubmit:
         assert hook.userPromptSubmit is not None
         assert hook.userPromptSubmit.userMessage == "hello world"
 
+    def test_captures_transcript_path(self) -> None:
+        data = json.dumps({
+            "hook_event_name": "userPromptSubmit",
+            "cwd": "/project",
+            "prompt": "hello",
+            "transcript_path": "session.jsonl",
+        })
+        hook = parse_kiro_data(data)
+        assert hook.transcriptPath == "session.jsonl"
+
 
 class TestParseKiroUnknownHook:
     def test_returns_base(self) -> None:

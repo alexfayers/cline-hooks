@@ -37,6 +37,7 @@ class HookInput:
     hookName: str
     taskId: str = ""
     workspaceRoots: list[str] = field(default_factory=list)
+    transcriptPath: str = ""
 
 
 @dataclass

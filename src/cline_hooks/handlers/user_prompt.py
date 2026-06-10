@@ -8,7 +8,9 @@ from typing import TYPE_CHECKING
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
+from cline_hooks.core.transcript import get_context_tokens
 from cline_hooks.state.agents import has_agent_use
+from cline_hooks.state.context import should_nudge_context
 from cline_hooks.state.turns import increment, should_nudge_agents, should_remind
 
 if TYPE_CHECKING:
@@ -73,6 +75,12 @@ _AGENT_NUDGE_REMINDER = (
     "rather than working sequentially."
 )
 
+_CONTEXT_NUDGE_REMINDER = (
+    "CONTEXT USAGE HIGH: ~{tokens:,} tokens in use (threshold 200k). "
+    "A large context degrades focus and accuracy. Consider wrapping up: commit work in progress, "
+    "capture remaining work as TODOs (or persist to memory), and start a fresh session to continue."
+)
+
 _INFO_REMINDER = (
     "REMINDER: Has the user said anything that should be persisted?\n"
     "Check: new information, preferences, decisions -> persist to memory."
@@ -112,6 +120,11 @@ def handle_user_prompt_submit(hook: HookInputUserPromptSubmit) -> None:
 
     if should_nudge_agents(turn_count) and not has_agent_use(hook.taskId):
         notes.append(_AGENT_NUDGE_REMINDER.format(turns=turn_count))
+
+    if hook.transcriptPath:
+        token_count = get_context_tokens(hook.transcriptPath)
+        if token_count is not None and should_nudge_context(hook.taskId, token_count):
+            notes.append(_CONTEXT_NUDGE_REMINDER.format(tokens=token_count))
 
     hour = datetime.now(tz=UTC).hour
     if hour >= _LATE_NIGHT_START or hour < _EARLY_MORNING_END:

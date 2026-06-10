@@ -145,6 +145,7 @@ def parse_kiro_data(raw_data: str) -> HookInput:
         "taskId": session_id,
         "workspaceRoots": [cwd] if cwd else [],
         "hookName": canonical_hook,
+        "transcriptPath": data.get("transcript_path", ""),
     }
 
     tool_name_raw = data.get("tool_name", "")

@@ -22,6 +22,7 @@ from cline_hooks.handlers.task_lifecycle import (
     handle_task_start,
 )
 from cline_hooks.state.agents import has_agent_use, record_agent_use
+from cline_hooks.state.context import _CONTEXT_THRESHOLD, should_nudge_context
 from cline_hooks.state.skills import is_skill_called, record_skill
 from cline_hooks.state.store import TaskBlockEvent, TaskStateStore
 
@@ -143,6 +144,12 @@ class TestHandleTaskStart:
             self._run(_task_start([str(tmp_path)]))
         assert not has_agent_use("task-1")
 
+    def test_context_band_reset_on_start(self, tmp_path: Path) -> None:
+        should_nudge_context("task-1", _CONTEXT_THRESHOLD)
+        with patch("cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None):
+            self._run(_task_start([str(tmp_path)]))
+        assert should_nudge_context("task-1", _CONTEXT_THRESHOLD) is True
+
 
 class TestHandleTaskResume:
     def _run(self, hook: HookInputTaskResume, store: TaskStateStore | None = None) -> dict[str, object]:
@@ -242,3 +249,8 @@ class TestHandleTaskComplete:
         ):
             self._run(_task_complete([str(tmp_path)]))
         assert not has_agent_use("task-1")
+
+    def test_context_band_reset_on_complete(self, tmp_path: Path) -> None:
+        should_nudge_context("task-1", _CONTEXT_THRESHOLD)
+        self._run(_task_complete([str(tmp_path)]))
+        assert should_nudge_context("task-1", _CONTEXT_THRESHOLD) is True
