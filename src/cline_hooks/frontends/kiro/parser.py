@@ -138,8 +138,9 @@ def parse_kiro_data(raw_data: str) -> HookInput:
     kiro_hook = data.get("hook_event_name", "")
     canonical_hook = _KIRO_HOOK_MAP.get(kiro_hook, kiro_hook)
     cwd = data.get("cwd", "")
+    source = data.get("source", "")
 
-    session_id = hashlib.sha256(cwd.encode()).hexdigest()[:16] if cwd else ""
+    session_id = data.get("session_id") or (hashlib.sha256(cwd.encode()).hexdigest()[:16] if cwd else "")
 
     base_fields: dict[str, Any] = {
         "taskId": session_id,
@@ -176,7 +177,7 @@ def parse_kiro_data(raw_data: str) -> HookInput:
         return HookInputPostToolUse(**_filter_fields(HookInputPostToolUse, base_fields))
 
     if canonical_hook == "TaskStart":
-        base_fields["taskStart"] = TaskStartFields()
+        base_fields["taskStart"] = TaskStartFields(source=source)
         return HookInputTaskStart(**_filter_fields(HookInputTaskStart, base_fields))
 
     if canonical_hook == "UserPromptSubmit":

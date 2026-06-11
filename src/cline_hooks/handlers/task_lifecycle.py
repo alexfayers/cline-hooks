@@ -33,6 +33,8 @@ logger = logging.getLogger("hooks")
 
 _store = TaskStateStore()
 
+_NO_RESET_SOURCES = frozenset({"resume", "compact"})
+
 
 def _get_dirty_count(workspace_roots: list[str]) -> int | None:
     """Return the number of dirty files in the first valid git repo found.
@@ -73,11 +75,13 @@ def handle_task_start(hook: HookInputTaskStart) -> None:
     Args:
         hook: The hook input data.
     """
-    _reset_skills(hook.taskId)
-    _reset_memory(hook.taskId)
-    _reset_turns(hook.taskId)
-    _reset_agents(hook.taskId)
-    _reset_context(hook.taskId)
+    source = hook.taskStart.source if hook.taskStart else ""
+    if source not in _NO_RESET_SOURCES:
+        _reset_skills(hook.taskId)
+        _reset_memory(hook.taskId)
+        _reset_turns(hook.taskId)
+        _reset_agents(hook.taskId)
+        _reset_context(hook.taskId)
     parts: list[str] = []
 
     git_context = get_git_context(hook.workspaceRoots)

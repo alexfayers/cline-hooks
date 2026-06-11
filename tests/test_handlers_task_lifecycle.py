@@ -12,6 +12,7 @@ from cline_hooks.core.models import (
     HookInputTaskComplete,
     HookInputTaskResume,
     HookInputTaskStart,
+    TaskStartFields,
 )
 from cline_hooks.handlers.task_lifecycle import (
     _format_block_history,
@@ -23,8 +24,10 @@ from cline_hooks.handlers.task_lifecycle import (
 )
 from cline_hooks.state.agents import has_agent_use, record_agent_use
 from cline_hooks.state.context import _CONTEXT_THRESHOLD, should_nudge_context
+from cline_hooks.state.memory import has_memory_writes, record_memory_write
 from cline_hooks.state.skills import is_skill_called, record_skill
 from cline_hooks.state.store import TaskBlockEvent, TaskStateStore
+from cline_hooks.state.turns import increment
 
 BASE = {
     "clineVersion": "1.0",
@@ -36,11 +39,12 @@ BASE = {
 }
 
 
-def _task_start(roots: list[str] | None = None) -> HookInputTaskStart:
+def _task_start(roots: list[str] | None = None, source: str = "") -> HookInputTaskStart:
     return HookInputTaskStart(
         taskId="task-1",
         workspaceRoots=roots or ["/workspace"],
         hookName="TaskStart",
+        taskStart=TaskStartFields(source=source),
     )
 
 
@@ -149,6 +153,57 @@ class TestHandleTaskStart:
         with patch("cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None):
             self._run(_task_start([str(tmp_path)]))
         assert should_nudge_context("task-1", _CONTEXT_THRESHOLD) is True
+
+    def test_skill_preserved_on_compact(self, tmp_path: Path) -> None:
+        record_skill("task-1", "git-usage")
+        with patch("cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None):
+            self._run(_task_start([str(tmp_path)], source="compact"))
+        assert is_skill_called("task-1", "git-usage")
+
+    def test_memory_writes_preserved_on_compact(self, tmp_path: Path) -> None:
+        record_memory_write("task-1", "create_entities")
+        with patch("cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None):
+            self._run(_task_start([str(tmp_path)], source="compact"))
+        assert has_memory_writes("task-1")
+
+    def test_agent_use_preserved_on_compact(self, tmp_path: Path) -> None:
+        record_agent_use("task-1", "Agent")
+        with patch("cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None):
+            self._run(_task_start([str(tmp_path)], source="compact"))
+        assert has_agent_use("task-1")
+
+    def test_context_band_preserved_on_compact(self, tmp_path: Path) -> None:
+        should_nudge_context("task-1", _CONTEXT_THRESHOLD)
+        with patch("cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None):
+            self._run(_task_start([str(tmp_path)], source="compact"))
+        assert should_nudge_context("task-1", _CONTEXT_THRESHOLD) is False
+
+    def test_turns_preserved_on_compact(self, tmp_path: Path) -> None:
+        increment("task-1")
+        increment("task-1")
+        with patch("cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None):
+            self._run(_task_start([str(tmp_path)], source="compact"))
+        assert increment("task-1") == 3
+
+    def test_skill_preserved_on_resume(self, tmp_path: Path) -> None:
+        record_skill("task-1", "git-usage")
+        with patch("cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None):
+            self._run(_task_start([str(tmp_path)], source="resume"))
+        assert is_skill_called("task-1", "git-usage")
+
+    def test_skill_reset_on_startup(self, tmp_path: Path) -> None:
+        record_skill("task-1", "git-usage")
+        with patch("cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None):
+            self._run(_task_start([str(tmp_path)], source="startup"))
+        assert not is_skill_called("task-1", "git-usage")
+
+    def test_git_context_emitted_on_compact(self, tmp_path: Path) -> None:
+        with patch(
+            "cline_hooks.handlers.task_lifecycle.get_git_context",
+            return_value="Branch: main",
+        ):
+            result = self._run(_task_start([str(tmp_path)], source="compact"))
+        assert "Branch: main" in cast("str", result["contextModification"])
 
 
 class TestHandleTaskResume:

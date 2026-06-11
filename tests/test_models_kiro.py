@@ -216,6 +216,39 @@ class TestParseKiroAgentSpawn:
         assert len(hook.taskId) == 16
 
 
+class TestParseKiroSessionStart:
+    def test_session_id_used_as_task_id(self) -> None:
+        data = json.dumps({
+            "hook_event_name": "SessionStart",
+            "cwd": "/home/user/project",
+            "session_id": "abc-123-uuid",
+        })
+        hook = parse_kiro_data(data)
+        assert isinstance(hook, HookInputTaskStart)
+        assert hook.taskId == "abc-123-uuid"
+
+    def test_falls_back_to_cwd_hash_without_session_id(self) -> None:
+        data = json.dumps({
+            "hook_event_name": "SessionStart",
+            "cwd": "/home/user/project",
+        })
+        hook = parse_kiro_data(data)
+        assert isinstance(hook, HookInputTaskStart)
+        assert len(hook.taskId) == 16
+
+    def test_source_captured(self) -> None:
+        data = json.dumps({
+            "hook_event_name": "SessionStart",
+            "cwd": "/project",
+            "session_id": "s1",
+            "source": "compact",
+        })
+        hook = parse_kiro_data(data)
+        assert isinstance(hook, HookInputTaskStart)
+        assert hook.taskStart is not None
+        assert hook.taskStart.source == "compact"
+
+
 class TestParseKiroUserPromptSubmit:
     def test_basic(self) -> None:
         data = json.dumps({

@@ -64,6 +64,7 @@ class TaskStartFields:
     """Fields specific to TaskStart hooks."""
 
     task: str = ""
+    source: str = ""
 
 
 @dataclass
