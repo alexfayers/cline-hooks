@@ -271,6 +271,27 @@ class TestParseKiroUserPromptSubmit:
         hook = parse_kiro_data(data)
         assert hook.transcriptPath == "session.jsonl"
 
+    def test_captures_agent_type(self) -> None:
+        data = json.dumps({
+            "hook_event_name": "preToolUse",
+            "cwd": "/project",
+            "tool_name": "read",
+            "tool_input": {"operations": [{"path": "/file.py"}]},
+            "agent_type": "Explore",
+        })
+        hook = parse_kiro_data(data)
+        assert hook.agentType == "Explore"
+
+    def test_agent_type_defaults_empty(self) -> None:
+        data = json.dumps({
+            "hook_event_name": "preToolUse",
+            "cwd": "/project",
+            "tool_name": "read",
+            "tool_input": {"operations": [{"path": "/file.py"}]},
+        })
+        hook = parse_kiro_data(data)
+        assert hook.agentType == ""
+
 
 class TestParseKiroUnknownHook:
     def test_returns_base(self) -> None:

@@ -204,6 +204,7 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> None:
         is_state_write=is_state_write,
         mcp_tool_name=mcp_tool_name,
         workspace_roots=hook.workspaceRoots,
+        agent_type=hook.agentType,
     )
     if result.notes:
         allow("\n\n".join(result.notes), prefix="")

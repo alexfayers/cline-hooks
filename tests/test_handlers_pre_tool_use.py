@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import json
 from typing import TYPE_CHECKING, cast
 from unittest.mock import patch
@@ -220,6 +221,45 @@ class TestClearBlocksOnPass:
         store = TaskStateStore()
         _run("execute_command", {"command": "echo hello"})
         assert store.get_blocks("task-1") == []
+
+
+class TestForwardsAgentType:
+    def _run_capturing_kwargs(self, agent_type: str) -> list[dict[str, object]]:
+        captured: list[dict[str, object]] = []
+
+        def _fake_collect(_plugins: object, _hook_name: str, **kwargs: object) -> object:
+            captured.append(kwargs)
+            from cline_hooks.core.plugin import HookResult
+
+            return HookResult()
+
+        hook = cast(
+            "HookInputPreToolUse",
+            parse_data(
+                json.dumps({
+                    **_BASE,
+                    "agentType": agent_type,
+                    "preToolUse": {"toolName": "read_file", "parameters": {"path": "/x.py"}},
+                })
+            ),
+        )
+        with (
+            patch("cline_hooks.handlers.pre_tool_use.collect_hook_results", side_effect=_fake_collect),
+            patch("builtins.print"),
+            contextlib.suppress(SystemExit),
+        ):
+            handle_pre_tool_use(hook)
+        return captured
+
+    def test_agent_type_forwarded_to_plugins(self) -> None:
+        captured = self._run_capturing_kwargs("Explore")
+        assert captured
+        assert all(kw.get("agent_type") == "Explore" for kw in captured)
+
+    def test_empty_agent_type_forwarded(self) -> None:
+        captured = self._run_capturing_kwargs("")
+        assert captured
+        assert all(kw.get("agent_type") == "" for kw in captured)
 
 
 class TestManagedFileWriteGuard:

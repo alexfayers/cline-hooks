@@ -38,6 +38,7 @@ class HookInput:
     taskId: str = ""
     workspaceRoots: list[str] = field(default_factory=list)
     transcriptPath: str = ""
+    agentType: str = ""
 
 
 @dataclass

@@ -72,6 +72,27 @@ class TestHandlePostToolUse:
         assert "FAILED" in context
 
 
+class TestForwardsAgentType:
+    def test_agent_type_forwarded_to_plugins(self) -> None:
+        captured: list[dict[str, object]] = []
+
+        def _fake_collect(_plugins: object, _hook_name: str, **kwargs: object) -> object:
+            captured.append(kwargs)
+            from cline_hooks.core.plugin import HookResult
+
+            return HookResult()
+
+        hook = _make_hook("read_file", parameters={"path": "/x.py"})
+        hook.agentType = "Explore"
+        with (
+            patch("cline_hooks.handlers.post_tool_use.collect_hook_results", side_effect=_fake_collect),
+            patch("builtins.print"),
+        ):
+            handle_post_tool_use(hook)
+        assert captured
+        assert captured[0].get("agent_type") == "Explore"
+
+
 class TestSkillDetectionViaRead:
     def test_skill_md_read_records_skill(self) -> None:
         hook = _make_hook("read_file", parameters={"path": "/home/user/.kiro/skills/git-usage/SKILL.md"})

@@ -150,6 +150,7 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
         tool_name,
         parameters=parameters,
         workspace_roots=hook.workspaceRoots,
+        agent_type=hook.agentType,
     )
 
     if tool_name == "plan_mode_respond":
@@ -245,6 +246,7 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
             tool_name,
             mcp_tool_name=tool.tool_name,
             mcp_arguments=tool.arguments,
+            agent_type=hook.agentType,
         )
 
     elif tool_name == "attempt_completion":

@@ -147,6 +147,7 @@ def parse_kiro_data(raw_data: str) -> HookInput:
         "workspaceRoots": [cwd] if cwd else [],
         "hookName": canonical_hook,
         "transcriptPath": data.get("transcript_path", ""),
+        "agentType": data.get("agent_type", ""),
     }
 
     tool_name_raw = data.get("tool_name", "")
