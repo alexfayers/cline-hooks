@@ -60,20 +60,25 @@ def should_remind(turn_count: int) -> bool:
     return (turn_count - _SCOPE_CHECK_THRESHOLD) % _REMINDER_INTERVAL == 0
 
 
-def should_nudge_agents(turn_count: int) -> bool:
-    """Check whether the current turn count should trigger an agent fan-out nudge.
+def should_nudge_agents(turn_count: int, agent_count: int) -> bool:
+    """Check whether to nudge for more subagent fan-out, based on usage rate.
 
-    Triggers at the agent-nudge threshold, then every REMINDER_INTERVAL turns after.
+    Evaluated only on turn-count checkpoints (every AGENT_NUDGE_THRESHOLD turns).
+    The target is roughly one subagent per checkpoint; the nudge fires whenever the
+    recorded agent count has fallen behind that target as the session grows. This
+    re-fires in long sessions that used a few subagents early but then ran on
+    sequentially, not just in sessions that never used one.
 
     Args:
         turn_count: The current turn count.
+        agent_count: The number of subagent invocations recorded this session.
 
     Returns:
         True if an agent fan-out nudge should be shown.
     """
-    if turn_count < _AGENT_NUDGE_THRESHOLD:
+    if turn_count < _AGENT_NUDGE_THRESHOLD or turn_count % _AGENT_NUDGE_THRESHOLD != 0:
         return False
-    return (turn_count - _AGENT_NUDGE_THRESHOLD) % _REMINDER_INTERVAL == 0
+    return agent_count < turn_count // _AGENT_NUDGE_THRESHOLD
 
 
 def reset(task_id: str) -> None:

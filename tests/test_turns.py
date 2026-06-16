@@ -66,18 +66,26 @@ class TestShouldRemind:
 class TestShouldNudgeAgents:
     def test_below_threshold_no_nudge(self) -> None:
         for i in range(1, _AGENT_NUDGE_THRESHOLD):
-            assert should_nudge_agents(i) is False
+            assert should_nudge_agents(i, 0) is False
 
-    def test_at_threshold_fires(self) -> None:
-        assert should_nudge_agents(_AGENT_NUDGE_THRESHOLD) is True
+    def test_at_threshold_fires_when_no_agents(self) -> None:
+        assert should_nudge_agents(_AGENT_NUDGE_THRESHOLD, 0) is True
 
-    def test_fires_at_intervals_after_threshold(self) -> None:
-        assert should_nudge_agents(_AGENT_NUDGE_THRESHOLD + _REMINDER_INTERVAL) is True
-        assert should_nudge_agents(_AGENT_NUDGE_THRESHOLD + 2 * _REMINDER_INTERVAL) is True
+    def test_at_threshold_silent_when_rate_met(self) -> None:
+        assert should_nudge_agents(_AGENT_NUDGE_THRESHOLD, 1) is False
 
-    def test_does_not_fire_between_intervals(self) -> None:
-        assert should_nudge_agents(_AGENT_NUDGE_THRESHOLD + 1) is False
-        assert should_nudge_agents(_AGENT_NUDGE_THRESHOLD + _REMINDER_INTERVAL - 1) is False
+    def test_only_fires_on_checkpoints(self) -> None:
+        assert should_nudge_agents(_AGENT_NUDGE_THRESHOLD + 1, 0) is False
+        assert should_nudge_agents(2 * _AGENT_NUDGE_THRESHOLD - 1, 0) is False
+
+    def test_refires_when_rate_lags_as_session_grows(self) -> None:
+        # Used one agent early then ran long: rate falls behind, nudge returns.
+        assert should_nudge_agents(2 * _AGENT_NUDGE_THRESHOLD, 1) is True
+        assert should_nudge_agents(6 * _AGENT_NUDGE_THRESHOLD, 1) is True
+
+    def test_silent_when_rate_kept_up(self) -> None:
+        assert should_nudge_agents(2 * _AGENT_NUDGE_THRESHOLD, 2) is False
+        assert should_nudge_agents(6 * _AGENT_NUDGE_THRESHOLD, 6) is False
 
 
 class TestReset:

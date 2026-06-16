@@ -46,14 +46,15 @@ def is_agent_tool(tool_name: str) -> bool:
 def record_agent_use(task_id: str, tool_name: str) -> None:
     """Record that a subagent-spawning tool was called for a session.
 
+    Every invocation is recorded so the per-session count reflects fan-out volume,
+    not just whether a subagent was ever used.
+
     Args:
         task_id: The session or task identifier.
         tool_name: The agent tool that was called.
     """
     data = _read()
-    uses = set(data.get(task_id, []))
-    uses.add(tool_name)
-    data[task_id] = sorted(uses)
+    data[task_id] = [*data.get(task_id, []), tool_name]
     _write(data)
 
 
@@ -67,6 +68,18 @@ def has_agent_use(task_id: str) -> bool:
         True if at least one agent tool was called.
     """
     return bool(_read().get(task_id))
+
+
+def agent_use_count(task_id: str) -> int:
+    """Return how many subagent-spawning tool calls were recorded for a session.
+
+    Args:
+        task_id: The session or task identifier.
+
+    Returns:
+        The total number of agent tool invocations recorded.
+    """
+    return len(_read().get(task_id, []))
 
 
 def reset(task_id: str) -> None:

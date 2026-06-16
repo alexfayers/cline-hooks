@@ -242,7 +242,7 @@ class TestHandleUserPromptSubmit:
         assert last is not None
         assert "FAN-OUT CHECK" in cast("str", last.get("contextModification", ""))
 
-    def test_no_agent_nudge_when_agent_already_used(self) -> None:
+    def test_no_agent_nudge_when_rate_kept_up(self) -> None:
         record_agent_use("task-1", "Agent")
         with (
             patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
@@ -252,6 +252,17 @@ class TestHandleUserPromptSubmit:
             last = _run_n_turns(_AGENT_NUDGE_THRESHOLD)
         if last is not None:
             assert "FAN-OUT CHECK" not in cast("str", last.get("contextModification", ""))
+
+    def test_agent_nudge_refires_when_rate_lags(self) -> None:
+        record_agent_use("task-1", "Agent")
+        with (
+            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
+            patch("cline_hooks.handlers.user_prompt.datetime") as mock_dt,
+        ):
+            mock_dt.now.return_value.hour = 12
+            last = _run_n_turns(2 * _AGENT_NUDGE_THRESHOLD)
+        assert last is not None
+        assert "FAN-OUT CHECK" in cast("str", last.get("contextModification", ""))
 
     def test_no_userPromptSubmit_field_emits_no_error(self) -> None:
         hook = cast(

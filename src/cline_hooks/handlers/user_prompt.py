@@ -9,7 +9,7 @@ from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
 from cline_hooks.core.transcript import get_context_tokens
-from cline_hooks.state.agents import has_agent_use
+from cline_hooks.state.agents import agent_use_count
 from cline_hooks.state.context import should_nudge_context
 from cline_hooks.state.turns import increment, should_nudge_agents, should_remind
 
@@ -70,8 +70,8 @@ _CORRECTION_REMINDER = (
 )
 
 _AGENT_NUDGE_REMINDER = (
-    "FAN-OUT CHECK: {turns} turns in and no subagent has been used yet. "
-    "If this is non-trivial work, parallelise with subagents (research, independent edits, verification) "
+    "FAN-OUT CHECK: {turns} turns in and subagent use is lagging behind this session's length. "
+    "If there is non-trivial work left, parallelise with subagents (research, independent edits, verification) "
     "rather than working sequentially."
 )
 
@@ -118,7 +118,7 @@ def handle_user_prompt_submit(hook: HookInputUserPromptSubmit) -> None:
     if should_remind(turn_count):
         notes.append(_SCOPE_CHECK_REMINDER.format(turns=turn_count))
 
-    if should_nudge_agents(turn_count) and not has_agent_use(hook.taskId):
+    if should_nudge_agents(turn_count, agent_use_count(hook.taskId)):
         notes.append(_AGENT_NUDGE_REMINDER.format(turns=turn_count))
 
     if hook.transcriptPath:

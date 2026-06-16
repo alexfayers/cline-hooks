@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from cline_hooks.state.agents import (
+    agent_use_count,
     has_agent_use,
     is_agent_tool,
     record_agent_use,
@@ -52,6 +53,24 @@ class TestRecordAndCheck:
     def test_use_isolated_per_task(self) -> None:
         record_agent_use(_TASK, "Agent")
         assert not has_agent_use("other-task")
+
+
+class TestAgentUseCount:
+    def test_zero_initially(self) -> None:
+        assert agent_use_count(_TASK) == 0
+
+    def test_counts_each_invocation(self) -> None:
+        record_agent_use(_TASK, "Agent")
+        record_agent_use(_TASK, "Agent")
+        record_agent_use(_TASK, "Workflow")
+        assert agent_use_count(_TASK) == 3
+
+    def test_isolated_per_task(self) -> None:
+        record_agent_use(_TASK, "Agent")
+        record_agent_use("other-task", "Agent")
+        record_agent_use("other-task", "Workflow")
+        assert agent_use_count(_TASK) == 1
+        assert agent_use_count("other-task") == 2
 
 
 class TestReset:
