@@ -300,19 +300,33 @@ class TestContextNudge:
         result = _run_with_transcript(210_000)
         assert result is not None
         context = cast("str", result.get("contextModification", ""))
-        assert "CONTEXT USAGE HIGH" in context
+        assert "CONTEXT USAGE NOTICE" in context
+        assert "not a hard limit" in context
         assert "210,000" in context
+
+    def test_nudge_does_not_call_threshold_a_limit(self) -> None:
+        result = _run_with_transcript(210_000)
+        assert result is not None
+        context = cast("str", result.get("contextModification", ""))
+        assert "threshold 200k" not in context
+
+    def test_severe_nudge_above_degraded_threshold(self) -> None:
+        result = _run_with_transcript(410_000)
+        assert result is not None
+        context = cast("str", result.get("contextModification", ""))
+        assert "CONTEXT USAGE VERY HIGH" in context
+        assert "410,000" in context
 
     def test_nudge_fires_once_per_band_across_turns(self) -> None:
         first = _run_with_transcript(210_000)
         assert first is not None
-        assert "CONTEXT USAGE HIGH" in cast("str", first.get("contextModification", ""))
+        assert "CONTEXT USAGE NOTICE" in cast("str", first.get("contextModification", ""))
         second = _run_with_transcript(220_000)
         if second is not None:
-            assert "CONTEXT USAGE HIGH" not in cast("str", second.get("contextModification", ""))
+            assert "CONTEXT USAGE NOTICE" not in cast("str", second.get("contextModification", ""))
 
     def test_nudge_refires_in_higher_band(self) -> None:
         _run_with_transcript(210_000)
         result = _run_with_transcript(260_000)
         assert result is not None
-        assert "CONTEXT USAGE HIGH" in cast("str", result.get("contextModification", ""))
+        assert "CONTEXT USAGE NOTICE" in cast("str", result.get("contextModification", ""))

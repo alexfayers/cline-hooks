@@ -75,10 +75,19 @@ _AGENT_NUDGE_REMINDER = (
     "rather than working sequentially."
 )
 
-_CONTEXT_NUDGE_REMINDER = (
-    "CONTEXT USAGE HIGH: ~{tokens:,} tokens in use (threshold 200k). "
-    "A large context degrades focus and accuracy. Consider wrapping up: commit work in progress, "
-    "capture remaining work as TODOs (or persist to memory), and start a fresh session to continue."
+_CONTEXT_DEGRADED_THRESHOLD = 400_000
+
+_CONTEXT_NUDGE_REDUCED = (
+    "CONTEXT USAGE NOTICE: ~{tokens:,} tokens in use. This is not a hard limit - the window is much larger - "
+    "but focus and accuracy begin to soften past ~200k tokens and degrade gradually from there. "
+    "If you are at a natural stopping point, consider committing work in progress, capturing remaining work "
+    "as TODOs (or persisting to memory), and starting a fresh session to continue."
+)
+
+_CONTEXT_NUDGE_SEVERE = (
+    "CONTEXT USAGE VERY HIGH: ~{tokens:,} tokens in use. Past ~400k tokens focus and accuracy are badly "
+    "degraded. Strongly consider wrapping up now: commit work in progress, capture remaining work as TODOs "
+    "(or persist to memory), and start a fresh session to continue."
 )
 
 _INFO_REMINDER = (
@@ -124,7 +133,12 @@ def handle_user_prompt_submit(hook: HookInputUserPromptSubmit) -> None:
     if hook.transcriptPath:
         token_count = get_context_tokens(hook.transcriptPath)
         if token_count is not None and should_nudge_context(hook.taskId, token_count):
-            notes.append(_CONTEXT_NUDGE_REMINDER.format(tokens=token_count))
+            template = (
+                _CONTEXT_NUDGE_SEVERE
+                if token_count >= _CONTEXT_DEGRADED_THRESHOLD
+                else _CONTEXT_NUDGE_REDUCED
+            )
+            notes.append(template.format(tokens=token_count))
 
     hour = datetime.now(tz=UTC).hour
     if hour >= _LATE_NIGHT_START or hour < _EARLY_MORNING_END:
