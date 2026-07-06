@@ -125,6 +125,47 @@ class TestSkillDetectionViaRead:
         mock_record.assert_called_once_with("task-1", "git-usage")
 
 
+class TestSkillDetectionViaShellCommand:
+    def test_cat_skill_md_records_skill(self) -> None:
+        hook = _make_hook(
+            "Bash",
+            parameters={"command": "cat /Users/me/.codex/skills/git-usage/SKILL.md"},
+        )
+        with patch("cline_hooks.handlers.post_tool_use._record_skill") as mock_record:
+            _run(hook)
+        mock_record.assert_called_once_with("task-1", "git-usage")
+
+    def test_sed_skill_md_records_skill(self) -> None:
+        hook = _make_hook(
+            "Bash",
+            parameters={"command": "sed -n '1,260p' /a/b/skills/pre-implementation/SKILL.md"},
+        )
+        with patch("cline_hooks.handlers.post_tool_use._record_skill") as mock_record:
+            _run(hook)
+        mock_record.assert_called_once_with("task-1", "pre-implementation")
+
+    def test_execute_command_skill_md_records_skill(self) -> None:
+        hook = _make_hook(
+            "execute_command",
+            parameters={"command": "less /deep/skills/cr/SKILL.md"},
+        )
+        with patch("cline_hooks.handlers.post_tool_use._record_skill") as mock_record:
+            _run(hook)
+        mock_record.assert_called_once_with("task-1", "cr")
+
+    def test_git_command_does_not_record_skill(self) -> None:
+        hook = _make_hook("Bash", parameters={"command": "git -P status --short"})
+        with patch("cline_hooks.handlers.post_tool_use._record_skill") as mock_record:
+            _run(hook)
+        mock_record.assert_not_called()
+
+    def test_bare_skill_md_reference_does_not_record(self) -> None:
+        hook = _make_hook("Bash", parameters={"command": "find . -name SKILL.md"})
+        with patch("cline_hooks.handlers.post_tool_use._record_skill") as mock_record:
+            _run(hook)
+        mock_record.assert_not_called()
+
+
 class TestAgentUseRecording:
     def test_agent_tool_records_use(self) -> None:
         hook = _make_hook("Agent", parameters={"description": "research"})

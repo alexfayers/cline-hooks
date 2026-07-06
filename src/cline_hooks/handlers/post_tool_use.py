@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import logging
 from pathlib import PurePosixPath
+import re
 from typing import TYPE_CHECKING, Any
 
 import git
@@ -28,6 +29,9 @@ if TYPE_CHECKING:
     from cline_hooks.core.plugin import HooksPlugin
 
 logger = logging.getLogger("hooks")
+
+_SHELL_TOOL_NAMES = frozenset({"execute_command", "Bash"})
+_SKILL_MD_PATH = re.compile(r"([\w.-]+)/SKILL\.md\b")
 
 _COMMIT_REMINDER = (
     "COMMIT REMINDER: There are a large number of uncommitted changes. "
@@ -95,6 +99,49 @@ def _get_diff_line_count(workspace_roots: list[str]) -> int:
     return 0
 
 
+def _skills_in_command(command: str) -> list[str]:
+    """Return skill names referenced by SKILL.md paths inside a shell command.
+
+    Args:
+        command: The shell command string.
+
+    Returns:
+        Skill names whose SKILL.md is read by the command (e.g. via cat/sed).
+    """
+    return _SKILL_MD_PATH.findall(command)
+
+
+def _record_skill_use(task_id: str, tool_name: str, parameters: dict[str, Any]) -> None:
+    """Record any skill loaded by a tool call.
+
+    Skills load in several ways depending on the frontend: the Skill/use_skill
+    tools, a Read of a SKILL.md file, or a shell command that reads a SKILL.md
+    file (e.g. Codex reading it via cat/sed).
+
+    Args:
+        task_id: The session or task identifier.
+        tool_name: The tool name as reported by the frontend.
+        parameters: The tool parameters.
+    """
+    if tool_name == "use_skill":
+        skill_name = str(parameters.get("skill_name", ""))
+        if skill_name:
+            _record_skill(task_id, skill_name)
+    elif tool_name == "Skill":
+        skill_name = str(parameters.get("skill", ""))
+        if skill_name:
+            _record_skill(task_id, skill_name)
+    elif tool_name in {"read_file", "Read"}:
+        path = parameters.get("path", "") or parameters.get("file_path", "")
+        if path:
+            file_path = PurePosixPath(str(path))
+            if file_path.name == "SKILL.md":
+                _record_skill(task_id, file_path.parent.name)
+    elif tool_name in _SHELL_TOOL_NAMES:
+        for skill_name in _skills_in_command(str(parameters.get("command", ""))):
+            _record_skill(task_id, skill_name)
+
+
 def _is_session_end_skill(tool_name: str, parameters: dict[str, object]) -> bool:
     """Check whether the current tool call is invoking the session-end skill.
 
@@ -112,6 +159,8 @@ def _is_session_end_skill(tool_name: str, parameters: dict[str, object]) -> bool
     if tool_name in {"read_file", "Read"}:
         path = str(parameters.get("path", "") or parameters.get("file_path", ""))
         return path.endswith("session-end/SKILL.md")
+    if tool_name in _SHELL_TOOL_NAMES:
+        return "session-end" in _skills_in_command(str(parameters.get("command", "")))
     return False
 
 
@@ -145,20 +194,8 @@ def _record_tool_use(
         if "__" in tool_name:
             mcp_tool_name = tool_name.rsplit("__", 1)[-1]
             is_state_write = mcp_tool_name in state_write_names
-    elif tool_name == "use_skill":
-        skill_name = parameters.get("skill_name", "")
-        if skill_name:
-            _record_skill(task_id, str(skill_name))
-    elif tool_name == "Skill":
-        skill_name = parameters.get("skill", "")
-        if skill_name:
-            _record_skill(task_id, str(skill_name))
-    elif tool_name in {"read_file", "Read"}:
-        path = parameters.get("path", "") or parameters.get("file_path", "")
-        if path:
-            file_path = PurePosixPath(str(path))
-            if file_path.name == "SKILL.md":
-                _record_skill(task_id, file_path.parent.name)
+    else:
+        _record_skill_use(task_id, tool_name, parameters)
 
     if _is_agent_tool(tool_name):
         _record_agent_use(task_id, tool_name)
