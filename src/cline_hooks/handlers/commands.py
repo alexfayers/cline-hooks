@@ -59,6 +59,15 @@ def validate_git_commit_message(cmd: ParsedCommand, _all: list[ParsedCommand]) -
     return False
 
 
+def is_git_push(commands: list[ParsedCommand]) -> bool:
+    """Check if any command in the list is a `git push`.
+
+    Returns:
+        bool: True if a `git push` command is present.
+    """
+    return any(cmd.name == "git" and "push" in cmd.args for cmd in commands)
+
+
 def get_all_build_commands(plugins: list[HooksPlugin]) -> frozenset[str]:
     """Aggregate build command names from all plugins.
 
