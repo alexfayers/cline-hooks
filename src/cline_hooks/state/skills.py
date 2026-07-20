@@ -12,6 +12,8 @@ _SKILL_REQUIREMENTS: dict[str, str] = {
     "cr": "cr",
 }
 
+CONFIRM_PUSH_SKILL = "confirm-push"
+
 _STATE_PATH = get_data_dir() / "skill-state.json"
 
 
@@ -51,6 +53,26 @@ def is_skill_called(task_id: str, skill_name: str) -> bool:
         True if the skill has been called for the task.
     """
     return skill_name in _read().get(task_id, [])
+
+
+def consume_skill(task_id: str, skill_name: str) -> bool:
+    """Check whether a skill has been called for a task, clearing it if so.
+
+    Args:
+        task_id: The session or task identifier.
+        skill_name: The skill name to check and consume.
+
+    Returns:
+        True if the skill had been called for the task (and is now cleared).
+    """
+    data = _read()
+    skills = set(data.get(task_id, []))
+    if skill_name not in skills:
+        return False
+    skills.discard(skill_name)
+    data[task_id] = sorted(skills)
+    _write(data)
+    return True
 
 
 def required_skill_for(command_names: list[str]) -> str | None:
