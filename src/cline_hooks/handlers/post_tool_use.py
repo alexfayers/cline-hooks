@@ -22,6 +22,7 @@ from cline_hooks.state.memory import (
     is_memory_write as _is_memory_write,
     record_memory_write as _record_memory_write,
 )
+from cline_hooks.state.retrospective import record_session as _record_retro_session
 from cline_hooks.state.skills import record_skill as _record_skill
 
 if TYPE_CHECKING:
@@ -43,6 +44,13 @@ _MEMORY_WARNING = (
     "WARNING: No memory writes have been made this session. "
     "You MUST persist your work to memory NOW before completing. "
     "Knowledge not persisted is permanently lost."
+)
+
+_WRAP_UP_SKILLS = frozenset({"session-end", "handoff"})
+_RETRO_THRESHOLD = 5
+_RETRO_REMINDER = (
+    "You have completed {count} sessions since your last /retrospective. "
+    "Consider running it to capture learnings across recent sessions."
 )
 
 
@@ -142,6 +150,33 @@ def _record_skill_use(task_id: str, tool_name: str, parameters: dict[str, Any]) 
             _record_skill(task_id, skill_name)
 
 
+def _is_skill_invocation(tool_name: str, parameters: dict[str, object], skill_names: frozenset[str]) -> bool:
+    """Check whether the current tool call invokes one of the given skills.
+
+    Covers every way a skill loads: the Skill/use_skill tools, a Read of a
+    SKILL.md file, or a shell command that reads a SKILL.md file.
+
+    Args:
+        tool_name: The tool name as reported by the frontend.
+        parameters: The tool parameters.
+        skill_names: The skill names to match against.
+
+    Returns:
+        True if the tool call invokes any of the given skills.
+    """
+    if tool_name == "Skill":
+        return parameters.get("skill") in skill_names
+    if tool_name == "use_skill":
+        return parameters.get("skill_name") in skill_names
+    if tool_name in {"read_file", "Read"}:
+        path = str(parameters.get("path", "") or parameters.get("file_path", ""))
+        return any(path.endswith(f"{name}/SKILL.md") for name in skill_names)
+    if tool_name in _SHELL_TOOL_NAMES:
+        loaded = _skills_in_command(str(parameters.get("command", "")))
+        return any(name in loaded for name in skill_names)
+    return False
+
+
 def _is_session_end_skill(tool_name: str, parameters: dict[str, object]) -> bool:
     """Check whether the current tool call is invoking the session-end skill.
 
@@ -152,16 +187,20 @@ def _is_session_end_skill(tool_name: str, parameters: dict[str, object]) -> bool
     Returns:
         True if this is a session-end skill invocation.
     """
-    if tool_name == "Skill":
-        return parameters.get("skill") == "session-end"
-    if tool_name == "use_skill":
-        return parameters.get("skill_name") == "session-end"
-    if tool_name in {"read_file", "Read"}:
-        path = str(parameters.get("path", "") or parameters.get("file_path", ""))
-        return path.endswith("session-end/SKILL.md")
-    if tool_name in _SHELL_TOOL_NAMES:
-        return "session-end" in _skills_in_command(str(parameters.get("command", "")))
-    return False
+    return _is_skill_invocation(tool_name, parameters, frozenset({"session-end"}))
+
+
+def _is_wrap_up_skill(tool_name: str, parameters: dict[str, object]) -> bool:
+    """Check whether the current tool call invokes a session wrap-up skill.
+
+    Args:
+        tool_name: The tool name as reported by the frontend.
+        parameters: The tool parameters.
+
+    Returns:
+        True if this is a session-end or handoff skill invocation.
+    """
+    return _is_skill_invocation(tool_name, parameters, _WRAP_UP_SKILLS)
 
 
 def _record_tool_use(
@@ -232,6 +271,8 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> None:
 
     is_state_write, mcp_tool_name = _record_tool_use(hook.taskId, tool_name, parameters, state_write_names)
 
+    retro_count = _record_retro_session(hook.taskId) if _is_wrap_up_skill(tool_name, parameters) else None
+
     result = collect_hook_results(
         plugins,
         "PostToolUse",
@@ -259,5 +300,10 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> None:
         if result_text and "BUILD FAILED" in result_text:
             allow("The build failed! It did NOT pass. It FAILED!!", prefix="")
 
+    messages: list[str] = []
     if _is_session_end_skill(tool_name, parameters) and not _has_memory_writes(hook.taskId):
-        allow(_MEMORY_WARNING, prefix="")
+        messages.append(_MEMORY_WARNING)
+    if retro_count is not None and retro_count >= _RETRO_THRESHOLD:
+        messages.append(_RETRO_REMINDER.format(count=retro_count))
+    if messages:
+        allow("\n\n".join(messages), prefix="")

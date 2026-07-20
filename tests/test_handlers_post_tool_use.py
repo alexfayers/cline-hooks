@@ -7,10 +7,13 @@ from unittest.mock import patch
 from cline_hooks.core.models import HookInputPostToolUse
 from cline_hooks.frontends.cline import parse_cline_data as parse_data
 from cline_hooks.handlers.post_tool_use import (
+    _RETRO_THRESHOLD,
     _is_session_end_skill,
+    _is_wrap_up_skill,
     handle_post_tool_use,
 )
 from cline_hooks.state.memory import record_memory_write
+from cline_hooks.state.retrospective import get_count, record_session
 
 _BASE = {
     "clineVersion": "1.0",
@@ -238,3 +241,63 @@ class TestMemoryWarningOnSessionEnd:
         if result is not None:
             context = str(result.get("contextModification", ""))
             assert "No memory writes" not in context
+
+
+class TestIsWrapUpSkill:
+    def test_session_end_is_wrap_up(self) -> None:
+        assert _is_wrap_up_skill("Skill", {"skill": "session-end"})
+
+    def test_handoff_is_wrap_up(self) -> None:
+        assert _is_wrap_up_skill("Skill", {"skill": "handoff"})
+
+    def test_handoff_via_read(self) -> None:
+        assert _is_wrap_up_skill("Read", {"file_path": "/Users/me/.claude/skills/handoff/SKILL.md"})
+
+    def test_unrelated_skill_not_wrap_up(self) -> None:
+        assert not _is_wrap_up_skill("Skill", {"skill": "git-usage"})
+
+    def test_unrelated_tool_not_wrap_up(self) -> None:
+        assert not _is_wrap_up_skill("Bash", {"command": "echo hi"})
+
+
+class TestRetrospectiveCounter:
+    def test_session_end_increments_counter(self) -> None:
+        _run(_make_hook("Skill", parameters={"skill": "session-end"}))
+        assert get_count() == 1
+
+    def test_handoff_increments_counter(self) -> None:
+        _run(_make_hook("Skill", parameters={"skill": "handoff"}))
+        assert get_count() == 1
+
+    def test_session_end_then_handoff_counts_once(self) -> None:
+        _run(_make_hook("Skill", parameters={"skill": "session-end"}))
+        _run(_make_hook("Skill", parameters={"skill": "handoff"}))
+        assert get_count() == 1
+
+    def test_non_wrap_up_skill_does_not_increment(self) -> None:
+        _run(_make_hook("Skill", parameters={"skill": "git-usage"}))
+        assert get_count() == 0
+
+    def test_reminder_fires_at_threshold(self) -> None:
+        for i in range(_RETRO_THRESHOLD - 1):
+            record_session(f"seed-{i}")
+        result = _run(_make_hook("Skill", parameters={"skill": "session-end"}))
+        assert result is not None
+        context = str(result.get("contextModification", ""))
+        assert "sessions since your last /retrospective" in context
+
+    def test_no_reminder_below_threshold(self) -> None:
+        record_memory_write("task-1", "create_entities")
+        result = _run(_make_hook("Skill", parameters={"skill": "session-end"}))
+        if result is not None:
+            context = str(result.get("contextModification", ""))
+            assert "since your last /retrospective" not in context
+
+    def test_memory_warning_and_reminder_coexist(self) -> None:
+        for i in range(_RETRO_THRESHOLD - 1):
+            record_session(f"seed-{i}")
+        result = _run(_make_hook("Skill", parameters={"skill": "session-end"}))
+        assert result is not None
+        context = str(result.get("contextModification", ""))
+        assert "No memory writes" in context
+        assert "since your last /retrospective" in context

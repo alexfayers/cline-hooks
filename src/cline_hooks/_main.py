@@ -51,6 +51,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("plugins", help="List installed plugins")
 
+    retro_parser = sub.add_parser("retro-count", help="Read or reset the retrospective session counter")
+    retro_group = retro_parser.add_mutually_exclusive_group(required=True)
+    retro_group.add_argument("--get", action="store_true", help="Print the current session count")
+    retro_group.add_argument("--reset", action="store_true", help="Reset the session count to zero")
+
     return parser
 
 
@@ -140,6 +145,15 @@ def main() -> NoReturn:
 
     if args.command == "plugins":
         _list_plugins()
+        sys.exit(0)
+
+    if args.command == "retro-count":
+        from cline_hooks.state import retrospective  # noqa: PLC0415
+
+        if args.reset:
+            retrospective.reset()
+        else:
+            print(retrospective.get_count())  # noqa: T201
         sys.exit(0)
 
     _run_hook()

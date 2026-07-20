@@ -133,11 +133,7 @@ def handle_user_prompt_submit(hook: HookInputUserPromptSubmit) -> None:
     if hook.transcriptPath:
         token_count = get_context_tokens(hook.transcriptPath)
         if token_count is not None and should_nudge_context(hook.taskId, token_count):
-            template = (
-                _CONTEXT_NUDGE_SEVERE
-                if token_count >= _CONTEXT_DEGRADED_THRESHOLD
-                else _CONTEXT_NUDGE_REDUCED
-            )
+            template = _CONTEXT_NUDGE_SEVERE if token_count >= _CONTEXT_DEGRADED_THRESHOLD else _CONTEXT_NUDGE_REDUCED
             notes.append(template.format(tokens=token_count))
 
     hour = datetime.now(tz=UTC).hour
