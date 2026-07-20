@@ -18,8 +18,12 @@ from cline_hooks.handlers.commands import (
     extract_commands,
     extract_replacement_blocks,
     get_all_command_rules,
+    is_git_push,
 )
+from cline_hooks.handlers.push_guard import marker_above_repo
 from cline_hooks.state.skills import (
+    CONFIRM_PUSH_SKILL,
+    consume_skill,
     is_skill_called as _is_skill_called,
     required_skill_for,
 )
@@ -189,17 +193,39 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
             logger.exception("Failed to parse command: %s", command)
             return
 
-        violated_rule = check_rules(extract_commands(parsed), get_all_command_rules(plugins))
+        commands = extract_commands(parsed)
+
+        violated_rule = check_rules(commands, get_all_command_rules(plugins))
         if violated_rule:
             block(violated_rule.message, task_id=hook.taskId, tool_name=tool_name)
 
-        required_skill = required_skill_for([cmd.name for cmd in extract_commands(parsed)])
+        required_skill = required_skill_for([cmd.name for cmd in commands])
         if required_skill and not _is_skill_called(hook.taskId, required_skill):
             block(
                 f"Use the `{required_skill}` skill before running this command",
                 task_id=hook.taskId,
                 tool_name=tool_name,
             )
+
+        if is_git_push(commands):
+            marker = marker_above_repo(hook.workspaceRoots)
+            if marker:
+                block(
+                    f"git push is blocked here: this repository is inside a managed "
+                    f"workspace (a '{marker}' entry was found at or above the repo root). "
+                    f"Use the workspace's own review/submit workflow instead of pushing "
+                    f"directly.",
+                    task_id=hook.taskId,
+                    tool_name=tool_name,
+                )
+            elif not consume_skill(hook.taskId, CONFIRM_PUSH_SKILL):
+                block(
+                    "git push requires explicit user confirmation. Ask the user to "
+                    "approve THIS push, then invoke the `confirm-push` skill and retry. "
+                    "Confirmation is consumed per push - each push needs a fresh approval.",
+                    task_id=hook.taskId,
+                    tool_name=tool_name,
+                )
 
     elif tool_name in {"replace_in_file", "write_to_file", "Edit", "Write"}:
         file_path = parameters.get("path", "") or parameters.get("file_path", "")

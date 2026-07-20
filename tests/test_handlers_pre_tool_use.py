@@ -5,6 +5,7 @@ import json
 from typing import TYPE_CHECKING, cast
 from unittest.mock import patch
 
+import git
 import pytest
 
 from cline_hooks.frontends.cline import parse_cline_data as parse_data
@@ -13,9 +14,14 @@ from cline_hooks.handlers.pre_tool_use import (
     _starts_with_emoji,
     handle_pre_tool_use,
 )
+from cline_hooks.state.skills import record_skill
 from cline_hooks.state.store import TaskStateStore
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
+    from pytest_mock import MockerFixture
+
     from cline_hooks.core.models import HookInputPreToolUse
 
 _BASE = {
@@ -28,20 +34,25 @@ _BASE = {
 }
 
 
-def _make_hook(tool_name: str, parameters: dict[str, object]) -> HookInputPreToolUse:
+def _make_hook(
+    tool_name: str, parameters: dict[str, object], workspace_roots: list[str] | None = None
+) -> HookInputPreToolUse:
     return cast(
         "HookInputPreToolUse",
         parse_data(
             json.dumps({
                 **_BASE,
+                "workspaceRoots": workspace_roots if workspace_roots is not None else [],
                 "preToolUse": {"toolName": tool_name, "parameters": parameters},
             })
         ),
     )
 
 
-def _run(tool_name: str, parameters: dict[str, object]) -> dict[str, object] | None:
-    hook = _make_hook(tool_name, parameters)
+def _run(
+    tool_name: str, parameters: dict[str, object], workspace_roots: list[str] | None = None
+) -> dict[str, object] | None:
+    hook = _make_hook(tool_name, parameters, workspace_roots)
     output: list[str] = []
     try:
         with patch("builtins.print", side_effect=lambda s, **kw: output.append(s)):
@@ -260,6 +271,40 @@ class TestForwardsAgentType:
         captured = self._run_capturing_kwargs("")
         assert captured
         assert all(kw.get("agent_type") == "" for kw in captured)
+
+
+class TestGitPushConfirmation:
+    def test_push_without_confirmation_is_blocked(self) -> None:
+        record_skill("task-1", "git-usage")
+        result = _run("Bash", {"command": "git push"})
+        assert result is not None
+        assert "confirm-push" in cast("str", result.get("errorMessage", ""))
+
+    def test_push_after_confirmation_is_allowed(self) -> None:
+        record_skill("task-1", "git-usage")
+        record_skill("task-1", "confirm-push")
+        result = _run("Bash", {"command": "git push"})
+        assert result is None
+
+    def test_second_push_after_one_confirmation_is_blocked(self) -> None:
+        record_skill("task-1", "git-usage")
+        record_skill("task-1", "confirm-push")
+        _run("Bash", {"command": "git push"})
+        result = _run("Bash", {"command": "git push"})
+        assert result is not None
+        assert "confirm-push" in cast("str", result.get("errorMessage", ""))
+
+    def test_marker_blocks_push_even_with_confirmation(self, tmp_path: Path, mocker: MockerFixture) -> None:
+        record_skill("task-1", "git-usage")
+        record_skill("task-1", "confirm-push")
+        (tmp_path / "some-marker").mkdir()
+        repo_dir = tmp_path / "repo"
+        repo_dir.mkdir()
+        git.Repo.init(repo_dir)
+        mocker.patch("cline_hooks.handlers.push_guard.get_push_block_markers", return_value=("some-marker",))
+        result = _run("Bash", {"command": "git push"}, workspace_roots=[str(repo_dir)])
+        assert result is not None
+        assert "managed workspace" in cast("str", result.get("errorMessage", ""))
 
 
 class TestManagedFileWriteGuard:
