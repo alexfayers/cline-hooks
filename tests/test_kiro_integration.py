@@ -4,9 +4,10 @@ import json
 import subprocess
 import sys
 
-from cline_hooks._main import _detect_kiro, _parse_input
+from cline_hooks._main import _detect_claude_code, _detect_kiro, _parse_input
 from cline_hooks.core.models import HookInputPreToolUse, HookInputTaskStart
 import cline_hooks.core.protocol as protocol_module
+from cline_hooks.frontends.claude_code import ClaudeCodeProtocol
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.frontends.kiro import KiroProtocol
 
@@ -35,6 +36,26 @@ class TestDetectKiro:
         assert _detect_kiro(data) is False
 
 
+class TestDetectClaudeCode:
+    def test_pascalcase_event_is_claude_code(self) -> None:
+        assert _detect_claude_code(json.dumps({"hook_event_name": "Stop"})) is True
+
+    def test_camelcase_event_is_not_claude_code(self) -> None:
+        assert _detect_claude_code(json.dumps({"hook_event_name": "agentSpawn"})) is False
+
+    def test_lowercase_event_is_not_claude_code(self) -> None:
+        assert _detect_claude_code(json.dumps({"hook_event_name": "stop"})) is False
+
+    def test_missing_event_is_not_claude_code(self) -> None:
+        assert _detect_claude_code(json.dumps({"cwd": "/x"})) is False
+
+    def test_non_dict_is_not_claude_code(self) -> None:
+        assert _detect_claude_code(json.dumps(["stop"])) is False
+
+    def test_invalid_json_is_not_claude_code(self) -> None:
+        assert _detect_claude_code("not json") is False
+
+
 class TestParseInput:
     def test_kiro_sets_kiro_protocol(self) -> None:
         data = json.dumps({
@@ -55,6 +76,23 @@ class TestParseInput:
         hook = _parse_input(data)
         assert isinstance(hook, HookInputPreToolUse)
         assert isinstance(protocol_module._active_protocol, ClineProtocol)
+
+    def test_claude_code_stop_sets_claude_code_protocol(self) -> None:
+        data = json.dumps({"hook_event_name": "Stop", "cwd": "/project"})
+        _parse_input(data)
+        assert isinstance(protocol_module._active_protocol, ClaudeCodeProtocol)
+
+    def test_kiro_stop_sets_kiro_protocol(self) -> None:
+        data = json.dumps({"hook_event_name": "stop", "cwd": "/project"})
+        _parse_input(data)
+        assert isinstance(protocol_module._active_protocol, KiroProtocol)
+        assert not isinstance(protocol_module._active_protocol, ClaudeCodeProtocol)
+
+    def test_claude_code_session_start_maps_to_taskstart(self) -> None:
+        data = json.dumps({"hook_event_name": "SessionStart", "cwd": "/project"})
+        hook = _parse_input(data)
+        assert isinstance(hook, HookInputTaskStart)
+        assert isinstance(protocol_module._active_protocol, ClaudeCodeProtocol)
 
 
 class TestEndToEndKiro:

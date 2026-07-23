@@ -6,6 +6,7 @@ from cline_hooks.core.models import (
     HookInput,
     HookInputPostToolUse,
     HookInputPreToolUse,
+    HookInputStop,
     HookInputTaskStart,
     HookInputUserPromptSubmit,
 )
@@ -293,12 +294,36 @@ class TestParseKiroUserPromptSubmit:
         assert hook.agentType == ""
 
 
-class TestParseKiroUnknownHook:
-    def test_returns_base(self) -> None:
+class TestParseKiroStop:
+    def test_basic(self) -> None:
         data = json.dumps({
             "hook_event_name": "stop",
             "cwd": "/project",
         })
         hook = parse_kiro_data(data)
-        assert isinstance(hook, HookInput)
+        assert isinstance(hook, HookInputStop)
         assert hook.hookName == "Stop"
+        assert hook.stop is not None
+        assert hook.stop.stopHookActive is False
+
+    def test_stop_hook_active_true(self) -> None:
+        data = json.dumps({
+            "hook_event_name": "stop",
+            "cwd": "/project",
+            "stop_hook_active": True,
+        })
+        hook = parse_kiro_data(data)
+        assert isinstance(hook, HookInputStop)
+        assert hook.stop is not None
+        assert hook.stop.stopHookActive is True
+
+
+class TestParseKiroUnknownHook:
+    def test_returns_base(self) -> None:
+        data = json.dumps({
+            "hook_event_name": "someUnknownHook",
+            "cwd": "/project",
+        })
+        hook = parse_kiro_data(data)
+        assert isinstance(hook, HookInput)
+        assert hook.hookName == "someUnknownHook"

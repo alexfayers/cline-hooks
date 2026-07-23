@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, NoReturn
 from cline_hooks.core.protocol import set_protocol
 from cline_hooks.core.registry import HOOK_HANDLERS
 from cline_hooks.core.response import allow
-from cline_hooks.frontends.claude_code import install_claude_code
+from cline_hooks.frontends.claude_code import ClaudeCodeProtocol, install_claude_code
 from cline_hooks.frontends.cline import ClineProtocol, install_cline, parse_cline_data
 from cline_hooks.frontends.kiro import KiroProtocol, install_kiro, parse_kiro_data
 import cline_hooks.handlers  # noqa: F401
@@ -75,6 +75,28 @@ def _detect_kiro(raw_data: str) -> bool:
     return isinstance(data, dict) and "hook_event_name" in data
 
 
+def _detect_claude_code(raw_data: str) -> bool:
+    """Detect whether Kiro-shaped input is actually from Claude Code.
+
+    Claude Code's hook_event_name values are PascalCase (Stop, SessionStart);
+    Kiro's are lowercase/camelCase (stop, agentSpawn). Verified against every
+    event each frontend actually registers (frontends/*/install.py) - zero
+    overlap.
+
+    Args:
+        raw_data: The raw JSON string from stdin.
+
+    Returns:
+        True if the hook_event_name is PascalCase (Claude Code).
+    """
+    try:
+        data = json.loads(raw_data)
+    except (json.JSONDecodeError, ValueError):
+        return False
+    name = data.get("hook_event_name") if isinstance(data, dict) else None
+    return isinstance(name, str) and name[:1].isupper()
+
+
 def _parse_input(raw_data: str) -> HookInput:
     """Parse hook input, auto-detecting the frontend.
 
@@ -85,7 +107,7 @@ def _parse_input(raw_data: str) -> HookInput:
         A typed HookInput subclass.
     """
     if _detect_kiro(raw_data):
-        set_protocol(KiroProtocol())
+        set_protocol(ClaudeCodeProtocol() if _detect_claude_code(raw_data) else KiroProtocol())
         return parse_kiro_data(raw_data)
     logging.getLogger("hooks").addHandler(logging.StreamHandler())
     set_protocol(ClineProtocol())

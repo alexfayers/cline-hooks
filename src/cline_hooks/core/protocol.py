@@ -17,6 +17,10 @@ class Protocol(ABC):
     def block(self, message: str) -> NoReturn:
         """Block the operation with an error message."""
 
+    def feedback(self, message: str) -> NoReturn:
+        """Continue the conversation with non-error feedback. Defaults to block()."""
+        self.block(message)
+
 
 def set_protocol(protocol: Protocol) -> None:
     """Set the active output protocol for this process."""

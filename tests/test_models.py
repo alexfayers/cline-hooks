@@ -7,6 +7,7 @@ from cline_hooks.core.models import (
     HookInputPostToolUse,
     HookInputPreCompact,
     HookInputPreToolUse,
+    HookInputStop,
     HookInputTaskCancel,
     HookInputTaskComplete,
     HookInputTaskResume,
@@ -42,6 +43,7 @@ class TestInheritors:
         assert HookInputTaskComplete in result
         assert HookInputUserPromptSubmit in result
         assert HookInputPreCompact in result
+        assert HookInputStop in result
 
     def test_does_not_include_base(self) -> None:
         assert HookInput not in inheritors(HookInput)
@@ -118,6 +120,18 @@ class TestParseData:
         assert isinstance(result, HookInputPreCompact)
         assert result.preCompact is not None
         assert result.preCompact.conversationLength == 50
+
+    def test_parses_stop(self) -> None:
+        result = parse_data(_make_json(hookName="Stop", stop={"stopHookActive": True}))
+        assert isinstance(result, HookInputStop)
+        assert result.stop is not None
+        assert result.stop.stopHookActive is True
+
+    def test_stop_empty_dict_defaults_false(self) -> None:
+        result = parse_data(_make_json(hookName="Stop", stop={}))
+        assert isinstance(result, HookInputStop)
+        assert result.stop is not None
+        assert result.stop.stopHookActive is False
 
     def test_unknown_hook_falls_back_to_base(self) -> None:
         result = parse_data(_make_json(hookName="UnknownHook"))

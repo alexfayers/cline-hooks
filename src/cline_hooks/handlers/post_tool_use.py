@@ -22,6 +22,7 @@ from cline_hooks.state.memory import (
     is_memory_write as _is_memory_write,
     record_memory_write as _record_memory_write,
 )
+import cline_hooks.state.research as research_state
 from cline_hooks.state.retrospective import record_session as _record_retro_session
 from cline_hooks.state.skills import record_skill as _record_skill
 
@@ -67,6 +68,38 @@ def _get_all_state_write_tool_names(plugins: list[HooksPlugin]) -> frozenset[str
     for plugin in plugins:
         names.update(plugin.get_state_write_tool_names())
     return frozenset(names)
+
+
+def _get_all_research_tool_names(plugins: list[HooksPlugin]) -> frozenset[str]:
+    """Collect research lookup tool names from all plugins.
+
+    Args:
+        plugins: Loaded plugin instances.
+
+    Returns:
+        Union of the default research tools and all plugin research tool sets.
+    """
+    names = set(research_state.DEFAULT_RESEARCH_TOOLS)
+    for plugin in plugins:
+        names.update(plugin.get_research_tool_names())
+    return frozenset(names)
+
+
+def _extract_research_detail(tool_name: str, parameters: dict[str, Any]) -> str:
+    """Return a short identifier for a research lookup.
+
+    Args:
+        tool_name: The research tool name.
+        parameters: The tool parameters.
+
+    Returns:
+        A URL for WebFetch, a query for WebSearch, otherwise an empty string.
+    """
+    if tool_name == "WebFetch":
+        return str(parameters.get("url", ""))
+    if tool_name == "WebSearch":
+        return str(parameters.get("query", ""))
+    return ""
 
 
 def _parse_diff_stat_line(line: str) -> int:
@@ -208,14 +241,16 @@ def _record_tool_use(
     tool_name: str,
     parameters: dict[str, Any],
     state_write_names: frozenset[str],
+    research_names: frozenset[str],
 ) -> tuple[bool, str | None]:
-    """Record memory/skill/agent use for a tool call and resolve its MCP identity.
+    """Record memory/skill/agent/research use for a tool call and resolve its MCP identity.
 
     Args:
         task_id: The session or task identifier.
         tool_name: The tool name as reported by the frontend.
         parameters: The tool parameters.
         state_write_names: Tool names that count as plugin state writes.
+        research_names: Tool names that count as research lookups.
 
     Returns:
         A tuple of (is_state_write, mcp_tool_name).
@@ -238,6 +273,10 @@ def _record_tool_use(
 
     if _is_agent_tool(tool_name):
         _record_agent_use(task_id, tool_name)
+
+    research_tool = mcp_tool_name or tool_name
+    if research_state.is_research_tool(research_tool, research_names):
+        research_state.record_research(task_id, research_tool, _extract_research_detail(research_tool, parameters))
 
     return is_state_write, mcp_tool_name
 
@@ -268,8 +307,11 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> None:
 
     plugins = load_plugins()
     state_write_names = _get_all_state_write_tool_names(plugins)
+    research_names = _get_all_research_tool_names(plugins)
 
-    is_state_write, mcp_tool_name = _record_tool_use(hook.taskId, tool_name, parameters, state_write_names)
+    is_state_write, mcp_tool_name = _record_tool_use(
+        hook.taskId, tool_name, parameters, state_write_names, research_names
+    )
 
     retro_count = _record_retro_session(hook.taskId) if _is_wrap_up_skill(tool_name, parameters) else None
 

@@ -36,3 +36,9 @@ def block(message: str, *, task_id: str | None = None, tool_name: str | None = N
 
         TaskStateStore().record_block(task_id, tool_name, message)
     get_protocol().block(message)
+
+
+def feedback(message: str) -> NoReturn:
+    """Continue the conversation with non-error feedback."""
+    logger.warning("Feedback: %s", message)
+    get_protocol().feedback(message)

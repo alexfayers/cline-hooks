@@ -7,7 +7,8 @@ from unittest.mock import patch
 
 import pytest
 
-from cline_hooks.core.response import allow, block
+from cline_hooks.core.response import allow, block, feedback
+from cline_hooks.frontends.claude_code import ClaudeCodeProtocol
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.frontends.kiro import KiroProtocol
 
@@ -24,6 +25,14 @@ def _capture_block(message: str, *, task_id: str | None = None, tool_name: str |
     buf = StringIO()
     with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
         block(message, task_id=task_id, tool_name=tool_name)
+    assert exc.value.code == 0
+    return cast("dict[str, object]", json.loads(buf.getvalue()))
+
+
+def _capture_feedback(message: str) -> dict[str, object]:
+    buf = StringIO()
+    with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
+        feedback(message)
     assert exc.value.code == 0
     return cast("dict[str, object]", json.loads(buf.getvalue()))
 
@@ -53,6 +62,14 @@ class TestClineProtocol:
         result = json.loads(buf.getvalue())
         assert result == {"cancel": True, "errorMessage": "oops"}
 
+    def test_feedback_defaults_to_block(self) -> None:
+        proto = ClineProtocol()
+        buf = StringIO()
+        with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
+            proto.feedback("oops")
+        assert exc.value.code == 0
+        assert json.loads(buf.getvalue()) == {"cancel": True, "errorMessage": "oops"}
+
 
 class TestKiroProtocol:
     def test_allow_no_message(self) -> None:
@@ -78,6 +95,42 @@ class TestKiroProtocol:
             proto.block("bad")
         assert exc.value.code == 2
         assert err.getvalue() == "bad"
+
+    def test_feedback_defaults_to_block(self) -> None:
+        proto = KiroProtocol()
+        err = StringIO()
+        with patch("sys.stderr", err), pytest.raises(SystemExit) as exc:
+            proto.feedback("bad")
+        assert exc.value.code == 2
+        assert err.getvalue() == "bad"
+
+
+class TestClaudeCodeProtocol:
+    def test_allow_no_message(self) -> None:
+        proto = ClaudeCodeProtocol()
+        buf = StringIO()
+        with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
+            proto.allow()
+        assert exc.value.code == 0
+        assert buf.getvalue() == ""
+
+    def test_block_still_exits_2_with_stderr(self) -> None:
+        proto = ClaudeCodeProtocol()
+        err = StringIO()
+        with patch("sys.stderr", err), pytest.raises(SystemExit) as exc:
+            proto.block("bad")
+        assert exc.value.code == 2
+        assert err.getvalue() == "bad"
+
+    def test_feedback_uses_additional_context_exit_0(self) -> None:
+        proto = ClaudeCodeProtocol()
+        buf = StringIO()
+        with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
+            proto.feedback("trace text")
+        assert exc.value.code == 0
+        assert json.loads(buf.getvalue()) == {
+            "hookSpecificOutput": {"hookEventName": "Stop", "additionalContext": "trace text"},
+        }
 
 
 class TestAllow:
@@ -116,4 +169,15 @@ class TestBlock:
     def test_no_state_store_call_without_task_id(self) -> None:
         with patch("cline_hooks.state.store.TaskStateStore.record_block") as mock_record:
             _capture_block("reason")
+        mock_record.assert_not_called()
+
+
+class TestFeedback:
+    def test_continues_with_block_shaped_output_under_default_protocol(self) -> None:
+        result = _capture_feedback("trace text")
+        assert result == {"cancel": True, "errorMessage": "trace text"}
+
+    def test_never_records_block_event(self) -> None:
+        with patch("cline_hooks.state.store.TaskStateStore.record_block") as mock_record:
+            _capture_feedback("trace text")
         mock_record.assert_not_called()

@@ -5,14 +5,17 @@ from typing import cast
 from unittest.mock import patch
 
 from cline_hooks.core.models import HookInputPostToolUse
+from cline_hooks.core.plugin import HooksPlugin
 from cline_hooks.frontends.cline import parse_cline_data as parse_data
 from cline_hooks.handlers.post_tool_use import (
     _RETRO_THRESHOLD,
+    _get_all_research_tool_names,
     _is_session_end_skill,
     _is_wrap_up_skill,
     handle_post_tool_use,
 )
 from cline_hooks.state.memory import record_memory_write
+from cline_hooks.state.research import get_research
 from cline_hooks.state.retrospective import get_count, record_session
 
 _BASE = {
@@ -197,6 +200,37 @@ class TestAgentUseRecording:
             _run(hook)
         mock_skill.assert_not_called()
         mock_memory.assert_not_called()
+
+
+class TestGetAllResearchToolNames:
+    def test_defaults_present_with_no_plugins(self) -> None:
+        assert _get_all_research_tool_names([]) == frozenset({"WebFetch", "WebSearch"})
+
+    def test_union_with_plugin_names(self) -> None:
+        class ResearchPlugin(HooksPlugin):
+            def get_research_tool_names(self) -> frozenset[str]:
+                return frozenset({"InternalSearch", "InternalCodeSearch"})
+
+        result = _get_all_research_tool_names([ResearchPlugin()])
+        assert result == frozenset({"WebFetch", "WebSearch", "InternalSearch", "InternalCodeSearch"})
+
+
+class TestResearchRecording:
+    def test_webfetch_records_url(self) -> None:
+        _run(_make_hook("WebFetch", parameters={"url": "https://example.com/docs"}))
+        assert get_research("task-1") == [{"tool": "WebFetch", "detail": "https://example.com/docs"}]
+
+    def test_websearch_records_query(self) -> None:
+        _run(_make_hook("WebSearch", parameters={"query": "python entry points"}))
+        assert get_research("task-1") == [{"tool": "WebSearch", "detail": "python entry points"}]
+
+    def test_non_research_tool_records_nothing(self) -> None:
+        _run(_make_hook("Read", parameters={"file_path": "/x.py"}))
+        assert get_research("task-1") == []
+
+    def test_failed_research_tool_records_nothing(self) -> None:
+        _run(_make_hook("WebFetch", success=False, parameters={"url": "https://example.com"}))
+        assert get_research("task-1") == []
 
 
 class TestIsSessionEndSkill:

@@ -101,6 +101,13 @@ class PreCompactFields:
 
 
 @dataclass
+class StopFields:
+    """Fields specific to Stop hooks."""
+
+    stopHookActive: bool = False
+
+
+@dataclass
 class HookInputPreToolUse(HookInput):
     """Hook input for PreToolUse events."""
 
@@ -196,6 +203,18 @@ class HookInputPreCompact(HookInput):
     def __post_init__(self) -> None:
         if isinstance(self.preCompact, dict):
             self.preCompact = PreCompactFields(**_filter_fields(PreCompactFields, self.preCompact))
+
+
+@dataclass
+class HookInputStop(HookInput):
+    """Hook input for Stop events."""
+
+    stop: StopFields | None = None
+    hookName: str = "Stop"
+
+    def __post_init__(self) -> None:
+        if isinstance(self.stop, dict):
+            self.stop = StopFields(**_filter_fields(StopFields, self.stop))
 
 
 @dataclass

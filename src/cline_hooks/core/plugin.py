@@ -81,6 +81,14 @@ class HooksPlugin:
         """
         return frozenset()
 
+    def get_research_tool_names(self) -> frozenset[str]:
+        """Return additional tool names that count as research lookups.
+
+        Returns:
+            frozenset of tool name strings.
+        """
+        return frozenset()
+
     def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:  # noqa: ARG002
         """Handle any hook event, returning notes and/or a block reason.
 

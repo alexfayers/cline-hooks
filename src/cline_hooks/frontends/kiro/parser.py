@@ -10,10 +10,12 @@ from cline_hooks.core.models import (
     HookInput,
     HookInputPostToolUse,
     HookInputPreToolUse,
+    HookInputStop,
     HookInputTaskStart,
     HookInputUserPromptSubmit,
     PostToolUseFields,
     PreToolUseFields,
+    StopFields,
     TaskStartFields,
     UserPromptSubmitFields,
     _filter_fields,
@@ -186,5 +188,9 @@ def parse_kiro_data(raw_data: str) -> HookInput:
             userMessage=data.get("prompt", ""),
         )
         return HookInputUserPromptSubmit(**_filter_fields(HookInputUserPromptSubmit, base_fields))
+
+    if canonical_hook == "Stop":
+        base_fields["stop"] = StopFields(stopHookActive=bool(data.get("stop_hook_active")))
+        return HookInputStop(**_filter_fields(HookInputStop, base_fields))
 
     return HookInput(**_filter_fields(HookInput, base_fields))
