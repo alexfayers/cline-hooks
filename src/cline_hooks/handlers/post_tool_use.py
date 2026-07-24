@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 import git
 import git.exc
 
-from cline_hooks.core.models import McpToolUse
+from cline_hooks.core.models import McpToolUse, extract_mcp_tool_name
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
@@ -27,6 +27,8 @@ from cline_hooks.state.retrospective import record_session as _record_retro_sess
 from cline_hooks.state.skills import record_skill as _record_skill
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from cline_hooks.core.models import HookInputPostToolUse
     from cline_hooks.core.plugin import HooksPlugin
 
@@ -85,16 +87,51 @@ def _get_all_research_tool_names(plugins: list[HooksPlugin]) -> frozenset[str]:
     return frozenset(names)
 
 
-def _extract_research_detail(tool_name: str, parameters: dict[str, Any]) -> str:
+def _get_all_research_detail_extractors(plugins: list[HooksPlugin]) -> dict[str, Callable[[dict[str, Any]], str]]:
+    """Collect research detail extractors from all plugins.
+
+    Later plugins override earlier ones on key collision.
+
+    Args:
+        plugins: Loaded plugin instances.
+
+    Returns:
+        Merged mapping of tool name to detail-extraction callable.
+    """
+    extractors: dict[str, Callable[[dict[str, Any]], str]] = {}
+    for plugin in plugins:
+        extractors.update(plugin.get_research_detail_extractors())
+    return extractors
+
+
+def _extract_research_detail(
+    tool_name: str,
+    parameters: dict[str, Any],
+    extractors: dict[str, Callable[[dict[str, Any]], str]],
+) -> str:
     """Return a short identifier for a research lookup.
+
+    A plugin-supplied extractor for the tool takes precedence; extractors are
+    third-party plugin code, so failures are caught and treated as no detail.
+    Falls back to the built-in WebFetch/WebSearch handling.
 
     Args:
         tool_name: The research tool name.
         parameters: The tool parameters.
+        extractors: Per-tool detail extractors contributed by plugins.
 
     Returns:
-        A URL for WebFetch, a query for WebSearch, otherwise an empty string.
+        A URL for WebFetch, a query for WebSearch, an extractor-derived string,
+        otherwise an empty string.
     """
+    extractor = extractors.get(tool_name)
+    if extractor is not None:
+        try:
+            detail = extractor(parameters)
+        except Exception:
+            logger.exception("Research detail extractor for %s failed", tool_name)
+            return ""
+        return str(detail or "")
     if tool_name == "WebFetch":
         return str(parameters.get("url", ""))
     if tool_name == "WebSearch":
@@ -236,12 +273,13 @@ def _is_wrap_up_skill(tool_name: str, parameters: dict[str, object]) -> bool:
     return _is_skill_invocation(tool_name, parameters, _WRAP_UP_SKILLS)
 
 
-def _record_tool_use(
+def _record_tool_use(  # noqa: PLR0913, PLR0917
     task_id: str,
     tool_name: str,
     parameters: dict[str, Any],
     state_write_names: frozenset[str],
     research_names: frozenset[str],
+    extractors: dict[str, Callable[[dict[str, Any]], str]],
 ) -> tuple[bool, str | None]:
     """Record memory/skill/agent/research use for a tool call and resolve its MCP identity.
 
@@ -251,32 +289,35 @@ def _record_tool_use(
         parameters: The tool parameters.
         state_write_names: Tool names that count as plugin state writes.
         research_names: Tool names that count as research lookups.
+        extractors: Per-tool research detail extractors contributed by plugins.
 
     Returns:
         A tuple of (is_state_write, mcp_tool_name).
     """
-    is_state_write = False
     mcp_tool_name: str | None = None
+    arguments = parameters
     if tool_name == "use_mcp_tool":
         tool = McpToolUse(**parameters)
         mcp_tool_name = tool.tool_name
-        is_state_write = tool.tool_name in state_write_names
+        arguments = tool.arguments
         if _is_memory_write(tool.tool_name):
             _record_memory_write(task_id, tool.tool_name)
-    elif _is_memory_write(tool_name):
-        _record_memory_write(task_id, tool_name)
-        if "__" in tool_name:
-            mcp_tool_name = tool_name.rsplit("__", 1)[-1]
-            is_state_write = mcp_tool_name in state_write_names
+    elif "__" in tool_name:
+        mcp_tool_name = extract_mcp_tool_name(tool_name)
+        if _is_memory_write(tool_name):
+            _record_memory_write(task_id, tool_name)
     else:
         _record_skill_use(task_id, tool_name, parameters)
+
+    is_state_write = mcp_tool_name is not None and mcp_tool_name in state_write_names
 
     if _is_agent_tool(tool_name):
         _record_agent_use(task_id, tool_name)
 
     research_tool = mcp_tool_name or tool_name
     if research_state.is_research_tool(research_tool, research_names):
-        research_state.record_research(task_id, research_tool, _extract_research_detail(research_tool, parameters))
+        detail = _extract_research_detail(research_tool, arguments, extractors)
+        research_state.record_research(task_id, research_tool, detail)
 
     return is_state_write, mcp_tool_name
 
@@ -308,9 +349,10 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> None:
     plugins = load_plugins()
     state_write_names = _get_all_state_write_tool_names(plugins)
     research_names = _get_all_research_tool_names(plugins)
+    extractors = _get_all_research_detail_extractors(plugins)
 
     is_state_write, mcp_tool_name = _record_tool_use(
-        hook.taskId, tool_name, parameters, state_write_names, research_names
+        hook.taskId, tool_name, parameters, state_write_names, research_names, extractors
     )
 
     retro_count = _record_retro_session(hook.taskId) if _is_wrap_up_skill(tool_name, parameters) else None
