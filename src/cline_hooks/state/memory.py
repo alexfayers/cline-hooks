@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 
+from cline_hooks.core.models import extract_mcp_tool_name
 from cline_hooks.state.paths import get_data_dir
 
 logger = logging.getLogger("hooks")
@@ -34,23 +35,6 @@ def _write(data: dict[str, list[str]]) -> None:
     _STATE_PATH.write_text(json.dumps(data))
 
 
-def _extract_tool_suffix(tool_name: str) -> str:
-    """Extract the bare tool name from a prefixed MCP tool call.
-
-    Handles both Cline format ("create_entities") and Claude Code format
-    ("mcp__memory__create_entities").
-
-    Args:
-        tool_name: The tool name as reported by the frontend.
-
-    Returns:
-        The bare tool name suffix.
-    """
-    if "__" in tool_name:
-        return tool_name.rsplit("__", 1)[-1]
-    return tool_name
-
-
 def is_memory_write(tool_name: str) -> bool:
     """Check whether a tool name is a memory-write operation.
 
@@ -60,7 +44,7 @@ def is_memory_write(tool_name: str) -> bool:
     Returns:
         True if the tool is a memory-write operation.
     """
-    return _extract_tool_suffix(tool_name) in _MEMORY_WRITE_TOOLS
+    return extract_mcp_tool_name(tool_name) in _MEMORY_WRITE_TOOLS
 
 
 def record_memory_write(task_id: str, tool_name: str) -> None:

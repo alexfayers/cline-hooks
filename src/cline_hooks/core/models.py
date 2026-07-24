@@ -26,6 +26,23 @@ def inheritors(klass: type) -> set[type]:
     return subclasses
 
 
+def extract_mcp_tool_name(tool_name: str) -> str:
+    """Return the bare tool name from a fully-qualified MCP tool identifier.
+
+    Handles Cline bare names ("create_entities") and Claude Code's
+    "mcp__<server>__<tool>" form, returning the trailing tool segment.
+
+    Args:
+        tool_name: The tool name as reported by the frontend.
+
+    Returns:
+        The bare tool name.
+    """
+    if "__" in tool_name:
+        return tool_name.rsplit("__", 1)[-1]
+    return tool_name
+
+
 @dataclass
 class HookInput:
     """Base class for all hook inputs.

@@ -14,6 +14,7 @@ from cline_hooks.core.models import (
     HookInputTaskStart,
     HookInputUserPromptSubmit,
     _filter_fields,
+    extract_mcp_tool_name,
     inheritors,
 )
 from cline_hooks.frontends.cline import parse_cline_data as parse_data
@@ -66,6 +67,17 @@ class TestFilterFields:
 
     def test_empty_data(self) -> None:
         assert _filter_fields(HookInput, {}) == {}
+
+
+class TestExtractMcpToolName:
+    def test_bare_name_unchanged(self) -> None:
+        assert extract_mcp_tool_name("create_entities") == "create_entities"
+
+    def test_claude_code_prefix_stripped(self) -> None:
+        assert extract_mcp_tool_name("mcp__builder-mcp__ReadInternalWebsites") == "ReadInternalWebsites"
+
+    def test_trailing_segment_returned(self) -> None:
+        assert extract_mcp_tool_name("mcp__memory__create_entities") == "create_entities"
 
 
 class TestParseData:
