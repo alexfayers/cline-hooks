@@ -22,6 +22,10 @@ class TestHooksPluginDefaults:
         plugin = HooksPlugin()
         assert plugin.get_state_write_tool_names() == frozenset()
 
+    def test_get_research_detail_extractors_returns_empty(self) -> None:
+        plugin = HooksPlugin()
+        assert plugin.get_research_detail_extractors() == {}
+
     def test_on_hook_returns_none(self) -> None:
         plugin = HooksPlugin()
         assert plugin.on_hook("AnyHook") is None

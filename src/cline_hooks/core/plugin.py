@@ -10,6 +10,9 @@ from typing import TYPE_CHECKING
 import cline_hooks.plugins as _plugins_pkg
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+    from typing import Any
+
     from cline_hooks.handlers.commands import CommandRule
 
 logger = logging.getLogger("hooks")
@@ -88,6 +91,17 @@ class HooksPlugin:
             frozenset of tool name strings.
         """
         return frozenset()
+
+    def get_research_detail_extractors(self) -> dict[str, Callable[[dict[str, Any]], str]]:
+        """Return per-tool detail extractors for research lookups.
+
+        Each maps a research tool name to a callable that derives a short
+        detail string (e.g. a URL or query) from that tool's parameters.
+
+        Returns:
+            Mapping of tool name to a detail-extraction callable.
+        """
+        return {}
 
     def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:  # noqa: ARG002
         """Handle any hook event, returning notes and/or a block reason.
