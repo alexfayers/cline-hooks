@@ -10,8 +10,8 @@ if TYPE_CHECKING:
     from cline_hooks.core.models import HookInputStop
 
 _RESEARCH_TRACE_HEADER = (
-    "RESEARCH TRACE: before finishing, cite the lookups that informed your "
-    "work this turn, and note which came up empty."
+    "RESEARCH TRACE: cite lookups behind this turn's claims. Reply with ONE "
+    "line only - the user already sees this hook's raw output."
 )
 _RESEARCH_TRACE_CAP = 15
 
