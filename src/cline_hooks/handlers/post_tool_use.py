@@ -13,6 +13,7 @@ from cline_hooks.core.models import McpToolUse, extract_mcp_tool_name
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
+from cline_hooks.handlers.git_context import resolve_tooling_notes
 from cline_hooks.state.agents import (
     is_agent_tool as _is_agent_tool,
     record_agent_use as _record_agent_use,
@@ -25,6 +26,7 @@ from cline_hooks.state.memory import (
 import cline_hooks.state.research as research_state
 from cline_hooks.state.retrospective import record_session as _record_retro_session
 from cline_hooks.state.skills import record_skill as _record_skill
+from cline_hooks.state.workspace import should_note_workspace_change
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -322,6 +324,20 @@ def _record_tool_use(  # noqa: PLR0913, PLR0917
     return is_state_write, mcp_tool_name
 
 
+def _note_workspace_change(hook: HookInputPostToolUse, plugins: list[HooksPlugin]) -> None:
+    """Emit ecosystem tooling guidance when the working directory has moved.
+
+    Args:
+        hook: The hook input data.
+        plugins: Loaded plugin instances.
+    """
+    if not should_note_workspace_change(hook.taskId, hook.workspaceRoots):
+        return
+    notes = resolve_tooling_notes(plugins, hook.workspaceRoots)
+    if notes:
+        allow(f"Working directory changed to {hook.workspaceRoots[0]}. " + "\n\n".join(notes))
+
+
 @hook_handler("PostToolUse")
 def handle_post_tool_use(hook: HookInputPostToolUse) -> None:
     """Handle PostToolUse hook events.
@@ -391,3 +407,5 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> None:
         messages.append(_RETRO_REMINDER.format(count=retro_count))
     if messages:
         allow("\n\n".join(messages), prefix="")
+
+    _note_workspace_change(hook, plugins)

@@ -1,6 +1,13 @@
 from __future__ import annotations
 
-from cline_hooks.core.plugin import HookResult, HooksPlugin, _plugin_cache, collect_hook_results, load_plugins
+from cline_hooks.core.plugin import (
+    HookResult,
+    HooksPlugin,
+    ToolingNote,
+    _plugin_cache,
+    collect_hook_results,
+    load_plugins,
+)
 from cline_hooks.handlers.commands import (
     CommandRule,
     get_all_build_commands,
@@ -30,6 +37,10 @@ class TestHooksPluginDefaults:
         plugin = HooksPlugin()
         assert plugin.on_hook("AnyHook") is None
 
+    def test_get_tooling_note_returns_none(self) -> None:
+        plugin = HooksPlugin()
+        assert plugin.get_tooling_note([]) is None
+
 
 class TestHookResult:
     def test_defaults(self) -> None:
@@ -41,6 +52,18 @@ class TestHookResult:
         result = HookResult(notes=["note1"], block="blocked")
         assert result.notes == ["note1"]
         assert result.block == "blocked"
+
+
+class TestToolingNote:
+    def test_defaults(self) -> None:
+        note = ToolingNote(note="hello")
+        assert note.note == "hello"
+        assert note.replaces_generic is True
+
+    def test_with_values(self) -> None:
+        note = ToolingNote(note="hello", replaces_generic=False)
+        assert note.note == "hello"
+        assert note.replaces_generic is False
 
 
 class TestCollectHookResults:

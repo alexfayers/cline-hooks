@@ -9,7 +9,7 @@ import git.exc
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
-from cline_hooks.handlers.git_context import get_git_context
+from cline_hooks.handlers.git_context import get_git_context, resolve_tooling_notes
 from cline_hooks.state.agents import reset as _reset_agents
 from cline_hooks.state.context import reset as _reset_context
 from cline_hooks.state.memory import reset as _reset_memory
@@ -20,6 +20,10 @@ from cline_hooks.state.skills import (
 )
 from cline_hooks.state.store import TaskStateStore
 from cline_hooks.state.turns import reset as _reset_turns
+from cline_hooks.state.workspace import (
+    record_workspace,
+    reset as reset_workspace,
+)
 
 if TYPE_CHECKING:
     from cline_hooks.core.models import (
@@ -90,8 +94,13 @@ def handle_task_start(hook: HookInputTaskStart) -> None:
     if git_context:
         parts.append(git_context)
 
+    plugins = load_plugins()
+
+    parts.extend(resolve_tooling_notes(plugins, hook.workspaceRoots))
+    record_workspace(hook.taskId, hook.workspaceRoots)
+
     result = collect_hook_results(
-        load_plugins(),
+        plugins,
         "TaskStart",
         task_id=hook.taskId,
         workspace_roots=hook.workspaceRoots,
@@ -122,8 +131,13 @@ def handle_task_resume(hook: HookInputTaskResume) -> None:
             skills_list = ", ".join(f"`{s}`" for s in sorted(pending_skills))
             parts.append(f"REQUIRED: use the {skills_list} skill(s) before retrying the blocked command.")
 
+    plugins = load_plugins()
+
+    parts.extend(resolve_tooling_notes(plugins, hook.workspaceRoots))
+    record_workspace(hook.taskId, hook.workspaceRoots)
+
     result = collect_hook_results(
-        load_plugins(),
+        plugins,
         "TaskResume",
         task_id=hook.taskId,
         workspace_roots=hook.workspaceRoots,
@@ -165,5 +179,6 @@ def handle_task_complete(hook: HookInputTaskComplete) -> None:
     _reset_agents(hook.taskId)
     _reset_context(hook.taskId)
     _reset_research(hook.taskId)
+    reset_workspace(hook.taskId)
     collect_hook_results(load_plugins(), "TaskComplete", task_id=hook.taskId)
     allow()

@@ -14,6 +14,7 @@ import cline_hooks.state.retrospective as retrospective_module
 import cline_hooks.state.skills as skill_tracker_module
 import cline_hooks.state.store as state_store_module
 import cline_hooks.state.turns as turns_module
+import cline_hooks.state.workspace as workspace_module
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -32,4 +33,5 @@ def isolate_state_files(mocker: MockerFixture, tmp_path: Path) -> None:
     mocker.patch.object(agents_tracker_module, "_STATE_PATH", tmp_path / "agents-state.json")
     mocker.patch.object(context_module, "_STATE_PATH", tmp_path / "context-state.json")
     mocker.patch.object(research_tracker_module, "_STATE_PATH", tmp_path / "research-state.json")
+    mocker.patch.object(workspace_module, "_STATE_PATH", tmp_path / "workspace-state.json")
     set_protocol(ClineProtocol())

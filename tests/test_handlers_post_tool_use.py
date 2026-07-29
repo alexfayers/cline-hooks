@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import patch
 
 from cline_hooks.core.models import HookInputPostToolUse
-from cline_hooks.core.plugin import HooksPlugin
+from cline_hooks.core.plugin import HooksPlugin, ToolingNote
 from cline_hooks.frontends.cline import parse_cline_data as parse_data
 from cline_hooks.handlers.post_tool_use import (
     _RETRO_THRESHOLD,
@@ -20,9 +20,11 @@ from cline_hooks.handlers.post_tool_use import (
 from cline_hooks.state.memory import record_memory_write
 from cline_hooks.state.research import get_research
 from cline_hooks.state.retrospective import get_count, record_session
+from cline_hooks.state.workspace import record_workspace
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from pathlib import Path
 
 _BASE = {
     "clineVersion": "1.0",
@@ -39,9 +41,11 @@ def _make_hook(
     success: bool = True,
     result: str | None = None,
     parameters: dict[str, object] | None = None,
+    workspace_roots: list[str] | None = None,
 ) -> HookInputPostToolUse:
     data = {
         **_BASE,
+        "workspaceRoots": workspace_roots if workspace_roots is not None else ["/workspace"],
         "postToolUse": {
             "toolName": tool_name,
             "parameters": parameters or {},
@@ -461,3 +465,150 @@ class TestRetrospectiveCounter:
         context = str(result.get("contextModification", ""))
         assert "No memory writes" in context
         assert "since your last /retrospective" in context
+
+
+class _ReplacingPlugin(HooksPlugin):
+    def get_tooling_note(self, workspace_roots: list[str]) -> ToolingNote | None:
+        return ToolingNote(note="PLUGIN NOTE", replaces_generic=True)
+
+
+class _AdditivePlugin(HooksPlugin):
+    def get_tooling_note(self, workspace_roots: list[str]) -> ToolingNote | None:
+        return ToolingNote(note="ADDITIVE NOTE", replaces_generic=False)
+
+
+class TestWorkspaceChangeToolingNote:
+    def test_note_fires_when_cwd_changes(self, tmp_path: Path) -> None:
+        record_workspace("task-1", ["/old"])
+        with patch("cline_hooks.handlers.git_context.get_generic_tooling_note", return_value="TOOLING NOTE"):
+            result = _run(_make_hook("Read", parameters={"file_path": "/x.py"}, workspace_roots=[str(tmp_path)]))
+        assert result is not None
+        note = cast("str", result.get("contextModification", ""))
+        assert "TOOLING NOTE" in note
+        assert "Working directory changed" in note
+
+    def test_note_suppressed_when_plugin_replaces_tooling(self, tmp_path: Path) -> None:
+        record_workspace("task-1", ["/old"])
+        with (
+            patch("cline_hooks.handlers.git_context.get_generic_tooling_note", return_value="TOOLING NOTE"),
+            patch("cline_hooks.handlers.post_tool_use.load_plugins", return_value=[_ReplacingPlugin()]),
+        ):
+            result = _run(_make_hook("Read", parameters={"file_path": "/x.py"}, workspace_roots=[str(tmp_path)]))
+        assert result is None or "TOOLING NOTE" not in cast("str", result.get("contextModification", ""))
+
+    def test_additive_note_fires_on_cwd_change(self, tmp_path: Path) -> None:
+        record_workspace("task-1", ["/old"])
+        with (
+            patch("cline_hooks.handlers.git_context.get_generic_tooling_note", return_value=None),
+            patch("cline_hooks.handlers.post_tool_use.load_plugins", return_value=[_AdditivePlugin()]),
+        ):
+            result = _run(_make_hook("Read", parameters={"file_path": "/x.py"}, workspace_roots=[str(tmp_path)]))
+        assert result is not None
+        note = cast("str", result.get("contextModification", ""))
+        assert "ADDITIVE NOTE" in note
+        assert "Working directory changed" in note
+
+    def test_no_note_on_first_tool_call(self, tmp_path: Path) -> None:
+        with patch("cline_hooks.handlers.git_context.get_generic_tooling_note", return_value="TOOLING NOTE"):
+            result = _run(_make_hook("Read", parameters={"file_path": "/x.py"}, workspace_roots=[str(tmp_path)]))
+        assert result is None or "TOOLING NOTE" not in cast("str", result.get("contextModification", ""))
+
+    def test_no_repeat_note_for_same_cwd(self, tmp_path: Path) -> None:
+        record_workspace("task-1", [str(tmp_path)])
+        with patch("cline_hooks.handlers.git_context.get_generic_tooling_note", return_value="TOOLING NOTE"):
+            result = _run(_make_hook("Read", parameters={"file_path": "/x.py"}, workspace_roots=[str(tmp_path)]))
+        assert result is None or "TOOLING NOTE" not in cast("str", result.get("contextModification", ""))
+
+    def test_note_fires_once_then_stops(self, tmp_path: Path) -> None:
+        record_workspace("task-1", ["/old"])
+        with patch("cline_hooks.handlers.git_context.get_generic_tooling_note", return_value="TOOLING NOTE"):
+            first = _run(_make_hook("Read", parameters={"file_path": "/x.py"}, workspace_roots=[str(tmp_path)]))
+            second = _run(_make_hook("Read", parameters={"file_path": "/x.py"}, workspace_roots=[str(tmp_path)]))
+        assert first is not None
+        assert "TOOLING NOTE" in cast("str", first.get("contextModification", ""))
+        assert second is None or "TOOLING NOTE" not in cast("str", second.get("contextModification", ""))
+
+    def test_note_refires_when_returning_to_previous_dir(self, tmp_path: Path) -> None:
+        dir_a = tmp_path / "a"
+        dir_b = tmp_path / "b"
+        dir_a.mkdir()
+        dir_b.mkdir()
+        record_workspace("task-1", [str(dir_a)])
+        with patch("cline_hooks.handlers.git_context.get_generic_tooling_note", return_value="TOOLING NOTE"):
+            to_b = _run(_make_hook("Read", parameters={"file_path": "/x.py"}, workspace_roots=[str(dir_b)]))
+            back_to_a = _run(_make_hook("Read", parameters={"file_path": "/x.py"}, workspace_roots=[str(dir_a)]))
+        assert to_b is not None
+        assert "TOOLING NOTE" in cast("str", to_b.get("contextModification", ""))
+        assert back_to_a is not None
+        assert "TOOLING NOTE" in cast("str", back_to_a.get("contextModification", ""))
+
+    def test_no_note_when_new_dir_has_no_marker(self, tmp_path: Path) -> None:
+        record_workspace("task-1", ["/old"])
+        result = _run(_make_hook("Read", parameters={"file_path": "/x.py"}, workspace_roots=[str(tmp_path)]))
+        assert result is None or "Working directory changed" not in cast("str", result.get("contextModification", ""))
+
+    def test_unhandled_tool_fires_note(self, tmp_path: Path) -> None:
+        record_workspace("task-1", ["/old"])
+        with patch("cline_hooks.handlers.git_context.get_generic_tooling_note", return_value="TOOLING NOTE"):
+            result = _run(_make_hook("browser_action", workspace_roots=[str(tmp_path)]))
+        assert result is not None
+        assert "TOOLING NOTE" in cast("str", result.get("contextModification", ""))
+
+    def test_note_fires_on_same_call_as_bare_cd(self, tmp_path: Path) -> None:
+        record_workspace("task-1", ["/old"])
+        with patch("cline_hooks.handlers.git_context.get_generic_tooling_note", return_value="TOOLING NOTE"):
+            result = _run(_make_hook("Bash", parameters={"command": f"cd {tmp_path}"}, workspace_roots=[str(tmp_path)]))
+        assert result is not None
+        note = cast("str", result.get("contextModification", ""))
+        assert "TOOLING NOTE" in note
+        assert "Working directory changed" in note
+
+    def test_memory_warning_wins_over_note(self, tmp_path: Path) -> None:
+        record_workspace("task-1", ["/old"])
+        with patch("cline_hooks.handlers.git_context.get_generic_tooling_note", return_value="TOOLING NOTE"):
+            result = _run(_make_hook("Skill", parameters={"skill": "session-end"}, workspace_roots=[str(tmp_path)]))
+        assert result is not None
+        context = cast("str", result.get("contextModification", ""))
+        assert "No memory writes" in context
+        assert "TOOLING NOTE" not in context
+
+    def test_build_failed_wins_over_note(self, tmp_path: Path) -> None:
+        record_workspace("task-1", ["/old"])
+        with patch("cline_hooks.handlers.git_context.get_generic_tooling_note", return_value="TOOLING NOTE"):
+            result = _run(
+                _make_hook(
+                    "execute_command",
+                    result="BUILD FAILED: boom",
+                    workspace_roots=[str(tmp_path)],
+                )
+            )
+        assert result is not None
+        context = cast("str", result.get("contextModification", ""))
+        assert "FAILED" in context
+        assert "TOOLING NOTE" not in context
+
+    def test_note_deferred_when_higher_priority_wins(self, tmp_path: Path) -> None:
+        record_workspace("task-1", ["/old"])
+        with patch("cline_hooks.handlers.git_context.get_generic_tooling_note", return_value="TOOLING NOTE"):
+            first = _run(
+                _make_hook(
+                    "execute_command",
+                    result="BUILD FAILED: boom",
+                    workspace_roots=[str(tmp_path)],
+                )
+            )
+            second = _run(_make_hook("Read", parameters={"file_path": "/x.py"}, workspace_roots=[str(tmp_path)]))
+        assert first is not None
+        assert "TOOLING NOTE" not in cast("str", first.get("contextModification", ""))
+        assert second is not None
+        assert "TOOLING NOTE" in cast("str", second.get("contextModification", ""))
+
+    def test_failure_defers_note(self, tmp_path: Path) -> None:
+        record_workspace("task-1", ["/old"])
+        with patch("cline_hooks.handlers.git_context.get_generic_tooling_note", return_value="TOOLING NOTE"):
+            failed = _run(_make_hook("Bash", success=False, workspace_roots=[str(tmp_path)]))
+            succeeded = _run(_make_hook("Read", parameters={"file_path": "/x.py"}, workspace_roots=[str(tmp_path)]))
+        assert failed is not None
+        assert "TOOLING NOTE" not in cast("str", failed.get("contextModification", ""))
+        assert succeeded is not None
+        assert "TOOLING NOTE" in cast("str", succeeded.get("contextModification", ""))
