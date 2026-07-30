@@ -13,6 +13,7 @@ from cline_hooks.handlers.user_prompt import (
     handle_user_prompt_submit,
 )
 from cline_hooks.state.agents import record_agent_use
+from cline_hooks.state.plan import record_plan_exit
 from cline_hooks.state.turns import _AGENT_NUDGE_THRESHOLD
 
 if TYPE_CHECKING:
@@ -293,40 +294,91 @@ class TestContextNudge:
     def test_no_nudge_when_token_count_unavailable(self) -> None:
         assert _run_with_transcript(None) is None
 
-    def test_no_nudge_below_threshold(self) -> None:
-        assert _run_with_transcript(150_000) is None
+    def test_info_note_below_reduced_threshold(self) -> None:
+        result = _run_with_transcript(150_000)
+        assert result is not None
+        context = cast("str", result.get("contextModification", ""))
+        assert "CONTEXT STATUS" in context
+        assert "150,000" in context
 
-    def test_nudge_above_threshold(self) -> None:
+    def test_reduced_nudge_on_first_crossing(self) -> None:
         result = _run_with_transcript(210_000)
         assert result is not None
         context = cast("str", result.get("contextModification", ""))
-        assert "CONTEXT USAGE NOTICE" in context
-        assert "not a hard limit" in context
+        assert "Accuracy degrading" in context
         assert "210,000" in context
 
-    def test_nudge_does_not_call_threshold_a_limit(self) -> None:
-        result = _run_with_transcript(210_000)
-        assert result is not None
-        context = cast("str", result.get("contextModification", ""))
-        assert "threshold 200k" not in context
-
-    def test_severe_nudge_above_degraded_threshold(self) -> None:
+    def test_severe_nudge_on_first_crossing(self) -> None:
         result = _run_with_transcript(410_000)
         assert result is not None
         context = cast("str", result.get("contextModification", ""))
-        assert "CONTEXT USAGE VERY HIGH" in context
+        assert "badly degraded" in context
         assert "410,000" in context
 
-    def test_nudge_fires_once_per_band_across_turns(self) -> None:
+    def test_reduced_nudge_does_not_refire_within_same_band(self) -> None:
         first = _run_with_transcript(210_000)
         assert first is not None
-        assert "CONTEXT USAGE NOTICE" in cast("str", first.get("contextModification", ""))
-        second = _run_with_transcript(220_000)
+        assert "Accuracy degrading" in cast("str", first.get("contextModification", ""))
+        second = _run_with_transcript(215_000)
         if second is not None:
-            assert "CONTEXT USAGE NOTICE" not in cast("str", second.get("contextModification", ""))
+            assert "Accuracy degrading" not in cast("str", second.get("contextModification", ""))
 
-    def test_nudge_refires_in_higher_band(self) -> None:
+    def test_next_band_in_same_tier_omits_boundary_text(self) -> None:
         _run_with_transcript(210_000)
-        result = _run_with_transcript(260_000)
+        result = _run_with_transcript(221_000)
         assert result is not None
-        assert "CONTEXT USAGE NOTICE" in cast("str", result.get("contextModification", ""))
+        context = cast("str", result.get("contextModification", ""))
+        assert "Accuracy degrading" not in context
+        assert "CONTEXT STATUS" in context
+
+    def test_info_note_fires_once_per_band(self) -> None:
+        first = _run_with_transcript(150_000)
+        assert first is not None
+        assert "CONTEXT STATUS" in cast("str", first.get("contextModification", ""))
+        second = _run_with_transcript(155_000)
+        if second is not None:
+            assert "CONTEXT STATUS" not in cast("str", second.get("contextModification", ""))
+
+    def test_info_note_refires_in_next_band(self) -> None:
+        _run_with_transcript(150_000)
+        result = _run_with_transcript(161_000)
+        assert result is not None
+        assert "CONTEXT STATUS" in cast("str", result.get("contextModification", ""))
+
+
+class TestPlanHandoffNudge:
+    def test_plan_nudge_fires_after_plan_exit(self) -> None:
+        record_plan_exit("task-1")
+        with (
+            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
+            patch("cline_hooks.handlers.user_prompt.datetime") as mock_dt,
+        ):
+            mock_dt.now.return_value.hour = 12
+            result = _run("neutral")
+        assert result is not None
+        assert "PLAN COMPLETE" in cast("str", result.get("contextModification", ""))
+
+    def test_plan_nudge_fires_once(self) -> None:
+        record_plan_exit("task-1")
+        with (
+            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
+            patch("cline_hooks.handlers.user_prompt.datetime") as mock_dt,
+        ):
+            mock_dt.now.return_value.hour = 12
+            _run("neutral")
+            second = _run("neutral")
+        if second is not None:
+            assert "PLAN COMPLETE" not in cast("str", second.get("contextModification", ""))
+
+
+class TestTeamActiveClause:
+    def test_team_clause_appended_when_agent_used(self) -> None:
+        record_agent_use("task-1", "Agent")
+        result = _run_with_transcript(210_000)
+        assert result is not None
+        assert "TaskStop" in cast("str", result.get("contextModification", ""))
+
+    def test_no_team_clause_when_no_agent(self) -> None:
+        result = _run_with_transcript(210_000)
+        assert result is not None
+        assert "TaskStop" not in cast("str", result.get("contextModification", ""))

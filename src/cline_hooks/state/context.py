@@ -1,4 +1,4 @@
-"""Track context-token banding per session to nudge fresh-session starts."""
+"""Track context-token banding and degradation-boundary crossings per session."""
 
 from __future__ import annotations
 
@@ -11,66 +11,99 @@ logger = logging.getLogger("hooks")
 
 _STATE_PATH = get_data_dir() / "context-state.json"
 
-_CONTEXT_THRESHOLD = 200_000
-_BAND_SIZE = 50_000
+_BAND_SIZE = 10_000
+
+CONTEXT_REDUCED_THRESHOLD = 200_000
+CONTEXT_DEGRADED_THRESHOLD = 400_000
+_BOUNDARIES: tuple[int, ...] = (CONTEXT_REDUCED_THRESHOLD, CONTEXT_DEGRADED_THRESHOLD)
 
 
-def _read() -> dict[str, int]:
+def _read() -> dict[str, dict[str, int]]:
     try:
-        return dict(json.loads(_STATE_PATH.read_text()))
+        raw = json.loads(_STATE_PATH.read_text())
     except (FileNotFoundError, json.JSONDecodeError, TypeError, ValueError):
         return {}
+    if not isinstance(raw, dict):
+        return {}
+    return {k: ({"band": v} if isinstance(v, int) else v) for k, v in raw.items()}
 
 
-def _write(data: dict[str, int]) -> None:
+def _write(data: dict[str, dict[str, int]]) -> None:
     _STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
     _STATE_PATH.write_text(json.dumps(data))
 
 
-def _band_for(token_count: int) -> int | None:
-    """Return the band index for a token count, or None when below threshold.
+def _band_for(token_count: int) -> int:
+    """Return the band index for a token count.
 
-    Band 0 covers [threshold, threshold + band_size), band 1 the next slice, and so on.
+    Bands are fixed-width slices of BAND_SIZE tokens counted from zero, so band 0
+    covers [0, BAND_SIZE), band 1 the next slice, and so on.
 
     Args:
         token_count: The current context token count.
 
     Returns:
-        The zero-based band index, or None if below the threshold.
+        The zero-based band index.
     """
-    if token_count < _CONTEXT_THRESHOLD:
-        return None
-    return (token_count - _CONTEXT_THRESHOLD) // _BAND_SIZE
+    return token_count // _BAND_SIZE
 
 
 def should_nudge_context(task_id: str, token_count: int) -> bool:
-    """Check whether the current token count should trigger a context nudge.
+    """Check whether the current token count crosses into a new context band.
 
-    Fires once per band above the threshold. The highest band already nudged for
-    the session is persisted, so a nudge fires only when the count crosses into a
-    band not yet nudged for this task.
+    Fires once per band. The highest band already nudged for the session is
+    persisted, so a nudge fires only when the count crosses into a band not yet
+    nudged for this task.
 
     Args:
         task_id: The session or task identifier.
         token_count: The current context token count.
 
     Returns:
-        True if a context nudge should be shown for this band.
+        True if the token count has entered a band not yet nudged this session.
     """
     band = _band_for(token_count)
-    if band is None:
-        return False
     data = _read()
-    last = data.get(task_id)
-    if last is not None and band <= last:
+    entry = data.get(task_id, {})
+    last_band = entry.get("band")
+    if last_band is not None and band <= last_band:
         return False
-    data[task_id] = band
+    entry["band"] = band
+    data[task_id] = entry
     _write(data)
     return True
 
 
+def crossed_boundary(task_id: str, token_count: int) -> int | None:
+    """Return the degradation boundary newly crossed by this token count, or None.
+
+    Fires once per boundary per session: the first call whose token count reaches
+    a boundary (CONTEXT_REDUCED_THRESHOLD or CONTEXT_DEGRADED_THRESHOLD) not yet
+    announced for this task returns that boundary; later calls at or above the
+    same boundary return None.
+
+    Args:
+        task_id: The session or task identifier.
+        token_count: The current context token count.
+
+    Returns:
+        The boundary just crossed, or None if no new boundary was reached.
+    """
+    data = _read()
+    entry = data.get(task_id, {})
+    last_boundary = entry.get("boundary", 0)
+    newly_crossed = [b for b in _BOUNDARIES if token_count >= b > last_boundary]
+    if not newly_crossed:
+        return None
+    boundary = max(newly_crossed)
+    entry["boundary"] = boundary
+    data[task_id] = entry
+    _write(data)
+    return boundary
+
+
 def reset(task_id: str) -> None:
-    """Clear the nudged-band record for a session.
+    """Clear the nudged-band and boundary record for a session.
 
     Args:
         task_id: The session or task identifier.

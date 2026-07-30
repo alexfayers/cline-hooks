@@ -9,8 +9,9 @@ from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
 from cline_hooks.core.transcript import get_context_tokens
+from cline_hooks.handlers.context_nudge import context_note, with_team_clause
 from cline_hooks.state.agents import agent_use_count
-from cline_hooks.state.context import should_nudge_context
+from cline_hooks.state.plan import consume_plan_nudge
 from cline_hooks.state.turns import increment, should_nudge_agents, should_remind
 
 if TYPE_CHECKING:
@@ -75,19 +76,11 @@ _AGENT_NUDGE_REMINDER = (
     "rather than working sequentially."
 )
 
-_CONTEXT_DEGRADED_THRESHOLD = 400_000
-
-_CONTEXT_NUDGE_REDUCED = (
-    "CONTEXT USAGE NOTICE: ~{tokens:,} tokens in use. This is not a hard limit - the window is much larger - "
-    "but focus and accuracy begin to soften past ~200k tokens and degrade gradually from there. "
-    "If you are at a natural stopping point, consider committing work in progress, capturing remaining work "
-    "as TODOs (or persisting to memory), and starting a fresh session to continue."
-)
-
-_CONTEXT_NUDGE_SEVERE = (
-    "CONTEXT USAGE VERY HIGH: ~{tokens:,} tokens in use. Past ~400k tokens focus and accuracy are badly "
-    "degraded. Strongly consider wrapping up now: commit work in progress, capture remaining work as TODOs "
-    "(or persist to memory), and start a fresh session to continue."
+_PLAN_HANDOFF_NUDGE = (
+    "PLAN COMPLETE: A plan was just finalized this session. Consider handing off implementation to a fresh "
+    "session so planning and full implementation do not consume one long context. Persist the plan to memory "
+    "(rather than a heavy handoff doc) and capture any queued follow-on tasks as TODOs so a fresh session can "
+    "pick up cleanly. If you prefer to continue implementing here, that is fine - this is a default, not a block."
 )
 
 _INFO_REMINDER = (
@@ -130,11 +123,15 @@ def handle_user_prompt_submit(hook: HookInputUserPromptSubmit) -> None:
     if should_nudge_agents(turn_count, agent_use_count(hook.taskId)):
         notes.append(_AGENT_NUDGE_REMINDER.format(turns=turn_count))
 
+    if consume_plan_nudge(hook.taskId):
+        notes.append(with_team_clause(_PLAN_HANDOFF_NUDGE, hook.taskId))
+
     if hook.transcriptPath:
         token_count = get_context_tokens(hook.transcriptPath)
-        if token_count is not None and should_nudge_context(hook.taskId, token_count):
-            template = _CONTEXT_NUDGE_SEVERE if token_count >= _CONTEXT_DEGRADED_THRESHOLD else _CONTEXT_NUDGE_REDUCED
-            notes.append(template.format(tokens=token_count))
+        if token_count is not None:
+            note = context_note(hook.taskId, token_count)
+            if note is not None:
+                notes.append(note)
 
     hour = datetime.now(tz=UTC).hour
     if hour >= _LATE_NIGHT_START or hour < _EARLY_MORNING_END:

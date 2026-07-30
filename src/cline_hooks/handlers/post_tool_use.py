@@ -13,7 +13,10 @@ from cline_hooks.core.models import McpToolUse, extract_mcp_tool_name
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
+from cline_hooks.core.transcript import get_context_tokens
+from cline_hooks.handlers.context_nudge import context_note, with_team_clause
 from cline_hooks.handlers.git_context import resolve_tooling_notes
+from cline_hooks.handlers.user_prompt import _PLAN_HANDOFF_NUDGE
 from cline_hooks.state.agents import (
     is_agent_tool as _is_agent_tool,
     record_agent_use as _record_agent_use,
@@ -22,6 +25,11 @@ from cline_hooks.state.memory import (
     has_memory_writes as _has_memory_writes,
     is_memory_write as _is_memory_write,
     record_memory_write as _record_memory_write,
+)
+from cline_hooks.state.plan import (
+    consume_plan_nudge as _consume_plan_nudge,
+    is_plan_exit_tool as _is_plan_exit_tool,
+    record_plan_exit as _record_plan_exit,
 )
 import cline_hooks.state.research as research_state
 from cline_hooks.state.retrospective import record_session as _record_retro_session
@@ -316,6 +324,9 @@ def _record_tool_use(  # noqa: PLR0913, PLR0917
     if _is_agent_tool(tool_name):
         _record_agent_use(task_id, tool_name)
 
+    if _is_plan_exit_tool(tool_name):
+        _record_plan_exit(task_id)
+
     research_tool = mcp_tool_name or tool_name
     if research_state.is_research_tool(research_tool, research_names):
         detail = _extract_research_detail(research_tool, arguments, extractors)
@@ -339,7 +350,7 @@ def _note_workspace_change(hook: HookInputPostToolUse, plugins: list[HooksPlugin
 
 
 @hook_handler("PostToolUse")
-def handle_post_tool_use(hook: HookInputPostToolUse) -> None:
+def handle_post_tool_use(hook: HookInputPostToolUse) -> None:  # noqa: PLR0912, PLR0914
     """Handle PostToolUse hook events.
 
     Args:
@@ -361,6 +372,8 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> None:
             prefix="",
         )
         return
+
+    plan_nudge_pending = _consume_plan_nudge(hook.taskId)
 
     plugins = load_plugins()
     state_write_names = _get_all_state_write_tool_names(plugins)
@@ -405,6 +418,14 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> None:
         messages.append(_MEMORY_WARNING)
     if retro_count is not None and retro_count >= _RETRO_THRESHOLD:
         messages.append(_RETRO_REMINDER.format(count=retro_count))
+    if plan_nudge_pending:
+        messages.append(with_team_clause(_PLAN_HANDOFF_NUDGE, hook.taskId))
+    if hook.transcriptPath:
+        token_count = get_context_tokens(hook.transcriptPath)
+        if token_count is not None:
+            note = context_note(hook.taskId, token_count)
+            if note is not None:
+                messages.append(note)
     if messages:
         allow("\n\n".join(messages), prefix="")
 

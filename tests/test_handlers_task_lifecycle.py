@@ -25,8 +25,9 @@ from cline_hooks.handlers.task_lifecycle import (
     handle_task_start,
 )
 from cline_hooks.state.agents import has_agent_use, record_agent_use
-from cline_hooks.state.context import _CONTEXT_THRESHOLD, should_nudge_context
+from cline_hooks.state.context import should_nudge_context
 from cline_hooks.state.memory import has_memory_writes, record_memory_write
+from cline_hooks.state.plan import consume_plan_nudge, record_plan_exit
 from cline_hooks.state.skills import is_skill_called, record_skill
 from cline_hooks.state.store import TaskBlockEvent, TaskStateStore
 from cline_hooks.state.turns import increment
@@ -206,10 +207,16 @@ class TestHandleTaskStart:
         assert not has_agent_use("task-1")
 
     def test_context_band_reset_on_start(self, tmp_path: Path) -> None:
-        should_nudge_context("task-1", _CONTEXT_THRESHOLD)
+        should_nudge_context("task-1", 210_000)
         with patch("cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None):
             self._run(_task_start([str(tmp_path)]))
-        assert should_nudge_context("task-1", _CONTEXT_THRESHOLD) is True
+        assert should_nudge_context("task-1", 210_000) is True
+
+    def test_plan_exit_reset_on_start(self, tmp_path: Path) -> None:
+        record_plan_exit("task-1")
+        with patch("cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None):
+            self._run(_task_start([str(tmp_path)]))
+        assert consume_plan_nudge("task-1") is False
 
     def test_skill_preserved_on_compact(self, tmp_path: Path) -> None:
         record_skill("task-1", "git-usage")
@@ -230,10 +237,10 @@ class TestHandleTaskStart:
         assert has_agent_use("task-1")
 
     def test_context_band_preserved_on_compact(self, tmp_path: Path) -> None:
-        should_nudge_context("task-1", _CONTEXT_THRESHOLD)
+        should_nudge_context("task-1", 210_000)
         with patch("cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None):
             self._run(_task_start([str(tmp_path)], source="compact"))
-        assert should_nudge_context("task-1", _CONTEXT_THRESHOLD) is False
+        assert should_nudge_context("task-1", 210_000) is False
 
     def test_turns_preserved_on_compact(self, tmp_path: Path) -> None:
         increment("task-1")
@@ -411,9 +418,14 @@ class TestHandleTaskComplete:
         assert not has_agent_use("task-1")
 
     def test_context_band_reset_on_complete(self, tmp_path: Path) -> None:
-        should_nudge_context("task-1", _CONTEXT_THRESHOLD)
+        should_nudge_context("task-1", 210_000)
         self._run(_task_complete([str(tmp_path)]))
-        assert should_nudge_context("task-1", _CONTEXT_THRESHOLD) is True
+        assert should_nudge_context("task-1", 210_000) is True
+
+    def test_plan_exit_reset_on_complete(self, tmp_path: Path) -> None:
+        record_plan_exit("task-1")
+        self._run(_task_complete([str(tmp_path)]))
+        assert consume_plan_nudge("task-1") is False
 
     def test_workspace_state_reset_on_complete(self, tmp_path: Path) -> None:
         record_workspace("task-1", [str(tmp_path)])

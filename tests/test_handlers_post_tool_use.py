@@ -7,6 +7,7 @@ from unittest.mock import patch
 from cline_hooks.core.models import HookInputPostToolUse
 from cline_hooks.core.plugin import HooksPlugin, ToolingNote
 from cline_hooks.frontends.cline import parse_cline_data as parse_data
+from cline_hooks.handlers.context_nudge import context_note
 from cline_hooks.handlers.post_tool_use import (
     _RETRO_THRESHOLD,
     _extract_research_detail,
@@ -18,6 +19,7 @@ from cline_hooks.handlers.post_tool_use import (
     handle_post_tool_use,
 )
 from cline_hooks.state.memory import record_memory_write
+from cline_hooks.state.plan import consume_plan_nudge, record_plan_exit
 from cline_hooks.state.research import get_research
 from cline_hooks.state.retrospective import get_count, record_session
 from cline_hooks.state.workspace import record_workspace
@@ -36,12 +38,13 @@ _BASE = {
 }
 
 
-def _make_hook(
+def _make_hook(  # noqa: PLR0913, PLR0917
     tool_name: str,
     success: bool = True,
     result: str | None = None,
     parameters: dict[str, object] | None = None,
     workspace_roots: list[str] | None = None,
+    transcript_path: str | None = None,
 ) -> HookInputPostToolUse:
     data = {
         **_BASE,
@@ -54,6 +57,8 @@ def _make_hook(
             "result": result,
         },
     }
+    if transcript_path is not None:
+        data["transcriptPath"] = transcript_path
     hook = parse_data(json.dumps(data))
     assert isinstance(hook, HookInputPostToolUse)
     return hook
@@ -86,6 +91,35 @@ class TestHandlePostToolUse:
         assert result is not None
         context = cast("str", result.get("contextModification", ""))
         assert "FAILED" in context
+
+
+class TestPostToolUseContextNudge:
+    def test_info_note_fires_on_tool_use(self) -> None:
+        hook = _make_hook("Read", transcript_path="session.jsonl")
+        with patch("cline_hooks.handlers.post_tool_use.get_context_tokens", return_value=150_000):
+            result = _run(hook)
+        assert result is not None
+        context = cast("str", result.get("contextModification", ""))
+        assert "CONTEXT STATUS" in context
+        assert "150,000" in context
+
+    def test_no_nudge_when_no_transcript_path(self) -> None:
+        hook = _make_hook("Read")
+        result = _run(hook)
+        assert result is None
+
+    def test_no_nudge_when_token_count_unavailable(self) -> None:
+        hook = _make_hook("Read", transcript_path="session.jsonl")
+        with patch("cline_hooks.handlers.post_tool_use.get_context_tokens", return_value=None):
+            result = _run(hook)
+        assert result is None
+
+    def test_band_already_claimed_by_user_prompt_submit_does_not_refire(self) -> None:
+        context_note("task-1", 150_000)
+        hook = _make_hook("Read", transcript_path="session.jsonl")
+        with patch("cline_hooks.handlers.post_tool_use.get_context_tokens", return_value=155_000):
+            result = _run(hook)
+        assert result is None
 
 
 class TestForwardsAgentType:
@@ -210,6 +244,24 @@ class TestAgentUseRecording:
             _run(hook)
         mock_skill.assert_not_called()
         mock_memory.assert_not_called()
+
+
+class TestPlanExitRecording:
+    def test_exit_plan_mode_records_plan_exit(self) -> None:
+        _run(_make_hook("ExitPlanMode"))
+        assert consume_plan_nudge("task-1") is True
+
+    def test_non_plan_tool_does_not_record(self) -> None:
+        _run(_make_hook("Read", parameters={"file_path": "/x.py"}))
+        assert consume_plan_nudge("task-1") is False
+
+
+class TestPlanHandoffNudgeFromPostToolUse:
+    def test_plan_nudge_fires_after_plan_exit(self) -> None:
+        record_plan_exit("task-1")
+        result = _run(_make_hook("Read", parameters={"file_path": "/x.py"}))
+        assert result is not None
+        assert "PLAN COMPLETE" in cast("str", result.get("contextModification", ""))
 
 
 class TestGetAllResearchToolNames:
