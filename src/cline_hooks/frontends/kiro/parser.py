@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from typing import Any, cast
 
 from cline_hooks.core.models import (
@@ -142,7 +143,11 @@ def parse_kiro_data(raw_data: str) -> HookInput:
     cwd = data.get("cwd", "")
     source = data.get("source", "")
 
-    session_id = data.get("session_id") or (hashlib.sha256(cwd.encode()).hexdigest()[:16] if cwd else "")
+    session_id = (
+        data.get("session_id")
+        or os.environ.get("KIRO_SESSION_ID")
+        or (hashlib.sha256(cwd.encode()).hexdigest()[:16] if cwd else "")
+    )
 
     base_fields: dict[str, Any] = {
         "taskId": session_id,

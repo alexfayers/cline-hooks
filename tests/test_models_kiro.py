@@ -204,7 +204,8 @@ class TestParseKiroPostToolUse:
 
 
 class TestParseKiroAgentSpawn:
-    def test_maps_to_task_start(self) -> None:
+    def test_maps_to_task_start(self, monkeypatch: object) -> None:
+        monkeypatch.delenv("KIRO_SESSION_ID", raising=False)  # type: ignore[union-attr]
         data = json.dumps({
             "hook_event_name": "agentSpawn",
             "cwd": "/home/user/project",
@@ -228,7 +229,8 @@ class TestParseKiroSessionStart:
         assert isinstance(hook, HookInputTaskStart)
         assert hook.taskId == "abc-123-uuid"
 
-    def test_falls_back_to_cwd_hash_without_session_id(self) -> None:
+    def test_falls_back_to_cwd_hash_without_session_id(self, monkeypatch: object) -> None:
+        monkeypatch.delenv("KIRO_SESSION_ID", raising=False)  # type: ignore[union-attr]
         data = json.dumps({
             "hook_event_name": "SessionStart",
             "cwd": "/home/user/project",
@@ -236,6 +238,16 @@ class TestParseKiroSessionStart:
         hook = parse_kiro_data(data)
         assert isinstance(hook, HookInputTaskStart)
         assert len(hook.taskId) == 16
+
+    def test_kiro_session_id_env_var_used(self, monkeypatch: object) -> None:
+        monkeypatch.setenv("KIRO_SESSION_ID", "env-uuid-value")  # type: ignore[union-attr]
+        data = json.dumps({
+            "hook_event_name": "SessionStart",
+            "cwd": "/home/user/project",
+        })
+        hook = parse_kiro_data(data)
+        assert isinstance(hook, HookInputTaskStart)
+        assert hook.taskId == "env-uuid-value"
 
     def test_source_captured(self) -> None:
         data = json.dumps({
