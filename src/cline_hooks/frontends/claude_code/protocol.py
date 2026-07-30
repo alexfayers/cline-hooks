@@ -13,17 +13,45 @@ from cline_hooks.frontends.kiro.protocol import KiroProtocol
 class ClaudeCodeProtocol(KiroProtocol):
     """Claude Code exit-code protocol.
 
-    Same allow/block as Kiro, but Stop feedback uses
-    hookSpecificOutput.additionalContext (exit 0) instead of exit 2,
-    avoiding the 'Stop hook error:' UI framing.
+    Same block as Kiro, but allow/feedback context uses
+    hookSpecificOutput.additionalContext (exit 0) instead of plain stdout or
+    exit 2, since Claude Code only surfaces plain stdout to the model for
+    UserPromptSubmit/UserPromptExpansion/SessionStart - every other event
+    needs additionalContext to actually reach the model.
     """
 
-    def feedback(self, message: str) -> NoReturn:
-        """Continue via exit 0, non-error context in hookSpecificOutput."""
+    def __init__(self, hook_event_name: str = "Stop") -> None:
+        """Store the raw Claude Code hook event name for context injection.
+
+        Args:
+            hook_event_name: The raw hook_event_name from the incoming
+                payload (not the remapped internal hookName), so the
+                emitted hookSpecificOutput.hookEventName is always a valid
+                Claude Code event name.
+        """
+        self._hook_event_name = hook_event_name
+
+    def _print_additional_context(self, message: str) -> None:
+        """Print a hookSpecificOutput.additionalContext payload for the current event."""
         print(
             json.dumps(
-                {"hookSpecificOutput": {"hookEventName": "Stop", "additionalContext": message}},
+                {
+                    "hookSpecificOutput": {
+                        "hookEventName": self._hook_event_name,
+                        "additionalContext": message,
+                    },
+                },
             ),
             end="",
         )
+
+    def allow(self, message: str | None = None) -> NoReturn:
+        """Continue via exit 0, non-error context in hookSpecificOutput."""
+        if message is not None:
+            self._print_additional_context(message)
+        sys.exit(0)
+
+    def feedback(self, message: str) -> NoReturn:
+        """Continue via exit 0, non-error context in hookSpecificOutput."""
+        self._print_additional_context(message)
         sys.exit(0)

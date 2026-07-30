@@ -107,7 +107,11 @@ def _parse_input(raw_data: str) -> HookInput:
         A typed HookInput subclass.
     """
     if _detect_kiro(raw_data):
-        set_protocol(ClaudeCodeProtocol() if _detect_claude_code(raw_data) else KiroProtocol())
+        if _detect_claude_code(raw_data):
+            hook_event_name = json.loads(raw_data).get("hook_event_name", "")
+            set_protocol(ClaudeCodeProtocol(hook_event_name))
+        else:
+            set_protocol(KiroProtocol())
         return parse_kiro_data(raw_data)
     logging.getLogger("hooks").addHandler(logging.StreamHandler())
     set_protocol(ClineProtocol())

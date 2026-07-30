@@ -114,6 +114,23 @@ class TestClaudeCodeProtocol:
         assert exc.value.code == 0
         assert buf.getvalue() == ""
 
+    def test_allow_with_message_uses_additional_context_exit_0(self) -> None:
+        proto = ClaudeCodeProtocol("PreToolUse")
+        buf = StringIO()
+        with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
+            proto.allow("ctx text")
+        assert exc.value.code == 0
+        assert json.loads(buf.getvalue()) == {
+            "hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": "ctx text"},
+        }
+
+    def test_allow_echoes_raw_event_name_not_remapped_name(self) -> None:
+        proto = ClaudeCodeProtocol("SessionStart")
+        buf = StringIO()
+        with patch("sys.stdout", buf), pytest.raises(SystemExit):
+            proto.allow("ctx text")
+        assert json.loads(buf.getvalue())["hookSpecificOutput"]["hookEventName"] == "SessionStart"
+
     def test_block_still_exits_2_with_stderr(self) -> None:
         proto = ClaudeCodeProtocol()
         err = StringIO()
