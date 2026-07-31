@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow, feedback
 import cline_hooks.state.research as research_state
@@ -9,14 +10,10 @@ import cline_hooks.state.research as research_state
 if TYPE_CHECKING:
     from cline_hooks.core.models import HookInputStop
 
-_RESEARCH_TRACE_HEADER = (
-    "RESEARCH TRACE: cite lookups behind this turn's claims. Reply with ONE "
-    "line only - the user already sees this hook's raw output."
-)
 _RESEARCH_TRACE_CAP = 15
 
 
-def _format_research_trace(records: list[dict[str, str]]) -> str:
+def _format_research_trace(records: list[dict[str, str]], header: str) -> str:
     """Format recorded research lookups into a grouped, deduped, capped note.
 
     Lookups are grouped by tool and deduped by detail. Detail lines are capped
@@ -26,6 +23,7 @@ def _format_research_trace(records: list[dict[str, str]]) -> str:
 
     Args:
         records: Research records in call order, each with "tool" and "detail".
+        header: The protocol-specific instruction header to prepend.
 
     Returns:
         A RESEARCH TRACE note listing lookups grouped by tool, or an empty
@@ -57,7 +55,7 @@ def _format_research_trace(records: list[dict[str, str]]) -> str:
         shown_details += len(capped)
         detail_lines.append(f"- {tool}: " + ", ".join(f'"{d}"' for d in capped))
 
-    lines = [_RESEARCH_TRACE_HEADER, *detail_lines, *bare_lines]
+    lines = [header, *detail_lines, *bare_lines]
     hidden = total_details - shown_details
     if hidden:
         lines.append(f"(+{hidden} more lookups not shown)")
@@ -75,7 +73,7 @@ def handle_stop(hook: HookInputStop) -> None:
     if hook.stop and hook.stop.stopHookActive:
         allow()
 
-    trace = _format_research_trace(research_state.get_research(hook.taskId))
+    trace = _format_research_trace(research_state.get_research(hook.taskId), get_protocol().research_trace_header())
     if not trace:
         allow()
 

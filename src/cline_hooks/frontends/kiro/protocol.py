@@ -34,3 +34,25 @@ class KiroProtocol(Protocol):
         """
         print(json.dumps({"decision": "block", "reason": message}), end="")
         sys.exit(0)
+
+    def research_trace_header(self) -> str:
+        """Return the Stop research-trace header for Kiro.
+
+        Unlike Claude Code, Kiro never surfaces this hook's raw output to the
+        user - only the model's own reply is shown, appended directly after
+        its prior turn text with no separator. So the instruction must tell
+        the model to render the trace itself, on its own new line, as a bare
+        citation with no narration - otherwise the model tends to explain or
+        editorialize about the lookups instead of just listing them. An exact
+        format string is spelled out because a looser instruction (e.g. "list
+        tool + detail") still let the model invent its own punctuation, such
+        as repeating a URL a second time in parentheses.
+        """
+        return (
+            "RESEARCH TRACE: start your reply with a line break, then write ONE "
+            "line in exactly this format and nothing else: Sources: <tool> "
+            '"<detail>", <tool> "<detail>", ... - substituting each tool/detail '
+            "pair from the lookups below, copied verbatim, each detail written "
+            "only once. No narration, no commentary, no parentheses, no restating "
+            "a detail a second time."
+        )

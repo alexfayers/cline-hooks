@@ -10,6 +10,7 @@ from cline_hooks.core.models import HookInputStop, StopFields
 from cline_hooks.core.protocol import set_protocol
 from cline_hooks.frontends.claude_code import ClaudeCodeProtocol
 from cline_hooks.frontends.cline import ClineProtocol
+from cline_hooks.frontends.kiro import KiroProtocol
 from cline_hooks.handlers.stop import _RESEARCH_TRACE_CAP, _format_research_trace, handle_stop
 from cline_hooks.state.research import get_research, record_research
 
@@ -49,7 +50,7 @@ def _run_cc(hook: HookInputStop) -> dict[str, object]:
 
 class TestFormatResearchTrace:
     def test_empty_records_returns_empty(self) -> None:
-        assert _format_research_trace([]) == ""
+        assert _format_research_trace([], "HEADER") == ""
 
     def test_groups_by_tool(self) -> None:
         records = [
@@ -57,7 +58,7 @@ class TestFormatResearchTrace:
             {"tool": "WebSearch", "detail": "frozenset union"},
             {"tool": "WebFetch", "detail": "https://example.com"},
         ]
-        result = _format_research_trace(records)
+        result = _format_research_trace(records, "HEADER")
         assert '- WebSearch: "python entry points", "frozenset union"' in result
         assert '- WebFetch: "https://example.com"' in result
 
@@ -66,24 +67,29 @@ class TestFormatResearchTrace:
             {"tool": "WebFetch", "detail": "https://example.com"},
             {"tool": "WebFetch", "detail": "https://example.com"},
         ]
-        result = _format_research_trace(records)
+        result = _format_research_trace(records, "HEADER")
         assert result.count("https://example.com") == 1
 
     def test_bare_tool_line_when_no_detail(self) -> None:
         records = [{"tool": "InternalSearch", "detail": ""}]
-        result = _format_research_trace(records)
+        result = _format_research_trace(records, "HEADER")
         assert "- InternalSearch" in result
         assert "InternalSearch:" not in result
 
     def test_truncates_with_explicit_note(self) -> None:
         records = [{"tool": "WebSearch", "detail": f"query {i}"} for i in range(_RESEARCH_TRACE_CAP + 4)]
-        result = _format_research_trace(records)
+        result = _format_research_trace(records, "HEADER")
         assert "(+4 more lookups not shown)" in result
 
     def test_no_truncation_note_when_under_cap(self) -> None:
         records = [{"tool": "WebSearch", "detail": f"query {i}"} for i in range(3)]
-        result = _format_research_trace(records)
+        result = _format_research_trace(records, "HEADER")
         assert "more lookups not shown" not in result
+
+    def test_header_included(self) -> None:
+        records = [{"tool": "WebFetch", "detail": "https://example.com"}]
+        result = _format_research_trace(records, "CUSTOM HEADER TEXT")
+        assert result.startswith("CUSTOM HEADER TEXT")
 
 
 class TestHandleStop:
@@ -107,6 +113,27 @@ class TestHandleStop:
         result = _run(_stop(stop_hook_active=True))
         assert result["cancel"] is False
         assert get_research("task-1") != []
+
+
+class TestHandleStopKiro:
+    def test_trace_uses_kiro_header(self) -> None:
+        record_research("task-1", "WebFetch", "https://example.com/docs")
+        output: list[str] = []
+        set_protocol(KiroProtocol())
+        try:
+            with (
+                patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
+                pytest.raises(SystemExit),
+            ):
+                handle_stop(_stop())
+        finally:
+            set_protocol(ClineProtocol())
+        result = cast("dict[str, str]", json.loads(output[0]))
+        assert "Sources: " in result["reason"]
+        assert "No narration" in result["reason"]
+
+    def test_kiro_header_differs_from_claude_code(self) -> None:
+        assert KiroProtocol().research_trace_header() != ClaudeCodeProtocol().research_trace_header()
 
 
 class TestHandleStopClaudeCode:

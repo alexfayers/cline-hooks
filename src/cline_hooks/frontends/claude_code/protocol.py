@@ -55,3 +55,14 @@ class ClaudeCodeProtocol(KiroProtocol):
         """Continue via exit 0, non-error context in hookSpecificOutput."""
         self._print_additional_context(message)
         sys.exit(0)
+
+    def research_trace_header(self) -> str:
+        """Return the Stop research-trace header for Claude Code.
+
+        Claude Code surfaces this hook's raw additionalContext output to the
+        user directly, so the model's reply can stay a single terse line.
+        """
+        return (
+            "RESEARCH TRACE: cite lookups behind this turn's claims. Reply with ONE "
+            "line only - the user already sees this hook's raw output."
+        )

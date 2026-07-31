@@ -21,6 +21,13 @@ class Protocol(ABC):
         """Continue the conversation with non-error feedback. Defaults to block()."""
         self.block(message)
 
+    def research_trace_header(self) -> str:
+        """Return the instruction header prepended to a Stop research trace."""
+        return (
+            "RESEARCH TRACE: cite lookups behind this turn's claims. Reply with ONE "
+            "line only - the user already sees this hook's raw output."
+        )
+
 
 def set_protocol(protocol: Protocol) -> None:
     """Set the active output protocol for this process."""
