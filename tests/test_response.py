@@ -96,13 +96,13 @@ class TestKiroProtocol:
         assert exc.value.code == 2
         assert err.getvalue() == "bad"
 
-    def test_feedback_defaults_to_block(self) -> None:
+    def test_feedback_continues_via_decision_json(self) -> None:
         proto = KiroProtocol()
-        err = StringIO()
-        with patch("sys.stderr", err), pytest.raises(SystemExit) as exc:
+        buf = StringIO()
+        with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
             proto.feedback("bad")
-        assert exc.value.code == 2
-        assert err.getvalue() == "bad"
+        assert exc.value.code == 0
+        assert json.loads(buf.getvalue()) == {"decision": "block", "reason": "bad"}
 
 
 class TestClaudeCodeProtocol:
