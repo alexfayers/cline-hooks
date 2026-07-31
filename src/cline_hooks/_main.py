@@ -11,6 +11,7 @@ from cline_hooks.core.registry import HOOK_HANDLERS
 from cline_hooks.core.response import allow
 from cline_hooks.frontends.claude_code import ClaudeCodeProtocol, install_claude_code
 from cline_hooks.frontends.cline import ClineProtocol, install_cline, parse_cline_data
+from cline_hooks.frontends.codex import install_codex
 from cline_hooks.frontends.kiro import KiroProtocol, install_kiro, parse_kiro_data
 import cline_hooks.handlers  # noqa: F401
 from cline_hooks.state.paths import get_data_dir
@@ -48,6 +49,7 @@ def _build_parser() -> argparse.ArgumentParser:
     kiro_parser.add_argument("agent_config", help="Path to Kiro agent config JSON file")
 
     install_sub.add_parser("claude-code", help="Install Claude Code hooks into settings")
+    install_sub.add_parser("codex", help="Install Codex hooks into hooks.json")
 
     sub.add_parser("plugins", help="List installed plugins")
 
@@ -165,6 +167,8 @@ def main() -> NoReturn:
             install_cline(args.target_dir)
         elif args.install_mode == "claude-code":
             install_claude_code()
+        elif args.install_mode == "codex":
+            install_codex()
         else:
             _build_parser().parse_args(["install", "--help"])
         sys.exit(0)
