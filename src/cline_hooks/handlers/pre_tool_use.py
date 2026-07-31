@@ -32,7 +32,7 @@ from cline_hooks.state.store import TaskStateStore
 try:
     from llm_prompts.install import get_managed_files as _get_managed_files_impl
 except ImportError:
-    _get_managed_files_impl = None  # type: ignore[assignment]
+    _get_managed_files_impl = None
 
 if TYPE_CHECKING:
     from cline_hooks.core.models import HookInputPreToolUse

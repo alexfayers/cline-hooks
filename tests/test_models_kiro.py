@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
 from cline_hooks.core.models import (
     HookInput,
@@ -12,6 +13,9 @@ from cline_hooks.core.models import (
 )
 from cline_hooks.frontends.kiro import parse_kiro_data
 from cline_hooks.frontends.kiro.parser import _map_tool_name, _normalise_parameters
+
+if TYPE_CHECKING:
+    import pytest
 
 
 class TestMapToolName:
@@ -238,8 +242,8 @@ class TestParseKiroPostToolUse:
 
 
 class TestParseKiroAgentSpawn:
-    def test_maps_to_task_start(self, monkeypatch: object) -> None:
-        monkeypatch.delenv("KIRO_SESSION_ID", raising=False)  # type: ignore[union-attr]
+    def test_maps_to_task_start(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("KIRO_SESSION_ID", raising=False)
         data = json.dumps({
             "hook_event_name": "agentSpawn",
             "cwd": "/home/user/project",
@@ -263,8 +267,8 @@ class TestParseKiroSessionStart:
         assert isinstance(hook, HookInputTaskStart)
         assert hook.taskId == "abc-123-uuid"
 
-    def test_falls_back_to_cwd_hash_without_session_id(self, monkeypatch: object) -> None:
-        monkeypatch.delenv("KIRO_SESSION_ID", raising=False)  # type: ignore[union-attr]
+    def test_falls_back_to_cwd_hash_without_session_id(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("KIRO_SESSION_ID", raising=False)
         data = json.dumps({
             "hook_event_name": "SessionStart",
             "cwd": "/home/user/project",
@@ -273,8 +277,8 @@ class TestParseKiroSessionStart:
         assert isinstance(hook, HookInputTaskStart)
         assert len(hook.taskId) == 16
 
-    def test_kiro_session_id_env_var_used(self, monkeypatch: object) -> None:
-        monkeypatch.setenv("KIRO_SESSION_ID", "env-uuid-value")  # type: ignore[union-attr]
+    def test_kiro_session_id_env_var_used(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("KIRO_SESSION_ID", "env-uuid-value")
         data = json.dumps({
             "hook_event_name": "SessionStart",
             "cwd": "/home/user/project",

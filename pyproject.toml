@@ -50,7 +50,7 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "llm_prompts.*"
-follow_untyped_imports = true
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "tests.*"
