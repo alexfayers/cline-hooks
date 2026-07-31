@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 import pytest
@@ -21,6 +22,21 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from pytest_mock import MockerFixture
+
+
+@pytest.fixture(autouse=True, scope="session")
+def isolate_log_file(tmp_path_factory: pytest.TempPathFactory) -> None:
+    """Redirect the "hooks" logger away from the real, shared log file.
+
+    cline_hooks._main configures logging.basicConfig at import time against the
+    real user log file; without this, running the test suite writes deliberate
+    test-triggered tracebacks into the same log live hook invocations use.
+    """
+    log_path = tmp_path_factory.mktemp("logs") / "cline-hooks.log"
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+    root_logger.addHandler(logging.FileHandler(log_path))
 
 
 @pytest.fixture(autouse=True)

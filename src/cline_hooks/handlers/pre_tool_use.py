@@ -190,7 +190,7 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
         try:
             parsed = bashlex.parse(command)
         except bashlex.errors.ParsingError:
-            logger.exception("Failed to parse command: %s", command)
+            logger.debug("Failed to parse command (unsupported shell syntax): %s", command)
             return
 
         commands = extract_commands(parsed)
