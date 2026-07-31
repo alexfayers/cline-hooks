@@ -41,6 +41,8 @@ _KIRO_TOOL_MAP: dict[str, str] = {
     "grep": "read_file",
     "use_aws": "execute_command",
     "call_aws": "execute_command",
+    "web_fetch": "WebFetch",
+    "web_search": "WebSearch",
 }
 
 

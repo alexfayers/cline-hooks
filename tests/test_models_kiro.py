@@ -36,6 +36,12 @@ class TestMapToolName:
     def test_call_aws(self) -> None:
         assert _map_tool_name("call_aws") == "execute_command"
 
+    def test_web_fetch(self) -> None:
+        assert _map_tool_name("web_fetch") == "WebFetch"
+
+    def test_web_search(self) -> None:
+        assert _map_tool_name("web_search") == "WebSearch"
+
 
 class TestNormaliseParameters:
     def test_read_extracts_path_from_operations(self) -> None:
@@ -201,6 +207,34 @@ class TestParseKiroPostToolUse:
         assert isinstance(hook, HookInputPreToolUse)
         assert hook.preToolUse is not None
         assert hook.preToolUse.parameters == {}
+
+    def test_web_fetch_maps_to_canonical_name(self) -> None:
+        data = json.dumps({
+            "hook_event_name": "postToolUse",
+            "cwd": "/project",
+            "tool_name": "web_fetch",
+            "tool_input": {"url": "https://example.com/docs", "mode": "full"},
+            "tool_response": {"success": True},
+        })
+        hook = parse_kiro_data(data)
+        assert isinstance(hook, HookInputPostToolUse)
+        assert hook.postToolUse is not None
+        assert hook.postToolUse.toolName == "WebFetch"
+        assert hook.postToolUse.parameters["url"] == "https://example.com/docs"
+
+    def test_web_search_maps_to_canonical_name(self) -> None:
+        data = json.dumps({
+            "hook_event_name": "postToolUse",
+            "cwd": "/project",
+            "tool_name": "web_search",
+            "tool_input": {"query": "kiro cli hooks"},
+            "tool_response": {"success": True},
+        })
+        hook = parse_kiro_data(data)
+        assert isinstance(hook, HookInputPostToolUse)
+        assert hook.postToolUse is not None
+        assert hook.postToolUse.toolName == "WebSearch"
+        assert hook.postToolUse.parameters["query"] == "kiro cli hooks"
 
 
 class TestParseKiroAgentSpawn:
