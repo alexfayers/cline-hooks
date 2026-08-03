@@ -1,16 +1,48 @@
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 
 from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow, feedback
+from cline_hooks.core.transcript import get_turn_assistant_text
 import cline_hooks.state.research as research_state
 
 if TYPE_CHECKING:
     from cline_hooks.core.models import HookInputStop
 
 _RESEARCH_TRACE_CAP = 15
+
+_DISMISSAL_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(p, re.IGNORECASE)
+    for p in [
+        r"\bpre-?existing (error|issue|bug|failure|problem)",
+        r"\b(error|issue|bug|failure|problem) (is|was) pre-?existing\b",
+        r"\bnot (caused|related to|introduced) by (my|this) (change|fix|commit|edit)",
+        r"\bunrelated to (my|this|the current) change\b",
+        r"\bnot something (i|we) (need|have) to fix\b",
+        r"\bout of scope for this (change|fix|task)\b",
+    ]
+]
+
+_DISMISSAL_NUDGE = (
+    "DISMISSED ISSUE DETECTED: You described a problem as pre-existing/unrelated instead of "
+    "fixing it. Unless the user has explicitly told you not to, log a follow-up now (a memory "
+    "task/ entity or TODO) so it isn't lost."
+)
+
+
+def _contains_dismissal_signal(message: str) -> bool:
+    """Check if the assistant's last message dismisses an issue instead of fixing it.
+
+    Args:
+        message: The assistant's last response text.
+
+    Returns:
+        True if the message matches any dismissal-signal pattern.
+    """
+    return any(pattern.search(message) for pattern in _DISMISSAL_PATTERNS)
 
 
 def _format_research_trace(records: list[dict[str, str]], header: str) -> str:
@@ -65,7 +97,7 @@ def _format_research_trace(records: list[dict[str, str]], header: str) -> str:
 
 @hook_handler("Stop")
 def handle_stop(hook: HookInputStop) -> None:
-    """Handle Stop hook events by forcing a research-citation continuation.
+    """Handle Stop hook events: nudge on dismissed issues, force research citations.
 
     Args:
         hook: The hook input data.
@@ -73,9 +105,16 @@ def handle_stop(hook: HookInputStop) -> None:
     if hook.stop and hook.stop.stopHookActive:
         allow()
 
+    notes: list[str] = []
+    if _contains_dismissal_signal(get_turn_assistant_text(hook.transcriptPath)):
+        notes.append(_DISMISSAL_NUDGE)
+
     trace = _format_research_trace(research_state.get_research(hook.taskId), get_protocol().research_trace_header())
-    if not trace:
+    research_state.reset(hook.taskId)
+    if trace:
+        notes.append(trace)
+
+    if not notes:
         allow()
 
-    research_state.reset(hook.taskId)
-    feedback(trace)
+    feedback("\n\n".join(notes))

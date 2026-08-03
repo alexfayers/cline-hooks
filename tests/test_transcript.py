@@ -3,10 +3,30 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any
 
-from cline_hooks.core.transcript import get_context_tokens
+from cline_hooks.core.transcript import get_context_tokens, get_turn_assistant_text
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+def _user(content: str | list[dict[str, Any]] = "hello", *, sidechain: bool = False) -> dict[str, Any]:
+    return {"type": "user", "isSidechain": sidechain, "message": {"role": "user", "content": content}}
+
+
+def _assistant_text(text: str, *, sidechain: bool = False) -> dict[str, Any]:
+    return {
+        "type": "assistant",
+        "isSidechain": sidechain,
+        "message": {"role": "assistant", "content": [{"type": "text", "text": text}]},
+    }
+
+
+def _tool_result(result: str = "ok") -> dict[str, Any]:
+    return {
+        "type": "user",
+        "isSidechain": False,
+        "message": {"role": "user", "content": [{"type": "tool_result", "content": result}]},
+    }
 
 
 def _assistant(
@@ -105,3 +125,50 @@ class TestGetContextTokens:
             [{"type": "user", "message": {"role": "user"}}],
         )
         assert get_context_tokens(path) is None
+
+
+class TestGetTurnAssistantText:
+    def test_joins_all_assistant_text_since_last_user_prompt(self, tmp_path: Path) -> None:
+        path = _write_jsonl(
+            tmp_path / "t.jsonl",
+            [_user(), _assistant_text("first"), _assistant_text("second")],
+        )
+        assert get_turn_assistant_text(path) == "first\nsecond"
+
+    def test_ignores_text_before_last_user_prompt(self, tmp_path: Path) -> None:
+        path = _write_jsonl(
+            tmp_path / "t.jsonl",
+            [_user(), _assistant_text("old"), _user("next"), _assistant_text("new")],
+        )
+        assert get_turn_assistant_text(path) == "new"
+
+    def test_tool_result_entries_are_not_turn_boundaries(self, tmp_path: Path) -> None:
+        path = _write_jsonl(
+            tmp_path / "t.jsonl",
+            [_user(), _assistant_text("first"), _tool_result(), _assistant_text("second")],
+        )
+        assert get_turn_assistant_text(path) == "first\nsecond"
+
+    def test_ignores_sidechain_assistant_entries(self, tmp_path: Path) -> None:
+        path = _write_jsonl(
+            tmp_path / "t.jsonl",
+            [_user(), _assistant_text("main"), _assistant_text("sub", sidechain=True)],
+        )
+        assert get_turn_assistant_text(path) == "main"
+
+    def test_no_user_prompt_scans_from_start(self, tmp_path: Path) -> None:
+        path = _write_jsonl(tmp_path / "t.jsonl", [_assistant_text("only")])
+        assert get_turn_assistant_text(path) == "only"
+
+    def test_nonexistent_path_returns_empty(self, tmp_path: Path) -> None:
+        assert get_turn_assistant_text(str(tmp_path / "missing.jsonl")) == ""
+
+    def test_empty_file_returns_empty(self, tmp_path: Path) -> None:
+        path = tmp_path / "t.jsonl"
+        path.write_text("", encoding="utf-8")
+        assert get_turn_assistant_text(str(path)) == ""
+
+    def test_malformed_line_is_skipped(self, tmp_path: Path) -> None:
+        path = tmp_path / "t.jsonl"
+        path.write_text("not json\n" + json.dumps(_assistant_text("kept")), encoding="utf-8")
+        assert get_turn_assistant_text(str(path)) == "kept"
