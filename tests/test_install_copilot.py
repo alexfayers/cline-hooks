@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-from cline_hooks.frontends.copilot.install import install_copilot, _COPILOT_HOOKS
+from cline_hooks.frontends.copilot.install import _COPILOT_HOOKS, install_copilot
 
 _FAKE_PYTHON = str(Path("/fake/bin/python"))
 
