@@ -281,6 +281,27 @@ class TestHandleUserPromptSubmit:
         assert not output
 
 
+class TestSideRequestReminder:
+    def test_low_random_fires_side_request_reminder(self) -> None:
+        with (
+            patch("cline_hooks.handlers.user_prompt.random.random", return_value=0.0),
+            patch("cline_hooks.handlers.user_prompt.datetime") as mock_dt,
+        ):
+            mock_dt.now.return_value.hour = 12
+            result = _run("neutral message")
+        assert result is not None
+        assert "side-request" in cast("str", result.get("contextModification", "")).lower()
+
+    def test_high_random_no_side_request_reminder(self) -> None:
+        with (
+            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
+            patch("cline_hooks.handlers.user_prompt.datetime") as mock_dt,
+        ):
+            mock_dt.now.return_value.hour = 12
+            result = _run("neutral message")
+        assert result is None
+
+
 class TestContextNudge:
     def test_no_nudge_when_no_transcript_path(self) -> None:
         with (

@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 _LATE_NIGHT_START = 22
 _EARLY_MORNING_END = 6
 _INFO_REMINDER_CHANCE = 0.25
+_SIDE_REQUEST_REMINDER_CHANCE = 0.15
 
 _CORRECTION_PATTERNS: list[re.Pattern[str]] = [
     re.compile(p, re.IGNORECASE)
@@ -88,6 +89,12 @@ _INFO_REMINDER = (
     "Check: new information, preferences, decisions -> persist to memory."
 )
 
+_SIDE_REQUEST_REMINDER = (
+    "REMINDER: Scan recent turns for any side-request the user raised that hasn't been "
+    "tracked yet (a task/ entity in memory + a checklist entry), per the todos rule. "
+    "A prose acknowledgment ('I'll get to that after') does not count as tracked."
+)
+
 
 def _contains_correction_signal(message: str) -> bool:
     """Check if a user message contains signals that the user is correcting behavior.
@@ -142,6 +149,9 @@ def handle_user_prompt_submit(hook: HookInputUserPromptSubmit) -> None:
         notes.append(_CORRECTION_REMINDER)
     elif _contains_info_signal(message) or random.random() < _INFO_REMINDER_CHANCE:
         notes.append(_INFO_REMINDER)
+
+    if random.random() < _SIDE_REQUEST_REMINDER_CHANCE:
+        notes.append(_SIDE_REQUEST_REMINDER)
 
     result = collect_hook_results(load_plugins(), "UserPromptSubmit", message=message)
     notes.extend(result.notes)
