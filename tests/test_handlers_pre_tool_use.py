@@ -280,6 +280,12 @@ class TestGitPushConfirmation:
         assert result is not None
         assert "confirm-push" in cast("str", result.get("errorMessage", ""))
 
+    def test_push_via_absolute_git_path_without_confirmation_is_blocked(self) -> None:
+        record_skill("task-1", "git-usage")
+        result = _run("Bash", {"command": "/usr/bin/git push"})
+        assert result is not None
+        assert "confirm-push" in cast("str", result.get("errorMessage", ""))
+
     def test_push_after_confirmation_is_allowed(self) -> None:
         record_skill("task-1", "git-usage")
         record_skill("task-1", "confirm-push")

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import logging
+from pathlib import Path
 import re
 from typing import TYPE_CHECKING
 
@@ -141,6 +142,7 @@ def extract_commands(ast: list[bashlex.ast.node]) -> list[ParsedCommand]:
             cmd_name = getattr(first_part, "word", "")
             if not cmd_name:
                 continue
+            cmd_name = Path(cmd_name).name
 
             flags = []
             args = []

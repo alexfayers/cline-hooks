@@ -1,6 +1,18 @@
 from __future__ import annotations
 
-from cline_hooks.handlers.commands import ParsedCommand, is_git_push
+import bashlex
+
+from cline_hooks.handlers.commands import ParsedCommand, extract_commands, is_git_push
+
+
+class TestExtractCommands:
+    def test_uses_basename_for_absolute_path_commands(self) -> None:
+        commands = extract_commands(bashlex.parse("/usr/bin/git push"))
+        assert commands == [ParsedCommand(name="git", flags=[], args=["push"])]
+
+    def test_uses_bare_name_unchanged(self) -> None:
+        commands = extract_commands(bashlex.parse("git push"))
+        assert commands == [ParsedCommand(name="git", flags=[], args=["push"])]
 
 
 class TestIsGitPush:
