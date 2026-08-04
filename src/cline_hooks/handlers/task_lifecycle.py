@@ -106,6 +106,8 @@ def handle_task_start(hook: HookInputTaskStart) -> None:
         "TaskStart",
         task_id=hook.taskId,
         workspace_roots=hook.workspaceRoots,
+        source=source,
+        agent_type=hook.agentType,
     )
     parts.extend(result.notes)
 

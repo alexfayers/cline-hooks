@@ -43,12 +43,13 @@ BASE = {
 }
 
 
-def _task_start(roots: list[str] | None = None, source: str = "") -> HookInputTaskStart:
+def _task_start(roots: list[str] | None = None, source: str = "", agent_type: str = "") -> HookInputTaskStart:
     return HookInputTaskStart(
         taskId="task-1",
         workspaceRoots=roots or ["/workspace"],
         hookName="TaskStart",
         taskStart=TaskStartFields(source=source),
+        agentType=agent_type,
     )
 
 
@@ -292,6 +293,36 @@ class TestHandleTaskStart:
             self._run(_task_start([str(tmp_path)]))
         assert should_note_workspace_change("task-1", [str(tmp_path)]) is False
         assert should_note_workspace_change("task-1", ["/other"]) is True
+
+    def test_plugins_receive_source_on_start(self, tmp_path: Path) -> None:
+        captured: dict[str, object] = {}
+
+        class _CapturingPlugin(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> None:
+                if hook_name == "TaskStart":
+                    captured.update(kwargs)
+
+        with (
+            patch("cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None),
+            patch("cline_hooks.handlers.task_lifecycle.load_plugins", return_value=[_CapturingPlugin()]),
+        ):
+            self._run(_task_start([str(tmp_path)], source="compact"))
+        assert captured.get("source") == "compact"
+
+    def test_plugins_receive_agent_type_on_start(self, tmp_path: Path) -> None:
+        captured: dict[str, object] = {}
+
+        class _CapturingPlugin(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> None:
+                if hook_name == "TaskStart":
+                    captured.update(kwargs)
+
+        with (
+            patch("cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None),
+            patch("cline_hooks.handlers.task_lifecycle.load_plugins", return_value=[_CapturingPlugin()]),
+        ):
+            self._run(_task_start([str(tmp_path)], agent_type="Explore"))
+        assert captured.get("agent_type") == "Explore"
 
 
 class TestHandleTaskResume:
