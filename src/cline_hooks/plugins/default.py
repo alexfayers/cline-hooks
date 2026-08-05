@@ -57,6 +57,7 @@ class DefaultPlugin(HooksPlugin):
         Returns:
             Rules for rm -f, git commit messages, and build-context grep/head/tail.
         """
+        # Update prompts/shared/rules/hooks.md if these command rules change.
         return [
             CommandRule(
                 command="rm",

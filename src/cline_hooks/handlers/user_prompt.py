@@ -65,6 +65,7 @@ _SCOPE_CHECK_REMINDER = (
     "and suggest splitting into a new session."
 )
 
+# Update prompts/shared/rules/hooks.md if this correction reminder changes.
 _CORRECTION_REMINDER = (
     "CORRECTION DETECTED: The user is correcting your behavior. "
     "Find and edit the relevant rule or skill SOURCE FILE now. "
