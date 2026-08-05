@@ -95,12 +95,11 @@ class TestGrepBlock:
     def test_grep_with_build_command_is_blocked(self) -> None:
         result = _run("execute_command", {"command": "just | grep foo"})
         assert result is not None
-        assert "tool" in cast("str", result.get("errorMessage", ""))
+        assert "build output" in cast("str", result.get("errorMessage", ""))
 
-    def test_grep_standalone_is_blocked(self) -> None:
+    def test_grep_standalone_is_not_blocked(self) -> None:
         result = _run("execute_command", {"command": "grep -r foo ."})
-        assert result is not None
-        assert "Grep tool" in cast("str", result.get("errorMessage", ""))
+        assert result is None
 
     def test_grep_piped_to_non_build_is_not_blocked(self) -> None:
         result = _run("execute_command", {"command": "ps aux | grep python"})

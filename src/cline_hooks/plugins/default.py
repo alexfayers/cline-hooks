@@ -30,11 +30,6 @@ def _is_follow(cmd: ParsedCommand) -> bool:
     )
 
 
-def _is_standalone_grep(_cmd: ParsedCommand, all_commands: list[ParsedCommand]) -> bool:
-    """Return True when grep is standalone or filtering build output."""
-    return len(all_commands) == 1 or _requires_build_context(_cmd, all_commands)
-
-
 def _is_standalone_tail(cmd: ParsedCommand, all_commands: list[ParsedCommand]) -> bool:
     """Return True when tail is standalone reading a file, excluding live follow."""
     return len(all_commands) == 1 and not _is_follow(cmd)
@@ -76,8 +71,8 @@ class DefaultPlugin(HooksPlugin):
             ),
             CommandRule(
                 command="grep",
-                message="Use the Grep tool instead of grep for searching files.",
-                validator=_is_standalone_grep,
+                message="Do not filter build output with grep - always capture the full output.",
+                validator=_requires_build_context,
             ),
             CommandRule(
                 command="head",
