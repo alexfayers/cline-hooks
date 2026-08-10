@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
 import random
 import re
 from typing import TYPE_CHECKING
@@ -12,6 +11,7 @@ from cline_hooks.core.transcript import get_context_tokens
 from cline_hooks.handlers.context_nudge import context_note, with_team_clause
 from cline_hooks.state.agents import agent_use_count
 from cline_hooks.state.plan import consume_plan_nudge
+from cline_hooks.state.timing import TIME_FORMAT, local_now
 from cline_hooks.state.turns import increment, should_nudge_agents, should_remind
 
 if TYPE_CHECKING:
@@ -124,6 +124,9 @@ def handle_user_prompt_submit(hook: HookInputUserPromptSubmit) -> None:
     """
     notes: list[str] = []
 
+    now = local_now()
+    notes.append(f"TIME: {now.strftime(TIME_FORMAT)}.")
+
     turn_count = increment(hook.taskId)
     if should_remind(turn_count):
         notes.append(_SCOPE_CHECK_REMINDER.format(turns=turn_count))
@@ -141,7 +144,7 @@ def handle_user_prompt_submit(hook: HookInputUserPromptSubmit) -> None:
             if note is not None:
                 notes.append(note)
 
-    hour = datetime.now(tz=UTC).hour
+    hour = now.hour
     if hour >= _LATE_NIGHT_START or hour < _EARLY_MORNING_END:
         notes.append("You're working late/early. Double-check before committing or making major changes.")
 
@@ -158,4 +161,4 @@ def handle_user_prompt_submit(hook: HookInputUserPromptSubmit) -> None:
     notes.extend(result.notes)
 
     if notes:
-        allow("\n\n".join(notes))
+        allow("\n\n".join(notes), prefix="")

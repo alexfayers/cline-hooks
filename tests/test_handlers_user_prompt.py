@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import json
 from typing import TYPE_CHECKING, cast
 from unittest.mock import patch
@@ -27,6 +28,11 @@ _BASE = {
     "workspaceRoots": [],
     "hookName": "UserPromptSubmit",
 }
+
+
+def _dt(hour: int) -> datetime:
+    """Build a fixed timezone-aware datetime at the given hour for local_now patching."""
+    return datetime(2026, 1, 1, hour, 30, tzinfo=UTC)
 
 
 def _make_hook(user_message: str = "") -> HookInputUserPromptSubmit:
@@ -62,6 +68,14 @@ def _run_n_turns(n: int) -> dict[str, object] | None:
     return last
 
 
+def _assert_time_only(result: dict[str, object] | None) -> None:
+    """Assert the output carries only the TIME note and no other reminder."""
+    assert result is not None
+    context = cast("str", result.get("contextModification", ""))
+    assert context.startswith("TIME:")
+    assert "\n\n" not in context
+
+
 def _run_with_transcript(token_count: int | None) -> dict[str, object] | None:
     """Run a neutral prompt with a transcript path, faking the reported token count."""
     hook = cast(
@@ -80,9 +94,8 @@ def _run_with_transcript(token_count: int | None) -> dict[str, object] | None:
             patch("builtins.print", side_effect=lambda s, _out=output, **kw: _out.append(s)),
             patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
             patch("cline_hooks.handlers.user_prompt.get_context_tokens", return_value=token_count),
-            patch("cline_hooks.handlers.user_prompt.datetime") as mock_dt,
+            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
         ):
-            mock_dt.now.return_value.hour = 12
             handle_user_prompt_submit(hook)
     except SystemExit:
         pass
@@ -199,18 +212,16 @@ class TestHandleUserPromptSubmit:
     def test_neutral_message_with_high_random_no_reminder(self) -> None:
         with (
             patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.datetime") as mock_dt,
+            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
         ):
-            mock_dt.now.return_value.hour = 12
             result = _run("Can you implement this feature?")
-        assert result is None
+        _assert_time_only(result)
 
     def test_late_night_adds_warning(self) -> None:
         with (
             patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.datetime") as mock_dt,
+            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(23)),
         ):
-            mock_dt.now.return_value.hour = 23
             result = _run("neutral message")
         assert result is not None
         assert "late" in cast("str", result.get("contextModification", "")).lower()
@@ -218,27 +229,24 @@ class TestHandleUserPromptSubmit:
     def test_daytime_no_late_warning(self) -> None:
         with (
             patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.datetime") as mock_dt,
+            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
         ):
-            mock_dt.now.return_value.hour = 12
             result = _run("neutral message")
-        assert result is None
+        _assert_time_only(result)
 
     def test_no_agent_nudge_below_threshold(self) -> None:
         with (
             patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.datetime") as mock_dt,
+            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
         ):
-            mock_dt.now.return_value.hour = 12
             last = _run_n_turns(_AGENT_NUDGE_THRESHOLD - 1)
-        assert last is None
+        _assert_time_only(last)
 
     def test_agent_nudge_at_threshold_without_agent_use(self) -> None:
         with (
             patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.datetime") as mock_dt,
+            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
         ):
-            mock_dt.now.return_value.hour = 12
             last = _run_n_turns(_AGENT_NUDGE_THRESHOLD)
         assert last is not None
         assert "FAN-OUT CHECK" in cast("str", last.get("contextModification", ""))
@@ -247,9 +255,8 @@ class TestHandleUserPromptSubmit:
         record_agent_use("task-1", "Agent")
         with (
             patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.datetime") as mock_dt,
+            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
         ):
-            mock_dt.now.return_value.hour = 12
             last = _run_n_turns(_AGENT_NUDGE_THRESHOLD)
         if last is not None:
             assert "FAN-OUT CHECK" not in cast("str", last.get("contextModification", ""))
@@ -258,9 +265,8 @@ class TestHandleUserPromptSubmit:
         record_agent_use("task-1", "Agent")
         with (
             patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.datetime") as mock_dt,
+            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
         ):
-            mock_dt.now.return_value.hour = 12
             last = _run_n_turns(2 * _AGENT_NUDGE_THRESHOLD)
         assert last is not None
         assert "FAN-OUT CHECK" in cast("str", last.get("contextModification", ""))
@@ -271,23 +277,55 @@ class TestHandleUserPromptSubmit:
             parse_data(json.dumps({**_BASE})),
         )
         output: list[str] = []
+        try:
+            with (
+                patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
+                patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
+                patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
+            ):
+                handle_user_prompt_submit(hook)
+        except SystemExit:
+            pass
+        result = cast("dict[str, object]", json.loads(output[0]))
+        assert cast("str", result.get("contextModification", "")).startswith("TIME:")
+
+
+class TestTimeNote:
+    def test_time_note_always_emitted_first(self) -> None:
         with (
-            patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
             patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.datetime") as mock_dt,
+            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
         ):
-            mock_dt.now.return_value.hour = 12
-            handle_user_prompt_submit(hook)
-        assert not output
+            result = _run("neutral message")
+        assert result is not None
+        assert cast("str", result.get("contextModification", "")).startswith("TIME:")
+
+    def test_time_note_prefixed_before_other_reminders(self) -> None:
+        with (
+            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
+            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(23)),
+        ):
+            result = _run("neutral message")
+        assert result is not None
+        context = cast("str", result.get("contextModification", ""))
+        assert context.startswith("TIME:")
+        assert "late" in context.lower()
+
+    def test_no_reminder_prefix_when_co_firing_note(self) -> None:
+        with patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0):
+            result = _run("You should always run lint first")
+        assert result is not None
+        context = cast("str", result.get("contextModification", ""))
+        assert not context.startswith("REMINDER: ")
+        assert context.index("TIME:") < context.index("CORRECTION DETECTED")
 
 
 class TestSideRequestReminder:
     def test_low_random_fires_side_request_reminder(self) -> None:
         with (
             patch("cline_hooks.handlers.user_prompt.random.random", return_value=0.0),
-            patch("cline_hooks.handlers.user_prompt.datetime") as mock_dt,
+            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
         ):
-            mock_dt.now.return_value.hour = 12
             result = _run("neutral message")
         assert result is not None
         assert "side-request" in cast("str", result.get("contextModification", "")).lower()
@@ -295,25 +333,23 @@ class TestSideRequestReminder:
     def test_high_random_no_side_request_reminder(self) -> None:
         with (
             patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.datetime") as mock_dt,
+            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
         ):
-            mock_dt.now.return_value.hour = 12
             result = _run("neutral message")
-        assert result is None
+        _assert_time_only(result)
 
 
 class TestContextNudge:
     def test_no_nudge_when_no_transcript_path(self) -> None:
         with (
             patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.datetime") as mock_dt,
+            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
         ):
-            mock_dt.now.return_value.hour = 12
             result = _run("neutral")
-        assert result is None
+        _assert_time_only(result)
 
     def test_no_nudge_when_token_count_unavailable(self) -> None:
-        assert _run_with_transcript(None) is None
+        _assert_time_only(_run_with_transcript(None))
 
     def test_info_note_below_reduced_threshold(self) -> None:
         result = _run_with_transcript(150_000)
@@ -372,9 +408,8 @@ class TestPlanHandoffNudge:
         record_plan_exit("task-1")
         with (
             patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.datetime") as mock_dt,
+            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
         ):
-            mock_dt.now.return_value.hour = 12
             result = _run("neutral")
         assert result is not None
         assert "PLAN COMPLETE" in cast("str", result.get("contextModification", ""))
@@ -383,9 +418,8 @@ class TestPlanHandoffNudge:
         record_plan_exit("task-1")
         with (
             patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.datetime") as mock_dt,
+            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
         ):
-            mock_dt.now.return_value.hour = 12
             _run("neutral")
             second = _run("neutral")
         if second is not None:

@@ -162,17 +162,13 @@ class TestHandleStop:
         assert get_research("task-1") != []
 
     def test_dismissal_signal_forces_block_with_nudge(self, tmp_path: Path) -> None:
-        transcript = _write_transcript(
-            tmp_path, [_user_entry(), _assistant_entry("This is a pre-existing issue.")]
-        )
+        transcript = _write_transcript(tmp_path, [_user_entry(), _assistant_entry("This is a pre-existing issue.")])
         result = _run(_stop(transcript_path=transcript))
         assert result["cancel"] is True
         assert "DISMISSED ISSUE DETECTED" in cast("str", result["errorMessage"])
 
     def test_dismissal_signal_and_research_both_included(self, tmp_path: Path) -> None:
-        transcript = _write_transcript(
-            tmp_path, [_user_entry(), _assistant_entry("This is a pre-existing issue.")]
-        )
+        transcript = _write_transcript(tmp_path, [_user_entry(), _assistant_entry("This is a pre-existing issue.")])
         record_research("task-1", "WebFetch", "https://example.com/docs")
         result = _run(_stop(transcript_path=transcript))
         message = cast("str", result["errorMessage"])
@@ -211,9 +207,7 @@ class TestHandleStop:
         assert result["cancel"] is False
 
     def test_stop_hook_active_skips_dismissal_check(self, tmp_path: Path) -> None:
-        transcript = _write_transcript(
-            tmp_path, [_user_entry(), _assistant_entry("This is a pre-existing issue.")]
-        )
+        transcript = _write_transcript(tmp_path, [_user_entry(), _assistant_entry("This is a pre-existing issue.")])
         result = _run(_stop(stop_hook_active=True, transcript_path=transcript))
         assert result["cancel"] is False
 
