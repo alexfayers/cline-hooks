@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from cline_hooks.state.context import (
     _BAND_SIZE,
+    CONTEXT_REDUCED_THRESHOLD,
     reset,
     should_nudge_context,
 )
@@ -55,7 +56,7 @@ class TestLegacyIntEntryMigration:
 
         _STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
         _STATE_PATH.write_text('{"legacy-task": 5}')
-        assert crossed_boundary("legacy-task", 210_000) == 200_000
+        assert crossed_boundary("legacy-task", CONTEXT_REDUCED_THRESHOLD + _BAND_SIZE) == CONTEXT_REDUCED_THRESHOLD
 
 
 class TestReset:

@@ -15,8 +15,8 @@ _CONTEXT_STATUS = "CONTEXT STATUS: ~{tokens:,} tokens in use."
 _CONTEXT_NUDGE_INFO = f"{_CONTEXT_STATUS} No action needed yet."
 
 _CONTEXT_NUDGE_REDUCED = (
-    f"{_CONTEXT_STATUS} Accuracy degrading past 200k. Ask the user before starting new planning or "
-    "implementation. If continuing, record current state in memory."
+    f"{_CONTEXT_STATUS} Accuracy degrading past {CONTEXT_REDUCED_THRESHOLD // 1000}k. Ask the user before "
+    "starting new planning or implementation. If continuing, record current state in memory."
 )
 
 _CONTEXT_NUDGE_SEVERE = (

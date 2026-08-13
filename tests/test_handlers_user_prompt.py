@@ -14,11 +14,24 @@ from cline_hooks.handlers.user_prompt import (
     handle_user_prompt_submit,
 )
 from cline_hooks.state.agents import record_agent_use
+from cline_hooks.state.context import (
+    _BAND_SIZE,
+    CONTEXT_DEGRADED_THRESHOLD,
+    CONTEXT_REDUCED_THRESHOLD,
+)
 from cline_hooks.state.plan import record_plan_exit
 from cline_hooks.state.turns import _AGENT_NUDGE_THRESHOLD
 
 if TYPE_CHECKING:
     from cline_hooks.core.models import HookInputUserPromptSubmit
+
+_BELOW_REDUCED = CONTEXT_REDUCED_THRESHOLD // 2
+_BELOW_REDUCED_SAME_BAND = _BELOW_REDUCED + _BAND_SIZE // 2
+_BELOW_REDUCED_NEXT_BAND = _BELOW_REDUCED + _BAND_SIZE + 1_000
+_JUST_ABOVE_REDUCED = CONTEXT_REDUCED_THRESHOLD + _BAND_SIZE
+_SAME_BAND_AS_REDUCED = _JUST_ABOVE_REDUCED + _BAND_SIZE // 2
+_NEXT_BAND_AFTER_REDUCED = _JUST_ABOVE_REDUCED + _BAND_SIZE + 1_000
+_JUST_ABOVE_SEVERE = CONTEXT_DEGRADED_THRESHOLD + _BAND_SIZE
 
 _BASE = {
     "clineVersion": "1.0.0",
@@ -352,53 +365,53 @@ class TestContextNudge:
         _assert_time_only(_run_with_transcript(None))
 
     def test_info_note_below_reduced_threshold(self) -> None:
-        result = _run_with_transcript(150_000)
+        result = _run_with_transcript(_BELOW_REDUCED)
         assert result is not None
         context = cast("str", result.get("contextModification", ""))
         assert "CONTEXT STATUS" in context
-        assert "150,000" in context
+        assert f"{_BELOW_REDUCED:,}" in context
 
     def test_reduced_nudge_on_first_crossing(self) -> None:
-        result = _run_with_transcript(210_000)
+        result = _run_with_transcript(_JUST_ABOVE_REDUCED)
         assert result is not None
         context = cast("str", result.get("contextModification", ""))
         assert "Accuracy degrading" in context
-        assert "210,000" in context
+        assert f"{_JUST_ABOVE_REDUCED:,}" in context
 
     def test_severe_nudge_on_first_crossing(self) -> None:
-        result = _run_with_transcript(410_000)
+        result = _run_with_transcript(_JUST_ABOVE_SEVERE)
         assert result is not None
         context = cast("str", result.get("contextModification", ""))
         assert "badly degraded" in context
-        assert "410,000" in context
+        assert f"{_JUST_ABOVE_SEVERE:,}" in context
 
     def test_reduced_nudge_does_not_refire_within_same_band(self) -> None:
-        first = _run_with_transcript(210_000)
+        first = _run_with_transcript(_JUST_ABOVE_REDUCED)
         assert first is not None
         assert "Accuracy degrading" in cast("str", first.get("contextModification", ""))
-        second = _run_with_transcript(215_000)
+        second = _run_with_transcript(_SAME_BAND_AS_REDUCED)
         if second is not None:
             assert "Accuracy degrading" not in cast("str", second.get("contextModification", ""))
 
     def test_next_band_in_same_tier_omits_boundary_text(self) -> None:
-        _run_with_transcript(210_000)
-        result = _run_with_transcript(221_000)
+        _run_with_transcript(_JUST_ABOVE_REDUCED)
+        result = _run_with_transcript(_NEXT_BAND_AFTER_REDUCED)
         assert result is not None
         context = cast("str", result.get("contextModification", ""))
         assert "Accuracy degrading" not in context
         assert "CONTEXT STATUS" in context
 
     def test_info_note_fires_once_per_band(self) -> None:
-        first = _run_with_transcript(150_000)
+        first = _run_with_transcript(_BELOW_REDUCED)
         assert first is not None
         assert "CONTEXT STATUS" in cast("str", first.get("contextModification", ""))
-        second = _run_with_transcript(155_000)
+        second = _run_with_transcript(_BELOW_REDUCED_SAME_BAND)
         if second is not None:
             assert "CONTEXT STATUS" not in cast("str", second.get("contextModification", ""))
 
     def test_info_note_refires_in_next_band(self) -> None:
-        _run_with_transcript(150_000)
-        result = _run_with_transcript(161_000)
+        _run_with_transcript(_BELOW_REDUCED)
+        result = _run_with_transcript(_BELOW_REDUCED_NEXT_BAND)
         assert result is not None
         assert "CONTEXT STATUS" in cast("str", result.get("contextModification", ""))
 
@@ -429,11 +442,11 @@ class TestPlanHandoffNudge:
 class TestTeamActiveClause:
     def test_team_clause_appended_when_agent_used(self) -> None:
         record_agent_use("task-1", "Agent")
-        result = _run_with_transcript(210_000)
+        result = _run_with_transcript(_JUST_ABOVE_REDUCED)
         assert result is not None
         assert "TaskStop" in cast("str", result.get("contextModification", ""))
 
     def test_no_team_clause_when_no_agent(self) -> None:
-        result = _run_with_transcript(210_000)
+        result = _run_with_transcript(_JUST_ABOVE_REDUCED)
         assert result is not None
         assert "TaskStop" not in cast("str", result.get("contextModification", ""))
