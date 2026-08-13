@@ -53,6 +53,17 @@ class TestClineProtocol:
             proto.allow("ctx")
         assert json.loads(buf.getvalue())["contextModification"] == "ctx"
 
+    def test_supports_user_message_false(self) -> None:
+        assert ClineProtocol().supports_user_message() is False
+
+    def test_allow_ignores_system_message(self) -> None:
+        proto = ClineProtocol()
+        buf = StringIO()
+        with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
+            proto.allow(system_message="user text")
+        assert exc.value.code == 0
+        assert json.loads(buf.getvalue()) == {"cancel": False}
+
     def test_block(self) -> None:
         proto = ClineProtocol()
         buf = StringIO()
@@ -104,6 +115,17 @@ class TestKiroProtocol:
         assert exc.value.code == 0
         assert json.loads(buf.getvalue()) == {"decision": "block", "reason": "bad"}
 
+    def test_supports_user_message_defaults_false(self) -> None:
+        assert KiroProtocol().supports_user_message() is False
+
+    def test_allow_ignores_system_message(self) -> None:
+        proto = KiroProtocol()
+        buf = StringIO()
+        with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
+            proto.allow("context here", system_message="user text")
+        assert exc.value.code == 0
+        assert buf.getvalue() == "context here"
+
 
 class TestClaudeCodeProtocol:
     def test_allow_no_message(self) -> None:
@@ -148,6 +170,36 @@ class TestClaudeCodeProtocol:
         assert json.loads(buf.getvalue()) == {
             "hookSpecificOutput": {"hookEventName": "Stop", "additionalContext": "trace text"},
         }
+
+    def test_supports_user_message_true(self) -> None:
+        assert ClaudeCodeProtocol().supports_user_message() is True
+
+    def test_allow_system_message_only_emits_top_level(self) -> None:
+        proto = ClaudeCodeProtocol("SessionStart")
+        buf = StringIO()
+        with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
+            proto.allow(system_message="user text")
+        assert exc.value.code == 0
+        assert json.loads(buf.getvalue()) == {"systemMessage": "user text"}
+
+    def test_allow_message_and_system_message_emits_both(self) -> None:
+        proto = ClaudeCodeProtocol("SessionStart")
+        buf = StringIO()
+        with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
+            proto.allow("ctx text", system_message="user text")
+        assert exc.value.code == 0
+        assert json.loads(buf.getvalue()) == {
+            "systemMessage": "user text",
+            "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": "ctx text"},
+        }
+
+    def test_allow_neither_emits_nothing(self) -> None:
+        proto = ClaudeCodeProtocol()
+        buf = StringIO()
+        with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
+            proto.allow()
+        assert exc.value.code == 0
+        assert buf.getvalue() == ""
 
 
 class TestAllow:

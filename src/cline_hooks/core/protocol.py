@@ -10,8 +10,16 @@ class Protocol(ABC):
     """Abstract output protocol for hook responses."""
 
     @abstractmethod
-    def allow(self, message: str | None = None) -> NoReturn:
+    def allow(self, message: str | None = None, *, system_message: str | None = None) -> NoReturn:
         """Allow the operation, optionally injecting context."""
+
+    def supports_user_message(self) -> bool:
+        """Whether this protocol can surface a message directly to the user.
+
+        Returns:
+            False by default; overridden by protocols with a user channel.
+        """
+        return False
 
     @abstractmethod
     def block(self, message: str) -> NoReturn:

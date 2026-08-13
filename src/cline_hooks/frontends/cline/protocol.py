@@ -13,7 +13,7 @@ from cline_hooks.core.protocol import Protocol
 class ClineProtocol(Protocol):
     """Cline JSON stdout protocol."""
 
-    def allow(self, message: str | None = None) -> NoReturn:
+    def allow(self, message: str | None = None, *, system_message: str | None = None) -> NoReturn:  # noqa: ARG002
         """Allow via JSON stdout."""
         res: dict[str, object] = {"cancel": False}
         if message is not None:

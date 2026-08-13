@@ -14,7 +14,11 @@ from cline_hooks.core.models import (
     HookInputTaskStart,
     TaskStartFields,
 )
-from cline_hooks.core.plugin import HooksPlugin, ToolingNote
+from cline_hooks.core.plugin import HookResult, HooksPlugin, ToolingNote, UserFacingNote
+from cline_hooks.core.protocol import set_protocol
+from cline_hooks.frontends.claude_code import ClaudeCodeProtocol
+from cline_hooks.frontends.cline import ClineProtocol
+from cline_hooks.frontends.kiro import KiroProtocol
 from cline_hooks.handlers.git_context import get_generic_tooling_note, resolve_tooling_notes
 from cline_hooks.handlers.task_lifecycle import (
     _format_block_history,
@@ -159,6 +163,13 @@ class TestGetGenericToolingNote:
 class _ReplacingPlugin(HooksPlugin):
     def get_tooling_note(self, workspace_roots: list[str]) -> ToolingNote | None:
         return ToolingNote(note="PLUGIN NOTE", replaces_generic=True)
+
+
+class _UserNotePlugin(HooksPlugin):
+    def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+        if hook_name == "TaskStart":
+            return HookResult(user_notes=[UserFacingNote(user_text="USER TEXT")])
+        return None
 
 
 class TestResolveToolingNotes:
@@ -323,6 +334,41 @@ class TestHandleTaskStart:
         ):
             self._run(_task_start([str(tmp_path)], agent_type="Explore"))
         assert captured.get("agent_type") == "Explore"
+
+    def _run_raw(self, hook: HookInputTaskStart) -> str:
+        output: list[str] = []
+        with (
+            patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
+            pytest.raises(SystemExit),
+        ):
+            handle_task_start(hook)
+        return output[0] if output else ""
+
+    def test_user_note_goes_to_system_message_on_claude_code(self, tmp_path: Path) -> None:
+        set_protocol(ClaudeCodeProtocol("SessionStart"))
+        try:
+            with (
+                patch("cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None),
+                patch("cline_hooks.handlers.task_lifecycle.load_plugins", return_value=[_UserNotePlugin()]),
+            ):
+                raw = self._run_raw(_task_start([str(tmp_path)]))
+        finally:
+            set_protocol(ClineProtocol())
+        payload = json.loads(raw)
+        assert payload["systemMessage"] == "USER TEXT"
+
+    def test_user_note_not_shown_to_model_without_user_channel(self, tmp_path: Path) -> None:
+        set_protocol(KiroProtocol())
+        try:
+            with (
+                patch("cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None),
+                patch("cline_hooks.handlers.task_lifecycle.load_plugins", return_value=[_UserNotePlugin()]),
+            ):
+                raw = self._run_raw(_task_start([str(tmp_path)]))
+        finally:
+            set_protocol(ClineProtocol())
+        assert "USER TEXT" not in raw
+        assert "systemMessage" not in raw
 
 
 class TestHandleTaskResume:

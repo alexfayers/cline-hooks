@@ -19,16 +19,30 @@ logger = logging.getLogger("hooks")
 
 
 @dataclass
+class UserFacingNote:
+    """A note destined for the user rather than the model.
+
+    Attributes:
+        user_text: Human-readable copy, free of model-directive text, shown
+            directly to the user on frontends that support a user channel.
+    """
+
+    user_text: str
+
+
+@dataclass
 class HookResult:
     """Result from a plugin hook handler.
 
     Attributes:
         notes: Context strings to inject into the response.
         block: If set, block the tool call with this reason.
+        user_notes: Notes destined for the user rather than the model.
     """
 
     notes: list[str] = field(default_factory=list)
     block: str | None = None
+    user_notes: list[UserFacingNote] = field(default_factory=list)
 
 
 @dataclass
@@ -63,6 +77,7 @@ def collect_hook_results(plugins: list[HooksPlugin], hook_name: str, **kwargs: o
         if result is None:
             continue
         merged.notes.extend(result.notes)
+        merged.user_notes.extend(result.user_notes)
         if result.block and merged.block is None:
             merged.block = result.block
     return merged

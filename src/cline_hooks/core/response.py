@@ -8,18 +8,20 @@ from cline_hooks.core.protocol import get_protocol
 logger = logging.getLogger("hooks")
 
 
-def allow(message: str | None = None, *, prefix: str = "REMINDER") -> NoReturn:
+def allow(message: str | None = None, *, prefix: str = "REMINDER", system_message: str | None = None) -> NoReturn:
     """Allow the tool call to proceed, optionally injecting a reminder.
 
     Args:
         message: Optional reminder text. Defaults to None.
         prefix: Label prepended to the message. Defaults to "REMINDER".
+        system_message: Optional message surfaced directly to the user on
+            frontends that support a user channel.
     """
     if message is not None:
         message = f"{prefix}: {message}" if prefix else message
         logger.warning("Reminding: %s", message)
 
-    get_protocol().allow(message)
+    get_protocol().allow(message, system_message=system_message)
 
 
 def block(message: str, *, task_id: str | None = None, tool_name: str | None = None) -> NoReturn:

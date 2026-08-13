@@ -7,6 +7,7 @@ import git
 import git.exc
 
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
+from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
 from cline_hooks.handlers.git_context import get_git_context, resolve_tooling_notes
@@ -111,7 +112,11 @@ def handle_task_start(hook: HookInputTaskStart) -> None:
     )
     parts.extend(result.notes)
 
-    allow("\n\n".join(parts), prefix="")
+    system_message: str | None = None
+    if result.user_notes and get_protocol().supports_user_message():
+        system_message = "\n\n".join(n.user_text for n in result.user_notes)
+
+    allow("\n\n".join(parts) or None, prefix="", system_message=system_message)
 
 
 @hook_handler("TaskResume")

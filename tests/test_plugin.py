@@ -4,6 +4,7 @@ from cline_hooks.core.plugin import (
     HookResult,
     HooksPlugin,
     ToolingNote,
+    UserFacingNote,
     _plugin_cache,
     collect_hook_results,
     load_plugins,
@@ -53,6 +54,10 @@ class TestHookResult:
         assert result.notes == ["note1"]
         assert result.block == "blocked"
 
+    def test_user_notes_defaults_empty(self) -> None:
+        result = HookResult()
+        assert result.user_notes == []
+
 
 class TestToolingNote:
     def test_defaults(self) -> None:
@@ -84,6 +89,18 @@ class TestCollectHookResults:
         result = collect_hook_results([PluginA(), PluginB()], "TestHook")
         assert result.notes == ["a", "b"]
         assert result.block is None
+
+    def test_merges_user_notes(self) -> None:
+        class PluginA(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+                return HookResult(user_notes=[UserFacingNote(user_text="ua")])
+
+        class PluginB(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+                return HookResult(user_notes=[UserFacingNote(user_text="ub")])
+
+        result = collect_hook_results([PluginA(), PluginB()], "TestHook")
+        assert [n.user_text for n in result.user_notes] == ["ua", "ub"]
 
     def test_first_block_wins(self) -> None:
         class PluginA(HooksPlugin):

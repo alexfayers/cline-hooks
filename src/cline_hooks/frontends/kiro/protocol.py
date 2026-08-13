@@ -13,7 +13,7 @@ from cline_hooks.core.protocol import Protocol
 class KiroProtocol(Protocol):
     """Kiro exit-code protocol: exit 0 + stdout for allow, exit 2 + stderr for block."""
 
-    def allow(self, message: str | None = None) -> NoReturn:
+    def allow(self, message: str | None = None, *, system_message: str | None = None) -> NoReturn:  # noqa: ARG002
         """Allow via exit 0, context on stdout."""
         if message is not None:
             print(message, end="")

@@ -45,10 +45,26 @@ class ClaudeCodeProtocol(KiroProtocol):
             end="",
         )
 
-    def allow(self, message: str | None = None) -> NoReturn:
-        """Continue via exit 0, non-error context in hookSpecificOutput."""
+    def supports_user_message(self) -> bool:
+        """Claude Code surfaces a top-level systemMessage directly to the user.
+
+        Returns:
+            True, since Claude Code has a direct-to-user channel.
+        """
+        return True
+
+    def allow(self, message: str | None = None, *, system_message: str | None = None) -> NoReturn:
+        """Continue via exit 0, context in hookSpecificOutput and/or systemMessage."""
+        payload: dict[str, object] = {}
+        if system_message is not None:
+            payload["systemMessage"] = system_message
         if message is not None:
-            self._print_additional_context(message)
+            payload["hookSpecificOutput"] = {
+                "hookEventName": self._hook_event_name,
+                "additionalContext": message,
+            }
+        if payload:
+            print(json.dumps(payload), end="")
         sys.exit(0)
 
     def feedback(self, message: str) -> NoReturn:
