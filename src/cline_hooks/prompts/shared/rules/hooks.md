@@ -9,6 +9,7 @@ This package's own bundled hooks:
 - `rm -f` / `rm --force` is blocked (PreToolUse) - remove the `-f` flag.
 - Git commit messages must be single-line (PreToolUse) - no body.
 - Standalone `cat` / `head` / `tail` shell invocations are redirected to a message telling you to use the Read tool instead. `grep` / `head` / `tail` also carry a separate rule against filtering build output when a build command (`just` / `npm` / `pnpm`) is present.
+- Standalone `true` / `echo` are blocked (PreToolUse) - these are almost always no-op placeholder commands used to pass time while polling a background agent/task, which is unnecessary since the completion arrives as an automatic notification. `cmd || true` and piped/chained usage (`echo x | grep x`, `echo x && cmd`) are unaffected, since only the bare standalone form is blocked.
 - A `CORRECTION DETECTED` UserPromptSubmit reminder fires whenever your new message is heuristically classified as correcting prior behaviour, prompting you to edit the relevant rule/skill source file.
 - A `TIME:` line is added on UserPromptSubmit (current local date/time). Unlike the rest of this list it is purely informational - no action is expected.
 

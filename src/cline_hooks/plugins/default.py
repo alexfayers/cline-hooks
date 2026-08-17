@@ -50,7 +50,8 @@ class DefaultPlugin(HooksPlugin):
         """Return the standard set of command rules.
 
         Returns:
-            Rules for rm -f, git commit messages, and build-context grep/head/tail.
+            Rules for rm -f, git commit messages, build-context grep/head/tail, and
+            standalone true/echo.
         """
         # Update prompts/shared/rules/hooks.md if these command rules change.
         return [
@@ -93,5 +94,22 @@ class DefaultPlugin(HooksPlugin):
                 command="tail",
                 message="Use the Read tool instead of tail to read files.",
                 validator=_is_standalone_tail,
+            ),
+            CommandRule(
+                command="true",
+                message=(
+                    "`true` is not allowed as a standalone command. If you're waiting on a background "
+                    "agent or task, end your turn instead - a completion notification will resume you "
+                    "automatically."
+                ),
+                validator=_is_standalone,
+            ),
+            CommandRule(
+                command="echo",
+                message=(
+                    "echo is not allowed as a standalone command. Output text directly instead of "
+                    "echoing it, and never use echo to pass time while waiting on a background task."
+                ),
+                validator=_is_standalone,
             ),
         ]

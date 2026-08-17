@@ -114,7 +114,7 @@ class TestGrepBlock:
         assert result is None
 
     def test_non_grep_command_is_not_blocked(self) -> None:
-        result = _run("execute_command", {"command": "echo hello"})
+        result = _run("execute_command", {"command": "ls -la"})
         assert result is None
 
 
@@ -191,6 +191,30 @@ class TestBashToolCommandRules:
         assert result is None
 
 
+class TestEchoTrueBlock:
+    def test_standalone_true_is_blocked(self) -> None:
+        result = _run("Bash", {"command": "true"})
+        assert result is not None
+        assert "standalone" in cast("str", result.get("errorMessage", "")).lower()
+
+    def test_true_after_or_suppression_is_allowed(self) -> None:
+        result = _run("Bash", {"command": "some_cmd || true"})
+        assert result is None
+
+    def test_standalone_echo_is_blocked(self) -> None:
+        result = _run("Bash", {"command": "echo abc"})
+        assert result is not None
+        assert "standalone" in cast("str", result.get("errorMessage", "")).lower()
+
+    def test_echo_piped_to_other_command_is_allowed(self) -> None:
+        result = _run("Bash", {"command": 'echo "x" | grep x'})
+        assert result is None
+
+    def test_echo_chained_with_other_command_is_allowed(self) -> None:
+        result = _run("Bash", {"command": 'echo "starting" && npm test'})
+        assert result is None
+
+
 class TestPlanModeRespondEmojiCheck:
     def test_emoji_start_is_allowed(self) -> None:
         result = _run("plan_mode_respond", {"response": "👋 Hey there!"})
@@ -224,12 +248,12 @@ class TestClearBlocksOnPass:
         store = TaskStateStore()
         store.record_block("task-1", "execute_command", "some old reason")
         assert len(store.get_blocks("task-1")) == 1
-        _run("execute_command", {"command": "echo hello"})
+        _run("execute_command", {"command": "ls -la"})
         assert store.get_blocks("task-1") == []
 
     def test_no_stale_blocks_when_no_previous_blocks(self) -> None:
         store = TaskStateStore()
-        _run("execute_command", {"command": "echo hello"})
+        _run("execute_command", {"command": "ls -la"})
         assert store.get_blocks("task-1") == []
 
 
