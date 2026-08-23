@@ -5,12 +5,12 @@ import json
 from typing import TYPE_CHECKING, cast
 from unittest.mock import patch
 
-import pytest
-
+from cline_hooks.core.plugin import HooksPlugin
 from cline_hooks.frontends.cline import parse_cline_data as parse_data
 from cline_hooks.handlers.user_prompt import (
     _contains_correction_signal,
     _contains_info_signal,
+    _is_agent_message,
     handle_user_prompt_submit,
 )
 from cline_hooks.state.agents import record_agent_use
@@ -20,7 +20,9 @@ from cline_hooks.state.context import (
     CONTEXT_REDUCED_THRESHOLD,
 )
 from cline_hooks.state.plan import record_plan_exit
+import cline_hooks.state.turns as turns_module
 from cline_hooks.state.turns import _AGENT_NUDGE_THRESHOLD
+import pytest
 
 if TYPE_CHECKING:
     from cline_hooks.core.models import HookInputUserPromptSubmit
@@ -194,6 +196,37 @@ class TestContainsInfoSignal:
         assert _contains_info_signal("NEVER skip tests") is True
 
 
+class TestIsAgentMessage:
+    @pytest.mark.parametrize(
+        "message",
+        [
+            '<agent-message from="worker-1">\nStatus update.\n</agent-message>',
+            '<teammate-message teammate_id="worker-1" summary="Status">\nDone.\n</teammate-message>',
+            '   <agent-message from="worker-1">\nStatus update.\n</agent-message>',
+        ],
+    )
+    def test_returns_true_for_agent_wrapper(self, message: str) -> None:
+        assert _is_agent_message(message) is True
+
+    @pytest.mark.parametrize(
+        "message",
+        [
+            "Can you implement this feature?",
+            "Stop doing that",
+            "",
+        ],
+    )
+    def test_returns_false_for_plain_user_message(self, message: str) -> None:
+        assert _is_agent_message(message) is False
+
+    def test_returns_false_when_tag_follows_other_text(self) -> None:
+        message = (
+            'Another Claude session sent a message\n<teammate-message teammate_id="worker-1">\n'
+            "Done.\n</teammate-message>"
+        )
+        assert _is_agent_message(message) is True
+
+
 class TestHandleUserPromptSubmit:
     def test_correction_signal_fires_correction_reminder(self) -> None:
         with patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0):
@@ -284,6 +317,71 @@ class TestHandleUserPromptSubmit:
         assert last is not None
         assert "FAN-OUT CHECK" in cast("str", last.get("contextModification", ""))
 
+    def test_agent_message_emits_no_output(self) -> None:
+        message = '<agent-message from="worker-1">\nYou should always run lint first\n</agent-message>'
+        with (
+            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
+            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
+        ):
+            result = _run(message)
+        assert result is None
+
+    def test_agent_message_teammate_wrapper_emits_no_output(self) -> None:
+        message = (
+            '<teammate-message teammate_id="worker-1" summary="Status">\n'
+            "You should always run lint first\n"
+            "</teammate-message>"
+        )
+        with (
+            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
+            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
+        ):
+            result = _run(message)
+        assert result is None
+
+    def test_agent_message_with_leading_whitespace_emits_no_output(self) -> None:
+        message = '\n   <agent-message from="worker-1">\nYou should always run lint first\n</agent-message>'
+        with (
+            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
+            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
+        ):
+            result = _run(message)
+        assert result is None
+
+    def test_agent_message_does_not_advance_turn_counter(self) -> None:
+        message = '<agent-message from="worker-1">\nStatus update.\n</agent-message>'
+        with patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0):
+            _run("neutral")
+            for _ in range(5):
+                _run(message)
+        assert turns_module._read().get("task-1") == 1
+        _run("neutral")
+        assert turns_module._read().get("task-1") == 2
+
+    def test_agent_tag_preceded_by_other_text_does_not_fire_info_reminder(self) -> None:
+        message = (
+            "PostToolUse hook additional context\n"
+            '   <teammate-message teammate_id="worker-1">\n'
+            "Actually, the deadline is Friday\n"
+            "</teammate-message>"
+        )
+        assert _run(message) is None
+
+    def test_genuine_user_correction_still_fires_despite_agent_tag_absent(self) -> None:
+        with patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0):
+            result = _run("You should always run lint first")
+        assert result is not None
+        assert "correction" in cast("str", result.get("contextModification", "")).lower()
+
+    def test_agent_message_suppresses_content_independent_notes_too(self) -> None:
+        message = '<agent-message from="worker-1">\nYou should always run lint first\n</agent-message>'
+        with (
+            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
+            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(23)),
+        ):
+            result = _run(message)
+        assert result is None
+
     def test_no_userPromptSubmit_field_emits_no_error(self) -> None:
         hook = cast(
             "HookInputUserPromptSubmit",
@@ -299,8 +397,7 @@ class TestHandleUserPromptSubmit:
                 handle_user_prompt_submit(hook)
         except SystemExit:
             pass
-        result = cast("dict[str, object]", json.loads(output[0]))
-        assert cast("str", result.get("contextModification", "")).startswith("TIME:")
+        assert output == []
 
 
 class TestTimeNote:
@@ -450,3 +547,37 @@ class TestTeamActiveClause:
         result = _run_with_transcript(_JUST_ABOVE_REDUCED)
         assert result is not None
         assert "TaskStop" not in cast("str", result.get("contextModification", ""))
+
+
+class TestPluginMessageForwarding:
+    def test_agent_message_does_not_forward_to_plugins(self) -> None:
+        called = False
+
+        class _CapturingPlugin(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> None:
+                nonlocal called
+                called = True
+
+        message = '<agent-message from="worker-1">You should always run lint first</agent-message>'
+        with (
+            patch("cline_hooks.handlers.user_prompt.load_plugins", return_value=[_CapturingPlugin()]),
+            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
+        ):
+            _run(message)
+        assert called is False
+
+    def test_plain_message_forwards_verbatim_text_to_plugins(self) -> None:
+        captured: dict[str, object] = {}
+
+        class _CapturingPlugin(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> None:
+                if hook_name == "UserPromptSubmit":
+                    captured.update(kwargs)
+
+        message = "Can you implement this feature?"
+        with (
+            patch("cline_hooks.handlers.user_prompt.load_plugins", return_value=[_CapturingPlugin()]),
+            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
+        ):
+            _run(message)
+        assert captured.get("message") == message
