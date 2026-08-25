@@ -4,6 +4,7 @@ import random
 import re
 from typing import TYPE_CHECKING
 
+from cline_hooks.config import is_frustration_detector_disabled
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
@@ -164,7 +165,7 @@ def handle_user_prompt_submit(hook: HookInputUserPromptSubmit) -> None:
     if hour >= _LATE_NIGHT_START or hour < _EARLY_MORNING_END:
         notes.append("You're working late/early. Double-check before committing or making major changes.")
 
-    if _contains_correction_signal(message):
+    if not is_frustration_detector_disabled() and _contains_correction_signal(message):
         notes.append(_CORRECTION_REMINDER)
     elif _contains_info_signal(message) or random.random() < _INFO_REMINDER_CHANCE:
         notes.append(_INFO_REMINDER)

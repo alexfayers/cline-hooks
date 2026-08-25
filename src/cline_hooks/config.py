@@ -13,3 +13,16 @@ def get_push_block_markers() -> tuple[str, ...]:
     """
     raw = os.environ.get("CLINE_HOOKS_PUSH_BLOCK_MARKERS", "")
     return tuple(marker.strip() for marker in raw.split(",") if marker.strip())
+
+
+def is_frustration_detector_disabled() -> bool:
+    """Return True when the correction/frustration detector is disabled.
+
+    Read from CLINE_HOOKS_DISABLE_FRUSTRATION_DETECTOR. Disabled when set to
+    ``"1"``, ``"true"``, or ``"yes"`` (case-insensitive); enabled by default.
+    """
+    return os.environ.get("CLINE_HOOKS_DISABLE_FRUSTRATION_DETECTOR", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }

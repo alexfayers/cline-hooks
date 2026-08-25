@@ -242,6 +242,16 @@ class TestHandleUserPromptSubmit:
         assert "correction" in context.lower()
         assert "persist to memory" not in context.lower()
 
+    def test_correction_detector_disabled_skips_correction_reminder(self) -> None:
+        with (
+            patch.dict("os.environ", {"CLINE_HOOKS_DISABLE_FRUSTRATION_DETECTOR": "1"}),
+            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
+        ):
+            result = _run("You should always run lint first")
+        assert result is not None
+        context = cast("str", result.get("contextModification", ""))
+        assert "correction" not in context.lower()
+
     def test_info_signal_fires_info_reminder(self) -> None:
         with patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0):
             result = _run("Actually, the deadline is Friday")
