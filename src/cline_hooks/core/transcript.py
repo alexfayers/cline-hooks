@@ -41,7 +41,11 @@ def get_context_tokens(transcript_path: str) -> int | None:
 
 
 def _sum_context_fields(usage: dict[str, Any]) -> int:
-    """Sum the token fields that make up the context sent to the model."""
+    """Sum the token fields that make up the context sent to the model.
+
+    Returns:
+        The total context tokens across every integer field present.
+    """
     total = 0
     for key in ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"):
         value = usage.get(key)

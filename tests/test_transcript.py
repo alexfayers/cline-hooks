@@ -138,9 +138,12 @@ class TestGetContextTokens:
         assert get_context_tokens(str(path)) is None
 
     def test_server_tool_rollup_uses_last_message_iteration(self, tmp_path: Path) -> None:
-        """A turn that calls a server-side tool (e.g. advisor) reports a usage
+        """A rolled-up server-tool usage reports the last message iteration.
+
+        A turn that calls a server-side tool (e.g. advisor) reports a usage
         rolled up across sub-calls; the real context is the last `message`
-        iteration, not the inflated top-level sum."""
+        iteration, not the inflated top-level sum.
+        """
         path = _write_jsonl(
             tmp_path / "t.jsonl",
             [
