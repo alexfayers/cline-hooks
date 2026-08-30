@@ -50,6 +50,24 @@ def _assistant(
     }
 
 
+def _assistant_with_iterations(
+    *, top_cache_read: int, iterations: list[dict[str, Any]], sidechain: bool = False
+) -> dict[str, Any]:
+    return {
+        "type": "assistant",
+        "isSidechain": sidechain,
+        "message": {
+            "role": "assistant",
+            "usage": {
+                "input_tokens": 4,
+                "cache_read_input_tokens": top_cache_read,
+                "cache_creation_input_tokens": 1596,
+                "iterations": iterations,
+            },
+        },
+    }
+
+
 def _write_jsonl(path: Path, entries: list[dict[str, Any]]) -> str:
     path.write_text("\n".join(json.dumps(e) for e in entries), encoding="utf-8")
     return str(path)
@@ -118,6 +136,60 @@ class TestGetContextTokens:
         path = tmp_path / "t.jsonl"
         path.write_text("", encoding="utf-8")
         assert get_context_tokens(str(path)) is None
+
+    def test_server_tool_rollup_uses_last_message_iteration(self, tmp_path: Path) -> None:
+        """A turn that calls a server-side tool (e.g. advisor) reports a usage
+        rolled up across sub-calls; the real context is the last `message`
+        iteration, not the inflated top-level sum."""
+        path = _write_jsonl(
+            tmp_path / "t.jsonl",
+            [
+                _assistant(cache_read=168_000),
+                _assistant_with_iterations(
+                    top_cache_read=337_550,
+                    iterations=[
+                        {
+                            "type": "message",
+                            "input_tokens": 2,
+                            "cache_read_input_tokens": 168_532,
+                            "cache_creation_input_tokens": 486,
+                        },
+                        {
+                            "type": "advisor_message",
+                            "input_tokens": 170_530,
+                            "cache_read_input_tokens": 0,
+                            "cache_creation_input_tokens": 0,
+                        },
+                        {
+                            "type": "message",
+                            "input_tokens": 2,
+                            "cache_read_input_tokens": 169_018,
+                            "cache_creation_input_tokens": 1_110,
+                        },
+                    ],
+                ),
+            ],
+        )
+        assert get_context_tokens(path) == 169_018 + 1_110 + 2
+
+    def test_rollup_without_messages_uses_top_level(self, tmp_path: Path) -> None:
+        path = _write_jsonl(
+            tmp_path / "t.jsonl",
+            [
+                _assistant_with_iterations(
+                    top_cache_read=5_000,
+                    iterations=[
+                        {
+                            "type": "advisor_message",
+                            "input_tokens": 1,
+                            "cache_read_input_tokens": 0,
+                            "cache_creation_input_tokens": 0,
+                        },
+                    ],
+                ),
+            ],
+        )
+        assert get_context_tokens(path) == 4 + 5_000 + 1596
 
     def test_no_assistant_with_usage_returns_none(self, tmp_path: Path) -> None:
         path = _write_jsonl(
