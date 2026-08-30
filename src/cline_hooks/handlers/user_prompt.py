@@ -96,7 +96,7 @@ _SIDE_REQUEST_REMINDER = (
     "A prose acknowledgment ('I'll get to that after') does not count as tracked."
 )
 
-_AGENT_MESSAGE_PATTERN = re.compile(r"<(agent-message|teammate-message).+?</\1>", re.DOTALL)
+_AGENT_MESSAGE_PATTERN = re.compile(r"<(agent-message|teammate-message|task-notification).+?</\1>", re.DOTALL)
 
 
 def _is_agent_message(message: str) -> bool:
