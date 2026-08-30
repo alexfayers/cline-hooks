@@ -5,6 +5,8 @@ import json
 from typing import TYPE_CHECKING, cast
 from unittest.mock import patch
 
+import pytest
+
 from cline_hooks.core.plugin import HooksPlugin
 from cline_hooks.frontends.cline import parse_cline_data as parse_data
 from cline_hooks.handlers.user_prompt import (
@@ -22,7 +24,6 @@ from cline_hooks.state.context import (
 from cline_hooks.state.plan import record_plan_exit
 import cline_hooks.state.turns as turns_module
 from cline_hooks.state.turns import _AGENT_NUDGE_THRESHOLD
-import pytest
 
 if TYPE_CHECKING:
     from cline_hooks.core.models import HookInputUserPromptSubmit

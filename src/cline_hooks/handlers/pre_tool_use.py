@@ -22,8 +22,6 @@ from cline_hooks.handlers.commands import (
 )
 from cline_hooks.handlers.push_guard import marker_above_repo
 from cline_hooks.state.skills import (
-    CONFIRM_PUSH_SKILL,
-    consume_skill,
     is_skill_called as _is_skill_called,
     required_skill_for,
 )
@@ -215,14 +213,6 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
                     f"workspace (a '{marker}' entry was found at or above the repo root). "
                     f"Use the workspace's own review/submit workflow instead of pushing "
                     f"directly.",
-                    task_id=hook.taskId,
-                    tool_name=tool_name,
-                )
-            elif not consume_skill(hook.taskId, CONFIRM_PUSH_SKILL):
-                block(
-                    "git push requires explicit user confirmation. Ask the user to "
-                    "approve THIS push, then invoke the `confirm-push` skill and retry. "
-                    "Confirmation is consumed per push - each push needs a fresh approval.",
                     task_id=hook.taskId,
                     tool_name=tool_name,
                 )

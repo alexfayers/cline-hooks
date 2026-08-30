@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import cline_hooks.state.skills as module
 from cline_hooks.state.skills import (
-    consume_skill,
     is_skill_called,
     record_skill,
     required_skill_for,
@@ -45,27 +44,6 @@ class TestRecordAndCheck:
     def test_persists_across_reads(self) -> None:
         record_skill(_TASK, "git-usage")
         assert is_skill_called(_TASK, "git-usage")
-        assert is_skill_called(_TASK, "git-usage")
-
-
-class TestConsumeSkill:
-    def test_not_called_returns_false(self) -> None:
-        assert consume_skill(_TASK, "confirm-push") is False
-
-    def test_record_then_consume_returns_true_and_clears(self) -> None:
-        record_skill(_TASK, "confirm-push")
-        assert consume_skill(_TASK, "confirm-push") is True
-        assert not is_skill_called(_TASK, "confirm-push")
-
-    def test_second_consume_returns_false(self) -> None:
-        record_skill(_TASK, "confirm-push")
-        consume_skill(_TASK, "confirm-push")
-        assert consume_skill(_TASK, "confirm-push") is False
-
-    def test_consuming_does_not_affect_other_skills(self) -> None:
-        record_skill(_TASK, "confirm-push")
-        record_skill(_TASK, "git-usage")
-        consume_skill(_TASK, "confirm-push")
         assert is_skill_called(_TASK, "git-usage")
 
 

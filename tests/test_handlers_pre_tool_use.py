@@ -296,36 +296,19 @@ class TestForwardsAgentType:
         assert all(kw.get("agent_type") == "" for kw in captured)
 
 
-class TestGitPushConfirmation:
-    def test_push_without_confirmation_is_blocked(self) -> None:
+class TestGitPushMarkerBlock:
+    def test_push_without_marker_is_allowed(self) -> None:
         record_skill("task-1", "git-usage")
-        result = _run("Bash", {"command": "git push"})
-        assert result is not None
-        assert "confirm-push" in cast("str", result.get("errorMessage", ""))
-
-    def test_push_via_absolute_git_path_without_confirmation_is_blocked(self) -> None:
-        record_skill("task-1", "git-usage")
-        result = _run("Bash", {"command": "/usr/bin/git push"})
-        assert result is not None
-        assert "confirm-push" in cast("str", result.get("errorMessage", ""))
-
-    def test_push_after_confirmation_is_allowed(self) -> None:
-        record_skill("task-1", "git-usage")
-        record_skill("task-1", "confirm-push")
         result = _run("Bash", {"command": "git push"})
         assert result is None
 
-    def test_second_push_after_one_confirmation_is_blocked(self) -> None:
+    def test_push_via_absolute_git_path_without_marker_is_allowed(self) -> None:
         record_skill("task-1", "git-usage")
-        record_skill("task-1", "confirm-push")
-        _run("Bash", {"command": "git push"})
-        result = _run("Bash", {"command": "git push"})
-        assert result is not None
-        assert "confirm-push" in cast("str", result.get("errorMessage", ""))
+        result = _run("Bash", {"command": "/usr/bin/git push"})
+        assert result is None
 
-    def test_marker_blocks_push_even_with_confirmation(self, tmp_path: Path, mocker: MockerFixture) -> None:
+    def test_marker_blocks_push(self, tmp_path: Path, mocker: MockerFixture) -> None:
         record_skill("task-1", "git-usage")
-        record_skill("task-1", "confirm-push")
         (tmp_path / "some-marker").mkdir()
         repo_dir = tmp_path / "repo"
         repo_dir.mkdir()
