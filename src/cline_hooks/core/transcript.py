@@ -152,15 +152,7 @@ def _usage_from_line(line: str) -> dict[str, Any] | None:
 
 
 def _main_thread_usage(usage: dict[str, Any]) -> dict[str, Any]:
-    """Collapse a server-tool roll-up to the real main-thread context usage.
-
-    A turn that invokes a server-side tool (e.g. ``advisor``) reports a ``usage``
-    whose top-level token fields are summed across every internal iteration - the
-    main-thread call before the tool, the tool's own forwarded-context call, and
-    the main-thread call after - roughly doubling the apparent context. When
-    present, the ``iterations`` list holds the per-call breakdown; its last entry
-    of type "message" is the true post-turn main-thread context.
-    """
+    """Return the true main-thread usage, unwrapping a server-tool roll-up."""
     iterations = usage.get("iterations")
     if isinstance(iterations, list):
         messages = [it for it in iterations if isinstance(it, dict) and it.get("type") == "message"]
