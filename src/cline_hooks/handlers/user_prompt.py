@@ -60,38 +60,38 @@ _INFO_PATTERNS: list[re.Pattern[str]] = [
 
 _SCOPE_CHECK_REMINDER = (
     "SESSION LENGTH CHECK: This session has reached {turns} user turns. "
-    "Pause and assess: is this still one coherent change, or has scope crept? "
-    "If multiple unrelated changes have accumulated, commit what's done, note remaining work as TODOs, "
+    "MUST pause and assess: is this still one coherent change, or has scope crept? "
+    "Where multiple unrelated changes have accumulated, MUST commit what's done, note remaining work as TODOs, "
     "and suggest splitting into a new session."
 )
 
 # Update prompts/shared/rules/hooks.md if this correction reminder changes.
 _CORRECTION_REMINDER = (
     "CORRECTION DETECTED: The user is correcting your behavior. "
-    "Find and edit the relevant rule or skill SOURCE FILE now. "
+    "MUST find and edit the relevant rule or skill SOURCE FILE now. "
     "Memory alone is not enough - rules/skills are always loaded into context, memory must be searched for."
 )
 
 _AGENT_NUDGE_REMINDER = (
     "FAN-OUT CHECK: {turns} turns in and subagent use is lagging behind this session's length. "
-    "If there is non-trivial work left, parallelise with subagents (research, independent edits, verification) "
-    "rather than working sequentially."
+    "Where non-trivial work is left, MUST parallelise with subagents (research, independent edits, verification) "
+    "rather than work sequentially."
 )
 
 _PLAN_HANDOFF_NUDGE = (
-    "PLAN COMPLETE: A plan was just finalized this session. Consider handing off implementation to a fresh "
-    "session so planning and full implementation do not consume one long context. Persist the plan to memory "
+    "PLAN COMPLETE: A plan was just finalized this session. SHOULD hand off implementation to a fresh "
+    "session so planning and full implementation do not consume one long context. MUST persist the plan to memory "
     "(rather than a heavy handoff doc) and capture any queued follow-on tasks as TODOs so a fresh session can "
-    "pick up cleanly. If you prefer to continue implementing here, that is fine - this is a default, not a block."
+    "pick up cleanly. MAY continue implementing here - this is a default, not a block."
 )
 
 _INFO_REMINDER = (
     "REMINDER: Has the user said anything that should be persisted?\n"
-    "Check: new information, preferences, decisions -> persist to memory."
+    "MUST check: new information, preferences, decisions -> persist to memory."
 )
 
 _SIDE_REQUEST_REMINDER = (
-    "REMINDER: Scan recent turns for any side-request the user raised that hasn't been "
+    "REMINDER: MUST scan recent turns for any side-request the user raised that hasn't been "
     "tracked yet (a task/ entity in memory + a checklist entry), per the todos rule. "
     "A prose acknowledgment ('I'll get to that after') does not count as tracked."
 )
@@ -162,7 +162,7 @@ def handle_user_prompt_submit(hook: HookInputUserPromptSubmit) -> None:
 
     hour = now.hour
     if hour >= _LATE_NIGHT_START or hour < _EARLY_MORNING_END:
-        notes.append("You're working late/early. Double-check before committing or making major changes.")
+        notes.append("You're working late/early. MUST double-check before committing or making major changes.")
 
     if _contains_correction_signal(message):
         notes.append(_CORRECTION_REMINDER)

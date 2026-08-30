@@ -28,8 +28,8 @@ _DISMISSAL_PATTERNS: list[re.Pattern[str]] = [
 
 _DISMISSAL_NUDGE = (
     "DISMISSED ISSUE DETECTED: You described a problem as pre-existing/unrelated instead of "
-    "fixing it. Unless the user has explicitly told you not to, log a follow-up now (a memory "
-    "task/ entity or TODO) so it isn't lost."
+    "fixing it. Unless the user has explicitly told you not to, MUST log a follow-up now "
+    "(a memory task/ entity or TODO) so it isn't lost."
 )
 
 

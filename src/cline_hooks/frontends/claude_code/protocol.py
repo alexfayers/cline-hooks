@@ -79,6 +79,6 @@ class ClaudeCodeProtocol(KiroProtocol):
         user directly, so the model's reply can stay a single terse line.
         """
         return (
-            "RESEARCH TRACE: cite lookups behind this turn's claims. Reply with ONE "
+            "RESEARCH TRACE: MUST cite lookups behind this turn's claims, in ONE "
             "line only - the user already sees this hook's raw output."
         )

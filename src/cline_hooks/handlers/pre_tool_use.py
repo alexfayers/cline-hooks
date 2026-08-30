@@ -160,7 +160,7 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
         if not _starts_with_emoji(response):
             block(
                 "Response does not start with an emoji - context window may be degraded. "
-                "Use the new_task tool to start a fresh context.",
+                "MUST use the new_task tool to start a fresh context.",
                 task_id=hook.taskId,
                 tool_name=tool_name,
             )
@@ -173,7 +173,8 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
                 if line_count > _LARGE_FILE_THRESHOLD:
                     block(
                         f"{path} is {line_count} lines. "
-                        "Use a tool such as search_files with specific patterns instead of reading the whole file.",
+                        "MUST use a tool such as search_files with specific patterns "
+                        "instead of reading the whole file.",
                         task_id=hook.taskId,
                         tool_name=tool_name,
                     )
@@ -200,7 +201,7 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
         required_skill = required_skill_for([cmd.name for cmd in commands])
         if required_skill and not _is_skill_called(hook.taskId, required_skill):
             block(
-                f"Use the `{required_skill}` skill before running this command",
+                f"MUST use the `{required_skill}` skill before running this command",
                 task_id=hook.taskId,
                 tool_name=tool_name,
             )
@@ -211,8 +212,8 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
                 block(
                     f"git push is blocked here: this repository is inside a managed "
                     f"workspace (a '{marker}' entry was found at or above the repo root). "
-                    f"Use the workspace's own review/submit workflow instead of pushing "
-                    f"directly.",
+                    f"MUST use the workspace's own review/submit workflow instead of "
+                    f"pushing directly.",
                     task_id=hook.taskId,
                     tool_name=tool_name,
                 )
@@ -221,7 +222,8 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
         file_path = parameters.get("path", "") or parameters.get("file_path", "")
         if file_path and _is_managed_path(file_path):
             block(
-                f"{file_path} is managed by llm-prompts. Edit the source file instead, then run `llm-prompts update`.",
+                f"{file_path} is managed by llm-prompts. MUST edit the source file "
+                "instead, then run `llm-prompts update`.",
                 task_id=hook.taskId,
                 tool_name=tool_name,
             )
@@ -240,14 +242,12 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
                 if (stripped_line := line.strip()) and contains_comment(line):
                     logger.debug("comment in line: %s", stripped_line)
                     if "# type: ignore" in stripped_line and "ignore[" not in stripped_line:
-                        notes.add(
-                            "Avoid using type ignore comments where possible. If necessary, use specific ignores."
-                        )
+                        notes.add("SHOULD NOT use type ignore comments; where necessary, MUST use a specific ignore.")
                     else:
                         notes.add(
-                            "It is extremely important that you NEVER write comments explaining the "
-                            "reasoning for a specific change. Comments should only be used to explain "
-                            "complex code. If comments are required, consider a different approach."
+                            "MUST NOT write comments explaining the reasoning for a specific change. "
+                            "Comments SHOULD only be used to explain complex code. If comments are "
+                            "required, consider a different approach."
                         )
 
         if notes:
@@ -270,7 +270,7 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
         incomplete = [line for line in task_progress.splitlines() if line.strip().startswith("- [ ]")]
         if incomplete:
             block(
-                f"task_progress has {len(incomplete)} incomplete item(s). Complete them before finishing.",
+                f"task_progress has {len(incomplete)} incomplete item(s). MUST complete them before finishing.",
                 task_id=hook.taskId,
                 tool_name=tool_name,
             )

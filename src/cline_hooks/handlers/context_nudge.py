@@ -15,17 +15,17 @@ _CONTEXT_STATUS = "CONTEXT STATUS: ~{tokens:,} tokens in use."
 _CONTEXT_NUDGE_INFO = f"{_CONTEXT_STATUS} No action needed yet."
 
 _CONTEXT_NUDGE_REDUCED = (
-    f"{_CONTEXT_STATUS} Accuracy degrading past {CONTEXT_REDUCED_THRESHOLD // 1000}k. Ask the user before "
-    "starting new planning or implementation. If continuing, record current state in memory."
+    f"{_CONTEXT_STATUS} Accuracy degrading past {CONTEXT_REDUCED_THRESHOLD // 1000}k. MUST ask the user before "
+    "starting new planning or implementation. To continue, MUST record current state in memory."
 )
 
 _CONTEXT_NUDGE_SEVERE = (
-    f"{_CONTEXT_STATUS} Accuracy badly degraded. Push back on new work - record current state in memory "
+    f"{_CONTEXT_STATUS} Accuracy badly degraded. MUST push back on new work - record current state in memory "
     "and hand off to a fresh session unless told to continue."
 )
 
 _TEAM_ACTIVE_CLAUSE = (
-    "An agent team appears to be active this session. Before handing off, collect each teammate's progress "
+    "An agent team appears to be active this session. Before handing off, MUST collect each teammate's progress "
     "into memory/TODOs and stop the team (TaskStop) so it does not keep running after this session ends."
 )
 

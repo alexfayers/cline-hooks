@@ -32,7 +32,7 @@ class Protocol(ABC):
     def research_trace_header(self) -> str:
         """Return the instruction header prepended to a Stop research trace."""
         return (
-            "RESEARCH TRACE: cite lookups behind this turn's claims. Reply with ONE "
+            "RESEARCH TRACE: MUST cite lookups behind this turn's claims, in ONE "
             "line only - the user already sees this hook's raw output."
         )
 

@@ -49,7 +49,7 @@ class KiroProtocol(Protocol):
         as repeating a URL a second time in parentheses.
         """
         return (
-            "RESEARCH TRACE: start your reply with a line break, then write ONE "
+            "RESEARCH TRACE: MUST start your reply with a line break, then write ONE "
             "line in exactly this format and nothing else: Sources: <tool> "
             '"<detail>", <tool> "<detail>", ... - substituting each tool/detail '
             "pair from the lookups below, copied verbatim, each detail written "

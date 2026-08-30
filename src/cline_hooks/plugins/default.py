@@ -58,48 +58,48 @@ class DefaultPlugin(HooksPlugin):
             CommandRule(
                 command="rm",
                 blocked_flags=frozenset({"-f", "--force"}),
-                message="rm -f is not allowed. Remove the -f flag.",
+                message="rm -f is not allowed. MUST drop the -f flag.",
             ),
             CommandRule(
                 command="git",
-                message="Commit messages must be single-line. Do not add a body.",
+                message="Commit messages MUST be single-line with no body.",
                 validator=validate_git_commit_message,
             ),
             CommandRule(
                 command="cat",
-                message="Use the Read tool instead of cat to read files.",
+                message="MUST read files with the Read tool, not cat.",
                 validator=_is_standalone,
             ),
             CommandRule(
                 command="grep",
-                message="Do not filter build output with grep - always capture the full output.",
+                message="MUST NOT filter build output with grep - MUST capture the full output.",
                 validator=_requires_build_context,
             ),
             CommandRule(
                 command="head",
-                message="Do not filter build output with head - always capture the full output.",
+                message="MUST NOT filter build output with head - MUST capture the full output.",
                 validator=_requires_build_context,
             ),
             CommandRule(
                 command="head",
-                message="Use the Read tool instead of head to read files.",
+                message="MUST read files with the Read tool, not head.",
                 validator=_is_standalone,
             ),
             CommandRule(
                 command="tail",
-                message="Do not filter build output with tail - always capture the full output.",
+                message="MUST NOT filter build output with tail - MUST capture the full output.",
                 validator=_requires_build_context,
             ),
             CommandRule(
                 command="tail",
-                message="Use the Read tool instead of tail to read files.",
+                message="MUST read files with the Read tool, not tail.",
                 validator=_is_standalone_tail,
             ),
             CommandRule(
                 command="true",
                 message=(
-                    "`true` is not allowed as a standalone command. If you're waiting on a background "
-                    "agent or task, end your turn instead - a completion notification will resume you "
+                    "MUST NOT use `true` as a standalone command. When waiting on a background agent "
+                    "or task, MUST end your turn - a completion notification resumes you "
                     "automatically."
                 ),
                 validator=_is_standalone,
@@ -107,8 +107,8 @@ class DefaultPlugin(HooksPlugin):
             CommandRule(
                 command="echo",
                 message=(
-                    "echo is not allowed as a standalone command. Output text directly instead of "
-                    "echoing it, and never use echo to pass time while waiting on a background task."
+                    "MUST NOT use echo as a standalone command, or use it to pass time while waiting "
+                    "on a background task. MUST output text directly instead of echoing it."
                 ),
                 validator=_is_standalone,
             ),

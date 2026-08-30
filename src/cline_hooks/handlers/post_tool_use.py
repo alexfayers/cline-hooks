@@ -49,7 +49,7 @@ _SKILL_MD_PATH = re.compile(r"([\w.-]+)/SKILL\.md\b")
 
 _COMMIT_REMINDER = (
     "COMMIT REMINDER: There are a large number of uncommitted changes. "
-    "Consider committing your work now to keep changes manageable."
+    "SHOULD commit your work now to keep changes manageable."
 )
 _COMMIT_LINE_THRESHOLD = 200
 
@@ -63,7 +63,7 @@ _WRAP_UP_SKILLS = frozenset({"session-end", "handoff"})
 _RETRO_THRESHOLD = 5
 _RETRO_REMINDER = (
     "You have completed {count} sessions since your last /retrospective. "
-    "Consider running it to capture learnings across recent sessions."
+    "SHOULD run it to capture learnings across recent sessions."
 )
 
 
@@ -367,8 +367,8 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> None:  # noqa: PLR0912, 
     if not hook.postToolUse.success:
         logger.warning("Tool %s failed", tool_name)
         allow(
-            "A tool just failed. When you fix this, persist what went wrong and the fix "
-            "to memory (and to rules/skills if it reveals a missing process step).",
+            "A tool just failed. When you fix this, MUST persist what went wrong and the fix "
+            "to memory (and to rules/skills where it reveals a missing process step).",
             prefix="",
         )
         return

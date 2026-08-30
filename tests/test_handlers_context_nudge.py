@@ -31,7 +31,7 @@ class TestContextNote:
     def test_reduced_note_instructs_asking_before_new_work(self) -> None:
         note = context_note("task-1", _JUST_ABOVE_REDUCED)
         assert note is not None
-        assert "Ask the user" in note
+        assert "MUST ask the user" in note
 
     def test_severe_note_on_first_crossing(self) -> None:
         note = context_note("task-1", _JUST_ABOVE_SEVERE)

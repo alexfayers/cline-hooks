@@ -69,7 +69,7 @@ _DETECTORS: tuple[ToolingDetector, ...] = (
         marker_file="pyproject.toml",
         command="uv",
         note_with_tool=(
-            "This is a Python project (pyproject.toml). Prefer `uv run`/`uv add` over invoking pip/python directly."
+            "This is a Python project (pyproject.toml). SHOULD use `uv run`/`uv add`, not pip/python directly."
         ),
         note_without_tool="This is a Python project (pyproject.toml).",
     ),
