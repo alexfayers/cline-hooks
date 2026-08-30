@@ -25,7 +25,7 @@ def get_context_tokens(transcript_path: str) -> int | None:
         The context-token count, or None if the file is unreadable or contains
         no main-thread assistant message with usage data.
     """
-    latest_usage: dict[str, int] | None = None
+    latest_usage: dict[str, Any] | None = None
     try:
         with Path(transcript_path).open(encoding="utf-8") as handle:
             for line in handle:
@@ -37,11 +37,17 @@ def get_context_tokens(transcript_path: str) -> int | None:
 
     if latest_usage is None:
         return None
-    return (
-        latest_usage.get("input_tokens", 0)
-        + latest_usage.get("cache_read_input_tokens", 0)
-        + latest_usage.get("cache_creation_input_tokens", 0)
-    )
+    return _sum_context_fields(latest_usage)
+
+
+def _sum_context_fields(usage: dict[str, Any]) -> int:
+    """Sum the token fields that make up the context sent to the model."""
+    total = 0
+    for key in ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"):
+        value = usage.get(key)
+        if isinstance(value, int):
+            total += value
+    return total
 
 
 def get_turn_assistant_text(transcript_path: str) -> str:
@@ -121,7 +127,7 @@ def _is_user_prompt(entry: dict[str, Any]) -> bool:
     return False
 
 
-def _usage_from_line(line: str) -> dict[str, int] | None:
+def _usage_from_line(line: str) -> dict[str, Any] | None:
     """Extract usage data from a transcript line if it is a main-thread assistant message.
 
     Args:
@@ -142,4 +148,22 @@ def _usage_from_line(line: str) -> dict[str, int] | None:
     usage = message.get("usage")
     if not isinstance(usage, dict):
         return None
+    return _main_thread_usage(usage)
+
+
+def _main_thread_usage(usage: dict[str, Any]) -> dict[str, Any]:
+    """Collapse a server-tool roll-up to the real main-thread context usage.
+
+    A turn that invokes a server-side tool (e.g. ``advisor``) reports a ``usage``
+    whose top-level token fields are summed across every internal iteration - the
+    main-thread call before the tool, the tool's own forwarded-context call, and
+    the main-thread call after - roughly doubling the apparent context. When
+    present, the ``iterations`` list holds the per-call breakdown; its last entry
+    of type "message" is the true post-turn main-thread context.
+    """
+    iterations = usage.get("iterations")
+    if isinstance(iterations, list):
+        messages = [it for it in iterations if isinstance(it, dict) and it.get("type") == "message"]
+        if messages:
+            return messages[-1]
     return usage
