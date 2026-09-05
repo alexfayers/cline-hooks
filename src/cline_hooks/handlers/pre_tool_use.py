@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -28,9 +29,13 @@ from cline_hooks.state.skills import (
 from cline_hooks.state.store import TaskStateStore
 
 try:
-    from llm_prompts.install import get_managed_files as _get_managed_files_impl
+    from llm_prompts.install import (
+        get_managed_files as _get_managed_files_impl,
+        get_source_for_managed_file as _get_source_impl,
+    )
 except ImportError:
     _get_managed_files_impl = None
+    _get_source_impl = None
 
 if TYPE_CHECKING:
     from cline_hooks.core.models import HookInputPreToolUse
@@ -71,6 +76,25 @@ def _is_managed_path(path: str) -> bool:
     if resolved in managed:
         return True
     return any(resolved.startswith(managed_path + "/") for managed_path in managed)
+
+
+def _managed_source_instruction(path: str) -> str:
+    """Return the edit instruction for a managed path, naming its source file.
+
+    Args:
+        path: The managed destination path.
+
+    Returns:
+        Instruction naming the resolved source file, or a generic instruction
+        where the source cannot be resolved.
+    """
+    if _get_source_impl is not None:
+        source = None
+        with contextlib.suppress(Exception):
+            source = _get_source_impl(path)
+        if source:
+            return f"MUST edit the source file {source} instead"
+    return "MUST edit the source file instead"
 
 
 def _starts_with_emoji(text: str) -> bool:
@@ -222,8 +246,9 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
         file_path = parameters.get("path", "") or parameters.get("file_path", "")
         if file_path and _is_managed_path(file_path):
             block(
-                f"{file_path} is managed by llm-prompts. MUST edit the source file "
-                "instead, then run `llm-prompts update`.",
+                f"{file_path} is managed by llm-prompts. "
+                f"{_managed_source_instruction(file_path)}, "
+                "then run `llm-prompts update`.",
                 task_id=hook.taskId,
                 tool_name=tool_name,
             )

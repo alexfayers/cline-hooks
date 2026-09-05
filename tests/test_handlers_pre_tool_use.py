@@ -409,3 +409,54 @@ class TestManagedFileWriteGuard:
             },
         )
         assert result is None or "source file" not in cast("str", result.get("errorMessage", "")).lower()
+
+    def test_edit_blocked_message_names_resolved_source(self, mocker: MockerFixture) -> None:
+        mocker.patch(
+            "cline_hooks.handlers.pre_tool_use._get_source_impl",
+            return_value="/src/rules/managed-rule.md",
+        )
+        result = _run(
+            "Edit",
+            {
+                "file_path": self._MANAGED_FILE,
+                "old_string": "old",
+                "new_string": "new",
+            },
+        )
+        assert result is not None
+        assert "/src/rules/managed-rule.md" in cast("str", result.get("errorMessage", ""))
+
+    def test_edit_blocked_message_falls_back_when_source_unresolved(self, mocker: MockerFixture) -> None:
+        mocker.patch("cline_hooks.handlers.pre_tool_use._get_source_impl", return_value=None)
+        result = _run(
+            "Edit",
+            {
+                "file_path": self._MANAGED_FILE,
+                "old_string": "old",
+                "new_string": "new",
+            },
+        )
+        assert result is not None
+        assert cast("str", result.get("errorMessage", "")) == (
+            f"{self._MANAGED_FILE} is managed by llm-prompts. MUST edit the source file "
+            "instead, then run `llm-prompts update`."
+        )
+
+    def test_edit_blocked_message_falls_back_when_source_resolution_raises(self, mocker: MockerFixture) -> None:
+        mocker.patch(
+            "cline_hooks.handlers.pre_tool_use._get_source_impl",
+            side_effect=RuntimeError("boom"),
+        )
+        result = _run(
+            "Edit",
+            {
+                "file_path": self._MANAGED_FILE,
+                "old_string": "old",
+                "new_string": "new",
+            },
+        )
+        assert result is not None
+        assert cast("str", result.get("errorMessage", "")) == (
+            f"{self._MANAGED_FILE} is managed by llm-prompts. MUST edit the source file "
+            "instead, then run `llm-prompts update`."
+        )
