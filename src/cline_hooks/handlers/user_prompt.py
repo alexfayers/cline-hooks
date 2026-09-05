@@ -68,8 +68,7 @@ _SCOPE_CHECK_REMINDER = (
 # Update prompts/shared/rules/hooks.md if this correction reminder changes.
 _CORRECTION_REMINDER = (
     "CORRECTION DETECTED: The user is correcting your behavior. "
-    "MUST find and edit the relevant rule or skill SOURCE FILE now. "
-    "Memory alone is not enough - rules/skills are always loaded into context, memory must be searched for."
+    "MUST persist the correction to memory now, then ASK whether they want a rule or skill change for it."
 )
 
 _AGENT_NUDGE_REMINDER = (
