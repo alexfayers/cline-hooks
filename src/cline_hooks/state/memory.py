@@ -12,15 +12,17 @@ logger = logging.getLogger("hooks")
 
 _STATE_PATH = get_data_dir() / "memory-state.json"
 
-_MEMORY_WRITE_TOOLS: frozenset[str] = frozenset({
-    "create_entities",
-    "add_observations",
-    "set_entity_status",
-    "create_relations",
-    "delete_entity",
-    "delete_observations",
-    "delete_relation",
-})
+_MEMORY_WRITE_TOOLS: frozenset[str] = frozenset(
+    {
+        "create_entities",
+        "add_observations",
+        "set_entity_status",
+        "create_relations",
+        "delete_entity",
+        "delete_observations",
+        "delete_relation",
+    }
+)
 
 
 def _read() -> dict[str, list[str]]:

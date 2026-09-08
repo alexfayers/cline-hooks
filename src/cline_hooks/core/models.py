@@ -1,29 +1,19 @@
 # ruff: noqa: N815
 from __future__ import annotations
 
-from dataclasses import dataclass, field, fields
-import json
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeVar, get_args
+
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+
+from cline_hooks.core.vocabulary import CanonicalHook
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
 
 logger = logging.getLogger("hooks")
 
-
-def inheritors(klass: type) -> set[type]:
-    """Return all classes that inherit from the given class.
-
-    Returns:
-        set[type]: The inheritors of the given class.
-    """
-    subclasses: set[type] = set()
-    work: list[type] = [klass]
-    while work:
-        parent = work.pop()
-        for child in parent.__subclasses__():
-            if child not in subclasses:
-                subclasses.add(child)
-                work.append(child)
-    return subclasses
+_HookInputT = TypeVar("_HookInputT", bound="HookInput")
 
 
 def extract_mcp_tool_name(tool_name: str) -> str:
@@ -43,31 +33,57 @@ def extract_mcp_tool_name(tool_name: str) -> str:
     return tool_name
 
 
-@dataclass
-class HookInput:
+class HookFields(BaseModel):
+    """Base class for per-hook payload fields, tolerant of unknown input."""
+
+    model_config = ConfigDict(extra="ignore")
+
+
+class HookInput(BaseModel):
     """Base class for all hook inputs.
 
-    Subclasses should set `hookName` as a class-level default to enable
-    automatic dispatch in `parse_data`.
+    Subclasses set `hookName` as a class-level default and register
+    themselves in `HOOK_INPUTS` via the `hook_input` decorator.
     """
+
+    model_config = ConfigDict(extra="ignore")
+
+    payload_field: ClassVar[str] = ""
 
     hookName: str
     taskId: str = ""
-    workspaceRoots: list[str] = field(default_factory=list)
+    workspaceRoots: list[str] = Field(default_factory=list)
     transcriptPath: str = ""
     agentType: str = ""
 
+    @classmethod
+    def build(cls, data: Mapping[str, Any]) -> Self:
+        """Construct an instance from raw hook data, never raising.
 
-@dataclass
-class PreToolUseFields:
+        A malformed known field falls back to `model_construct`, which skips
+        validation and coercion and keeps the raw value.
+
+        Args:
+            data: The raw hook input data.
+
+        Returns:
+            A validated instance, or an unvalidated fallback on failure.
+        """
+        try:
+            return cls.model_validate(dict(data))
+        except ValidationError:
+            logger.warning("Invalid %s data: %s", cls.__name__, dict(data))
+            return cls.model_construct(**dict(data))
+
+
+class PreToolUseFields(HookFields):
     """Fields specific to PreToolUse hooks."""
 
     toolName: str
     parameters: dict[str, Any]
 
 
-@dataclass
-class PostToolUseFields:
+class PostToolUseFields(HookFields):
     """Fields specific to PostToolUse hooks."""
 
     toolName: str
@@ -77,193 +93,156 @@ class PostToolUseFields:
     result: str | None = None
 
 
-@dataclass
-class TaskStartFields:
+class TaskStartFields(HookFields):
     """Fields specific to TaskStart hooks."""
 
     task: str = ""
     source: str = ""
 
 
-@dataclass
-class TaskResumeFields:
+class TaskResumeFields(HookFields):
     """Fields specific to TaskResume hooks."""
 
     task: str = ""
 
 
-@dataclass
-class TaskCancelFields:
+class TaskCancelFields(HookFields):
     """Fields specific to TaskCancel hooks."""
 
 
-@dataclass
-class TaskCompleteFields:
+class TaskCompleteFields(HookFields):
     """Fields specific to TaskComplete hooks."""
 
 
-@dataclass
-class UserPromptSubmitFields:
+class UserPromptSubmitFields(HookFields):
     """Fields specific to UserPromptSubmit hooks."""
 
     userMessage: str = ""
 
 
-@dataclass
-class PreCompactFields:
+class PreCompactFields(HookFields):
     """Fields specific to PreCompact hooks."""
 
-    conversationLength: int
-    estimatedTokens: int
+    conversationLength: int = 0
+    estimatedTokens: int = 0
 
 
-@dataclass
-class StopFields:
+class StopFields(HookFields):
     """Fields specific to Stop hooks."""
 
     stopHookActive: bool = False
 
 
-@dataclass
+HOOK_INPUTS: dict[str, type[HookInput]] = {}
+
+
+def hook_input(hook: CanonicalHook) -> Callable[[type[_HookInputT]], type[_HookInputT]]:
+    """Register a HookInput subclass for a canonical hook.
+
+    Derives the payload field name by finding the single field whose
+    annotation is a `HookFields` subclass (possibly wrapped in `X | None`).
+
+    Args:
+        hook: The canonical hook this input class applies to.
+
+    Returns:
+        A decorator that registers the decorated class and returns it unchanged.
+
+    Raises:
+        TypeError: If the class does not have exactly one payload field.
+    """
+
+    def decorator(cls: type[_HookInputT]) -> type[_HookInputT]:
+        HOOK_INPUTS[hook] = cls
+
+        payload_fields: list[str] = []
+        for name, field_info in cls.model_fields.items():
+            annotation = field_info.annotation
+            candidates = get_args(annotation) or (annotation,)
+            for candidate in candidates:
+                if isinstance(candidate, type) and issubclass(candidate, HookFields):
+                    payload_fields.append(name)
+                    break
+
+        if len(payload_fields) != 1:
+            raise TypeError(
+                f"{cls.__name__} must have exactly one HookFields payload field, "
+                f"found {len(payload_fields)}"
+            )
+
+        cls.payload_field = payload_fields[0]
+        return cls
+
+    return decorator
+
+
+@hook_input(CanonicalHook.PRE_TOOL_USE)
 class HookInputPreToolUse(HookInput):
     """Hook input for PreToolUse events."""
 
     preToolUse: PreToolUseFields | None = None
     hookName: str = "PreToolUse"
 
-    def __post_init__(self) -> None:
-        if isinstance(self.preToolUse, dict):
-            self.preToolUse = PreToolUseFields(**_filter_fields(PreToolUseFields, self.preToolUse))
 
-
-@dataclass
+@hook_input(CanonicalHook.POST_TOOL_USE)
 class HookInputPostToolUse(HookInput):
     """Hook input for PostToolUse events."""
 
     postToolUse: PostToolUseFields | None = None
     hookName: str = "PostToolUse"
 
-    def __post_init__(self) -> None:
-        if isinstance(self.postToolUse, dict):
-            self.postToolUse = PostToolUseFields(**_filter_fields(PostToolUseFields, self.postToolUse))
 
-
-@dataclass
+@hook_input(CanonicalHook.TASK_START)
 class HookInputTaskStart(HookInput):
     """Hook input for TaskStart events."""
 
     taskStart: TaskStartFields | None = None
     hookName: str = "TaskStart"
 
-    def __post_init__(self) -> None:
-        if isinstance(self.taskStart, dict):
-            self.taskStart = TaskStartFields(**_filter_fields(TaskStartFields, self.taskStart))
 
-
-@dataclass
+@hook_input(CanonicalHook.TASK_RESUME)
 class HookInputTaskResume(HookInput):
     """Hook input for TaskResume events."""
 
     taskResume: TaskResumeFields | None = None
     hookName: str = "TaskResume"
 
-    def __post_init__(self) -> None:
-        if isinstance(self.taskResume, dict):
-            self.taskResume = TaskResumeFields(**_filter_fields(TaskResumeFields, self.taskResume))
 
-
-@dataclass
+@hook_input(CanonicalHook.TASK_CANCEL)
 class HookInputTaskCancel(HookInput):
     """Hook input for TaskCancel events."""
 
     taskCancel: TaskCancelFields | None = None
     hookName: str = "TaskCancel"
 
-    def __post_init__(self) -> None:
-        if isinstance(self.taskCancel, dict):
-            self.taskCancel = TaskCancelFields(**_filter_fields(TaskCancelFields, self.taskCancel))
 
-
-@dataclass
+@hook_input(CanonicalHook.TASK_COMPLETE)
 class HookInputTaskComplete(HookInput):
     """Hook input for TaskComplete events."""
 
     taskComplete: TaskCompleteFields | None = None
     hookName: str = "TaskComplete"
 
-    def __post_init__(self) -> None:
-        if isinstance(self.taskComplete, dict):
-            self.taskComplete = TaskCompleteFields(**_filter_fields(TaskCompleteFields, self.taskComplete))
 
-
-@dataclass
+@hook_input(CanonicalHook.USER_PROMPT_SUBMIT)
 class HookInputUserPromptSubmit(HookInput):
     """Hook input for UserPromptSubmit events."""
 
     userPromptSubmit: UserPromptSubmitFields | None = None
     hookName: str = "UserPromptSubmit"
 
-    def __post_init__(self) -> None:
-        if isinstance(self.userPromptSubmit, dict):
-            self.userPromptSubmit = UserPromptSubmitFields(
-                **_filter_fields(UserPromptSubmitFields, self.userPromptSubmit)
-            )
 
-
-@dataclass
+@hook_input(CanonicalHook.PRE_COMPACT)
 class HookInputPreCompact(HookInput):
     """Hook input for PreCompact events."""
 
     preCompact: PreCompactFields | None = None
     hookName: str = "PreCompact"
 
-    def __post_init__(self) -> None:
-        if isinstance(self.preCompact, dict):
-            self.preCompact = PreCompactFields(**_filter_fields(PreCompactFields, self.preCompact))
 
-
-@dataclass
+@hook_input(CanonicalHook.STOP)
 class HookInputStop(HookInput):
     """Hook input for Stop events."""
 
     stop: StopFields | None = None
     hookName: str = "Stop"
-
-    def __post_init__(self) -> None:
-        if isinstance(self.stop, dict):
-            self.stop = StopFields(**_filter_fields(StopFields, self.stop))
-
-
-@dataclass
-class McpToolUse:
-    """Parsed MCP tool use from use_mcp_tool parameters."""
-
-    server_name: str
-    tool_name: str
-    arguments: dict[str, Any] = field(default_factory=dict)
-    task_progress: str | None = None
-
-    def __post_init__(self) -> None:
-        if isinstance(self.arguments, str):
-            try:
-                self.arguments = json.loads(self.arguments)
-            except json.JSONDecodeError:
-                logger.warning("Failed to parse MCP arguments as JSON: %s", self.arguments)
-
-        if not self.arguments:
-            logger.warning("No arguments found for tool %s", self.tool_name)
-            self.arguments = {}
-
-
-def _filter_fields(cls: type, data: dict[str, Any]) -> dict[str, Any]:
-    """Return only keys from data that are valid fields for the given dataclass.
-
-    Args:
-        cls: The dataclass type to filter for.
-        data: The raw input dictionary.
-
-    Returns:
-        A dict containing only the keys accepted by cls.
-    """
-    known = {f.name for f in fields(cls)}
-    return {k: v for k, v in data.items() if k in known}

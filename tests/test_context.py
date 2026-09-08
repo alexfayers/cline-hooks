@@ -56,7 +56,10 @@ class TestLegacyIntEntryMigration:
 
         _STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
         _STATE_PATH.write_text('{"legacy-task": 5}')
-        assert crossed_boundary("legacy-task", CONTEXT_REDUCED_THRESHOLD + _BAND_SIZE) == CONTEXT_REDUCED_THRESHOLD
+        assert (
+            crossed_boundary("legacy-task", CONTEXT_REDUCED_THRESHOLD + _BAND_SIZE)
+            == CONTEXT_REDUCED_THRESHOLD
+        )
 
 
 class TestReset:

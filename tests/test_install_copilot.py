@@ -4,9 +4,14 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-from cline_hooks.frontends.copilot.install import _COPILOT_HOOKS, install_copilot
+from cline_hooks.frontends.copilot.install import install_copilot
+from cline_hooks.frontends.copilot.protocol import CopilotProtocol
 
 _FAKE_PYTHON = str(Path("/fake/bin/python"))
+_NATIVE_HOOK_NAMES = tuple(
+    registration.native_name
+    for registration in CopilotProtocol.supported_hooks.values()
+)
 
 
 class TestInstallCopilot:
@@ -17,23 +22,29 @@ class TestInstallCopilot:
     def test_creates_hooks_file_when_missing(self, tmp_path: Path) -> None:
         with (
             patch("cline_hooks.core.install.sys.executable", _FAKE_PYTHON),
-            patch("cline_hooks.frontends.copilot.install.Path.home", return_value=tmp_path),
+            patch(
+                "cline_hooks.frontends.copilot.install.Path.home", return_value=tmp_path
+            ),
         ):
             install_copilot()
 
         hooks_path = tmp_path / ".copilot" / "hooks" / "cline-hooks.json"
         result = json.loads(hooks_path.read_text())
-        assert set(result["hooks"].keys()) == set(_COPILOT_HOOKS)
+        assert set(result["hooks"].keys()) == set(_NATIVE_HOOK_NAMES)
 
     def test_hook_entries_have_type_and_command(self, tmp_path: Path) -> None:
         with (
             patch("cline_hooks.core.install.sys.executable", _FAKE_PYTHON),
-            patch("cline_hooks.frontends.copilot.install.Path.home", return_value=tmp_path),
+            patch(
+                "cline_hooks.frontends.copilot.install.Path.home", return_value=tmp_path
+            ),
         ):
             install_copilot()
 
-        result = json.loads((tmp_path / ".copilot" / "hooks" / "cline-hooks.json").read_text())
-        for event_name in _COPILOT_HOOKS:
+        result = json.loads(
+            (tmp_path / ".copilot" / "hooks" / "cline-hooks.json").read_text()
+        )
+        for event_name in _NATIVE_HOOK_NAMES:
             entry = result["hooks"][event_name][0]
             assert entry["type"] == "command"
             assert entry["command"] == self._expected_binary()
@@ -45,7 +56,9 @@ class TestInstallCopilot:
 
         with (
             patch("cline_hooks.core.install.sys.executable", _FAKE_PYTHON),
-            patch("cline_hooks.frontends.copilot.install.Path.home", return_value=tmp_path),
+            patch(
+                "cline_hooks.frontends.copilot.install.Path.home", return_value=tmp_path
+            ),
         ):
             install_copilot()
 
@@ -65,7 +78,9 @@ class TestInstallCopilot:
 
         with (
             patch("cline_hooks.core.install.sys.executable", _FAKE_PYTHON),
-            patch("cline_hooks.frontends.copilot.install.Path.home", return_value=tmp_path),
+            patch(
+                "cline_hooks.frontends.copilot.install.Path.home", return_value=tmp_path
+            ),
         ):
             install_copilot()
 
@@ -77,11 +92,15 @@ class TestInstallCopilot:
     def test_idempotent_when_already_installed(self, tmp_path: Path) -> None:
         with (
             patch("cline_hooks.core.install.sys.executable", _FAKE_PYTHON),
-            patch("cline_hooks.frontends.copilot.install.Path.home", return_value=tmp_path),
+            patch(
+                "cline_hooks.frontends.copilot.install.Path.home", return_value=tmp_path
+            ),
         ):
             install_copilot()
             install_copilot()
 
-        result = json.loads((tmp_path / ".copilot" / "hooks" / "cline-hooks.json").read_text())
+        result = json.loads(
+            (tmp_path / ".copilot" / "hooks" / "cline-hooks.json").read_text()
+        )
         commands = [entry["command"] for entry in result["hooks"]["SessionStart"]]
         assert commands.count(self._expected_binary()) == 1

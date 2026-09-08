@@ -60,7 +60,9 @@ class ToolingNote:
     replaces_generic: bool = True
 
 
-def collect_hook_results(plugins: list[HooksPlugin], hook_name: str, **kwargs: object) -> HookResult:
+def collect_hook_results(
+    plugins: list[HooksPlugin], hook_name: str, **kwargs: object
+) -> HookResult:
     """Collect and merge HookResults from all plugins for a given hook.
 
     Args:
@@ -122,7 +124,9 @@ class HooksPlugin:
         """
         return frozenset()
 
-    def get_research_detail_extractors(self) -> dict[str, Callable[[dict[str, Any]], str]]:
+    def get_research_detail_extractors(
+        self,
+    ) -> dict[str, Callable[[dict[str, Any]], str]]:
         """Return per-tool detail extractors for research lookups.
 
         Each maps a research tool name to a callable that derives a short
@@ -194,11 +198,17 @@ def load_plugins() -> list[HooksPlugin]:
 
     loaded: list[HooksPlugin] = []
 
-    for _finder, name, _ispkg in pkgutil.iter_modules(_plugins_pkg.__path__, _plugins_pkg.__name__ + "."):
+    for _finder, name, _ispkg in pkgutil.iter_modules(
+        _plugins_pkg.__path__, _plugins_pkg.__name__ + "."
+    ):
         try:
             module = importlib.import_module(name)
             for attr in vars(module).values():
-                if isinstance(attr, type) and issubclass(attr, HooksPlugin) and attr is not HooksPlugin:
+                if (
+                    isinstance(attr, type)
+                    and issubclass(attr, HooksPlugin)
+                    and attr is not HooksPlugin
+                ):
                     loaded.append(attr())
                     logger.debug("Loaded bundled plugin: %s", attr.__name__)
         except Exception:

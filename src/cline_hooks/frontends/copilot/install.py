@@ -7,16 +7,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from cline_hooks.core.install import resolve_binary
-
-_COPILOT_HOOKS: tuple[str, ...] = (
-    "SessionStart",
-    "UserPromptSubmit",
-    "PreToolUse",
-    "PostToolUse",
-    "PreCompact",
-    "Stop",
-)
+from cline_hooks.core.install import build_hook_registrations, resolve_binary
+from cline_hooks.frontends.copilot.protocol import CopilotProtocol
 
 
 def install_copilot() -> None:
@@ -38,9 +30,12 @@ def install_copilot() -> None:
     binary_str = str(binary)
 
     added = 0
-    for event_name in _COPILOT_HOOKS:
+    for registration in build_hook_registrations(CopilotProtocol):
+        event_name = registration.native_name
         current = existing_hooks.get(event_name, [])
-        existing_commands = {entry.get("command", "") for entry in current if isinstance(entry, dict)}
+        existing_commands = {
+            entry.get("command", "") for entry in current if isinstance(entry, dict)
+        }
 
         if binary_str not in existing_commands:
             current.append({"type": "command", "command": binary_str})

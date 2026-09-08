@@ -11,6 +11,7 @@ dependencies = [
     "bashlex",
     "gitpython",
     "platformdirs",
+    "pydantic>=2",
 ]
 
 [project.scripts]

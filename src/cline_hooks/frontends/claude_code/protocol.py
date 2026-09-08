@@ -5,20 +5,40 @@ from __future__ import annotations
 
 import json
 import sys
-from typing import NoReturn
+from typing import TYPE_CHECKING, ClassVar, NoReturn, Self
 
-from cline_hooks.frontends.kiro.protocol import KiroProtocol
+from cline_hooks.core.payload import StandardPayloadProtocol
+from cline_hooks.core.protocol import HookRegistration, exit_block
+from cline_hooks.core.vocabulary import CanonicalHook, Frontend
+from cline_hooks.frontends.claude_code.parser import _TOOL_MAP
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from cline_hooks.core.protocol import RawPayload
+    from cline_hooks.core.vocabulary import CanonicalTool
 
 
-class ClaudeCodeProtocol(KiroProtocol):
+class ClaudeCodeProtocol(StandardPayloadProtocol):
     """Claude Code exit-code protocol.
 
-    Same block as Kiro, but allow/feedback context uses
-    hookSpecificOutput.additionalContext (exit 0) instead of plain stdout or
-    exit 2, since Claude Code only surfaces plain stdout to the model for
-    UserPromptSubmit/UserPromptExpansion/SessionStart - every other event
-    needs additionalContext to actually reach the model.
+    allow/feedback context uses hookSpecificOutput.additionalContext (exit 0)
+    instead of plain stdout or exit 2, since Claude Code only surfaces plain
+    stdout to the model for UserPromptSubmit/UserPromptExpansion/SessionStart
+    - every other event needs additionalContext to actually reach the model.
     """
+
+    supported_hooks: ClassVar[Mapping[CanonicalHook, HookRegistration]] = {
+        CanonicalHook.TASK_START: HookRegistration("SessionStart"),
+        CanonicalHook.USER_PROMPT_SUBMIT: HookRegistration("UserPromptSubmit"),
+        CanonicalHook.PRE_TOOL_USE: HookRegistration("PreToolUse", matcher=""),
+        CanonicalHook.POST_TOOL_USE: HookRegistration("PostToolUse", matcher=""),
+        CanonicalHook.STOP: HookRegistration("Stop"),
+    }
+    frontends: ClassVar[tuple[Frontend, ...]] = (Frontend.CLAUDE_CODE,)
+    tool_map: ClassVar[Mapping[str, CanonicalTool]] = _TOOL_MAP
+    mcp_prefix: ClassVar[str] = "mcp__"
+    mcp_separator: ClassVar[str] = "__"
 
     def __init__(self, hook_event_name: str = "Stop") -> None:
         """Store the raw Claude Code hook event name for context injection.
@@ -30,6 +50,36 @@ class ClaudeCodeProtocol(KiroProtocol):
                 Claude Code event name.
         """
         self._hook_event_name = hook_event_name
+
+    @classmethod
+    def detect(cls, payload: RawPayload) -> bool:
+        """Detect a Claude Code payload via env, falling back to shape-sniffing.
+
+        Returns:
+            True if CLAUDECODE=1 is set in the environment, or - for
+            invocations where env isn't inherited - the hook_event_name is
+            PascalCase (Claude Code's own casing; Kiro's is lowercase/
+            camelCase, verified against every event each frontend registers).
+        """
+        if payload.env.get("CLAUDECODE") == "1":
+            return True
+        data = payload.data
+        if not isinstance(data, dict):
+            return False
+        name = data.get(cls.hook_event_key)
+        return isinstance(name, str) and name[:1].isupper()
+
+    @classmethod
+    def from_payload(cls, payload: RawPayload) -> Self:
+        """Construct a ClaudeCodeProtocol carrying the payload's raw hook event name.
+
+        Returns:
+            A ClaudeCodeProtocol instance for context-injection responses.
+        """
+        hook_event_name = "Stop"
+        if isinstance(payload.data, dict):
+            hook_event_name = payload.data.get(cls.hook_event_key, "Stop")
+        return cls(hook_event_name)
 
     def _print_additional_context(self, message: str) -> None:
         """Print a hookSpecificOutput.additionalContext payload for the current event."""
@@ -53,7 +103,9 @@ class ClaudeCodeProtocol(KiroProtocol):
         """
         return True
 
-    def allow(self, message: str | None = None, *, system_message: str | None = None) -> NoReturn:
+    def allow(
+        self, message: str | None = None, *, system_message: str | None = None
+    ) -> NoReturn:
         """Continue via exit 0, context in hookSpecificOutput and/or systemMessage."""
         payload: dict[str, object] = {}
         if system_message is not None:
@@ -67,18 +119,17 @@ class ClaudeCodeProtocol(KiroProtocol):
             print(json.dumps(payload), end="")
         sys.exit(0)
 
+    def block(self, message: str) -> NoReturn:
+        """Block via exit 2, error on stderr.
+
+        Matches the exit-2+stderr shape Claude Code's own hooks docs describe
+        for PreToolUse/PostToolUse/Stop blocking. Whether this should instead
+        emit hookSpecificOutput (mirroring allow()/feedback()) is an open
+        follow-up, not resolved by this refactor.
+        """
+        exit_block(message)
+
     def feedback(self, message: str) -> NoReturn:
         """Continue via exit 0, non-error context in hookSpecificOutput."""
         self._print_additional_context(message)
         sys.exit(0)
-
-    def research_trace_header(self) -> str:
-        """Return the Stop research-trace header for Claude Code.
-
-        Claude Code surfaces this hook's raw additionalContext output to the
-        user directly, so the model's reply can stay a single terse line.
-        """
-        return (
-            "RESEARCH TRACE: MUST cite lookups behind this turn's claims, in ONE "
-            "line only - the user already sees this hook's raw output."
-        )

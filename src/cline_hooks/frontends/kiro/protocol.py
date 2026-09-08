@@ -5,15 +5,49 @@ from __future__ import annotations
 
 import json
 import sys
-from typing import NoReturn
+from typing import TYPE_CHECKING, ClassVar, NoReturn
 
-from cline_hooks.core.protocol import Protocol
+from cline_hooks.core.payload import StandardPayloadProtocol
+from cline_hooks.core.protocol import HookRegistration
+from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool, Frontend
+from cline_hooks.frontends.kiro.parser import _KIRO_TOOL_MAP
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from cline_hooks.core.protocol import RawPayload
 
 
-class KiroProtocol(Protocol):
+class KiroProtocol(StandardPayloadProtocol):
     """Kiro exit-code protocol: exit 0 + stdout for allow, exit 2 + stderr for block."""
 
-    def allow(self, message: str | None = None, *, system_message: str | None = None) -> NoReturn:  # noqa: ARG002
+    supported_hooks: ClassVar[Mapping[CanonicalHook, HookRegistration]] = {
+        CanonicalHook.PRE_TOOL_USE: HookRegistration("preToolUse", "*"),
+        CanonicalHook.POST_TOOL_USE: HookRegistration("postToolUse", "*"),
+        CanonicalHook.TASK_START: HookRegistration("agentSpawn"),
+        CanonicalHook.USER_PROMPT_SUBMIT: HookRegistration("userPromptSubmit"),
+        CanonicalHook.STOP: HookRegistration("stop"),
+    }
+    frontends: ClassVar[tuple[Frontend, ...]] = (Frontend.KIRO,)
+    tool_map: ClassVar[Mapping[str, CanonicalTool]] = _KIRO_TOOL_MAP
+    mcp_prefix: ClassVar[str] = "@"
+    mcp_separator: ClassVar[str] = "/"
+
+    @classmethod
+    def detect(cls, payload: RawPayload) -> bool:
+        """Detect Kiro's hook JSON shape.
+
+        Returns:
+            True if `hook_event_name` matches one of Kiro's own native hook names.
+        """
+        data = payload.data
+        if data is None:
+            return False
+        return data.get(cls.hook_event_key) in cls.native_hook_names()
+
+    def allow(
+        self, message: str | None = None, *, system_message: str | None = None
+    ) -> NoReturn:  # noqa: ARG002
         """Allow via exit 0, context on stdout."""
         if message is not None:
             print(message, end="")

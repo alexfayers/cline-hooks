@@ -12,13 +12,13 @@ _TASK = "task-1"
 
 class TestIsPlanExitTool:
     def test_exit_plan_mode(self) -> None:
-        assert is_plan_exit_tool("ExitPlanMode")
+        assert is_plan_exit_tool("exit_plan_mode")
 
     def test_bash_is_not_plan_exit(self) -> None:
         assert not is_plan_exit_tool("Bash")
 
-    def test_plan_mode_respond_is_not_plan_exit(self) -> None:
-        assert not is_plan_exit_tool("plan_mode_respond")
+    def test_plan_mode_respond_is_plan_exit(self) -> None:
+        assert is_plan_exit_tool("plan_mode_respond")
 
 
 class TestConsumePlanNudge:

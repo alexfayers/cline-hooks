@@ -44,6 +44,26 @@ cline-hook install claude-code
 cline-hook plugins
 ```
 
+## Hook support matrix
+
+Which canonical hooks each supported frontend fires, and its native name for
+each. Generated from each frontend's `Protocol.supported_hooks` table
+(`tests/test_readme_matrix.py` fails the build if this drifts from the code).
+
+<!-- HOOK_MATRIX_START -->
+| Canonical hook | Claude Code | Kiro | Cline |
+|---|---|---|---|
+| PreToolUse | `PreToolUse` | `preToolUse` | `PreToolUse` |
+| PostToolUse | `PostToolUse` | `postToolUse` | `PostToolUse` |
+| TaskStart | `SessionStart` | `agentSpawn` | `TaskStart` |
+| TaskResume | - | - | `TaskResume` |
+| TaskCancel | - | - | `TaskCancel` |
+| TaskComplete | - | - | `TaskComplete` |
+| UserPromptSubmit | `UserPromptSubmit` | `userPromptSubmit` | `UserPromptSubmit` |
+| PreCompact | - | - | `PreCompact` |
+| Stop | `Stop` | `stop` | `Stop` |
+<!-- HOOK_MATRIX_END -->
+
 ## Plugins
 
 Plugins extend the hook framework with custom command rules, build tool

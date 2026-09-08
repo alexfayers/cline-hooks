@@ -7,15 +7,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from cline_hooks.core.install import resolve_binary
-
-_CLAUDE_CODE_HOOKS: dict[str, str | None] = {
-    "SessionStart": None,
-    "UserPromptSubmit": None,
-    "PreToolUse": "",
-    "PostToolUse": "",
-    "Stop": None,
-}
+from cline_hooks.core.install import build_hook_registrations, resolve_binary
+from cline_hooks.frontends.claude_code.protocol import ClaudeCodeProtocol
 
 
 def _build_claude_code_hooks(binary: Path) -> dict[str, list[dict[str, object]]]:
@@ -28,13 +21,13 @@ def _build_claude_code_hooks(binary: Path) -> dict[str, list[dict[str, object]]]
         A dict suitable for the "hooks" key in Claude Code settings.json.
     """
     hooks: dict[str, list[dict[str, object]]] = {}
-    for event_name, matcher in _CLAUDE_CODE_HOOKS.items():
+    for registration in build_hook_registrations(ClaudeCodeProtocol):
         entry: dict[str, object] = {
             "hooks": [{"type": "command", "command": str(binary)}],
         }
-        if matcher is not None:
-            entry["matcher"] = matcher
-        hooks[event_name] = [entry]
+        if registration.matcher is not None:
+            entry["matcher"] = registration.matcher
+        hooks[registration.native_name] = [entry]
     return hooks
 
 

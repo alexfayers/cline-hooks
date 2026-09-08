@@ -10,7 +10,13 @@ from cline_hooks.frontends.kiro.install import _build_kiro_hooks
 class TestBuildKiroHooks:
     def test_has_all_hooks(self) -> None:
         hooks = _build_kiro_hooks(Path("/usr/bin/cline-hook"))
-        assert set(hooks.keys()) == {"agentSpawn", "userPromptSubmit", "preToolUse", "postToolUse", "stop"}
+        assert set(hooks.keys()) == {
+            "agentSpawn",
+            "userPromptSubmit",
+            "preToolUse",
+            "postToolUse",
+            "stop",
+        }
 
     def test_tool_hooks_have_matcher(self) -> None:
         hooks = _build_kiro_hooks(Path("/usr/bin/cline-hook"))
@@ -40,7 +46,13 @@ class TestInstallKiro:
         result = json.loads(config_path.read_text())
         assert "hooks" in result
         assert "name" in result
-        assert set(result["hooks"].keys()) == {"agentSpawn", "userPromptSubmit", "preToolUse", "postToolUse", "stop"}
+        assert set(result["hooks"].keys()) == {
+            "agentSpawn",
+            "userPromptSubmit",
+            "preToolUse",
+            "postToolUse",
+            "stop",
+        }
 
     def test_preserves_existing_fields(self, tmp_path: Path) -> None:
         config = {"name": "my-agent", "description": "test", "tools": ["fs_read"]}

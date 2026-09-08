@@ -7,6 +7,7 @@ from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow, feedback
 from cline_hooks.core.transcript import get_turn_assistant_text
+from cline_hooks.core.vocabulary import CanonicalHook
 import cline_hooks.state.research as research_state
 
 if TYPE_CHECKING:
@@ -95,7 +96,7 @@ def _format_research_trace(records: list[dict[str, str]], header: str) -> str:
     return "\n".join(lines)
 
 
-@hook_handler("Stop")
+@hook_handler(CanonicalHook.STOP)
 def handle_stop(hook: HookInputStop) -> None:
     """Handle Stop hook events: nudge on dismissed issues, force research citations.
 
@@ -109,7 +110,9 @@ def handle_stop(hook: HookInputStop) -> None:
     if _contains_dismissal_signal(get_turn_assistant_text(hook.transcriptPath)):
         notes.append(_DISMISSAL_NUDGE)
 
-    trace = _format_research_trace(research_state.get_research(hook.taskId), get_protocol().research_trace_header())
+    trace = _format_research_trace(
+        research_state.get_research(hook.taskId), get_protocol().research_trace_header()
+    )
     research_state.reset(hook.taskId)
     if trace:
         notes.append(trace)

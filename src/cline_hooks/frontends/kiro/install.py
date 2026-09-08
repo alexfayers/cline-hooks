@@ -7,15 +7,8 @@ import json
 from pathlib import Path
 import sys
 
-from cline_hooks.core.install import resolve_binary
-
-_KIRO_HOOKS: dict[str, str | None] = {
-    "agentSpawn": None,
-    "userPromptSubmit": None,
-    "preToolUse": "*",
-    "postToolUse": "*",
-    "stop": None,
-}
+from cline_hooks.core.install import build_hook_registrations, resolve_binary
+from cline_hooks.frontends.kiro.protocol import KiroProtocol
 
 
 def _build_kiro_hooks(binary: Path) -> dict[str, list[dict[str, str]]]:
@@ -28,14 +21,14 @@ def _build_kiro_hooks(binary: Path) -> dict[str, list[dict[str, str]]]:
         A dict suitable for the "hooks" key in a Kiro agent JSON.
     """
     hooks: dict[str, list[dict[str, str]]] = {}
-    for hook_name, matcher in _KIRO_HOOKS.items():
+    for registration in build_hook_registrations(KiroProtocol):
         entry: dict[str, str] = {
             "command": str(binary),
-            "description": f"cline-hooks {hook_name}",
+            "description": f"cline-hooks {registration.native_name}",
         }
-        if matcher is not None:
-            entry["matcher"] = matcher
-        hooks[hook_name] = [entry]
+        if registration.matcher is not None:
+            entry["matcher"] = registration.matcher
+        hooks[registration.native_name] = [entry]
     return hooks
 
 

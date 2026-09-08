@@ -97,7 +97,9 @@ def get_generic_tooling_note(workspace_roots: list[str]) -> str | None:
     return None
 
 
-def resolve_tooling_notes(plugins: list[HooksPlugin], workspace_roots: list[str]) -> list[str]:
+def resolve_tooling_notes(
+    plugins: list[HooksPlugin], workspace_roots: list[str]
+) -> list[str]:
     """Merge plugin-supplied tooling notes with the generic ecosystem note.
 
     Args:

@@ -65,7 +65,11 @@ def context_note(task_id: str, token_count: int) -> str | None:
         return None
     boundary = crossed_boundary(task_id, token_count)
     if boundary == CONTEXT_DEGRADED_THRESHOLD:
-        return with_team_clause(_CONTEXT_NUDGE_SEVERE.format(tokens=token_count), task_id)
+        return with_team_clause(
+            _CONTEXT_NUDGE_SEVERE.format(tokens=token_count), task_id
+        )
     if boundary == CONTEXT_REDUCED_THRESHOLD:
-        return with_team_clause(_CONTEXT_NUDGE_REDUCED.format(tokens=token_count), task_id)
+        return with_team_clause(
+            _CONTEXT_NUDGE_REDUCED.format(tokens=token_count), task_id
+        )
     return _CONTEXT_NUDGE_INFO.format(tokens=token_count)

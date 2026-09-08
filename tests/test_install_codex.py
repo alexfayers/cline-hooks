@@ -17,18 +17,28 @@ class TestInstallCodex:
     def test_creates_hooks_json_when_missing(self, tmp_path: Path) -> None:
         with (
             patch("cline_hooks.core.install.sys.executable", _FAKE_PYTHON),
-            patch("cline_hooks.frontends.codex.install.Path.home", return_value=tmp_path),
+            patch(
+                "cline_hooks.frontends.codex.install.Path.home", return_value=tmp_path
+            ),
         ):
             install_codex()
 
         hooks_path = tmp_path / ".codex" / "hooks.json"
         result = json.loads(hooks_path.read_text())
-        assert set(result["hooks"].keys()) == {"SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop"}
+        assert set(result["hooks"].keys()) == {
+            "SessionStart",
+            "UserPromptSubmit",
+            "PreToolUse",
+            "PostToolUse",
+            "Stop",
+        }
 
     def test_tool_hooks_have_matcher(self, tmp_path: Path) -> None:
         with (
             patch("cline_hooks.core.install.sys.executable", _FAKE_PYTHON),
-            patch("cline_hooks.frontends.codex.install.Path.home", return_value=tmp_path),
+            patch(
+                "cline_hooks.frontends.codex.install.Path.home", return_value=tmp_path
+            ),
         ):
             install_codex()
 
@@ -44,7 +54,9 @@ class TestInstallCodex:
 
         with (
             patch("cline_hooks.core.install.sys.executable", _FAKE_PYTHON),
-            patch("cline_hooks.frontends.codex.install.Path.home", return_value=tmp_path),
+            patch(
+                "cline_hooks.frontends.codex.install.Path.home", return_value=tmp_path
+            ),
         ):
             install_codex()
 
@@ -57,26 +69,36 @@ class TestInstallCodex:
         codex_dir.mkdir()
         existing = {
             "hooks": {
-                "SessionStart": [{"hooks": [{"type": "command", "command": "/other/tool"}]}],
+                "SessionStart": [
+                    {"hooks": [{"type": "command", "command": "/other/tool"}]}
+                ],
             },
         }
         (codex_dir / "hooks.json").write_text(json.dumps(existing))
 
         with (
             patch("cline_hooks.core.install.sys.executable", _FAKE_PYTHON),
-            patch("cline_hooks.frontends.codex.install.Path.home", return_value=tmp_path),
+            patch(
+                "cline_hooks.frontends.codex.install.Path.home", return_value=tmp_path
+            ),
         ):
             install_codex()
 
         result = json.loads((codex_dir / "hooks.json").read_text())
-        commands = {h["command"] for group in result["hooks"]["SessionStart"] for h in group["hooks"]}
+        commands = {
+            h["command"]
+            for group in result["hooks"]["SessionStart"]
+            for h in group["hooks"]
+        }
         assert "/other/tool" in commands
         assert self._expected_binary() in commands
 
     def test_idempotent_when_already_installed(self, tmp_path: Path) -> None:
         with (
             patch("cline_hooks.core.install.sys.executable", _FAKE_PYTHON),
-            patch("cline_hooks.frontends.codex.install.Path.home", return_value=tmp_path),
+            patch(
+                "cline_hooks.frontends.codex.install.Path.home", return_value=tmp_path
+            ),
         ):
             install_codex()
             install_codex()

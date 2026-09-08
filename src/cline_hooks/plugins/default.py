@@ -11,7 +11,9 @@ if TYPE_CHECKING:
 _BUILD_COMMANDS = frozenset({"just", "pnpm", "npm"})
 
 
-def _requires_build_context(_cmd: ParsedCommand, all_commands: list[ParsedCommand]) -> bool:
+def _requires_build_context(
+    _cmd: ParsedCommand, all_commands: list[ParsedCommand]
+) -> bool:
     """Return True only when a build tool is present in the same command list."""
     return any(cmd.name in _BUILD_COMMANDS for cmd in all_commands)
 
@@ -25,7 +27,11 @@ def _is_follow(cmd: ParsedCommand) -> bool:
     """Return True when tail is following a file (-f / -F / --follow)."""
     return any(
         flag.startswith("--follow")
-        or (flag.startswith("-") and not flag.startswith("--") and ("f" in flag[1:] or "F" in flag[1:]))
+        or (
+            flag.startswith("-")
+            and not flag.startswith("--")
+            and ("f" in flag[1:] or "F" in flag[1:])
+        )
         for flag in cmd.flags
     )
 

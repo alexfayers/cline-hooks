@@ -8,7 +8,8 @@ from unittest.mock import patch
 import pytest
 
 from cline_hooks.core.plugin import HooksPlugin
-from cline_hooks.frontends.cline import parse_cline_data as parse_data
+from cline_hooks.core.protocol import RawPayload
+from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.handlers.user_prompt import (
     _contains_correction_signal,
     _contains_info_signal,
@@ -26,7 +27,12 @@ import cline_hooks.state.turns as turns_module
 from cline_hooks.state.turns import _AGENT_NUDGE_THRESHOLD
 
 if TYPE_CHECKING:
-    from cline_hooks.core.models import HookInputUserPromptSubmit
+    from cline_hooks.core.models import HookInput, HookInputUserPromptSubmit
+
+
+def parse_data(raw: str) -> HookInput:
+    return ClineProtocol().parse(RawPayload.from_stdin(raw))
+
 
 _BELOW_REDUCED = CONTEXT_REDUCED_THRESHOLD // 2
 _BELOW_REDUCED_SAME_BAND = _BELOW_REDUCED + _BAND_SIZE // 2
@@ -55,10 +61,12 @@ def _make_hook(user_message: str = "") -> HookInputUserPromptSubmit:
     return cast(
         "HookInputUserPromptSubmit",
         parse_data(
-            json.dumps({
-                **_BASE,
-                "userPromptSubmit": {"userMessage": user_message},
-            })
+            json.dumps(
+                {
+                    **_BASE,
+                    "userPromptSubmit": {"userMessage": user_message},
+                }
+            )
         ),
     )
 
@@ -97,19 +105,27 @@ def _run_with_transcript(token_count: int | None) -> dict[str, object] | None:
     hook = cast(
         "HookInputUserPromptSubmit",
         parse_data(
-            json.dumps({
-                **_BASE,
-                "userPromptSubmit": {"userMessage": "neutral"},
-                "transcriptPath": "session.jsonl",
-            })
+            json.dumps(
+                {
+                    **_BASE,
+                    "userPromptSubmit": {"userMessage": "neutral"},
+                    "transcriptPath": "session.jsonl",
+                }
+            )
         ),
     )
     output: list[str] = []
     try:
         with (
-            patch("builtins.print", side_effect=lambda s, _out=output, **kw: _out.append(s)),
+            patch(
+                "builtins.print",
+                side_effect=lambda s, _out=output, **kw: _out.append(s),
+            ),
             patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.get_context_tokens", return_value=token_count),
+            patch(
+                "cline_hooks.handlers.user_prompt.get_context_tokens",
+                return_value=token_count,
+            ),
             patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
         ):
             handle_user_prompt_submit(hook)
@@ -233,7 +249,9 @@ class TestHandleUserPromptSubmit:
         with patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0):
             result = _run("You should always run lint first")
         assert result is not None
-        assert "correction" in cast("str", result.get("contextModification", "")).lower()
+        assert (
+            "correction" in cast("str", result.get("contextModification", "")).lower()
+        )
 
     def test_correction_takes_priority_over_info(self) -> None:
         with patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0):
@@ -254,7 +272,10 @@ class TestHandleUserPromptSubmit:
         with patch("cline_hooks.handlers.user_prompt.random.random", return_value=0.0):
             result = _run("Can you implement this feature?")
         assert result is not None
-        assert "persist to memory" in cast("str", result.get("contextModification", "")).lower()
+        assert (
+            "persist to memory"
+            in cast("str", result.get("contextModification", "")).lower()
+        )
 
     def test_neutral_message_with_high_random_no_reminder(self) -> None:
         with (
@@ -306,7 +327,9 @@ class TestHandleUserPromptSubmit:
         ):
             last = _run_n_turns(_AGENT_NUDGE_THRESHOLD)
         if last is not None:
-            assert "FAN-OUT CHECK" not in cast("str", last.get("contextModification", ""))
+            assert "FAN-OUT CHECK" not in cast(
+                "str", last.get("contextModification", "")
+            )
 
     def test_agent_nudge_refires_when_rate_lags(self) -> None:
         record_agent_use("task-1", "Agent")
@@ -372,7 +395,9 @@ class TestHandleUserPromptSubmit:
         with patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0):
             result = _run("You should always run lint first")
         assert result is not None
-        assert "correction" in cast("str", result.get("contextModification", "")).lower()
+        assert (
+            "correction" in cast("str", result.get("contextModification", "")).lower()
+        )
 
     def test_agent_message_suppresses_content_independent_notes_too(self) -> None:
         message = '<agent-message from="worker-1">\nYou should always run lint first\n</agent-message>'
@@ -392,8 +417,12 @@ class TestHandleUserPromptSubmit:
         try:
             with (
                 patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
-                patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-                patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
+                patch(
+                    "cline_hooks.handlers.user_prompt.random.random", return_value=1.0
+                ),
+                patch(
+                    "cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)
+                ),
             ):
                 handle_user_prompt_submit(hook)
         except SystemExit:
@@ -439,7 +468,9 @@ class TestSideRequestReminder:
         ):
             result = _run("neutral message")
         assert result is not None
-        assert "side-request" in cast("str", result.get("contextModification", "")).lower()
+        assert (
+            "side-request" in cast("str", result.get("contextModification", "")).lower()
+        )
 
     def test_high_random_no_side_request_reminder(self) -> None:
         with (
@@ -489,7 +520,9 @@ class TestContextNudge:
         assert "Accuracy degrading" in cast("str", first.get("contextModification", ""))
         second = _run_with_transcript(_SAME_BAND_AS_REDUCED)
         if second is not None:
-            assert "Accuracy degrading" not in cast("str", second.get("contextModification", ""))
+            assert "Accuracy degrading" not in cast(
+                "str", second.get("contextModification", "")
+            )
 
     def test_next_band_in_same_tier_omits_boundary_text(self) -> None:
         _run_with_transcript(_JUST_ABOVE_REDUCED)
@@ -505,7 +538,9 @@ class TestContextNudge:
         assert "CONTEXT STATUS" in cast("str", first.get("contextModification", ""))
         second = _run_with_transcript(_BELOW_REDUCED_SAME_BAND)
         if second is not None:
-            assert "CONTEXT STATUS" not in cast("str", second.get("contextModification", ""))
+            assert "CONTEXT STATUS" not in cast(
+                "str", second.get("contextModification", "")
+            )
 
     def test_info_note_refires_in_next_band(self) -> None:
         _run_with_transcript(_BELOW_REDUCED)
@@ -534,7 +569,9 @@ class TestPlanHandoffNudge:
             _run("neutral")
             second = _run("neutral")
         if second is not None:
-            assert "PLAN COMPLETE" not in cast("str", second.get("contextModification", ""))
+            assert "PLAN COMPLETE" not in cast(
+                "str", second.get("contextModification", "")
+            )
 
 
 class TestTeamActiveClause:
@@ -561,7 +598,10 @@ class TestPluginMessageForwarding:
 
         message = '<agent-message from="worker-1">You should always run lint first</agent-message>'
         with (
-            patch("cline_hooks.handlers.user_prompt.load_plugins", return_value=[_CapturingPlugin()]),
+            patch(
+                "cline_hooks.handlers.user_prompt.load_plugins",
+                return_value=[_CapturingPlugin()],
+            ),
             patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
         ):
             _run(message)
@@ -577,7 +617,10 @@ class TestPluginMessageForwarding:
 
         message = "Can you implement this feature?"
         with (
-            patch("cline_hooks.handlers.user_prompt.load_plugins", return_value=[_CapturingPlugin()]),
+            patch(
+                "cline_hooks.handlers.user_prompt.load_plugins",
+                return_value=[_CapturingPlugin()],
+            ),
             patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
         ):
             _run(message)
