@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, NoReturn
 from cline_hooks.core.protocol import set_protocol
 from cline_hooks.core.registry import HOOK_HANDLERS
 from cline_hooks.core.response import allow
+from cline_hooks.frontends.antigravity import AntigravityProtocol, install_antigravity, parse_antigravity_data
 from cline_hooks.frontends.claude_code import ClaudeCodeProtocol, install_claude_code
 from cline_hooks.frontends.cline import ClineProtocol, install_cline, parse_cline_data
 from cline_hooks.frontends.codex import install_codex
@@ -52,6 +53,15 @@ def _build_parser() -> argparse.ArgumentParser:
     install_sub.add_parser("claude-code", help="Install Claude Code hooks into settings")
     install_sub.add_parser("codex", help="Install Codex hooks into hooks.json")
     install_sub.add_parser("copilot", help="Install GitHub Copilot hooks into ~/.copilot/hooks/")
+    install_sub.add_parser("antigravity", help="Install Antigravity hooks into ~/.gemini/config/hooks.json")
+
+    agy_parser = sub.add_parser("antigravity", help="Run Antigravity hook handler")
+    agy_parser.add_argument(
+        "--event",
+        choices=["PreToolUse", "PostToolUse", "Stop"],
+        default=None,
+        help="Hook event name",
+    )
 
     sub.add_parser("plugins", help="List installed plugins")
 
@@ -101,6 +111,25 @@ def _detect_claude_code(raw_data: str) -> bool:
     return isinstance(name, str) and name[:1].isupper()
 
 
+def _detect_antigravity(raw_data: str) -> bool:
+    """Detect whether the input is from Antigravity based on JSON shape.
+
+    Antigravity payloads always include 'conversationId' and execution metadata
+    like 'toolCall', 'executionNum', 'stepIdx', or 'workspacePaths'.
+    """
+    try:
+        data = json.loads(raw_data)
+    except (json.JSONDecodeError, ValueError):
+        return False
+    return isinstance(data, dict) and "conversationId" in data and (
+        "toolCall" in data
+        or "executionNum" in data
+        or "terminationReason" in data
+        or "stepIdx" in data
+        or "workspacePaths" in data
+    )
+
+
 def _parse_input(raw_data: str) -> HookInput:
     """Parse hook input, auto-detecting the frontend.
 
@@ -110,6 +139,21 @@ def _parse_input(raw_data: str) -> HookInput:
     Returns:
         A typed HookInput subclass.
     """
+    if _detect_antigravity(raw_data):
+        hook_event: str | None = None
+        try:
+            data = json.loads(raw_data)
+            if "toolCall" in data:
+                hook_event = "PreToolUse"
+            elif "executionNum" in data or "terminationReason" in data:
+                hook_event = "Stop"
+            elif "stepIdx" in data:
+                hook_event = "PostToolUse"
+        except Exception:
+            pass
+        set_protocol(AntigravityProtocol(hook_event or "PreToolUse"))
+        return parse_antigravity_data(raw_data)
+
     if _detect_kiro(raw_data):
         if _detect_claude_code(raw_data):
             hook_event_name = json.loads(raw_data).get("hook_event_name", "")
@@ -173,9 +217,32 @@ def main() -> NoReturn:
             install_codex()
         elif args.install_mode == "copilot":
             install_copilot()
+        elif args.install_mode == "antigravity":
+            install_antigravity()
         else:
             _build_parser().parse_args(["install", "--help"])
         sys.exit(0)
+
+    if args.command == "antigravity":
+        raw_data = input()
+        event_name = args.event or "PreToolUse"
+        if not args.event:
+            try:
+                data = json.loads(raw_data)
+                if "toolCall" in data:
+                    event_name = "PreToolUse"
+                elif "executionNum" in data or "terminationReason" in data:
+                    event_name = "Stop"
+                elif "stepIdx" in data:
+                    event_name = "PostToolUse"
+            except Exception:
+                pass
+        set_protocol(AntigravityProtocol(event_name))
+        hook = parse_antigravity_data(raw_data, event_override=event_name)
+        handler = HOOK_HANDLERS.get(hook.hookName)
+        if handler is not None:
+            handler(hook)
+        allow()
 
     if args.command == "plugins":
         _list_plugins()

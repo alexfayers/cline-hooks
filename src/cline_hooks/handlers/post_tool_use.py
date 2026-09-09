@@ -220,7 +220,7 @@ def _record_skill_use(task_id: str, tool_name: str, parameters: dict[str, Any]) 
         if skill_name:
             _record_skill(task_id, skill_name)
     elif tool_name in {"read_file", "Read"}:
-        path = parameters.get("path", "") or parameters.get("file_path", "")
+        path = parameters.get("path", "") or parameters.get("file_path", "") or parameters.get("AbsolutePath", "")
         if path:
             file_path = PurePosixPath(str(path))
             if file_path.name == "SKILL.md":
@@ -249,7 +249,7 @@ def _is_skill_invocation(tool_name: str, parameters: dict[str, object], skill_na
     if tool_name == "use_skill":
         return parameters.get("skill_name") in skill_names
     if tool_name in {"read_file", "Read"}:
-        path = str(parameters.get("path", "") or parameters.get("file_path", ""))
+        path = str(parameters.get("path", "") or parameters.get("file_path", "") or parameters.get("AbsolutePath", ""))
         return any(path.endswith(f"{name}/SKILL.md") for name in skill_names)
     if tool_name in _SHELL_TOOL_NAMES:
         loaded = _skills_in_command(str(parameters.get("command", "")))
