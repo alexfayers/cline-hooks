@@ -89,6 +89,11 @@ def get_turn_assistant_text(transcript_path: str) -> str:
 
     texts: list[str] = []
     for entry in entries[last_user_index + 1 :]:
+        if entry.get("source") == "MODEL":
+            content = entry.get("content")
+            if isinstance(content, str):
+                texts.append(content)
+            continue
         if entry.get("type") != "assistant" or entry.get("isSidechain"):
             continue
         message = entry.get("message")
@@ -118,6 +123,8 @@ def _is_user_prompt(entry: dict[str, Any]) -> bool:
     Returns:
         True if the entry is a user-authored prompt, not a tool result.
     """
+    if entry.get("source") == "USER_EXPLICIT" and entry.get("type") == "USER_INPUT":
+        return True
     if entry.get("type") != "user" or entry.get("isSidechain"):
         return False
     message = entry.get("message")

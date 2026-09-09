@@ -192,6 +192,14 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> None:  # noqa: PLR0912, PL
     elif tool_name == "read_file":
         path: str = parameters.get("path", "")
         if path:
+            start = parameters.get("StartLine") or parameters.get("start_line")
+            end = parameters.get("EndLine") or parameters.get("end_line")
+            if start is not None and end is not None:
+                try:
+                    if int(end) - int(start) <= _LARGE_FILE_THRESHOLD:
+                        return
+                except (ValueError, TypeError):
+                    pass
             try:
                 line_count = Path(path).read_text(encoding="utf-8", errors="replace").count("\n")
                 if line_count > _LARGE_FILE_THRESHOLD:
