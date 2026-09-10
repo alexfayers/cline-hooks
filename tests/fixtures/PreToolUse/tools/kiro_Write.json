@@ -1,0 +1,12 @@
+{
+  "hook_event_name": "preToolUse",
+  "cwd": "/home/user/project",
+  "session_id": "fixture-session-id",
+  "tool_name": "fs_write",
+  "tool_input": {
+    "command": "str_replace",
+    "path": "/home/user/project/src/app.py",
+    "oldStr": "old line",
+    "newStr": "new line"
+  }
+}

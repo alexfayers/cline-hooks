@@ -19,7 +19,7 @@ from cline_hooks.frontends.kiro.protocol import KiroProtocol
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
-_FIXTURE_DIR: dict[type[Protocol], str] = {
+_FIXTURE_NAME: dict[type[Protocol], str] = {
     ClaudeCodeProtocol: "claude_code",
     KiroProtocol: "kiro",
     ClineProtocol: "cline",
@@ -35,32 +35,30 @@ _OWN_PROTOCOL_MEMBERS = ("detect", "supported_hooks")
 _EXCLUDED_PROTOCOLS: tuple[type[Protocol], ...] = (CodexProtocol, CopilotProtocol)
 
 
-def _fixture_hooks(frontend_dir: str) -> list[str]:
+def _fixture_hooks(frontend: str) -> list[str]:
     """Return the canonical hook names with a fixture file for the given frontend.
 
     Returns:
-        Sorted list of canonical hook names (fixture filename stems).
+        Sorted list of canonical hook names (fixture parent directory names).
     """
-    return sorted(path.stem for path in (FIXTURES_DIR / frontend_dir).glob("*.json"))
+    return sorted(path.parent.name for path in FIXTURES_DIR.glob(f"*/{frontend}.json"))
 
 
-def _payload_for(frontend_dir: str, canonical_hook: str) -> RawPayload:
+def _payload_for(frontend: str, canonical_hook: str) -> RawPayload:
     """Build a RawPayload from a fixture file, using that fixture's own frontend's detect env.
 
     Returns:
         A RawPayload with `env` set to the env vars that fixture's native frontend relies on.
     """
-    raw = (FIXTURES_DIR / frontend_dir / f"{canonical_hook}.json").read_text()
-    owner_cls = next(
-        cls for cls, dir_name in _FIXTURE_DIR.items() if dir_name == frontend_dir
-    )
+    raw = (FIXTURES_DIR / canonical_hook / f"{frontend}.json").read_text()
+    owner_cls = next(cls for cls, name in _FIXTURE_NAME.items() if name == frontend)
     return RawPayload(raw=raw, data=json.loads(raw), env=_DETECT_ENV[owner_cls])
 
 
 _ALL_FIXTURE_PAIRS = [
-    (frontend_dir, canonical_hook)
-    for frontend_dir in _FIXTURE_DIR.values()
-    for canonical_hook in _fixture_hooks(frontend_dir)
+    (frontend, canonical_hook)
+    for frontend in _FIXTURE_NAME.values()
+    for canonical_hook in _fixture_hooks(frontend)
 ]
 
 
@@ -118,34 +116,34 @@ class TestFrontendConformance:
     def test_parses_every_declared_hook_fixture(
         self, protocol_cls: type[Protocol]
     ) -> None:
-        frontend_dir = _FIXTURE_DIR[protocol_cls]
+        frontend = _FIXTURE_NAME[protocol_cls]
         for canonical_hook in protocol_cls.supported_hooks:
-            payload = _payload_for(frontend_dir, canonical_hook.value)
+            payload = _payload_for(frontend, canonical_hook.value)
             hook = protocol_cls().parse(payload)
             assert hook.hookName == canonical_hook.value
 
-    @pytest.mark.parametrize(("fixture_dir", "canonical_hook"), _ALL_FIXTURE_PAIRS)
+    @pytest.mark.parametrize(("frontend", "canonical_hook"), _ALL_FIXTURE_PAIRS)
     def test_cross_detection_matrix(
         self,
         protocol_cls: type[Protocol],
-        fixture_dir: str,
+        frontend: str,
         canonical_hook: str,
     ) -> None:
-        payload = _payload_for(fixture_dir, canonical_hook)
-        owns_fixture = _FIXTURE_DIR[protocol_cls] == fixture_dir
+        payload = _payload_for(frontend, canonical_hook)
+        owns_fixture = _FIXTURE_NAME[protocol_cls] == frontend
         assert protocol_cls.detect(payload) is owns_fixture
 
 
 class TestCopilotDirectParse:
     @pytest.mark.parametrize("canonical_hook", _fixture_hooks("copilot"))
     def test_parses_own_fixture(self, canonical_hook: str) -> None:
-        raw = (FIXTURES_DIR / "copilot" / f"{canonical_hook}.json").read_text()
+        raw = (FIXTURES_DIR / canonical_hook / "copilot.json").read_text()
         payload = RawPayload(raw=raw, data=json.loads(raw), env={})
         hook = CopilotProtocol().parse(payload)
         assert hook.hookName == canonical_hook
 
     def test_pre_compact_picks_up_shared_session_id_fallback(self) -> None:
-        raw = (FIXTURES_DIR / "copilot" / "PreCompact.json").read_text()
+        raw = (FIXTURES_DIR / "PreCompact" / "copilot.json").read_text()
         payload = RawPayload(raw=raw, data=json.loads(raw), env={})
         hook = CopilotProtocol().parse(payload)
         assert isinstance(hook, HookInputPreCompact)
@@ -166,14 +164,14 @@ class TestExcludedProtocols:
     def test_standard_payload_protocol_stays_abstract(self) -> None:
         assert inspect.isabstract(StandardPayloadProtocol)
 
-    @pytest.mark.parametrize(("fixture_dir", "canonical_hook"), _ALL_FIXTURE_PAIRS)
+    @pytest.mark.parametrize(("frontend", "canonical_hook"), _ALL_FIXTURE_PAIRS)
     @pytest.mark.parametrize(
         "protocol_cls", _EXCLUDED_PROTOCOLS, ids=lambda cls: cls.__name__
     )
     def test_never_detects_any_fixture(
         self,
         protocol_cls: type[Protocol],
-        fixture_dir: str,
+        frontend: str,
         canonical_hook: str,
     ) -> None:
-        assert protocol_cls.detect(_payload_for(fixture_dir, canonical_hook)) is False
+        assert protocol_cls.detect(_payload_for(frontend, canonical_hook)) is False

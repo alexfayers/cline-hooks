@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeVar, get_args
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, ValidationError
 
 from cline_hooks.core.vocabulary import CanonicalHook
 
@@ -89,7 +89,9 @@ class PostToolUseFields(HookFields):
     toolName: str
     parameters: dict[str, Any]
     success: bool
-    executionTimeMs: int
+    executionTimeMs: int = Field(
+        default=0, validation_alias=AliasChoices("duration_ms", "executionTimeMs")
+    )
     result: str | None = None
 
 

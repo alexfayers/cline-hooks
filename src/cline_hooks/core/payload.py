@@ -283,14 +283,16 @@ def parse_standard_payload(
         else:
             response = ensure_dict(data.get("tool_response", {}))
             result = response.get("result")
-            fields[input_cls.payload_field] = PostToolUseFields(
-                toolName=tool,
-                parameters=params,
-                success=bool(response.get("success", True)),
-                executionTimeMs=0,
-                result=result
-                if result is None or isinstance(result, str)
-                else str(result),
+            fields[input_cls.payload_field] = PostToolUseFields.model_validate(
+                {
+                    **data,
+                    "toolName": tool,
+                    "parameters": params,
+                    "success": bool(response.get("success", True)),
+                    "result": result
+                    if result is None or isinstance(result, str)
+                    else str(result),
+                }
             )
         return input_cls.build(fields)
 
