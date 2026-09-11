@@ -1,14 +1,7 @@
-"""What a frontend is: its spec, and the decorator that declares one.
+"""The frontend spec, and the `@frontend` decorator that declares one.
 
-A frontend declares itself by decorating its Protocol class with `@frontend`,
-the same way handlers declare themselves with `@hook_handler`. Everything true
-of the frontend as a whole - what to call it, how to install it, how eagerly it
-claims a payload - lives in that one decorator call, right above the class it
-describes.
-
-`cline_hooks.core.frontends` turns those registrations into the ordered
-registry the rest of the package uses. Nothing here imports a frontend, so a
-frontend module can import this one freely.
+Imports no frontend, so a frontend module can import this one freely;
+`cline_hooks.core.frontends` orders the registrations into a registry.
 """
 
 from __future__ import annotations
@@ -24,8 +17,8 @@ if TYPE_CHECKING:
 
 _ProtocolT = TypeVar("_ProtocolT", bound="type[Protocol]")
 
-# Detection ordering, highest first. A frontend matching an exact signal must
-# run before one that shape-sniffs, or the sniff claims its payloads.
+# Detection ordering, highest first: a shape-sniff must run last, or it claims
+# payloads belonging to a frontend with an exact signal.
 EXACT_MATCH = 10
 SHAPE_SNIFF = 0
 
@@ -35,12 +28,10 @@ class FrontendSpec:
     """Everything cline-hooks needs to know about one supported frontend.
 
     Attributes:
-        name: CLI slug for `cline-hook install <name>`, and the frontend's
-            fixture file stem.
+        name: CLI slug for `cline-hook install <name>`, and fixture file stem.
         display_name: Human-readable name, used in generated docs.
         protocol: The frontend's Protocol class.
-        installer: How `cline-hook install <name>` sets the frontend up, or
-            None where the frontend has no install step.
+        installer: How to install it, or None where it has no install step.
         detect_priority: Higher runs earlier during detection.
         default: Whether this frontend handles payloads nothing detects.
     """
@@ -56,8 +47,7 @@ class FrontendSpec:
         """Run this frontend's install step.
 
         Args:
-            target: The install subcommand's positional argument, where the
-                frontend declares one.
+            target: The install subcommand's positional argument, if any.
 
         Raises:
             RuntimeError: If the frontend has no install step.
@@ -82,14 +72,11 @@ def frontend(
     """Register the decorated Protocol class as a supported frontend.
 
     Args:
-        name: CLI slug for `cline-hook install <name>`, and the frontend's
-            fixture file stem.
+        name: CLI slug for `cline-hook install <name>`, and fixture file stem.
         display_name: Human-readable name, used in generated docs.
-        installer: How to install this frontend, or None where it has no
-            install step.
-        detect_priority: Higher runs earlier during detection; use
-            `EXACT_MATCH` for a frontend recognised by an exact signal and
-            `SHAPE_SNIFF` for one recognised by the shape of a payload.
+        installer: How to install it, or None where it has no install step.
+        detect_priority: `EXACT_MATCH` where detection reads an exact signal,
+            `SHAPE_SNIFF` where it guesses from a payload's shape.
         default: Whether this frontend handles payloads nothing detects.
 
     Returns:

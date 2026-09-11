@@ -32,9 +32,8 @@ _TOOL_HOOK_KEYS = ("preToolUse", "postToolUse")
 class ClineProtocol(Protocol):
     """Cline JSON stdout protocol.
 
-    Cline's payload is already the canonical shape - the canonical tool and
-    hook vocabulary is Cline's own - so parsing is a rename of the few tools
-    Cline names differently, not a translation.
+    The canonical vocabulary is Cline's own, so parsing only renames the few
+    tools Cline names differently.
     """
 
     supported_hooks: ClassVar[Mapping[CanonicalHook, HookRegistration]] = {

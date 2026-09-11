@@ -1,11 +1,8 @@
 """Generic, frontend-agnostic engine for parsing a frontend's hook payload.
 
-A frontend that speaks the standard snake_case hook shape declares what is
-different about it - its envelope, its per-hook fields, its per-tool
-parameters, its tool names - as plain class attributes on a
-`StandardPayloadProtocol` subclass. Everything else, including how those
-declarations are inherited by a frontend that reuses another's payload spec,
-is ordinary Python: subclass it.
+A frontend speaking the standard snake_case shape declares what differs about
+it as class attributes on a `StandardPayloadProtocol` subclass; a frontend
+reusing another's spec inherits those attributes by subclassing it.
 """
 
 from __future__ import annotations
@@ -122,8 +119,7 @@ def _session_env_keys_from(info: ValidationInfo) -> tuple[str, ...]:
     """Return the frontend's session-id env var names from validation context.
 
     Returns:
-        The env var names passed as `context={"session_env_keys": ...}`, in
-        priority order, or () if absent.
+        The env var names passed in context, in priority order, or ().
     """
     context = info.context or {}
     return cast("tuple[str, ...]", context.get(_SESSION_ENV_KEYS_KEY, ()))
@@ -162,7 +158,7 @@ class PayloadEnvelope(BaseModel):
 
         Returns:
             The data with `session_id` set to the first truthy of the raw
-            value, each of the frontend's env vars in turn, or a hash of `cwd`.
+            value, each env var in turn, or a hash of `cwd`.
         """
         if not isinstance(data, dict):
             return data
@@ -229,8 +225,8 @@ def _tool_parameters(
         protocol_cls: The frontend's StandardPayloadProtocol subclass.
 
     Returns:
-        The canonical parameters, or the raw input where the frontend
-        declares no model for this tool.
+        The canonical parameters, or the raw input where the frontend declares
+        no model for this tool.
     """
     if raw_tool.startswith(protocol_cls.mcp_prefix):
         return mcp_parameters(
@@ -259,8 +255,8 @@ def _tool_hook_fields(
         protocol_cls: The frontend's StandardPayloadProtocol subclass.
 
     Returns:
-        The frontend's declared fields model for this hook, or the canonical
-        one where it declares none.
+        The frontend's declared fields model, or the canonical one where it
+        declares none.
     """
     merged: dict[str, Any] = {**data, "toolName": tool, "parameters": params}
     if hook is CanonicalHook.POST_TOOL_USE:
@@ -326,10 +322,6 @@ def parse_standard_payload(
 
 class StandardPayloadProtocol(Protocol):
     """A Protocol whose parse() is driven by declarative pydantic payload models.
-
-    A frontend reusing another's payload spec subclasses that frontend's
-    protocol and overrides only what differs; a frontend speaking the standard
-    shape with its own quirks subclasses this and declares them.
 
     Attributes:
         envelope_model: Model for the fields every hook payload carries.

@@ -14,9 +14,8 @@ if TYPE_CHECKING:
 class KiroInstaller(JsonHookInstaller):
     """Installs cline-hooks into a named Kiro agent config.
 
-    Kiro's entries are flat - one command per entry, with the matcher
-    alongside it - and the agent config must already exist, since cline-hooks
-    has no way to author a valid agent from scratch.
+    Entries are flat - one command each, matcher alongside - and the agent
+    config must already exist, since cline-hooks cannot author one.
     """
 
     help: ClassVar[str] = "Install Kiro hooks into agent config"

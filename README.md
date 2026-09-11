@@ -21,8 +21,7 @@ source = "git+https://github.com/alexfayers/cline-hooks.git"
 
 Then run `llm-prompts setup` to install everything.
 
-Each supported frontend has its own install subcommand, listed by
-`cline-hook install --help`:
+One install subcommand per frontend, listed by `cline-hook install --help`:
 
 ```bash
 cline-hook install cline ~/Documents/Cline/Hooks
@@ -40,9 +39,9 @@ cline-hook plugins
 
 ## Hook support matrix
 
-Which canonical hooks each supported frontend fires, and its native name for
-each. Generated from each frontend's `Protocol.supported_hooks` table
-(`tests/test_readme_matrix.py` fails the build if this drifts from the code).
+Which canonical hooks each frontend fires, and its native name for each.
+Generated from `Protocol.supported_hooks`; `tests/test_readme_matrix.py` fails
+the build if it drifts.
 
 <!-- HOOK_MATRIX_START -->
 | Canonical hook | Claude Code | Cline | Codex | GitHub Copilot | Kiro |
@@ -62,9 +61,8 @@ each. Generated from each frontend's `Protocol.supported_hooks` table
 
 A frontend is one package under `src/cline_hooks/frontends/`. Nothing in
 `core/` names one: the registry imports every package it finds and reads the
-`@frontend` registrations, so a new package is picked up by detection, the
-CLI, the install subcommands, the conformance tests, and the matrix above
-with no further wiring.
+`@frontend` registrations, so a new package is picked up by detection, the CLI,
+the install subcommands, the conformance tests, and the matrix above.
 
 ```python
 @frontend(
@@ -74,8 +72,6 @@ with no further wiring.
     detect_priority=EXACT_MATCH,     # or SHAPE_SNIFF, where detection guesses
 )
 class MyAgentProtocol(StandardPayloadProtocol):
-    """What my-agent's hooks look like, and how it wants to be answered."""
-
     supported_hooks = {CanonicalHook.PRE_TOOL_USE: HookRegistration("preTool")}
     tool_map = {"run": CanonicalTool.SHELL}
     hook_models = {...}              # only where raw hook fields differ
@@ -94,18 +90,15 @@ The package holds, at most:
 |------|-------|
 | `protocol.py` | The `@frontend` declaration: hooks, tool names, output channel |
 | `models.py` | Models for payload fields whose raw shape differs from canonical |
-| `install.py` | An `Installer` - usually a few lines on `JsonHookInstaller` |
-| `transcript.py` | A `TranscriptReader`, where the frontend writes a readable transcript |
+| `install.py` | An `Installer`, usually a few lines on `JsonHookInstaller` |
+| `transcript.py` | A `TranscriptReader`, if the frontend writes a readable transcript |
 
-A frontend that speaks another frontend's payload shape subclasses that
-frontend's spec class and overrides only what differs - which is all Codex
-and GitHub Copilot are.
+A frontend speaking another's payload shape subclasses that frontend's spec
+class and overrides only what differs - all Codex and Copilot are.
 
-Everything frontend-specific belongs in that package. Handlers see only the
-canonical vocabulary (`CanonicalHook`, `CanonicalTool`), a normalised
-`HookInput`, and the capabilities the active `Protocol` exposes - so a handler
-never needs to know which frontend it is answering. Hooks a frontend does not
-declare never reach a handler at all.
+Handlers see only the canonical vocabulary, a normalised `HookInput`, and the
+capabilities the active `Protocol` exposes; a hook a frontend does not declare
+never reaches one.
 
 ## Plugins
 

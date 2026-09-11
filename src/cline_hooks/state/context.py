@@ -77,10 +77,8 @@ def should_nudge_context(task_id: str, token_count: int) -> bool:
 def crossed_boundary(task_id: str, token_count: int) -> int | None:
     """Return the degradation boundary newly crossed by this token count, or None.
 
-    Fires once per boundary per session: the first call whose token count reaches
-    a boundary (CONTEXT_REDUCED_THRESHOLD or CONTEXT_DEGRADED_THRESHOLD) not yet
-    announced for this task returns that boundary; later calls at or above the
-    same boundary return None.
+    Fires once per boundary per session: later calls at or above a boundary
+    already announced return None.
 
     Args:
         task_id: The session or task identifier.

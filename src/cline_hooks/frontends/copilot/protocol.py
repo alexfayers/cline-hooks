@@ -27,21 +27,16 @@ if TYPE_CHECKING:
 class CopilotProtocol(ClaudeCodeHookSpec):
     """GitHub Copilot CLI protocol.
 
-    cline-hooks registers Copilot's hooks under PascalCase event names, and
-    GitHub's hooks reference documents PascalCase payloads as "VS Code
-    compatible input": the same snake_case shape as Claude Code
-    (hook_event_name, session_id, tool_name, tool_input, cwd), with
-    tool_name reported as the Claude tool name (`Bash`, not `bash`) via a
-    documented runtime-tool mapping. Copilot therefore inherits Claude Code's
-    payload spec and adds PreCompact - a real Copilot event Claude Code has no
-    counterpart for - which also gives PreCompact the sha256(cwd) session-id
-    fallback a hand-rolled branch would lack. Only the tool NAME mapping is
-    documented; the field names inside tool_input are not, so a tool_input
-    whose keys differ from Claude's normalises to empty parameters rather than
-    wrong ones. Copilot's output-channel format is likewise undocumented, so
-    allow/block keep the plain exit-code contract rather than guessing a JSON
-    envelope, and no transcript format is documented either, so Claude Code's
-    transcript reader is deliberately not inherited.
+    GitHub documents Copilot's PascalCase payloads as "VS Code compatible
+    input" - Claude Code's snake_case shape, with tool_name reported as the
+    Claude tool name (`Bash`, not `bash`) - so Copilot inherits that payload
+    spec and adds PreCompact, an event Claude Code has no counterpart for.
+
+    Only the tool NAME mapping is documented, so a tool_input whose keys differ
+    from Claude's normalises to empty parameters rather than wrong ones. The
+    output-channel and transcript formats are undocumented too, so allow/block
+    keep the plain exit-code contract and Claude Code's transcript reader is
+    not inherited.
     """
 
     supported_hooks: ClassVar[Mapping[CanonicalHook, HookRegistration]] = {
@@ -55,7 +50,7 @@ class CopilotProtocol(ClaudeCodeHookSpec):
 
     @classmethod
     def own_hook_names(cls) -> frozenset[str]:
-        """Return the native event names only Copilot fires, not its shape source.
+        """Return the native event names only Copilot fires.
 
         Returns:
             Copilot's native hook event names that Claude Code never emits.
@@ -66,15 +61,11 @@ class CopilotProtocol(ClaudeCodeHookSpec):
     def detect(cls, payload: RawPayload) -> bool:
         """Detect only the events Claude Code has no counterpart for.
 
-        Copilot's PascalCase payloads are documented as matching Claude
-        Code's shape, and Copilot CLI documents no hook-subprocess
-        environment signal (its full env-var reference has no analogue of
-        CLAUDECODE), so nothing marks an ordinary Copilot event as Copilot's.
-        An event name Claude Code never emits does: PreCompact can only have
-        come from Copilot, and claiming it is what gets its fields parsed
-        rather than dropped. Every other event falls through to
-        ClaudeCodeProtocol, which parses it correctly by design - the same
-        arrangement CodexProtocol relies on.
+        Copilot documents no environment signal (no analogue of CLAUDECODE),
+        so nothing marks an ordinary Copilot event as Copilot's. An event name
+        Claude Code never emits does, and claiming it is what gets its fields
+        parsed rather than dropped; every other event falls through to
+        ClaudeCodeProtocol, which parses it identically.
 
         Returns:
             True only for an event that is Copilot's alone.

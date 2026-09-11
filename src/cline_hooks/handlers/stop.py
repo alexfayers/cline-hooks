@@ -48,10 +48,9 @@ def _contains_dismissal_signal(message: str) -> bool:
 def _format_research_trace(records: list[dict[str, str]], header: str) -> str:
     """Format recorded research lookups into a grouped, deduped, capped note.
 
-    Lookups are grouped by tool and deduped by detail. Detail lines are capped
-    at _RESEARCH_TRACE_CAP with an explicit "(+N more lookups not shown)" note;
-    tools whose lookups carried no detail (e.g. overlay-contributed tools) are
-    always surfaced as a bare line so their use is never silently dropped.
+    Detail lines are capped at _RESEARCH_TRACE_CAP with a "(+N more)" note;
+    tools whose lookups carried no detail still get a bare line, so their use
+    is never silently dropped.
 
     Args:
         records: Research records in call order, each with "tool" and "detail".

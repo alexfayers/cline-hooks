@@ -95,10 +95,9 @@ class KiroProtocol(StandardPayloadProtocol):
     def feedback(self, message: str) -> NoReturn:
         """Continue via exit 0, Stop's decision JSON with message as reason.
 
-        Kiro's `Stop` hook only surfaces feedback via this exit-0 JSON
-        channel (see kiro.dev/docs/cli/hooks/#stop) - the default
-        `Protocol.feedback()` (exit 2 + stderr) is a no-op here since `Stop`
-        isn't attached to a tool call and can't be blocked.
+        Kiro's `Stop` hook only surfaces feedback through this channel (see
+        kiro.dev/docs/cli/hooks/#stop); it isn't attached to a tool call, so
+        the default exit-2 feedback would be a no-op.
         """
         print(json.dumps({"decision": "block", "reason": message}), end="")
         sys.exit(0)
@@ -106,15 +105,10 @@ class KiroProtocol(StandardPayloadProtocol):
     def research_trace_header(self) -> str:
         """Return the Stop research-trace header for Kiro.
 
-        Unlike Claude Code, Kiro never surfaces this hook's raw output to the
-        user - only the model's own reply is shown, appended directly after
-        its prior turn text with no separator. So the instruction must tell
-        the model to render the trace itself, on its own new line, as a bare
-        citation with no narration - otherwise the model tends to explain or
-        editorialize about the lookups instead of just listing them. An exact
-        format string is spelled out because a looser instruction (e.g. "list
-        tool + detail") still let the model invent its own punctuation, such
-        as repeating a URL a second time in parentheses.
+        Kiro shows only the model's own reply, appended to its prior turn text
+        with no separator, so the model must render the trace itself. The
+        format is spelled out exactly because a looser instruction let the
+        model narrate or invent its own punctuation.
 
         Returns:
             The instruction header for Kiro.

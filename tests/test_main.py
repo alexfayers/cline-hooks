@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 
 def _run(payload: dict[str, object], env: dict[str, str] | None = None) -> list[str]:
-    """Feed one payload through the real entry point and capture what it printed.
+    """Feed one payload through the entry point and capture what it printed.
 
     Returns:
         Everything written to stdout, in order.

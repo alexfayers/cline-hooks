@@ -84,10 +84,8 @@ class Outcome:
     def merge(self, other: Outcome) -> Outcome:
         """Combine this outcome with a later contributor's outcome.
 
-        `self` is the earlier contributor. A BLOCK always wins: once one has
-        occurred, nothing after it contributes notes, and a BLOCK discards
-        whatever notes were accumulated before it. `user_message` always
-        accumulates, even across a BLOCK.
+        A BLOCK wins: it discards notes accumulated before it, and nothing
+        after it contributes any. `user_message` accumulates regardless.
 
         Args:
             other: The later contributor's outcome.

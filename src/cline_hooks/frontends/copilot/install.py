@@ -14,8 +14,8 @@ if TYPE_CHECKING:
 class CopilotInstaller(JsonHookInstaller):
     """Installs cline-hooks into Copilot's hooks directory.
 
-    Copilot's entries are flat command objects with no matcher, so cline-hooks
-    gets its own file in the hooks directory rather than patching a shared one.
+    Entries are flat command objects with no matcher, and cline-hooks gets its
+    own file rather than patching a shared one.
     """
 
     help: ClassVar[str] = "Install GitHub Copilot hooks into ~/.copilot/hooks/"

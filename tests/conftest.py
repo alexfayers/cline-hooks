@@ -29,17 +29,13 @@ if TYPE_CHECKING:
 
 @dataclass
 class StubTranscript(TranscriptReader):
-    """A scriptable stand-in for a frontend's transcript reader.
-
-    Answers like a real reader whose file is missing when the payload names no
-    transcript, so handler tests still exercise the "no transcript" path.
-    """
+    """A scriptable transcript reader that answers empty without a path."""
 
     tokens: int | None = None
     text: str = ""
 
     def context_tokens(self, transcript_path: str) -> int | None:
-        """Return the scripted token count, or None without a transcript path.
+        """Return the scripted token count.
 
         Returns:
             The scripted count when a transcript is named, otherwise None.
@@ -47,7 +43,7 @@ class StubTranscript(TranscriptReader):
         return self.tokens if transcript_path else None
 
     def turn_assistant_text(self, transcript_path: str) -> str:
-        """Return the scripted assistant text, or "" without a transcript path.
+        """Return the scripted assistant text.
 
         Returns:
             The scripted text when a transcript is named, otherwise "".
@@ -62,8 +58,7 @@ def stub_transcript(
     """Swap the active protocol's transcript reader for a scripted stub.
 
     Returns:
-        A callable taking `tokens` and/or `text`, which installs and returns
-        the stub reader.
+        A callable taking `tokens` and/or `text` that installs the stub.
     """
 
     def install(*, tokens: int | None = None, text: str = "") -> StubTranscript:

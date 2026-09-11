@@ -11,8 +11,7 @@ from cline_hooks.core.install import JsonHookInstaller
 class CodexInstaller(JsonHookInstaller):
     """Installs cline-hooks into Codex's hooks file.
 
-    Codex reuses Claude Code's config shape as well as its payload shape, so
-    the default nested entry format applies unchanged.
+    Codex reuses Claude Code's config shape, so the default entry format applies.
     """
 
     help: ClassVar[str] = "Install Codex hooks into hooks.json"

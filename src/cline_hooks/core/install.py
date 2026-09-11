@@ -2,11 +2,7 @@
 """Shared install machinery: one Installer per frontend, driven by its hook table.
 
 An installer never names the hooks it installs - it reads them from the
-frontend's own `supported_hooks`, so a frontend that gains a hook gains it in
-its installer for free. Most frontends are configured by a JSON file holding a
-`hooks` object, so `JsonHookInstaller` carries that whole merge-and-report
-flow; a frontend only says where its config lives and what one entry looks
-like.
+frontend's own `supported_hooks`.
 """
 
 from __future__ import annotations
@@ -35,8 +31,7 @@ class Installer(ABC):
 
     Attributes:
         help: Help text for this frontend's `cline-hook install` subcommand.
-        argument: The subcommand's positional argument, or None where it takes
-            none.
+        argument: The subcommand's positional argument, if it takes one.
     """
 
     help: ClassVar[str]
@@ -47,9 +42,8 @@ class Installer(ABC):
         """Install every hook `protocol_cls` registers.
 
         Args:
-            protocol_cls: The frontend's Protocol class, whose
-                `supported_hooks` names the hooks to install.
-            target: The subcommand's positional argument, where it declares one.
+            protocol_cls: The frontend's Protocol class.
+            target: The subcommand's positional argument, if it takes one.
         """
 
 
@@ -75,7 +69,7 @@ class JsonHookInstaller(Installer):
     """Installer for frontends configured by a JSON file holding a `hooks` object.
 
     Merges an entry per registered hook into that object, preserving entries
-    from other sources and skipping events that already point at this binary.
+    from other sources and skipping events already pointing at this binary.
 
     Attributes:
         must_exist: Whether the config file must already exist, rather than
@@ -89,7 +83,7 @@ class JsonHookInstaller(Installer):
         """Return the JSON config file to patch.
 
         Args:
-            target: The subcommand's positional argument, where it declares one.
+            target: The subcommand's positional argument, if it takes one.
 
         Returns:
             Path to the frontend's hook config file.
@@ -98,10 +92,7 @@ class JsonHookInstaller(Installer):
     def build_entry(
         self, binary: Path, registration: HookRegistration
     ) -> dict[str, Any]:
-        """Build one hook entry for the frontend's config.
-
-        Defaults to the nested "hook group" shape, in which an entry carries an
-        optional matcher and a list of commands.
+        """Build one hook entry, in the nested "hook group" shape by default.
 
         Args:
             binary: Path to the cline-hook binary.
@@ -124,7 +115,7 @@ class JsonHookInstaller(Installer):
             entry: One entry from the config's hook event list.
 
         Returns:
-            The commands the entry runs, used to skip re-adding this binary.
+            The entry's commands, used to skip re-adding this binary.
         """
         return {
             str(hook.get("command", ""))
@@ -139,7 +130,7 @@ class JsonHookInstaller(Installer):
             config_path: Path to the config file.
 
         Returns:
-            The parsed config, or an empty config where the file may be created.
+            The parsed config, or an empty one where the file may be created.
         """
         if config_path.exists():
             config: dict[str, Any] = json.loads(config_path.read_text(encoding="utf-8"))
@@ -155,7 +146,7 @@ class JsonHookInstaller(Installer):
 
         Args:
             protocol_cls: The frontend's Protocol class.
-            target: The subcommand's positional argument, where it declares one.
+            target: The subcommand's positional argument, if it takes one.
         """
         binary = resolve_binary()
         binary_str = str(binary)

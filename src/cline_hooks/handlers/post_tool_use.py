@@ -219,9 +219,8 @@ def _skills_in_command(command: str) -> list[str]:
 def _record_skill_use(task_id: str, tool_name: str, parameters: dict[str, Any]) -> None:
     """Record any skill loaded by a tool call.
 
-    Skills load in several ways depending on the frontend: the canonical skill
-    tool, a read of a SKILL.md file, or a shell command that reads a SKILL.md
-    file.
+    Skills load via the canonical skill tool, a read of a SKILL.md file, or a
+    shell command that reads one.
 
     Args:
         task_id: The session or task identifier.

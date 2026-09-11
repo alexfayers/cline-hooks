@@ -61,8 +61,7 @@ class Protocol(ABC):
     supported_hooks: ClassVar[Mapping[CanonicalHook, HookRegistration]] = {}
     tool_map: ClassVar[Mapping[str, CanonicalTool]] = {}
     transcript: ClassVar[TranscriptReader] = NULL_TRANSCRIPT
-    # Set by @frontend on the class it decorates; None on a spec class that
-    # only carries a payload shape for other frontends to inherit.
+    # Set by @frontend; None on a spec class that only carries a payload shape.
     frontend_spec: ClassVar[FrontendSpec | None] = None
 
     @classmethod
@@ -79,10 +78,8 @@ class Protocol(ABC):
     def fires(cls, canonical_hook: str) -> bool:
         """Whether this frontend fires the given canonical hook.
 
-        A payload can carry an event name this frontend does not register -
-        a native name that happens to read like a canonical hook, or an event
-        belonging to a frontend whose payloads are indistinguishable from this
-        one's. Such an event is not this frontend's to handle.
+        A payload can carry an event name this frontend does not register, and
+        such an event is not this frontend's to handle.
 
         Args:
             canonical_hook: The canonical hook name resolved from the payload.
@@ -105,15 +102,14 @@ class Protocol(ABC):
     def native_tool_name(cls, tool: CanonicalTool) -> str:
         """Return this frontend's own name for a canonical tool.
 
-        Lets shared handler text name a tool the way the model calling it
-        does, without any handler knowing which frontend it is talking to.
+        Lets shared handler text name a tool the way the model calling it does.
 
         Args:
             tool: The canonical tool to name.
 
         Returns:
-            The first native name this frontend maps onto `tool`, or the
-            canonical name itself where the frontend has no name of its own.
+            The first native name mapped onto `tool`, or the canonical name
+            where the frontend has none of its own.
         """
         for native_name, canonical in cls.tool_map.items():
             if canonical == tool:
@@ -167,10 +163,8 @@ class Protocol(ABC):
     def research_trace_header(self) -> str:
         """Return the instruction header prepended to a Stop research trace.
 
-        The default makes no assumption about where a hook's output surfaces,
-        so it asks the model to cite the lookups itself. Frontends that show
-        this hook's raw output to the user, or that need an exact rendering
-        format, override it.
+        The default assumes nothing about where hook output surfaces, so it
+        asks the model to cite the lookups itself.
 
         Returns:
             The instruction header for this frontend.

@@ -48,11 +48,9 @@ def with_team_clause(note: str, task_id: str) -> str:
 def context_note(task_id: str, token_count: int) -> str | None:
     """Return the context-usage nudge for the current token count, or None.
 
-    Fires at most once per 10k-token band for the session, from whichever call
-    site (UserPromptSubmit or PostToolUse) reaches that band first. The longer
-    accuracy/action text for a degradation tier is appended only on the note
-    that first crosses into that tier (CONTEXT_REDUCED_THRESHOLD or
-    CONTEXT_DEGRADED_THRESHOLD) - subsequent same-tier notes stay short.
+    Fires at most once per 10k-token band, from whichever call site reaches
+    that band first. The longer per-tier text is appended only on the note
+    that first crosses into that tier; later same-tier notes stay short.
 
     Args:
         task_id: The session or task identifier.

@@ -17,21 +17,21 @@ if TYPE_CHECKING:
 class CodexProtocol(ClaudeCodeHookSpec):
     """Codex hook protocol.
 
-    Codex reuses Claude Code's hook JSON shape and native tool names
-    (Bash/Edit/Write/Read/Skill) exactly, so it inherits Claude Code's payload
-    spec wholesale. It inherits nothing else: Codex's output channel is the
-    plain exit-code contract, and its transcript format is undocumented, so it
-    keeps the default "no readable transcript" rather than guessing at Claude
-    Code's JSONL. No env var or payload signal was found that distinguishes a
-    genuine Codex invocation from a real Claude Code one, so `detect()`
-    returns False unconditionally - Codex payloads fall through to
-    `ClaudeCodeProtocol`, which parses them correctly anyway since the shape
-    is identical.
+    Codex reuses Claude Code's hook JSON shape and native tool names exactly,
+    so it inherits that payload spec and nothing else: its output channel is
+    the plain exit-code contract, and its transcript format is undocumented.
+    Nothing distinguishes a Codex invocation from a real Claude Code one, so
+    `detect()` is always False and Codex payloads fall through to
+    `ClaudeCodeProtocol`, which parses them identically.
     """
 
     @classmethod
     def detect(cls, payload: RawPayload) -> bool:
-        """Never detect - no signal distinguishes Codex from Claude Code (see class docstring)."""
+        """Never detect - nothing distinguishes Codex from Claude Code.
+
+        Returns:
+            False, always.
+        """
         return False
 
     def allow(

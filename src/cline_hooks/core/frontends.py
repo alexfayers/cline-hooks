@@ -1,8 +1,7 @@
 """Which frontends exist: import every frontend package, then order what registered.
 
-Importing a frontend package runs its `@frontend` decorator, so discovery is
-just "import them all and read the registry". Nothing here names a frontend:
-adding one is adding a package under `cline_hooks.frontends`.
+Nothing here names a frontend - adding one is adding a package under
+`cline_hooks.frontends`.
 """
 
 from __future__ import annotations
@@ -19,8 +18,7 @@ def _discover() -> tuple[FrontendSpec, ...]:
     """Import every frontend package and return what registered itself.
 
     Returns:
-        Every registered spec, ordered by name so the registry - and anything
-        generated from it - is stable.
+        Every registered spec, ordered by name for stability.
     """
     for module_info in pkgutil.iter_modules(cline_hooks.frontends.__path__):
         importlib.import_module(f"{cline_hooks.frontends.__name__}.{module_info.name}")
@@ -60,8 +58,8 @@ def select_protocol(payload: RawPayload) -> type[Protocol]:
         payload: The raw hook invocation data.
 
     Returns:
-        The first protocol, in detection order, that claims the payload;
-        otherwise the default frontend's protocol.
+        The first protocol in detection order to claim the payload, else the
+        default frontend's protocol.
     """
     for spec in DETECTION_ORDER:
         if spec.protocol.detect(payload):

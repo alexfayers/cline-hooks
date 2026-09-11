@@ -140,10 +140,8 @@ class HooksPlugin:
     def get_tooling_note(self, workspace_roots: list[str]) -> ToolingNote | None:  # noqa: ARG002
         """Return this plugin's ecosystem tooling note for these workspace roots.
 
-        Overriding plugins use this to supply their own build-tool guidance,
-        optionally replacing the generic ecosystem tooling note for the same
-        roots (regardless of which ecosystem detector would otherwise have
-        matched).
+        A plugin supplies its own build-tool guidance here, optionally
+        replacing the generic ecosystem note for the same roots.
 
         Args:
             workspace_roots: List of workspace root paths.

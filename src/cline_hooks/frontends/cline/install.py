@@ -111,9 +111,8 @@ def _install_unix(binary: Path, target: Path, hooks: tuple[str, ...]) -> None:
 class ClineInstaller(Installer):
     """Installs a cline-hook entry point per hook into Cline's hooks directory.
 
-    Cline dispatches by file name rather than by config, so each registered
-    hook gets its own entry point: a symlink on Unix, a PowerShell shim on
-    Windows (which has no dependable symlink permission for regular users).
+    Cline dispatches by file name rather than by config, so each hook gets its
+    own entry point: a symlink on Unix, a PowerShell shim on Windows.
     """
 
     help: ClassVar[str] = "Install Cline hooks (symlinks/scripts)"

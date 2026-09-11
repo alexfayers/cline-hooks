@@ -40,8 +40,7 @@ def is_memory_write(tool_name: str) -> bool:
     """Check whether a tool name is a memory-write operation.
 
     Args:
-        tool_name: The normalised MCP tool name, as each frontend's protocol
-            resolves it (e.g. "create_entities").
+        tool_name: The normalised MCP tool name (e.g. "create_entities").
 
     Returns:
         True if the tool is a memory-write operation.

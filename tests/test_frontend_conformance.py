@@ -23,14 +23,12 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures"
 # Env a frontend's own hook invocation carries, where its detection reads one.
 _DETECT_ENV: dict[str, dict[str, str]] = {"claude-code": {"CLAUDECODE": "1"}}
 
-# A frontend whose payloads are shaped exactly like another frontend's, and so
-# cannot be told apart from it by shape alone.
+# Frontends whose payloads are shaped exactly like another frontend's, so they
+# cannot be told apart by shape alone.
 _SHAPE_SOURCE: dict[str, str] = {"codex": "claude-code", "copilot": "claude-code"}
 
-# Which frontend should end up handling each frontend's payloads. A frontend
-# that borrows another's shape is handled by the frontend it borrows from,
-# which parses it identically - except where it fires an event the shape
-# source has no counterpart for, which only it can have sent.
+# A borrowed-shape frontend is handled by the frontend it borrows from, except
+# for an event only it can have fired.
 _ROUTE_EXCEPTIONS: dict[tuple[str, str], str] = {("copilot", "PreCompact"): "copilot"}
 
 
@@ -47,8 +45,7 @@ def _fixture_owner(spec: FrontendSpec) -> str:
     """Return the frontend whose fixtures exercise this one.
 
     Returns:
-        The frontend's own name, or - where it has no fixtures of its own -
-        the name of the frontend whose payload shape it reuses wholesale.
+        Its own name, or its shape source's where it has no fixtures.
     """
     if _fixture_hooks(spec.name):
         return spec.name
@@ -68,7 +65,7 @@ def _expected_route(name: str, canonical_hook: str) -> str:
 
 
 def _payload_for(name: str, canonical_hook: str) -> RawPayload:
-    """Build a RawPayload from a fixture, with the env that fixture's frontend carries.
+    """Build a RawPayload from a fixture, with its frontend's own env.
 
     Returns:
         A RawPayload as the owning frontend would deliver it.
@@ -86,8 +83,7 @@ _ALL_FIXTURE_PAIRS = [
     for canonical_hook in _fixture_hooks(name)
 ]
 
-# Every (frontend, foreign fixture) pair whose payload shapes genuinely differ,
-# so one must never claim the other's payload.
+# Pairs whose payload shapes genuinely differ, so neither may claim the other's.
 _FOREIGN_SHAPE_PAIRS = [
     (spec, name, canonical_hook)
     for spec in FRONTENDS
@@ -100,9 +96,7 @@ def _concrete_protocols() -> set[type[Protocol]]:
     """Return every concrete Protocol subclass in the package, at any depth.
 
     Returns:
-        The concrete protocol classes, skipping abstract layers such as
-        StandardPayloadProtocol or a frontend's payload spec, and any
-        synthetic subclass declared by a test module.
+        The concrete protocol classes, skipping abstract layers and test doubles.
     """
     seen: set[type[Protocol]] = set()
     work: list[type[Protocol]] = list(Protocol.__subclasses__())
@@ -179,10 +173,8 @@ def test_a_frontend_never_detects_a_differently_shaped_payload(
 class TestBorrowedShapeFrontends:
     """Frontends whose payloads are shaped exactly like another frontend's.
 
-    They cannot claim an ordinary payload, so detection falls through to the
-    frontend they borrow their shape from - which by construction parses it
-    the same way. Installing them still matters: that is how their hooks get
-    wired up, and an event their shape source never fires is theirs to claim.
+    Detection falls through to the frontend they borrow from, which parses
+    them the same way - except for an event only they can have fired.
     """
 
     @pytest.mark.parametrize(("name", "canonical_hook"), _ALL_FIXTURE_PAIRS)

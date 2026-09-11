@@ -38,10 +38,9 @@ if TYPE_CHECKING:
 class ClaudeCodeHookSpec(StandardPayloadProtocol):
     """Claude Code's hook payload spec: its event names, tool names, field shapes.
 
-    Held apart from `ClaudeCodeProtocol` so a frontend documented as speaking
-    the same payload shape (Codex, GitHub Copilot) can inherit the spec alone,
-    without also claiming Claude Code's output channel, transcript format, or
-    direct-to-user channel.
+    Held apart from `ClaudeCodeProtocol` so Codex and GitHub Copilot can
+    inherit the payload shape alone, not Claude Code's output channel,
+    transcript format, or direct-to-user channel.
     """
 
     supported_hooks: ClassVar[Mapping[CanonicalHook, HookRegistration]] = {
@@ -178,13 +177,7 @@ class ClaudeCodeProtocol(ClaudeCodeHookSpec):
         sys.exit(0)
 
     def block(self, message: str) -> NoReturn:
-        """Block via exit 2, error on stderr.
-
-        Matches the exit-2+stderr shape Claude Code's own hooks docs describe
-        for PreToolUse/PostToolUse/Stop blocking. Whether this should instead
-        emit hookSpecificOutput (mirroring allow()/feedback()) is an open
-        follow-up, not resolved by this refactor.
-        """
+        """Block via exit 2, error on stderr, as Claude Code's hooks docs describe."""
         exit_block(message)
 
     def feedback(self, message: str) -> NoReturn:
@@ -196,7 +189,7 @@ class ClaudeCodeProtocol(ClaudeCodeHookSpec):
         """Return the Stop research-trace header for Claude Code.
 
         Claude Code shows this hook's raw output to the user itself, so the
-        model is told to cite the lookups without re-rendering them.
+        model need not re-render the lookups.
 
         Returns:
             The instruction header for Claude Code.

@@ -36,8 +36,7 @@ def _target_for(spec: FrontendSpec, home: Path) -> str | None:
     """Return the install target for a frontend, where it takes one.
 
     Returns:
-        A path inside `home` for a frontend whose install takes an argument,
-        otherwise None.
+        A path inside `home`, or None where the install takes no argument.
     """
     installer = _installer(spec)
     if installer.argument is None:
@@ -93,7 +92,7 @@ def _commands(spec: FrontendSpec, config: dict[str, Any], event: str) -> list[st
     """Return every command registered under one hook event.
 
     Returns:
-        The commands, in config order, as the frontend's own installer reads them.
+        The commands in config order, as the installer itself reads them.
     """
     installer = _installer(spec)
     return [
