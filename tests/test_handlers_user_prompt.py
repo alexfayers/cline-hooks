@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pytest
 
 from cline_hooks.core.plugin import HooksPlugin
-from cline_hooks.core.protocol import RawPayload
+from cline_hooks.core.protocol import RawPayload, get_protocol
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.handlers.user_prompt import (
     _contains_correction_signal,
@@ -25,6 +25,7 @@ from cline_hooks.state.context import (
 from cline_hooks.state.plan import record_plan_exit
 import cline_hooks.state.turns as turns_module
 from cline_hooks.state.turns import _AGENT_NUDGE_THRESHOLD
+from tests.conftest import StubTranscript
 
 if TYPE_CHECKING:
     from cline_hooks.core.models import HookInput, HookInputUserPromptSubmit
@@ -122,9 +123,10 @@ def _run_with_transcript(token_count: int | None) -> dict[str, object] | None:
                 side_effect=lambda s, _out=output, **kw: _out.append(s),
             ),
             patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch(
-                "cline_hooks.handlers.user_prompt.get_context_tokens",
-                return_value=token_count,
+            patch.object(
+                type(get_protocol()),
+                "transcript",
+                StubTranscript(tokens=token_count),
             ),
             patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
         ):
@@ -579,12 +581,12 @@ class TestTeamActiveClause:
         record_agent_use("task-1", "Agent")
         result = _run_with_transcript(_JUST_ABOVE_REDUCED)
         assert result is not None
-        assert "TaskStop" in cast("str", result.get("contextModification", ""))
+        assert "stop the team" in cast("str", result.get("contextModification", ""))
 
     def test_no_team_clause_when_no_agent(self) -> None:
         result = _run_with_transcript(_JUST_ABOVE_REDUCED)
         assert result is not None
-        assert "TaskStop" not in cast("str", result.get("contextModification", ""))
+        assert "stop the team" not in cast("str", result.get("contextModification", ""))
 
 
 class TestPluginMessageForwarding:

@@ -26,7 +26,7 @@ _CONTEXT_NUDGE_SEVERE = (
 
 _TEAM_ACTIVE_CLAUSE = (
     "An agent team appears to be active this session. Before handing off, MUST collect each teammate's progress "
-    "into memory/TODOs and stop the team (TaskStop) so it does not keep running after this session ends."
+    "into memory/TODOs and stop the team so it does not keep running after this session ends."
 )
 
 

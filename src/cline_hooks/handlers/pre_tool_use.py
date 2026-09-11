@@ -19,6 +19,7 @@ from cline_hooks.core.parameters import (
     ShellParameters,
 )
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
+from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.registry import TOOL_HANDLERS, hook_handler, tool_handler
 from cline_hooks.core.vocabulary import (
     CanonicalHook,
@@ -171,9 +172,10 @@ def _pre_plan_mode_respond(
     """
     response: str = PlanModeRespondParameters.build(fields.parameters).response
     if not _starts_with_emoji(response):
+        spawn_tool = get_protocol().native_tool_name(CanonicalTool.SPAWN_AGENT)
         return Outcome.block(
             "Response does not start with an emoji - context window may be degraded. "
-            "MUST use the new_task tool to start a fresh context."
+            f"MUST use the {spawn_tool} tool to start a fresh context."
         )
     return Outcome()
 
@@ -204,8 +206,7 @@ def _pre_read(
     if line_count > _LARGE_FILE_THRESHOLD:
         return Outcome.block(
             f"{path} is {line_count} lines. "
-            "MUST use a tool such as search_files with specific patterns "
-            "instead of reading the whole file."
+            "MUST search it with specific patterns instead of reading the whole file."
         )
     return Outcome()
 

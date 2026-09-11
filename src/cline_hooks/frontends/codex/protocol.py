@@ -2,40 +2,32 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar, NoReturn
+from typing import TYPE_CHECKING, NoReturn
 
-from cline_hooks.core.payload import StandardPayloadProtocol
-from cline_hooks.core.protocol import HookRegistration, exit_allow, exit_block
-from cline_hooks.core.vocabulary import Frontend
-from cline_hooks.frontends.claude_code.protocol import ClaudeCodeProtocol
+from cline_hooks.core.frontend import frontend
+from cline_hooks.core.protocol import exit_allow, exit_block
+from cline_hooks.frontends.claude_code.protocol import ClaudeCodeHookSpec
+from cline_hooks.frontends.codex.install import CodexInstaller
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
-
     from cline_hooks.core.protocol import RawPayload
-    from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
 
 
-class CodexProtocol(StandardPayloadProtocol):
+@frontend(name="codex", display_name="Codex", installer=CodexInstaller())
+class CodexProtocol(ClaudeCodeHookSpec):
     """Codex hook protocol.
 
     Codex reuses Claude Code's hook JSON shape and native tool names
-    (Bash/Edit/Write/Read/Skill) exactly, so parsing reuses Claude Code's
-    payload spec directly and hook-support metadata delegates to
-    `ClaudeCodeProtocol`. No env var or payload signal was found that
-    distinguishes a genuine Codex invocation from a real Claude Code one,
-    so `detect()` returns False unconditionally - Codex payloads fall
-    through to `ClaudeCodeProtocol`, which parses them correctly anyway
-    since the shape is identical.
+    (Bash/Edit/Write/Read/Skill) exactly, so it inherits Claude Code's payload
+    spec wholesale. It inherits nothing else: Codex's output channel is the
+    plain exit-code contract, and its transcript format is undocumented, so it
+    keeps the default "no readable transcript" rather than guessing at Claude
+    Code's JSONL. No env var or payload signal was found that distinguishes a
+    genuine Codex invocation from a real Claude Code one, so `detect()`
+    returns False unconditionally - Codex payloads fall through to
+    `ClaudeCodeProtocol`, which parses them correctly anyway since the shape
+    is identical.
     """
-
-    supported_hooks: ClassVar[Mapping[CanonicalHook, HookRegistration]] = (
-        ClaudeCodeProtocol.supported_hooks
-    )
-    frontends: ClassVar[tuple[Frontend, ...]] = (Frontend.CLAUDE_CODE,)
-    tool_map: ClassVar[Mapping[str, CanonicalTool]] = ClaudeCodeProtocol.tool_map
-    mcp_prefix: ClassVar[str] = ClaudeCodeProtocol.mcp_prefix
-    mcp_separator: ClassVar[str] = ClaudeCodeProtocol.mcp_separator
 
     @classmethod
     def detect(cls, payload: RawPayload) -> bool:

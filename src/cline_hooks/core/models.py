@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeVar, get_args
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from cline_hooks.core.vocabulary import CanonicalHook
 
@@ -14,23 +14,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger("hooks")
 
 _HookInputT = TypeVar("_HookInputT", bound="HookInput")
-
-
-def extract_mcp_tool_name(tool_name: str) -> str:
-    """Return the bare tool name from a fully-qualified MCP tool identifier.
-
-    Handles Cline bare names ("create_entities") and Claude Code's
-    "mcp__<server>__<tool>" form, returning the trailing tool segment.
-
-    Args:
-        tool_name: The tool name as reported by the frontend.
-
-    Returns:
-        The bare tool name.
-    """
-    if "__" in tool_name:
-        return tool_name.rsplit("__", 1)[-1]
-    return tool_name
 
 
 class HookFields(BaseModel):
@@ -89,9 +72,7 @@ class PostToolUseFields(HookFields):
     toolName: str
     parameters: dict[str, Any]
     success: bool
-    executionTimeMs: int = Field(
-        default=0, validation_alias=AliasChoices("duration_ms", "executionTimeMs")
-    )
+    executionTimeMs: int = 0
     result: str | None = None
 
 

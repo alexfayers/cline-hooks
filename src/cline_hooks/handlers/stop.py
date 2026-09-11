@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow, feedback
-from cline_hooks.core.transcript import get_turn_assistant_text
 from cline_hooks.core.vocabulary import CanonicalHook
 import cline_hooks.state.research as research_state
 
@@ -106,12 +105,16 @@ def handle_stop(hook: HookInputStop) -> None:
     if hook.stop and hook.stop.stopHookActive:
         allow()
 
+    protocol = get_protocol()
+
     notes: list[str] = []
-    if _contains_dismissal_signal(get_turn_assistant_text(hook.transcriptPath)):
+    if _contains_dismissal_signal(
+        protocol.transcript.turn_assistant_text(hook.transcriptPath)
+    ):
         notes.append(_DISMISSAL_NUDGE)
 
     trace = _format_research_trace(
-        research_state.get_research(hook.taskId), get_protocol().research_trace_header()
+        research_state.get_research(hook.taskId), protocol.research_trace_header()
     )
     research_state.reset(hook.taskId)
     if trace:

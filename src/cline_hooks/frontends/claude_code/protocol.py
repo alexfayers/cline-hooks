@@ -7,25 +7,41 @@ import json
 import sys
 from typing import TYPE_CHECKING, ClassVar, NoReturn, Self
 
-from cline_hooks.core.payload import StandardPayloadProtocol
+from cline_hooks.core.frontend import SHAPE_SNIFF, frontend
+from cline_hooks.core.models import HookFields
+from cline_hooks.core.payload import (
+    PayloadEnvelope,
+    StandardPayloadProtocol,
+    ToolParams,
+)
 from cline_hooks.core.protocol import HookRegistration, exit_block
-from cline_hooks.core.vocabulary import CanonicalHook, Frontend
-from cline_hooks.frontends.claude_code.parser import _TOOL_MAP
+from cline_hooks.core.transcript import TranscriptReader
+from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
+from cline_hooks.frontends.claude_code.install import ClaudeCodeInstaller
+from cline_hooks.frontends.claude_code.models import (
+    ClaudeCodeEditWriteParams,
+    ClaudeCodePostToolUse,
+    ClaudeCodeReadParams,
+    ClaudeCodeShellParams,
+    ClaudeCodeStop,
+    ClaudeCodeTaskStart,
+    ClaudeCodeUserPromptSubmit,
+)
+from cline_hooks.frontends.claude_code.transcript import ClaudeCodeTranscriptReader
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from cline_hooks.core.protocol import RawPayload
-    from cline_hooks.core.vocabulary import CanonicalTool
 
 
-class ClaudeCodeProtocol(StandardPayloadProtocol):
-    """Claude Code exit-code protocol.
+class ClaudeCodeHookSpec(StandardPayloadProtocol):
+    """Claude Code's hook payload spec: its event names, tool names, field shapes.
 
-    allow/feedback context uses hookSpecificOutput.additionalContext (exit 0)
-    instead of plain stdout or exit 2, since Claude Code only surfaces plain
-    stdout to the model for UserPromptSubmit/UserPromptExpansion/SessionStart
-    - every other event needs additionalContext to actually reach the model.
+    Held apart from `ClaudeCodeProtocol` so a frontend documented as speaking
+    the same payload shape (Codex, GitHub Copilot) can inherit the spec alone,
+    without also claiming Claude Code's output channel, transcript format, or
+    direct-to-user channel.
     """
 
     supported_hooks: ClassVar[Mapping[CanonicalHook, HookRegistration]] = {
@@ -35,10 +51,52 @@ class ClaudeCodeProtocol(StandardPayloadProtocol):
         CanonicalHook.POST_TOOL_USE: HookRegistration("PostToolUse", matcher=""),
         CanonicalHook.STOP: HookRegistration("Stop"),
     }
-    frontends: ClassVar[tuple[Frontend, ...]] = (Frontend.CLAUDE_CODE,)
-    tool_map: ClassVar[Mapping[str, CanonicalTool]] = _TOOL_MAP
+    tool_map: ClassVar[Mapping[str, CanonicalTool]] = {
+        "Bash": CanonicalTool.SHELL,
+        "Read": CanonicalTool.READ,
+        "Edit": CanonicalTool.EDIT,
+        "Write": CanonicalTool.WRITE,
+        "Skill": CanonicalTool.SKILL,
+        "Task": CanonicalTool.SPAWN_AGENT,
+        "Agent": CanonicalTool.SPAWN_AGENT,
+        "Workflow": CanonicalTool.SPAWN_AGENT,
+        "ExitPlanMode": CanonicalTool.PLAN_EXIT,
+        "WebFetch": CanonicalTool.WEB_FETCH,
+        "WebSearch": CanonicalTool.WEB_SEARCH,
+    }
+    envelope_model: ClassVar[type[PayloadEnvelope]] = PayloadEnvelope
+    hook_models: ClassVar[Mapping[CanonicalHook, type[HookFields]]] = {
+        CanonicalHook.POST_TOOL_USE: ClaudeCodePostToolUse,
+        CanonicalHook.TASK_START: ClaudeCodeTaskStart,
+        CanonicalHook.USER_PROMPT_SUBMIT: ClaudeCodeUserPromptSubmit,
+        CanonicalHook.STOP: ClaudeCodeStop,
+    }
+    tool_models: ClassVar[Mapping[CanonicalTool, type[ToolParams]]] = {
+        CanonicalTool.READ: ClaudeCodeReadParams,
+        CanonicalTool.EDIT: ClaudeCodeEditWriteParams,
+        CanonicalTool.WRITE: ClaudeCodeEditWriteParams,
+        CanonicalTool.SHELL: ClaudeCodeShellParams,
+    }
     mcp_prefix: ClassVar[str] = "mcp__"
     mcp_separator: ClassVar[str] = "__"
+
+
+@frontend(
+    name="claude-code",
+    display_name="Claude Code",
+    installer=ClaudeCodeInstaller(),
+    detect_priority=SHAPE_SNIFF,
+)
+class ClaudeCodeProtocol(ClaudeCodeHookSpec):
+    """Claude Code exit-code protocol.
+
+    allow/feedback context uses hookSpecificOutput.additionalContext (exit 0)
+    instead of plain stdout or exit 2, since Claude Code only surfaces plain
+    stdout to the model for UserPromptSubmit/UserPromptExpansion/SessionStart
+    - every other event needs additionalContext to actually reach the model.
+    """
+
+    transcript: ClassVar[TranscriptReader] = ClaudeCodeTranscriptReader()
 
     def __init__(self, hook_event_name: str = "Stop") -> None:
         """Store the raw Claude Code hook event name for context injection.
@@ -133,3 +191,17 @@ class ClaudeCodeProtocol(StandardPayloadProtocol):
         """Continue via exit 0, non-error context in hookSpecificOutput."""
         self._print_additional_context(message)
         sys.exit(0)
+
+    def research_trace_header(self) -> str:
+        """Return the Stop research-trace header for Claude Code.
+
+        Claude Code shows this hook's raw output to the user itself, so the
+        model is told to cite the lookups without re-rendering them.
+
+        Returns:
+            The instruction header for Claude Code.
+        """
+        return (
+            "RESEARCH TRACE: MUST cite lookups behind this turn's claims, in ONE "
+            "line only - the user already sees this hook's raw output."
+        )

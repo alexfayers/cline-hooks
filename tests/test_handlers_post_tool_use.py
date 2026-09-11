@@ -31,6 +31,10 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
 
+    from tests.conftest import StubTranscript
+
+    StubTranscriptT = Callable[..., StubTranscript]
+
 
 def parse_data(raw: str) -> HookInput:
     return ClineProtocol().parse(RawPayload.from_stdin(raw))
@@ -108,13 +112,12 @@ class TestHandlePostToolUse:
 
 
 class TestPostToolUseContextNudge:
-    def test_info_note_fires_on_tool_use(self) -> None:
+    def test_info_note_fires_on_tool_use(
+        self, stub_transcript: StubTranscriptT
+    ) -> None:
+        stub_transcript(tokens=150_000)
         hook = _make_hook("Read", transcript_path="session.jsonl")
-        with patch(
-            "cline_hooks.handlers.post_tool_use.get_context_tokens",
-            return_value=150_000,
-        ):
-            result = _run(hook)
+        result = _run(hook)
         assert result is not None
         context = cast("str", result.get("contextModification", ""))
         assert "CONTEXT STATUS" in context
@@ -125,22 +128,21 @@ class TestPostToolUseContextNudge:
         result = _run(hook)
         assert result is None
 
-    def test_no_nudge_when_token_count_unavailable(self) -> None:
+    def test_no_nudge_when_token_count_unavailable(
+        self, stub_transcript: StubTranscriptT
+    ) -> None:
+        stub_transcript(tokens=None)
         hook = _make_hook("Read", transcript_path="session.jsonl")
-        with patch(
-            "cline_hooks.handlers.post_tool_use.get_context_tokens", return_value=None
-        ):
-            result = _run(hook)
+        result = _run(hook)
         assert result is None
 
-    def test_band_already_claimed_by_user_prompt_submit_does_not_refire(self) -> None:
+    def test_band_already_claimed_by_user_prompt_submit_does_not_refire(
+        self, stub_transcript: StubTranscriptT
+    ) -> None:
+        stub_transcript(tokens=155_000)
         context_note("task-1", 150_000)
         hook = _make_hook("Read", transcript_path="session.jsonl")
-        with patch(
-            "cline_hooks.handlers.post_tool_use.get_context_tokens",
-            return_value=155_000,
-        ):
-            result = _run(hook)
+        result = _run(hook)
         assert result is None
 
 
@@ -419,6 +421,8 @@ class TestResearchRecording:
 
 class TestClaudeCodeMcpResearchIntegration:
     def test_prefixed_mcp_tool_records_research_via_plugin(self) -> None:
+        """A Claude Code mcp__ name reaches the handler already normalised."""
+
         class ResearchPlugin(HooksPlugin):
             def get_research_tool_names(self) -> frozenset[str]:
                 return frozenset({"ReadInternalWebsites"})
@@ -428,10 +432,21 @@ class TestClaudeCodeMcpResearchIntegration:
             ) -> dict[str, Callable[[dict[str, Any]], str]]:
                 return {"ReadInternalWebsites": lambda p: p.get("inputs", [""])[0]}
 
-        hook = _make_hook(
-            "mcp__builder-mcp__ReadInternalWebsites",
-            parameters={"inputs": ["https://example.com/x"]},
+        payload = {
+            "hook_event_name": "PostToolUse",
+            "session_id": "task-1",
+            "cwd": "/workspace",
+            "tool_name": "mcp__builder-mcp__ReadInternalWebsites",
+            "tool_input": {"inputs": ["https://example.com/x"]},
+            "tool_response": {"success": True},
+        }
+        hook = ClaudeCodeProtocol().parse(
+            RawPayload(raw=json.dumps(payload), data=payload, env={})
         )
+        assert isinstance(hook, HookInputPostToolUse)
+        assert hook.postToolUse is not None
+        assert hook.postToolUse.toolName == "use_mcp_tool"
+
         with patch(
             "cline_hooks.handlers.post_tool_use.load_plugins",
             return_value=[ResearchPlugin()],
@@ -442,12 +457,31 @@ class TestClaudeCodeMcpResearchIntegration:
         ]
 
 
+def _mcp_parameters(
+    server_name: str, tool_name: str, arguments: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Build the canonical use_mcp_tool parameters a frontend normalises to.
+
+    Returns:
+        Parameters matching the use_mcp_tool schema.
+    """
+    return {
+        "server_name": server_name,
+        "tool_name": tool_name,
+        "arguments": json.dumps(arguments or {}),
+    }
+
+
 class TestRecordToolUseMcpResolution:
-    def test_prefixed_mcp_research_with_extractor(self) -> None:
+    def test_mcp_research_with_extractor(self) -> None:
         _record_tool_use(
             "task-1",
-            "mcp__builder-mcp__ReadInternalWebsites",
-            {"inputs": ["https://example.com/x"]},
+            "use_mcp_tool",
+            _mcp_parameters(
+                "builder-mcp",
+                "ReadInternalWebsites",
+                {"inputs": ["https://example.com/x"]},
+            ),
             frozenset(),
             frozenset({"ReadInternalWebsites"}),
             {"ReadInternalWebsites": lambda p: p["inputs"][0]},
@@ -456,11 +490,15 @@ class TestRecordToolUseMcpResolution:
             {"tool": "ReadInternalWebsites", "detail": "https://example.com/x"}
         ]
 
-    def test_prefixed_mcp_research_empty_extractors(self) -> None:
+    def test_mcp_research_empty_extractors(self) -> None:
         _record_tool_use(
             "task-1",
-            "mcp__builder-mcp__ReadInternalWebsites",
-            {"inputs": ["https://example.com/x"]},
+            "use_mcp_tool",
+            _mcp_parameters(
+                "builder-mcp",
+                "ReadInternalWebsites",
+                {"inputs": ["https://example.com/x"]},
+            ),
             frozenset(),
             frozenset({"ReadInternalWebsites"}),
             {},
@@ -469,11 +507,11 @@ class TestRecordToolUseMcpResolution:
             {"tool": "ReadInternalWebsites", "detail": ""}
         ]
 
-    def test_prefixed_mcp_state_write(self) -> None:
+    def test_mcp_state_write(self) -> None:
         result = _record_tool_use(
             "task-1",
-            "mcp__srv__SomeWrite",
-            {},
+            "use_mcp_tool",
+            _mcp_parameters("srv", "SomeWrite"),
             frozenset({"SomeWrite"}),
             frozenset(),
             {},

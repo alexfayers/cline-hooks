@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Any
 import git
 import git.exc
 
-from cline_hooks.core.models import extract_mcp_tool_name
 from cline_hooks.core.outcome import Outcome
 from cline_hooks.core.parameters import (
     McpToolUse,
@@ -19,8 +18,8 @@ from cline_hooks.core.parameters import (
     WebResearchParameters,
 )
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
+from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.registry import TOOL_HANDLERS, hook_handler, tool_handler
-from cline_hooks.core.transcript import get_context_tokens
 from cline_hooks.core.vocabulary import (
     CanonicalHook,
     CanonicalTool,
@@ -220,9 +219,9 @@ def _skills_in_command(command: str) -> list[str]:
 def _record_skill_use(task_id: str, tool_name: str, parameters: dict[str, Any]) -> None:
     """Record any skill loaded by a tool call.
 
-    Skills load in several ways depending on the frontend: the Skill/use_skill
-    tools, a Read of a SKILL.md file, or a shell command that reads a SKILL.md
-    file (e.g. Codex reading it via cat/sed).
+    Skills load in several ways depending on the frontend: the canonical skill
+    tool, a read of a SKILL.md file, or a shell command that reads a SKILL.md
+    file.
 
     Args:
         task_id: The session or task identifier.
@@ -328,10 +327,6 @@ def _record_tool_use(  # noqa: PLR0913, PLR0917
         arguments = tool.arguments
         if _is_memory_write(tool.tool_name):
             _record_memory_write(task_id, tool.tool_name)
-    elif "__" in tool_name:
-        mcp_tool_name = extract_mcp_tool_name(tool_name)
-        if _is_memory_write(tool_name):
-            _record_memory_write(task_id, tool_name)
     else:
         _record_skill_use(task_id, tool_name, parameters)
 
@@ -492,7 +487,7 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> Outcome:
     if plan_nudge_pending:
         messages.append(with_team_clause(_PLAN_HANDOFF_NUDGE, hook.taskId))
     if hook.transcriptPath:
-        token_count = get_context_tokens(hook.transcriptPath)
+        token_count = get_protocol().transcript.context_tokens(hook.transcriptPath)
         if token_count is not None:
             note = context_note(hook.taskId, token_count)
             if note is not None:

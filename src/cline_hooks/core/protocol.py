@@ -8,11 +8,14 @@ import os
 import sys
 from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, Self
 
+from cline_hooks.core.transcript import NULL_TRANSCRIPT, TranscriptReader
+
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from cline_hooks.core.frontend import FrontendSpec
     from cline_hooks.core.models import HookInput
-    from cline_hooks.core.vocabulary import CanonicalHook
+    from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
 
 _active_protocol: Protocol | None = None
 
@@ -56,6 +59,11 @@ class Protocol(ABC):
     """Abstract per-frontend detection, parsing, and output protocol."""
 
     supported_hooks: ClassVar[Mapping[CanonicalHook, HookRegistration]] = {}
+    tool_map: ClassVar[Mapping[str, CanonicalTool]] = {}
+    transcript: ClassVar[TranscriptReader] = NULL_TRANSCRIPT
+    # Set by @frontend on the class it decorates; None on a spec class that
+    # only carries a payload shape for other frontends to inherit.
+    frontend_spec: ClassVar[FrontendSpec | None] = None
 
     @classmethod
     def canonical_hook(cls, native_name: str) -> CanonicalHook | str:
@@ -68,6 +76,23 @@ class Protocol(ABC):
         return _native_to_canonical(cls).get(native_name, native_name)
 
     @classmethod
+    def fires(cls, canonical_hook: str) -> bool:
+        """Whether this frontend fires the given canonical hook.
+
+        A payload can carry an event name this frontend does not register -
+        a native name that happens to read like a canonical hook, or an event
+        belonging to a frontend whose payloads are indistinguishable from this
+        one's. Such an event is not this frontend's to handle.
+
+        Args:
+            canonical_hook: The canonical hook name resolved from the payload.
+
+        Returns:
+            True if this frontend registers that hook.
+        """
+        return canonical_hook in cls.supported_hooks
+
+    @classmethod
     def native_hook_names(cls) -> frozenset[str]:
         """Return every native hook event name this frontend registers.
 
@@ -75,6 +100,25 @@ class Protocol(ABC):
             The frontend's native hook event names.
         """
         return frozenset(_native_to_canonical(cls))
+
+    @classmethod
+    def native_tool_name(cls, tool: CanonicalTool) -> str:
+        """Return this frontend's own name for a canonical tool.
+
+        Lets shared handler text name a tool the way the model calling it
+        does, without any handler knowing which frontend it is talking to.
+
+        Args:
+            tool: The canonical tool to name.
+
+        Returns:
+            The first native name this frontend maps onto `tool`, or the
+            canonical name itself where the frontend has no name of its own.
+        """
+        for native_name, canonical in cls.tool_map.items():
+            if canonical == tool:
+                return native_name
+        return tool.value
 
     @classmethod
     @abstractmethod
@@ -121,10 +165,19 @@ class Protocol(ABC):
         self.block(message)
 
     def research_trace_header(self) -> str:
-        """Return the instruction header prepended to a Stop research trace."""
+        """Return the instruction header prepended to a Stop research trace.
+
+        The default makes no assumption about where a hook's output surfaces,
+        so it asks the model to cite the lookups itself. Frontends that show
+        this hook's raw output to the user, or that need an exact rendering
+        format, override it.
+
+        Returns:
+            The instruction header for this frontend.
+        """
         return (
-            "RESEARCH TRACE: MUST cite lookups behind this turn's claims, in ONE "
-            "line only - the user already sees this hook's raw output."
+            "RESEARCH TRACE: MUST cite the lookups behind this turn's claims to "
+            "the user, in ONE line only."
         )
 
 

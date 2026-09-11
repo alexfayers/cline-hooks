@@ -1,6 +1,7 @@
 # cline-hooks
 
-Lifecycle hooks framework for AI coding assistants. Supports Cline, Kiro, and Claude Code.
+Lifecycle hooks framework for AI coding assistants. Supports Cline, Claude Code,
+Codex, GitHub Copilot, and Kiro.
 
 ## Installation
 
@@ -20,22 +21,15 @@ source = "git+https://github.com/alexfayers/cline-hooks.git"
 
 Then run `llm-prompts setup` to install everything.
 
-### Cline
+Each supported frontend has its own install subcommand, listed by
+`cline-hook install --help`:
 
 ```bash
 cline-hook install cline ~/Documents/Cline/Hooks
-```
-
-### Kiro
-
-```bash
-cline-hook install kiro ~/.kiro/agents/my-agent.json
-```
-
-### Claude Code
-
-```bash
 cline-hook install claude-code
+cline-hook install codex
+cline-hook install copilot
+cline-hook install kiro ~/.kiro/agents/my-agent.json
 ```
 
 ### List installed plugins
@@ -51,18 +45,67 @@ each. Generated from each frontend's `Protocol.supported_hooks` table
 (`tests/test_readme_matrix.py` fails the build if this drifts from the code).
 
 <!-- HOOK_MATRIX_START -->
-| Canonical hook | Claude Code | Kiro | Cline |
-|---|---|---|---|
-| PreToolUse | `PreToolUse` | `preToolUse` | `PreToolUse` |
-| PostToolUse | `PostToolUse` | `postToolUse` | `PostToolUse` |
-| TaskStart | `SessionStart` | `agentSpawn` | `TaskStart` |
-| TaskResume | - | - | `TaskResume` |
-| TaskCancel | - | - | `TaskCancel` |
-| TaskComplete | - | - | `TaskComplete` |
-| UserPromptSubmit | `UserPromptSubmit` | `userPromptSubmit` | `UserPromptSubmit` |
-| PreCompact | - | - | `PreCompact` |
-| Stop | `Stop` | `stop` | `Stop` |
+| Canonical hook | Claude Code | Cline | Codex | GitHub Copilot | Kiro |
+|---|---|---|---|---|---|
+| PreToolUse | `PreToolUse` | `PreToolUse` | `PreToolUse` | `PreToolUse` | `preToolUse` |
+| PostToolUse | `PostToolUse` | `PostToolUse` | `PostToolUse` | `PostToolUse` | `postToolUse` |
+| TaskStart | `SessionStart` | `TaskStart` | `SessionStart` | `SessionStart` | `agentSpawn` |
+| TaskResume | - | `TaskResume` | - | - | - |
+| TaskCancel | - | `TaskCancel` | - | - | - |
+| TaskComplete | - | `TaskComplete` | - | - | - |
+| UserPromptSubmit | `UserPromptSubmit` | `UserPromptSubmit` | `UserPromptSubmit` | `UserPromptSubmit` | `userPromptSubmit` |
+| PreCompact | - | `PreCompact` | - | `PreCompact` | - |
+| Stop | `Stop` | `Stop` | `Stop` | `Stop` | `stop` |
 <!-- HOOK_MATRIX_END -->
+
+## Adding a frontend
+
+A frontend is one package under `src/cline_hooks/frontends/`. Nothing in
+`core/` names one: the registry imports every package it finds and reads the
+`@frontend` registrations, so a new package is picked up by detection, the
+CLI, the install subcommands, the conformance tests, and the matrix above
+with no further wiring.
+
+```python
+@frontend(
+    name="my-agent",                 # cline-hook install my-agent
+    display_name="My Agent",
+    installer=MyAgentInstaller(),
+    detect_priority=EXACT_MATCH,     # or SHAPE_SNIFF, where detection guesses
+)
+class MyAgentProtocol(StandardPayloadProtocol):
+    """What my-agent's hooks look like, and how it wants to be answered."""
+
+    supported_hooks = {CanonicalHook.PRE_TOOL_USE: HookRegistration("preTool")}
+    tool_map = {"run": CanonicalTool.SHELL}
+    hook_models = {...}              # only where raw hook fields differ
+    tool_models = {...}              # only where raw tool input differs
+    mcp_prefix, mcp_separator = "mcp__", "__"
+
+    @classmethod
+    def detect(cls, payload): ...
+    def allow(self, message=None, *, system_message=None): ...
+    def block(self, message): ...
+```
+
+The package holds, at most:
+
+| File | Holds |
+|------|-------|
+| `protocol.py` | The `@frontend` declaration: hooks, tool names, output channel |
+| `models.py` | Models for payload fields whose raw shape differs from canonical |
+| `install.py` | An `Installer` - usually a few lines on `JsonHookInstaller` |
+| `transcript.py` | A `TranscriptReader`, where the frontend writes a readable transcript |
+
+A frontend that speaks another frontend's payload shape subclasses that
+frontend's spec class and overrides only what differs - which is all Codex
+and GitHub Copilot are.
+
+Everything frontend-specific belongs in that package. Handlers see only the
+canonical vocabulary (`CanonicalHook`, `CanonicalTool`), a normalised
+`HookInput`, and the capabilities the active `Protocol` exposes - so a handler
+never needs to know which frontend it is answering. Hooks a frontend does not
+declare never reach a handler at all.
 
 ## Plugins
 

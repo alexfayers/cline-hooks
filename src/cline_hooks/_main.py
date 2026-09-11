@@ -5,15 +5,10 @@ import logging
 import sys
 from typing import NoReturn
 
-from cline_hooks.core.frontends import select_protocol
+from cline_hooks.core.frontends import FRONTENDS, FRONTENDS_BY_NAME, select_protocol
 from cline_hooks.core.protocol import RawPayload, set_protocol
 from cline_hooks.core.registry import HOOK_HANDLERS
 from cline_hooks.core.response import allow, emit
-from cline_hooks.frontends.claude_code import install_claude_code
-from cline_hooks.frontends.cline import install_cline
-from cline_hooks.frontends.codex import install_codex
-from cline_hooks.frontends.copilot import install_copilot
-from cline_hooks.frontends.kiro import install_kiro
 import cline_hooks.handlers  # noqa: F401
 from cline_hooks.state.paths import get_data_dir
 
@@ -42,25 +37,15 @@ def _build_parser() -> argparse.ArgumentParser:
     install_parser = sub.add_parser("install", help="Install hooks")
     install_sub = install_parser.add_subparsers(dest="install_mode")
 
-    cline_parser = install_sub.add_parser(
-        "cline", help="Install Cline hooks (symlinks/scripts)"
-    )
-    cline_parser.add_argument(
-        "target_dir", help="Directory to install hook entry points into"
-    )
-
-    kiro_parser = install_sub.add_parser(
-        "kiro", help="Install Kiro hooks into agent config"
-    )
-    kiro_parser.add_argument("agent_config", help="Path to Kiro agent config JSON file")
-
-    install_sub.add_parser(
-        "claude-code", help="Install Claude Code hooks into settings"
-    )
-    install_sub.add_parser("codex", help="Install Codex hooks into hooks.json")
-    install_sub.add_parser(
-        "copilot", help="Install GitHub Copilot hooks into ~/.copilot/hooks/"
-    )
+    for frontend in FRONTENDS:
+        installer = frontend.installer
+        if installer is None:
+            continue
+        frontend_parser = install_sub.add_parser(frontend.name, help=installer.help)
+        if installer.argument is not None:
+            frontend_parser.add_argument(
+                installer.argument.name, help=installer.argument.help
+            )
 
     sub.add_parser("plugins", help="List installed plugins")
 
@@ -88,6 +73,12 @@ def _run_hook() -> NoReturn:
         hook = proto.parse(payload)
     except Exception:
         logger.exception("Failed to parse hook input")
+        allow()
+
+    if not proto.fires(hook.hookName):
+        logger.debug(
+            "Ignoring %s: not a hook %s fires", hook.hookName, type(proto).__name__
+        )
         allow()
 
     handler = HOOK_HANDLERS.get(hook.hookName)
@@ -125,18 +116,13 @@ def main() -> NoReturn:
     args = _build_parser().parse_args()
 
     if args.command == "install":
-        if args.install_mode == "kiro":
-            install_kiro(args.agent_config)
-        elif args.install_mode == "cline":
-            install_cline(args.target_dir)
-        elif args.install_mode == "claude-code":
-            install_claude_code()
-        elif args.install_mode == "codex":
-            install_codex()
-        elif args.install_mode == "copilot":
-            install_copilot()
-        else:
+        frontend = FRONTENDS_BY_NAME.get(args.install_mode or "")
+        if frontend is None or frontend.installer is None:
             _build_parser().parse_args(["install", "--help"])
+        else:
+            argument = frontend.installer.argument
+            target = getattr(args, argument.name) if argument is not None else None
+            frontend.install(target)
         sys.exit(0)
 
     if args.command == "plugins":

@@ -36,14 +36,6 @@ class CanonicalHook(StrEnum):
     STOP = "Stop"
 
 
-class Frontend(StrEnum):
-    """Frontend that a canonical hook or tool call originated from."""
-
-    CLAUDE_CODE = "claude_code"
-    KIRO = "kiro"
-    COPILOT = "copilot"
-
-
 class PluginScope(StrEnum):
     """Plugin-dispatch scope name that is not a lifecycle hook event."""
 

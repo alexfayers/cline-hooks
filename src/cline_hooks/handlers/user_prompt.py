@@ -5,9 +5,9 @@ import re
 from typing import TYPE_CHECKING
 
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
+from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
-from cline_hooks.core.transcript import get_context_tokens
 from cline_hooks.core.vocabulary import CanonicalHook
 from cline_hooks.handlers.context_nudge import context_note, with_team_clause
 from cline_hooks.state.agents import agent_use_count
@@ -156,7 +156,7 @@ def handle_user_prompt_submit(hook: HookInputUserPromptSubmit) -> None:
         notes.append(with_team_clause(_PLAN_HANDOFF_NUDGE, hook.taskId))
 
     if hook.transcriptPath:
-        token_count = get_context_tokens(hook.transcriptPath)
+        token_count = get_protocol().transcript.context_tokens(hook.transcriptPath)
         if token_count is not None:
             note = context_note(hook.taskId, token_count)
             if note is not None:

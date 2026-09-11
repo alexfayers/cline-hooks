@@ -10,7 +10,7 @@ from cline_hooks.core.models import (
     HookInputTaskStart,
     HookInputUserPromptSubmit,
 )
-from cline_hooks.core.payload import map_tool_name, model_for
+from cline_hooks.core.payload import map_tool_name
 from cline_hooks.core.protocol import RawPayload
 from cline_hooks.core.vocabulary import CanonicalTool
 from cline_hooks.frontends.kiro import KiroProtocol
@@ -52,7 +52,7 @@ class TestMapToolName:
 
 class TestNormaliseParameters:
     def test_read_extracts_path_from_operations(self) -> None:
-        model = model_for(KiroProtocol, CanonicalTool.READ)
+        model = KiroProtocol.tool_models.get(CanonicalTool.READ)
         assert model is not None
         params = model.model_validate(
             {"operations": [{"mode": "Line", "path": "/file.py"}]}
@@ -60,19 +60,19 @@ class TestNormaliseParameters:
         assert params == {"path": "/file.py"}
 
     def test_read_empty_operations(self) -> None:
-        model = model_for(KiroProtocol, CanonicalTool.READ)
+        model = KiroProtocol.tool_models.get(CanonicalTool.READ)
         assert model is not None
         params = model.model_validate({"operations": []}).model_dump(exclude_none=True)
         assert params == {}
 
     def test_read_no_operations(self) -> None:
-        model = model_for(KiroProtocol, CanonicalTool.READ)
+        model = KiroProtocol.tool_models.get(CanonicalTool.READ)
         assert model is not None
         params = model.model_validate({}).model_dump(exclude_none=True)
         assert params == {}
 
     def test_write_str_replace(self) -> None:
-        model = model_for(KiroProtocol, CanonicalTool.EDIT)
+        model = KiroProtocol.tool_models.get(CanonicalTool.EDIT)
         assert model is not None
         params = model.model_validate(
             {"command": "strReplace", "newStr": "# new code"}
@@ -82,7 +82,7 @@ class TestNormaliseParameters:
         assert "+++++++ REPLACE" in params["diff"]
 
     def test_write_create(self) -> None:
-        model = model_for(KiroProtocol, CanonicalTool.EDIT)
+        model = KiroProtocol.tool_models.get(CanonicalTool.EDIT)
         assert model is not None
         params = model.model_validate(
             {"command": "create", "content": "# file content"}
@@ -90,7 +90,7 @@ class TestNormaliseParameters:
         assert "# file content" in params["diff"]
 
     def test_write_no_content(self) -> None:
-        model = model_for(KiroProtocol, CanonicalTool.EDIT)
+        model = KiroProtocol.tool_models.get(CanonicalTool.EDIT)
         assert model is not None
         params = model.model_validate({"command": "strReplace"}).model_dump(
             exclude_none=True
@@ -98,7 +98,7 @@ class TestNormaliseParameters:
         assert params == {}
 
     def test_write_preserves_path(self) -> None:
-        model = model_for(KiroProtocol, CanonicalTool.EDIT)
+        model = KiroProtocol.tool_models.get(CanonicalTool.EDIT)
         assert model is not None
         params = model.model_validate(
             {"command": "strReplace", "path": "/home/user/file.py", "newStr": "new"}
@@ -107,7 +107,7 @@ class TestNormaliseParameters:
         assert "new" in params["diff"]
 
     def test_write_no_content_preserves_path(self) -> None:
-        model = model_for(KiroProtocol, CanonicalTool.EDIT)
+        model = KiroProtocol.tool_models.get(CanonicalTool.EDIT)
         assert model is not None
         params = model.model_validate(
             {"command": "strReplace", "path": "/home/user/file.py"}
@@ -116,7 +116,7 @@ class TestNormaliseParameters:
 
     def test_passthrough_for_other_tools(self) -> None:
         original = {"command": "ls -la"}
-        assert model_for(KiroProtocol, CanonicalTool.SHELL) is None
+        assert CanonicalTool.SHELL not in KiroProtocol.tool_models
         hook = _parse(
             {
                 "hook_event_name": "preToolUse",

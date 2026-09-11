@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 import logging
 from typing import TYPE_CHECKING
 
 import pytest
 
 from cline_hooks.core.frontends import DEFAULT_PROTOCOL
-from cline_hooks.core.protocol import set_protocol
+from cline_hooks.core.protocol import get_protocol, set_protocol
+from cline_hooks.core.transcript import TranscriptReader
 import cline_hooks.state.agents as agents_tracker_module
 import cline_hooks.state.context as context_module
 import cline_hooks.state.memory as memory_tracker_module
@@ -19,9 +21,57 @@ import cline_hooks.state.turns as turns_module
 import cline_hooks.state.workspace as workspace_module
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
     from pytest_mock import MockerFixture
+
+
+@dataclass
+class StubTranscript(TranscriptReader):
+    """A scriptable stand-in for a frontend's transcript reader.
+
+    Answers like a real reader whose file is missing when the payload names no
+    transcript, so handler tests still exercise the "no transcript" path.
+    """
+
+    tokens: int | None = None
+    text: str = ""
+
+    def context_tokens(self, transcript_path: str) -> int | None:
+        """Return the scripted token count, or None without a transcript path.
+
+        Returns:
+            The scripted count when a transcript is named, otherwise None.
+        """
+        return self.tokens if transcript_path else None
+
+    def turn_assistant_text(self, transcript_path: str) -> str:
+        """Return the scripted assistant text, or "" without a transcript path.
+
+        Returns:
+            The scripted text when a transcript is named, otherwise "".
+        """
+        return self.text if transcript_path else ""
+
+
+@pytest.fixture
+def stub_transcript(
+    mocker: MockerFixture,
+) -> Callable[..., StubTranscript]:
+    """Swap the active protocol's transcript reader for a scripted stub.
+
+    Returns:
+        A callable taking `tokens` and/or `text`, which installs and returns
+        the stub reader.
+    """
+
+    def install(*, tokens: int | None = None, text: str = "") -> StubTranscript:
+        stub = StubTranscript(tokens=tokens, text=text)
+        mocker.patch.object(type(get_protocol()), "transcript", stub)
+        return stub
+
+    return install
 
 
 @pytest.fixture(autouse=True, scope="session")

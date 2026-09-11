@@ -92,7 +92,7 @@ def _parse(
 
 class TestClaudeCodeNormalisation:
     def test_pre_tool_use(self) -> None:
-        hook = _parse("claude_code", "PreToolUse", ClaudeCodeProtocol)
+        hook = _parse("claude-code", "PreToolUse", ClaudeCodeProtocol)
         assert hook.model_dump() == {
             **_CLAUDE_CODE_ENVELOPE,
             "hookName": "PreToolUse",
@@ -103,7 +103,7 @@ class TestClaudeCodeNormalisation:
         }
 
     def test_post_tool_use(self) -> None:
-        hook = _parse("claude_code", "PostToolUse", ClaudeCodeProtocol)
+        hook = _parse("claude-code", "PostToolUse", ClaudeCodeProtocol)
         assert hook.model_dump() == {
             **_CLAUDE_CODE_ENVELOPE,
             "hookName": "PostToolUse",
@@ -117,7 +117,7 @@ class TestClaudeCodeNormalisation:
         }
 
     def test_task_start(self) -> None:
-        hook = _parse("claude_code", "TaskStart", ClaudeCodeProtocol)
+        hook = _parse("claude-code", "TaskStart", ClaudeCodeProtocol)
         assert hook.model_dump() == {
             **_CLAUDE_CODE_ENVELOPE,
             "hookName": "TaskStart",
@@ -125,7 +125,7 @@ class TestClaudeCodeNormalisation:
         }
 
     def test_user_prompt_submit(self) -> None:
-        hook = _parse("claude_code", "UserPromptSubmit", ClaudeCodeProtocol)
+        hook = _parse("claude-code", "UserPromptSubmit", ClaudeCodeProtocol)
         assert hook.model_dump() == {
             **_CLAUDE_CODE_ENVELOPE,
             "hookName": "UserPromptSubmit",
@@ -133,7 +133,7 @@ class TestClaudeCodeNormalisation:
         }
 
     def test_stop(self) -> None:
-        hook = _parse("claude_code", "Stop", ClaudeCodeProtocol)
+        hook = _parse("claude-code", "Stop", ClaudeCodeProtocol)
         assert hook.model_dump() == {
             **_CLAUDE_CODE_ENVELOPE,
             "hookName": "Stop",
@@ -141,7 +141,7 @@ class TestClaudeCodeNormalisation:
         }
 
     def test_tools_read(self) -> None:
-        hook = _parse("claude_code", "tools/Read", ClaudeCodeProtocol)
+        hook = _parse("claude-code", "tools/Read", ClaudeCodeProtocol)
         assert hook.model_dump() == {
             **_CLAUDE_CODE_ENVELOPE,
             "hookName": "PreToolUse",
@@ -152,7 +152,7 @@ class TestClaudeCodeNormalisation:
         }
 
     def test_tools_edit(self) -> None:
-        hook = _parse("claude_code", "tools/Edit", ClaudeCodeProtocol)
+        hook = _parse("claude-code", "tools/Edit", ClaudeCodeProtocol)
         assert hook.model_dump() == {
             **_CLAUDE_CODE_ENVELOPE,
             "hookName": "PreToolUse",
@@ -166,7 +166,7 @@ class TestClaudeCodeNormalisation:
         }
 
     def test_tools_write(self) -> None:
-        hook = _parse("claude_code", "tools/Write", ClaudeCodeProtocol)
+        hook = _parse("claude-code", "tools/Write", ClaudeCodeProtocol)
         assert hook.model_dump() == {
             **_CLAUDE_CODE_ENVELOPE,
             "hookName": "PreToolUse",
@@ -180,7 +180,7 @@ class TestClaudeCodeNormalisation:
         }
 
     def test_tools_mcp(self) -> None:
-        hook = _parse("claude_code", "tools/Mcp", ClaudeCodeProtocol)
+        hook = _parse("claude-code", "tools/Mcp", ClaudeCodeProtocol)
         assert hook.model_dump() == {
             **_CLAUDE_CODE_ENVELOPE,
             "hookName": "PreToolUse",
@@ -501,12 +501,12 @@ class TestCodexNormalisation:
     )
     def test_matches_claude_code_normalisation(self, name: str) -> None:
         assert (
-            _parse("claude_code", name, CodexProtocol).model_dump()
-            == _parse("claude_code", name, ClaudeCodeProtocol).model_dump()
+            _parse("claude-code", name, CodexProtocol).model_dump()
+            == _parse("claude-code", name, ClaudeCodeProtocol).model_dump()
         )
 
     def test_pre_tool_use_concrete_value(self) -> None:
-        hook = _parse("claude_code", "PreToolUse", CodexProtocol)
+        hook = _parse("claude-code", "PreToolUse", CodexProtocol)
         assert hook.model_dump() == {
             **_CLAUDE_CODE_ENVELOPE,
             "hookName": "PreToolUse",
@@ -526,7 +526,7 @@ class TestFrontendAsymmetries:
         assert "path" not in kiro_hook.preToolUse.parameters
 
         claude_code_hook = _parse(
-            "claude_code",
+            "claude-code",
             "tools/Read",
             ClaudeCodeProtocol,
             overrides={"tool_input": {}},
@@ -547,7 +547,7 @@ class TestFrontendAsymmetries:
             "summary": "list files",
         }
 
-        claude_code_hook = _parse("claude_code", "PreToolUse", ClaudeCodeProtocol)
+        claude_code_hook = _parse("claude-code", "PreToolUse", ClaudeCodeProtocol)
         assert isinstance(claude_code_hook, HookInputPreToolUse)
         assert claude_code_hook.preToolUse is not None
         assert claude_code_hook.preToolUse.parameters == {"command": "ls -la"}
@@ -573,7 +573,7 @@ class TestFrontendAsymmetries:
         assert kiro_hook.postToolUse is not None
         assert kiro_hook.postToolUse.result == "file1\nfile2"
 
-        claude_code_hook = _parse("claude_code", "PostToolUse", ClaudeCodeProtocol)
+        claude_code_hook = _parse("claude-code", "PostToolUse", ClaudeCodeProtocol)
         assert isinstance(claude_code_hook, HookInputPostToolUse)
         assert claude_code_hook.postToolUse is not None
         assert claude_code_hook.postToolUse.result is None

@@ -15,7 +15,6 @@ from cline_hooks.core.models import (
     HookInputTaskComplete,
     HookInputTaskResume,
     HookInputTaskStart,
-    extract_mcp_tool_name,
 )
 from cline_hooks.core.protocol import RawPayload
 from cline_hooks.core.vocabulary import CanonicalHook
@@ -57,22 +56,6 @@ class TestHookInputsTable:
                 isinstance(candidate, type) and issubclass(candidate, HookFields)
                 for candidate in candidates
             )
-
-
-class TestExtractMcpToolName:
-    def test_bare_name_unchanged(self) -> None:
-        assert extract_mcp_tool_name("create_entities") == "create_entities"
-
-    def test_claude_code_prefix_stripped(self) -> None:
-        assert (
-            extract_mcp_tool_name("mcp__builder-mcp__ReadInternalWebsites")
-            == "ReadInternalWebsites"
-        )
-
-    def test_trailing_segment_returned(self) -> None:
-        assert (
-            extract_mcp_tool_name("mcp__memory__create_entities") == "create_entities"
-        )
 
 
 class TestParseData:

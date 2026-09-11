@@ -8,23 +8,34 @@ import logging
 import sys
 from typing import TYPE_CHECKING, Any, ClassVar, NoReturn
 
+from cline_hooks.core.frontend import EXACT_MATCH, frontend
 from cline_hooks.core.models import HOOK_INPUTS, HookInput
 from cline_hooks.core.protocol import HookRegistration, Protocol
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
+from cline_hooks.frontends.cline.install import ClineInstaller
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from cline_hooks.core.protocol import RawPayload
 
-_TOOL_MAP: dict[str, CanonicalTool] = {
-    "new_task": CanonicalTool.SPAWN_AGENT,
-    "subagent": CanonicalTool.SPAWN_AGENT,
-}
+_TOOL_HOOK_KEYS = ("preToolUse", "postToolUse")
 
 
+@frontend(
+    name="cline",
+    display_name="Cline",
+    installer=ClineInstaller(),
+    detect_priority=EXACT_MATCH,
+    default=True,
+)
 class ClineProtocol(Protocol):
-    """Cline JSON stdout protocol."""
+    """Cline JSON stdout protocol.
+
+    Cline's payload is already the canonical shape - the canonical tool and
+    hook vocabulary is Cline's own - so parsing is a rename of the few tools
+    Cline names differently, not a translation.
+    """
 
     supported_hooks: ClassVar[Mapping[CanonicalHook, HookRegistration]] = {
         CanonicalHook.PRE_TOOL_USE: HookRegistration("PreToolUse"),
@@ -37,6 +48,10 @@ class ClineProtocol(Protocol):
         CanonicalHook.PRE_COMPACT: HookRegistration("PreCompact"),
         CanonicalHook.STOP: HookRegistration("Stop"),
     }
+    tool_map: ClassVar[Mapping[str, CanonicalTool]] = {
+        "new_task": CanonicalTool.SPAWN_AGENT,
+        "subagent": CanonicalTool.SPAWN_AGENT,
+    }
 
     @classmethod
     def detect(cls, payload: RawPayload) -> bool:
@@ -48,12 +63,12 @@ class ClineProtocol(Protocol):
         data: dict[str, Any] = (
             payload.data if payload.data is not None else json.loads(payload.raw)
         )
-        for key in ("preToolUse", "postToolUse"):
+        for key in _TOOL_HOOK_KEYS:
             fields = data.get(key)
             if isinstance(fields, dict) and (native := fields.get("toolName")):
                 data = {
                     **data,
-                    key: {**fields, "toolName": _TOOL_MAP.get(native, native)},
+                    key: {**fields, "toolName": self.tool_map.get(native, native)},
                 }
         input_class = HOOK_INPUTS.get(data.get("hookName", ""), HookInput)
         return input_class.build(data)

@@ -3,7 +3,11 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any
 
-from cline_hooks.core.transcript import get_context_tokens, get_turn_assistant_text
+from cline_hooks.frontends.claude_code.transcript import ClaudeCodeTranscriptReader
+
+_reader = ClaudeCodeTranscriptReader()
+get_context_tokens = _reader.context_tokens
+get_turn_assistant_text = _reader.turn_assistant_text
 
 if TYPE_CHECKING:
     from pathlib import Path

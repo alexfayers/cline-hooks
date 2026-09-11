@@ -1,10 +1,18 @@
-"""Generic, frontend-agnostic engine for parsing a frontend's hook payload."""
+"""Generic, frontend-agnostic engine for parsing a frontend's hook payload.
+
+A frontend that speaks the standard snake_case hook shape declares what is
+different about it - its envelope, its per-hook fields, its per-tool
+parameters, its tool names - as plain class attributes on a
+`StandardPayloadProtocol` subclass. Everything else, including how those
+declarations are inherited by a frontend that reuses another's payload spec,
+is ordinary Python: subclass it.
+"""
 
 from __future__ import annotations
 
 import hashlib
 import json
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar, TypeVar, cast
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, cast
 
 from pydantic import (
     BaseModel,
@@ -17,18 +25,24 @@ from pydantic import (
 
 from cline_hooks.core.models import (
     HOOK_INPUTS,
+    HookFields,
     HookInput,
     PostToolUseFields,
     PreToolUseFields,
 )
 from cline_hooks.core.protocol import Protocol, RawPayload
-from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool, Frontend
+from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
 
-_ModelT = TypeVar("_ModelT", bound=BaseModel)
 _SESSION_ID_KEY = "session_id"
+_SESSION_ENV_KEYS_KEY = "session_env_keys"
+
+_TOOL_HOOK_FIELDS: Mapping[CanonicalHook, type[HookFields]] = {
+    CanonicalHook.PRE_TOOL_USE: PreToolUseFields,
+    CanonicalHook.POST_TOOL_USE: PostToolUseFields,
+}
 
 
 def ensure_dict(value: dict[str, Any] | str | list[Any] | None) -> dict[str, Any]:
@@ -91,51 +105,6 @@ def map_tool_name(native_name: str, protocol_cls: type[StandardPayloadProtocol])
     return protocol_cls.tool_map.get(native_name, native_name)
 
 
-PAYLOAD_MODELS: dict[tuple[Frontend, str], type[BaseModel]] = {}
-
-
-def payload_model(
-    frontend: Frontend, *keys: CanonicalHook | CanonicalTool
-) -> Callable[[type[_ModelT]], type[_ModelT]]:
-    """Register a payload model for a frontend's envelope, hook, or tool.
-
-    Called with no keys, registers the frontend's envelope model.
-
-    Args:
-        frontend: The frontend this model applies to.
-        *keys: The canonical hooks or tools this model applies to.
-
-    Returns:
-        A decorator that registers the decorated class and returns it unchanged.
-    """
-
-    def decorator(cls: type[_ModelT]) -> type[_ModelT]:
-        for key in keys or ("",):
-            PAYLOAD_MODELS[(frontend, key)] = cls
-        return cls
-
-    return decorator
-
-
-def model_for(
-    protocol_cls: type[StandardPayloadProtocol], key: str = ""
-) -> type[BaseModel] | None:
-    """Find the most specific registered payload model for a protocol.
-
-    Args:
-        protocol_cls: The frontend's StandardPayloadProtocol subclass.
-        key: The canonical hook or tool to look up, or "" for the envelope.
-
-    Returns:
-        The most specific registered model, or None if none is registered.
-    """
-    for frontend in protocol_cls.frontends:
-        model = PAYLOAD_MODELS.get((frontend, key))
-        if model is not None:
-            return model
-    return None
-
-
 def env_from(info: ValidationInfo) -> Mapping[str, str]:
     """Return the process environment passed via validation context.
 
@@ -149,6 +118,17 @@ def env_from(info: ValidationInfo) -> Mapping[str, str]:
     return cast("Mapping[str, str]", context.get("env", {}))
 
 
+def _session_env_keys_from(info: ValidationInfo) -> tuple[str, ...]:
+    """Return the frontend's session-id env var names from validation context.
+
+    Returns:
+        The env var names passed as `context={"session_env_keys": ...}`, in
+        priority order, or () if absent.
+    """
+    context = info.context or {}
+    return cast("tuple[str, ...]", context.get(_SESSION_ENV_KEYS_KEY, ()))
+
+
 def _cwd_to_workspace_roots(value: Any) -> list[str]:
     """Wrap a cwd string as a single-element list, or [] if it is falsy.
 
@@ -159,11 +139,9 @@ def _cwd_to_workspace_roots(value: Any) -> list[str]:
 
 
 class PayloadEnvelope(BaseModel):
-    """Canonical envelope fields common to every hook payload."""
+    """Canonical envelope fields common to every standard hook payload."""
 
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
-
-    session_env_keys: ClassVar[tuple[str, ...]] = ()
 
     taskId: str = Field(default="", validation_alias=_SESSION_ID_KEY)
     workspaceRoots: Annotated[list[str], BeforeValidator(_cwd_to_workspace_roots)] = (
@@ -179,18 +157,19 @@ class PayloadEnvelope(BaseModel):
 
         Args:
             data: The raw payload data.
-            info: The active validation info, carrying the process env.
+            info: The active validation info, carrying the process env and the
+                frontend's session-id env var names.
 
         Returns:
             The data with `session_id` set to the first truthy of the raw
-            value, each configured env var in turn, or a hash of `cwd`.
+            value, each of the frontend's env vars in turn, or a hash of `cwd`.
         """
         if not isinstance(data, dict):
             return data
         value = data.get(_SESSION_ID_KEY)
         if not value:
             env = env_from(info)
-            for env_key in cls.session_env_keys:
+            for env_key in _session_env_keys_from(info):
                 value = env.get(env_key)
                 if value:
                     break
@@ -235,10 +214,70 @@ def diff_envelope(*keys: str) -> Callable[[dict[str, Any]], dict[str, Any]]:
     return validate
 
 
+def _tool_parameters(
+    raw_tool: str,
+    tool: str,
+    tool_input: dict[str, Any],
+    protocol_cls: type[StandardPayloadProtocol],
+) -> dict[str, Any]:
+    """Normalise a tool call's raw input into canonical parameters.
+
+    Args:
+        raw_tool: The frontend's native tool name.
+        tool: The canonical tool name `raw_tool` maps to.
+        tool_input: The raw tool input from the hook event.
+        protocol_cls: The frontend's StandardPayloadProtocol subclass.
+
+    Returns:
+        The canonical parameters, or the raw input where the frontend
+        declares no model for this tool.
+    """
+    if raw_tool.startswith(protocol_cls.mcp_prefix):
+        return mcp_parameters(
+            raw_tool, tool_input, protocol_cls.mcp_prefix, protocol_cls.mcp_separator
+        )
+    params_cls = protocol_cls.tool_models.get(cast("CanonicalTool", tool))
+    if params_cls is None:
+        return tool_input
+    return params_cls.model_validate(tool_input).model_dump(exclude_none=True)
+
+
+def _tool_hook_fields(
+    data: dict[str, Any],
+    hook: CanonicalHook,
+    tool: str,
+    params: dict[str, Any],
+    protocol_cls: type[StandardPayloadProtocol],
+) -> HookFields:
+    """Build the payload fields for a PreToolUse or PostToolUse event.
+
+    Args:
+        data: The raw payload data.
+        hook: The canonical tool hook being parsed.
+        tool: The canonical tool name.
+        params: The canonical tool parameters.
+        protocol_cls: The frontend's StandardPayloadProtocol subclass.
+
+    Returns:
+        The frontend's declared fields model for this hook, or the canonical
+        one where it declares none.
+    """
+    merged: dict[str, Any] = {**data, "toolName": tool, "parameters": params}
+    if hook is CanonicalHook.POST_TOOL_USE:
+        response = ensure_dict(data.get("tool_response", {}))
+        result = response.get("result")
+        merged["success"] = bool(response.get("success", True))
+        merged["result"] = (
+            result if result is None or isinstance(result, str) else str(result)
+        )
+    fields_cls = protocol_cls.hook_models.get(hook) or _TOOL_HOOK_FIELDS[hook]
+    return fields_cls.model_validate(merged)
+
+
 def parse_standard_payload(
     payload: RawPayload, protocol_cls: type[StandardPayloadProtocol]
 ) -> HookInput:
-    """Parse a raw payload into a HookInput using the frontend's registered models.
+    """Parse a raw payload into a HookInput using the frontend's declared models.
 
     Args:
         payload: The raw hook invocation data.
@@ -249,54 +288,32 @@ def parse_standard_payload(
     """
     data = payload.data or {}
     hook = protocol_cls.canonical_hook(data.get(protocol_cls.hook_event_key, ""))
-    context = {"env": payload.env}
+    context = {
+        "env": payload.env,
+        _SESSION_ENV_KEYS_KEY: protocol_cls.session_env_keys,
+    }
 
-    envelope_cls = model_for(protocol_cls) or PayloadEnvelope
-    fields = envelope_cls.model_validate(data, context=context).model_dump()
+    fields = protocol_cls.envelope_model.model_validate(
+        data, context=context
+    ).model_dump()
     fields["hookName"] = hook
 
-    raw_tool = data.get("tool_name", "")
-    tool_input = ensure_dict(data.get("tool_input", {}))
-    tool = map_tool_name(raw_tool, protocol_cls) if raw_tool else ""
-
-    if hook in (CanonicalHook.PRE_TOOL_USE, CanonicalHook.POST_TOOL_USE) and tool:
-        if raw_tool.startswith(protocol_cls.mcp_prefix):
-            params = mcp_parameters(
-                raw_tool,
-                tool_input,
-                protocol_cls.mcp_prefix,
-                protocol_cls.mcp_separator,
-            )
-        else:
-            params_cls = model_for(protocol_cls, tool)
-            params = (
-                tool_input
-                if params_cls is None
-                else params_cls.model_validate(tool_input).model_dump(exclude_none=True)
-            )
-
-        input_cls = HOOK_INPUTS[hook]
-        if hook == CanonicalHook.PRE_TOOL_USE:
-            fields[input_cls.payload_field] = PreToolUseFields(
-                toolName=tool, parameters=params
-            )
-        else:
-            response = ensure_dict(data.get("tool_response", {}))
-            result = response.get("result")
-            fields[input_cls.payload_field] = PostToolUseFields.model_validate(
-                {
-                    **data,
-                    "toolName": tool,
-                    "parameters": params,
-                    "success": bool(response.get("success", True)),
-                    "result": result
-                    if result is None or isinstance(result, str)
-                    else str(result),
-                }
-            )
+    if hook in _TOOL_HOOK_FIELDS:
+        raw_tool = data.get("tool_name", "")
+        if not raw_tool:
+            return HookInput.build(fields)
+        tool_hook = cast("CanonicalHook", hook)
+        tool = map_tool_name(raw_tool, protocol_cls)
+        params = _tool_parameters(
+            raw_tool, tool, ensure_dict(data.get("tool_input", {})), protocol_cls
+        )
+        input_cls = HOOK_INPUTS[tool_hook]
+        fields[input_cls.payload_field] = _tool_hook_fields(
+            data, tool_hook, tool, params, protocol_cls
+        )
         return input_cls.build(fields)
 
-    fields_cls = model_for(protocol_cls, hook)
+    fields_cls = protocol_cls.hook_models.get(cast("CanonicalHook", hook))
     if fields_cls is not None:
         input_cls = HOOK_INPUTS[hook]
         fields[input_cls.payload_field] = fields_cls.model_validate(
@@ -308,16 +325,33 @@ def parse_standard_payload(
 
 
 class StandardPayloadProtocol(Protocol):
-    """A Protocol whose parse() is driven by registered pydantic payload models."""
+    """A Protocol whose parse() is driven by declarative pydantic payload models.
 
-    frontends: ClassVar[tuple[Frontend, ...]]
-    tool_map: ClassVar[Mapping[str, CanonicalTool]] = {}
+    A frontend reusing another's payload spec subclasses that frontend's
+    protocol and overrides only what differs; a frontend speaking the standard
+    shape with its own quirks subclasses this and declares them.
+
+    Attributes:
+        envelope_model: Model for the fields every hook payload carries.
+        hook_models: Per-hook payload field models, keyed by canonical hook.
+        tool_models: Per-tool parameter models, keyed by canonical tool.
+        session_env_keys: Env vars holding the session id, in priority order,
+            for payloads that omit it.
+        mcp_prefix: Prefix marking a native tool name as an MCP tool call.
+        mcp_separator: Separator between server and tool in that name.
+        hook_event_key: Payload key naming the native hook event.
+    """
+
+    envelope_model: ClassVar[type[PayloadEnvelope]] = PayloadEnvelope
+    hook_models: ClassVar[Mapping[CanonicalHook, type[HookFields]]] = {}
+    tool_models: ClassVar[Mapping[CanonicalTool, type[ToolParams]]] = {}
+    session_env_keys: ClassVar[tuple[str, ...]] = ()
     mcp_prefix: ClassVar[str]
     mcp_separator: ClassVar[str]
     hook_event_key: ClassVar[str] = "hook_event_name"
 
     def parse(self, payload: RawPayload) -> HookInput:
-        """Parse the payload using this frontend's registered models.
+        """Parse the payload using this frontend's declared models.
 
         Returns:
             The most specific matching HookInput subclass.

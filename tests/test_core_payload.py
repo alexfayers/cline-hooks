@@ -8,9 +8,9 @@ from typing import ClassVar, NoReturn, get_args
 
 from pydantic import BaseModel, model_validator
 
+from cline_hooks.core.frontends import FRONTENDS
 from cline_hooks.core.models import HOOK_INPUTS, HookFields
 from cline_hooks.core.payload import (
-    PAYLOAD_MODELS,
     Flag,
     PayloadEnvelope,
     StandardPayloadProtocol,
@@ -19,14 +19,27 @@ from cline_hooks.core.payload import (
     ensure_dict,
     map_tool_name,
     mcp_parameters,
-    model_for,
-    payload_model,
 )
 from cline_hooks.core.protocol import RawPayload
-from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool, Frontend
+from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
+
+
+class _BaseStop(HookFields):
+    pass
+
+
+class _BaseRead(ToolParams):
+    pass
+
+
+class _DerivedPreCompact(HookFields):
+    pass
 
 
 class _ConcreteProtocol(StandardPayloadProtocol):
+    mcp_prefix: ClassVar[str] = "@"
+    mcp_separator: ClassVar[str] = "/"
+
     @classmethod
     def detect(cls, payload: RawPayload) -> bool:
         return False
@@ -40,71 +53,37 @@ class _ConcreteProtocol(StandardPayloadProtocol):
         sys.exit(2)
 
 
-class TestPayloadModelRegistry:
-    class _ClaudeOnly(_ConcreteProtocol):
-        frontends: ClassVar[tuple[Frontend, ...]] = (Frontend.CLAUDE_CODE,)
+class _BaseSpec(_ConcreteProtocol):
+    hook_models: ClassVar[Mapping[CanonicalHook, type[HookFields]]] = {
+        CanonicalHook.STOP: _BaseStop
+    }
+    tool_models: ClassVar[Mapping[CanonicalTool, type[ToolParams]]] = {
+        CanonicalTool.READ: _BaseRead
+    }
 
-    class _CopilotThenClaude(_ConcreteProtocol):
-        frontends: ClassVar[tuple[Frontend, ...]] = (
-            Frontend.COPILOT,
-            Frontend.CLAUDE_CODE,
-        )
 
-    def test_registers_and_resolves_for_matching_frontend(self) -> None:
-        before = dict(PAYLOAD_MODELS)
-        try:
-            PAYLOAD_MODELS.clear()
+class _DerivedSpec(_BaseSpec):
+    hook_models: ClassVar[Mapping[CanonicalHook, type[HookFields]]] = {
+        **_BaseSpec.hook_models,
+        CanonicalHook.PRE_COMPACT: _DerivedPreCompact,
+    }
 
-            @payload_model(Frontend.CLAUDE_CODE, CanonicalHook.STOP)
-            class _Model(BaseModel):
-                pass
 
-            assert model_for(self._ClaudeOnly, CanonicalHook.STOP) is _Model
-        finally:
-            PAYLOAD_MODELS.clear()
-            PAYLOAD_MODELS.update(before)
+class TestDeclaredModelInheritance:
+    """A frontend reusing another's payload spec inherits it by subclassing."""
 
-    def test_resolves_through_frontend_chain_fallback(self) -> None:
-        before = dict(PAYLOAD_MODELS)
-        try:
-            PAYLOAD_MODELS.clear()
+    def test_inherits_the_base_frontend_models(self) -> None:
+        assert _DerivedSpec.hook_models[CanonicalHook.STOP] is _BaseStop
+        assert _DerivedSpec.tool_models[CanonicalTool.READ] is _BaseRead
 
-            @payload_model(Frontend.CLAUDE_CODE, CanonicalHook.STOP)
-            class _Model(BaseModel):
-                pass
+    def test_adds_its_own_models(self) -> None:
+        assert _DerivedSpec.hook_models[CanonicalHook.PRE_COMPACT] is _DerivedPreCompact
 
-            assert model_for(self._CopilotThenClaude, CanonicalHook.STOP) is _Model
-        finally:
-            PAYLOAD_MODELS.clear()
-            PAYLOAD_MODELS.update(before)
+    def test_base_is_unaffected_by_the_derived_frontend(self) -> None:
+        assert CanonicalHook.PRE_COMPACT not in _BaseSpec.hook_models
 
-    def test_most_specific_frontend_wins_when_both_registered(self) -> None:
-        before = dict(PAYLOAD_MODELS)
-        try:
-            PAYLOAD_MODELS.clear()
-
-            @payload_model(Frontend.COPILOT, CanonicalHook.PRE_COMPACT)
-            class _CopilotModel(BaseModel):
-                pass
-
-            @payload_model(Frontend.CLAUDE_CODE, CanonicalHook.PRE_COMPACT)
-            class _ClaudeModel(BaseModel):
-                pass
-
-            resolved = model_for(self._CopilotThenClaude, CanonicalHook.PRE_COMPACT)
-            assert resolved is _CopilotModel
-        finally:
-            PAYLOAD_MODELS.clear()
-            PAYLOAD_MODELS.update(before)
-
-    def test_unregistered_key_returns_none(self) -> None:
-        before = dict(PAYLOAD_MODELS)
-        try:
-            PAYLOAD_MODELS.clear()
-            assert model_for(self._ClaudeOnly, CanonicalHook.STOP) is None
-        finally:
-            PAYLOAD_MODELS.clear()
-            PAYLOAD_MODELS.update(before)
+    def test_undeclared_key_is_absent(self) -> None:
+        assert CanonicalHook.TASK_START not in _DerivedSpec.hook_models
 
 
 class TestPayloadEnvelope:
@@ -115,18 +94,22 @@ class TestPayloadEnvelope:
         assert result.taskId == "sid-1"
 
     def test_falls_back_to_first_present_env_key(self) -> None:
-        class _Envelope(PayloadEnvelope):
-            session_env_keys: ClassVar[tuple[str, ...]] = ("ENV_A", "ENV_B")
-
-        result = _Envelope.model_validate({}, context={"env": {"ENV_B": "b-val"}})
+        result = PayloadEnvelope.model_validate(
+            {},
+            context={
+                "env": {"ENV_B": "b-val"},
+                "session_env_keys": ("ENV_A", "ENV_B"),
+            },
+        )
         assert result.taskId == "b-val"
 
     def test_env_keys_checked_in_declaration_order(self) -> None:
-        class _Envelope(PayloadEnvelope):
-            session_env_keys: ClassVar[tuple[str, ...]] = ("ENV_A", "ENV_B")
-
-        result = _Envelope.model_validate(
-            {}, context={"env": {"ENV_A": "a-val", "ENV_B": "b-val"}}
+        result = PayloadEnvelope.model_validate(
+            {},
+            context={
+                "env": {"ENV_A": "a-val", "ENV_B": "b-val"},
+                "session_env_keys": ("ENV_A", "ENV_B"),
+            },
         )
         assert result.taskId == "a-val"
 
@@ -238,13 +221,10 @@ class TestMapToolName:
             A StandardPayloadProtocol subclass suitable for exercising map_tool_name.
         """
 
-        class _Protocol(StandardPayloadProtocol):
-            frontends: ClassVar[tuple[Frontend, ...]] = ()
+        class _Protocol(_ConcreteProtocol):
             tool_map: ClassVar[Mapping[str, CanonicalTool]] = {
                 "native_shell": CanonicalTool.SHELL
             }
-            mcp_prefix: ClassVar[str] = "@"
-            mcp_separator: ClassVar[str] = "/"
 
         return _Protocol
 
@@ -260,30 +240,42 @@ class TestMapToolName:
         assert map_tool_name("@server/tool", self._protocol()) == CanonicalTool.MCP
 
 
-def _expected_base_class(key: str) -> type[BaseModel]:
-    """Return the canonical base class a PAYLOAD_MODELS key implies.
+def _payload_field_base(hook: CanonicalHook) -> type[BaseModel]:
+    """Return the HookFields subclass a canonical hook's input class declares.
 
     Returns:
-        PayloadEnvelope for the empty key, ToolParams for a CanonicalTool key, or
-        the hook's HookFields subclass from HOOK_INPUTS for a CanonicalHook key.
+        The hook's canonical HookFields subclass.
 
     Raises:
-        AssertionError: If a CanonicalHook key's input class has no HookFields
-            payload field.
+        AssertionError: If the hook's input class has no HookFields payload field.
     """
-    if key == "":
-        return PayloadEnvelope
-    if key in set(CanonicalTool):
-        return ToolParams
-    input_cls = HOOK_INPUTS[key]
+    input_cls = HOOK_INPUTS[hook]
     annotation = input_cls.model_fields[input_cls.payload_field].annotation
     for candidate in get_args(annotation) or (annotation,):
         if isinstance(candidate, type) and issubclass(candidate, HookFields):
             return candidate
-    raise AssertionError(f"no HookFields base found for key {key!r}")
+    raise AssertionError(f"no HookFields base found for hook {hook!r}")
 
 
-class TestPayloadModelsInvariant:
-    def test_every_registered_model_subclasses_its_key_base(self) -> None:
-        for (_frontend, key), model in PAYLOAD_MODELS.items():
-            assert issubclass(model, _expected_base_class(key))
+class TestDeclaredModelsInvariant:
+    """Every model a real frontend declares must be canonical-shaped."""
+
+    def test_hook_models_subclass_their_hook_fields(self) -> None:
+        for spec in FRONTENDS:
+            models = getattr(spec.protocol, "hook_models", {})
+            for hook, model in models.items():
+                assert issubclass(model, _payload_field_base(hook)), (
+                    f"{spec.name}: {model.__name__} for {hook}"
+                )
+
+    def test_tool_models_subclass_tool_params(self) -> None:
+        for spec in FRONTENDS:
+            models = getattr(spec.protocol, "tool_models", {})
+            for model in models.values():
+                assert issubclass(model, ToolParams), f"{spec.name}: {model.__name__}"
+
+    def test_envelope_models_subclass_payload_envelope(self) -> None:
+        for spec in FRONTENDS:
+            envelope = getattr(spec.protocol, "envelope_model", None)
+            if envelope is not None:
+                assert issubclass(envelope, PayloadEnvelope), spec.name
