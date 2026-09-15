@@ -8,7 +8,7 @@ from cline_hooks.handlers.commands import CommandRule, validate_git_commit_messa
 if TYPE_CHECKING:
     from cline_hooks.handlers.commands import ParsedCommand
 
-_BUILD_COMMANDS = frozenset({"just", "pnpm", "npm"})
+_BUILD_COMMANDS = frozenset({"just", "pnpm", "npm", "pytest", "flutter", "dart"})
 
 
 def _requires_build_context(_cmd: ParsedCommand, all_commands: list[ParsedCommand]) -> bool:
@@ -42,7 +42,7 @@ class DefaultPlugin(HooksPlugin):
         """Return the standard set of build tool command names.
 
         Returns:
-            frozenset containing just.
+            frozenset containing just, pnpm, npm, pytest, flutter, and dart.
         """
         return _BUILD_COMMANDS
 
