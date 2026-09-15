@@ -1,5 +1,6 @@
-"""GitHub Copilot (VS Code) frontend."""
+"""GitHub Copilot frontend."""
 
-from cline_hooks.frontends.copilot.install import install_copilot
+from cline_hooks.frontends.copilot.install import CopilotInstaller
+from cline_hooks.frontends.copilot.protocol import CopilotProtocol
 
-__all__ = ["install_copilot"]
+__all__ = ["CopilotInstaller", "CopilotProtocol"]

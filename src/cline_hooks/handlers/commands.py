@@ -47,7 +47,11 @@ def validate_git_commit_message(cmd: ParsedCommand, _all: list[ParsedCommand]) -
     for flag in cmd.flags:
         if flag in {"-m", "--message"}:
             msg_idx = (
-                cmd.flags.index(flag) + 1 + len([a for a in cmd.args if cmd.args.index(a) < cmd.flags.index(flag)])
+                cmd.flags.index(flag)
+                + 1
+                + len(
+                    [a for a in cmd.args if cmd.args.index(a) < cmd.flags.index(flag)]
+                )
             )
             all_words = cmd.args + cmd.flags
             if msg_idx < len(all_words):
@@ -185,13 +189,19 @@ def matches_rule(
         elif len(blocked_flag) >= 2 and blocked_flag[0] == "-":  # noqa: PLR2004
             flag_char = blocked_flag[1]
             for cmd_flag in cmd.flags:
-                if cmd_flag.startswith("-") and not cmd_flag.startswith("--") and flag_char in cmd_flag[1:]:
+                if (
+                    cmd_flag.startswith("-")
+                    and not cmd_flag.startswith("--")
+                    and flag_char in cmd_flag[1:]
+                ):
                     return True
 
     return False
 
 
-def check_rules(commands: list[ParsedCommand], rules: list[CommandRule]) -> CommandRule | None:
+def check_rules(
+    commands: list[ParsedCommand], rules: list[CommandRule]
+) -> CommandRule | None:
     """Return the first violated rule, or None if all commands are clean."""
     for cmd in commands:
         for rule in rules:

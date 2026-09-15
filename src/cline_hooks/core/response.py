@@ -3,12 +3,18 @@ from __future__ import annotations
 import logging
 from typing import NoReturn
 
+from cline_hooks.core.outcome import Disposition, Outcome
 from cline_hooks.core.protocol import get_protocol
 
 logger = logging.getLogger("hooks")
 
 
-def allow(message: str | None = None, *, prefix: str = "REMINDER", system_message: str | None = None) -> NoReturn:
+def allow(
+    message: str | None = None,
+    *,
+    prefix: str = "REMINDER",
+    system_message: str | None = None,
+) -> NoReturn:
     """Allow the tool call to proceed, optionally injecting a reminder.
 
     Args:
@@ -24,7 +30,9 @@ def allow(message: str | None = None, *, prefix: str = "REMINDER", system_messag
     get_protocol().allow(message, system_message=system_message)
 
 
-def block(message: str, *, task_id: str | None = None, tool_name: str | None = None) -> NoReturn:
+def block(
+    message: str, *, task_id: str | None = None, tool_name: str | None = None
+) -> NoReturn:
     """Cancel the tool call with an error message.
 
     Args:
@@ -44,3 +52,21 @@ def feedback(message: str) -> NoReturn:
     """Continue the conversation with non-error feedback."""
     logger.warning("Feedback: %s", message)
     get_protocol().feedback(message)
+
+
+def emit(outcome: Outcome) -> NoReturn:
+    """Resolve a hook handler's merged Outcome via the matching response function.
+
+    Args:
+        outcome: The merged Outcome to emit.
+    """
+    if outcome.disposition is Disposition.BLOCK:
+        block(outcome.message or "")
+    elif outcome.disposition is Disposition.FEEDBACK:
+        feedback(outcome.message or "")
+    else:
+        allow(
+            outcome.message,
+            prefix=outcome.label,
+            system_message=outcome.user_message or None,
+        )

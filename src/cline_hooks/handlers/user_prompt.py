@@ -5,9 +5,10 @@ import re
 from typing import TYPE_CHECKING
 
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
+from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
-from cline_hooks.core.transcript import get_context_tokens
+from cline_hooks.core.vocabulary import CanonicalHook
 from cline_hooks.handlers.context_nudge import context_note, with_team_clause
 from cline_hooks.state.agents import agent_use_count
 from cline_hooks.state.plan import consume_plan_nudge
@@ -95,7 +96,9 @@ _SIDE_REQUEST_REMINDER = (
     "A prose acknowledgment ('I'll get to that after') does not count as tracked."
 )
 
-_AGENT_MESSAGE_PATTERN = re.compile(r"<(agent-message|teammate-message|task-notification).+?</\1>", re.DOTALL)
+_AGENT_MESSAGE_PATTERN = re.compile(
+    r"<(agent-message|teammate-message|task-notification).+?</\1>", re.DOTALL
+)
 
 
 def _is_agent_message(message: str) -> bool:
@@ -126,7 +129,7 @@ def _contains_info_signal(message: str) -> bool:
     return any(pattern.search(message) for pattern in _INFO_PATTERNS)
 
 
-@hook_handler("UserPromptSubmit")
+@hook_handler(CanonicalHook.USER_PROMPT_SUBMIT)
 def handle_user_prompt_submit(hook: HookInputUserPromptSubmit) -> None:
     """Handle UserPromptSubmit hook events.
 
@@ -153,7 +156,7 @@ def handle_user_prompt_submit(hook: HookInputUserPromptSubmit) -> None:
         notes.append(with_team_clause(_PLAN_HANDOFF_NUDGE, hook.taskId))
 
     if hook.transcriptPath:
-        token_count = get_context_tokens(hook.transcriptPath)
+        token_count = get_protocol().transcript.context_tokens(hook.transcriptPath)
         if token_count is not None:
             note = context_note(hook.taskId, token_count)
             if note is not None:
@@ -161,7 +164,9 @@ def handle_user_prompt_submit(hook: HookInputUserPromptSubmit) -> None:
 
     hour = now.hour
     if hour >= _LATE_NIGHT_START or hour < _EARLY_MORNING_END:
-        notes.append("You're working late/early. MUST double-check before committing or making major changes.")
+        notes.append(
+            "You're working late/early. MUST double-check before committing or making major changes."
+        )
 
     if _contains_correction_signal(message):
         notes.append(_CORRECTION_REMINDER)

@@ -10,6 +10,7 @@ from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
+from cline_hooks.core.vocabulary import CanonicalHook, TaskSource
 from cline_hooks.handlers.git_context import get_git_context, resolve_tooling_notes
 from cline_hooks.state.agents import reset as _reset_agents
 from cline_hooks.state.context import reset as _reset_context
@@ -40,7 +41,7 @@ logger = logging.getLogger("hooks")
 
 _store = TaskStateStore()
 
-_NO_RESET_SOURCES = frozenset({"resume", "compact"})
+_NO_RESET_SOURCES = frozenset({TaskSource.RESUME, TaskSource.COMPACT})
 
 
 def _get_dirty_count(workspace_roots: list[str]) -> int | None:
@@ -75,7 +76,7 @@ def _format_block_history(blocks: list[TaskBlockEvent]) -> str:
     return "\n".join(lines)
 
 
-@hook_handler("TaskStart")
+@hook_handler(CanonicalHook.TASK_START)
 def handle_task_start(hook: HookInputTaskStart) -> None:
     """Handle TaskStart hook events.
 
@@ -119,7 +120,7 @@ def handle_task_start(hook: HookInputTaskStart) -> None:
     allow("\n\n".join(parts) or None, prefix="", system_message=system_message)
 
 
-@hook_handler("TaskResume")
+@hook_handler(CanonicalHook.TASK_RESUME)
 def handle_task_resume(hook: HookInputTaskResume) -> None:
     """Handle TaskResume hook events.
 
@@ -135,10 +136,17 @@ def handle_task_resume(hook: HookInputTaskResume) -> None:
     blocks = _store.get_blocks(hook.taskId)
     if blocks:
         parts.append(_format_block_history(blocks))
-        pending_skills = {skill for block in blocks for skill in _SKILL_REQUIREMENTS.values() if skill in block.reason}
+        pending_skills = {
+            skill
+            for block in blocks
+            for skill in _SKILL_REQUIREMENTS.values()
+            if skill in block.reason
+        }
         if pending_skills:
             skills_list = ", ".join(f"`{s}`" for s in sorted(pending_skills))
-            parts.append(f"REQUIRED: use the {skills_list} skill(s) before retrying the blocked command.")
+            parts.append(
+                f"REQUIRED: use the {skills_list} skill(s) before retrying the blocked command."
+            )
 
     plugins = load_plugins()
 
@@ -156,7 +164,7 @@ def handle_task_resume(hook: HookInputTaskResume) -> None:
     allow("\n\n".join(parts), prefix="")
 
 
-@hook_handler("TaskCancel")
+@hook_handler(CanonicalHook.TASK_CANCEL)
 def handle_task_cancel(hook: HookInputTaskCancel) -> None:
     """Handle TaskCancel hook events.
 
@@ -175,7 +183,7 @@ def handle_task_cancel(hook: HookInputTaskCancel) -> None:
     allow("\n\n".join(parts), prefix="")
 
 
-@hook_handler("TaskComplete")
+@hook_handler(CanonicalHook.TASK_COMPLETE)
 def handle_task_complete(hook: HookInputTaskComplete) -> None:
     """Handle TaskComplete hook events.
 

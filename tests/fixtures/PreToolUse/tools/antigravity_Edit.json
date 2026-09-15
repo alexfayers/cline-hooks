@@ -1,0 +1,21 @@
+{
+  "toolCall": {
+    "name": "replace_file_content",
+    "args": {
+      "TargetFile": "/home/user/project/src/app.py",
+      "Instruction": "Rename the greeting",
+      "Description": "Rename the greeting",
+      "AllowMultiple": false,
+      "TargetContent": "old line",
+      "ReplacementContent": "new line",
+      "StartLine": 10,
+      "EndLine": 10
+    }
+  },
+  "stepIdx": 19,
+  "conversationId": "fixture-session-id",
+  "workspacePaths": ["/home/user/project"],
+  "transcriptPath": "/home/user/.gemini/antigravity/brain/fixture-session-id/.system_generated/logs/transcript.jsonl",
+  "artifactDirectoryPath": "/home/user/.gemini/antigravity/brain/fixture-session-id",
+  "modelName": "gemini-3.6-flash-medium"
+}

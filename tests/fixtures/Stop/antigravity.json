@@ -1,0 +1,11 @@
+{
+  "executionNum": 1,
+  "terminationReason": "model_stop",
+  "error": "",
+  "fullyIdle": true,
+  "conversationId": "fixture-session-id",
+  "workspacePaths": ["/home/user/project"],
+  "transcriptPath": "/home/user/.gemini/antigravity/brain/fixture-session-id/.system_generated/logs/transcript.jsonl",
+  "artifactDirectoryPath": "/home/user/.gemini/antigravity/brain/fixture-session-id",
+  "modelName": "gemini-3.6-flash-medium"
+}

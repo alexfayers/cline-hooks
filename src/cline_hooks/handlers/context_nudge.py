@@ -26,7 +26,7 @@ _CONTEXT_NUDGE_SEVERE = (
 
 _TEAM_ACTIVE_CLAUSE = (
     "An agent team appears to be active this session. Before handing off, MUST collect each teammate's progress "
-    "into memory/TODOs and stop the team (TaskStop) so it does not keep running after this session ends."
+    "into memory/TODOs and stop the team so it does not keep running after this session ends."
 )
 
 
@@ -48,11 +48,9 @@ def with_team_clause(note: str, task_id: str) -> str:
 def context_note(task_id: str, token_count: int) -> str | None:
     """Return the context-usage nudge for the current token count, or None.
 
-    Fires at most once per 10k-token band for the session, from whichever call
-    site (UserPromptSubmit or PostToolUse) reaches that band first. The longer
-    accuracy/action text for a degradation tier is appended only on the note
-    that first crosses into that tier (CONTEXT_REDUCED_THRESHOLD or
-    CONTEXT_DEGRADED_THRESHOLD) - subsequent same-tier notes stay short.
+    Fires at most once per 10k-token band, from whichever call site reaches
+    that band first. The longer per-tier text is appended only on the note
+    that first crosses into that tier; later same-tier notes stay short.
 
     Args:
         task_id: The session or task identifier.
@@ -65,7 +63,11 @@ def context_note(task_id: str, token_count: int) -> str | None:
         return None
     boundary = crossed_boundary(task_id, token_count)
     if boundary == CONTEXT_DEGRADED_THRESHOLD:
-        return with_team_clause(_CONTEXT_NUDGE_SEVERE.format(tokens=token_count), task_id)
+        return with_team_clause(
+            _CONTEXT_NUDGE_SEVERE.format(tokens=token_count), task_id
+        )
     if boundary == CONTEXT_REDUCED_THRESHOLD:
-        return with_team_clause(_CONTEXT_NUDGE_REDUCED.format(tokens=token_count), task_id)
+        return with_team_clause(
+            _CONTEXT_NUDGE_REDUCED.format(tokens=token_count), task_id
+        )
     return _CONTEXT_NUDGE_INFO.format(tokens=token_count)

@@ -1,0 +1,9 @@
+{
+  "hookName": "TaskComplete",
+  "clineVersion": "1.0.0",
+  "timestamp": "2024-01-01T00:10:00Z",
+  "taskId": "fixture-task-1",
+  "userId": "fixture-user-1",
+  "workspaceRoots": ["/home/user/project"],
+  "taskComplete": {}
+}

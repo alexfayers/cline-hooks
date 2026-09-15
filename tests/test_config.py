@@ -17,6 +17,10 @@ class TestGetPushBlockMarkers:
         mocker.patch.dict("os.environ", {"CLINE_HOOKS_PUSH_BLOCK_MARKERS": "foo,bar"})
         assert get_push_block_markers() == ("foo", "bar")
 
-    def test_strips_whitespace_and_drops_empty_entries(self, mocker: MockerFixture) -> None:
-        mocker.patch.dict("os.environ", {"CLINE_HOOKS_PUSH_BLOCK_MARKERS": " foo , , bar "})
+    def test_strips_whitespace_and_drops_empty_entries(
+        self, mocker: MockerFixture
+    ) -> None:
+        mocker.patch.dict(
+            "os.environ", {"CLINE_HOOKS_PUSH_BLOCK_MARKERS": " foo , , bar "}
+        )
         assert get_push_block_markers() == ("foo", "bar")

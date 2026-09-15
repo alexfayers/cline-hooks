@@ -63,11 +63,9 @@ def should_remind(turn_count: int) -> bool:
 def should_nudge_agents(turn_count: int, agent_count: int) -> bool:
     """Check whether to nudge for more subagent fan-out, based on usage rate.
 
-    Evaluated only on turn-count checkpoints (every AGENT_NUDGE_THRESHOLD turns).
-    The target is roughly one subagent per checkpoint; the nudge fires whenever the
-    recorded agent count has fallen behind that target as the session grows. This
-    re-fires in long sessions that used a few subagents early but then ran on
-    sequentially, not just in sessions that never used one.
+    Checked every AGENT_NUDGE_THRESHOLD turns, targeting roughly one subagent
+    per checkpoint, so it re-fires in a session that fanned out early and then
+    ran on sequentially.
 
     Args:
         turn_count: The current turn count.

@@ -5,22 +5,23 @@ from __future__ import annotations
 import json
 import logging
 
-from cline_hooks.core.models import extract_mcp_tool_name
 from cline_hooks.state.paths import get_data_dir
 
 logger = logging.getLogger("hooks")
 
 _STATE_PATH = get_data_dir() / "memory-state.json"
 
-_MEMORY_WRITE_TOOLS: frozenset[str] = frozenset({
-    "create_entities",
-    "add_observations",
-    "set_entity_status",
-    "create_relations",
-    "delete_entity",
-    "delete_observations",
-    "delete_relation",
-})
+_MEMORY_WRITE_TOOLS: frozenset[str] = frozenset(
+    {
+        "create_entities",
+        "add_observations",
+        "set_entity_status",
+        "create_relations",
+        "delete_entity",
+        "delete_observations",
+        "delete_relation",
+    }
+)
 
 
 def _read() -> dict[str, list[str]]:
@@ -39,12 +40,12 @@ def is_memory_write(tool_name: str) -> bool:
     """Check whether a tool name is a memory-write operation.
 
     Args:
-        tool_name: The tool name (e.g. "create_entities" or "mcp__memory__create_entities").
+        tool_name: The normalised MCP tool name (e.g. "create_entities").
 
     Returns:
         True if the tool is a memory-write operation.
     """
-    return extract_mcp_tool_name(tool_name) in _MEMORY_WRITE_TOOLS
+    return tool_name in _MEMORY_WRITE_TOOLS
 
 
 def record_memory_write(task_id: str, tool_name: str) -> None:

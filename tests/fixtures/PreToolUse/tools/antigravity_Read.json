@@ -1,0 +1,16 @@
+{
+  "toolCall": {
+    "name": "view_file",
+    "args": {
+      "AbsolutePath": "/home/user/project/README.md",
+      "StartLine": 1,
+      "EndLine": 40
+    }
+  },
+  "stepIdx": 19,
+  "conversationId": "fixture-session-id",
+  "workspacePaths": ["/home/user/project"],
+  "transcriptPath": "/home/user/.gemini/antigravity/brain/fixture-session-id/.system_generated/logs/transcript.jsonl",
+  "artifactDirectoryPath": "/home/user/.gemini/antigravity/brain/fixture-session-id",
+  "modelName": "gemini-3.6-flash-medium"
+}

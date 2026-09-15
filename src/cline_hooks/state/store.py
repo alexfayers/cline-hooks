@@ -38,7 +38,9 @@ class TaskStateStore:
             Mapping of task IDs to lists of block event dicts.
         """
         try:
-            return cast("dict[str, list[dict[str, str]]]", json.loads(self._path.read_text()))
+            return cast(
+                "dict[str, list[dict[str, str]]]", json.loads(self._path.read_text())
+            )
         except FileNotFoundError:
             return {}
         except (json.JSONDecodeError, OSError):

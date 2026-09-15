@@ -1,0 +1,7 @@
+{
+  "hook_event_name": "PreCompact",
+  "cwd": "/home/user/project",
+  "session_id": "fixture-session-id",
+  "conversation_length": 10,
+  "estimated_tokens": 1000
+}

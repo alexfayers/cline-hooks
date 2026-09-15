@@ -13,7 +13,9 @@ from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.frontends.kiro import KiroProtocol
 
 
-def _capture_allow(message: str | None = None, *, prefix: str = "REMINDER") -> dict[str, object]:
+def _capture_allow(
+    message: str | None = None, *, prefix: str = "REMINDER"
+) -> dict[str, object]:
     buf = StringIO()
     with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
         allow(message, prefix=prefix)
@@ -21,7 +23,9 @@ def _capture_allow(message: str | None = None, *, prefix: str = "REMINDER") -> d
     return cast("dict[str, object]", json.loads(buf.getvalue()))
 
 
-def _capture_block(message: str, *, task_id: str | None = None, tool_name: str | None = None) -> dict[str, object]:
+def _capture_block(
+    message: str, *, task_id: str | None = None, tool_name: str | None = None
+) -> dict[str, object]:
     buf = StringIO()
     with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
         block(message, task_id=task_id, tool_name=tool_name)
@@ -143,7 +147,10 @@ class TestClaudeCodeProtocol:
             proto.allow("ctx text")
         assert exc.value.code == 0
         assert json.loads(buf.getvalue()) == {
-            "hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": "ctx text"},
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "additionalContext": "ctx text",
+            },
         }
 
     def test_allow_echoes_raw_event_name_not_remapped_name(self) -> None:
@@ -151,7 +158,10 @@ class TestClaudeCodeProtocol:
         buf = StringIO()
         with patch("sys.stdout", buf), pytest.raises(SystemExit):
             proto.allow("ctx text")
-        assert json.loads(buf.getvalue())["hookSpecificOutput"]["hookEventName"] == "SessionStart"
+        assert (
+            json.loads(buf.getvalue())["hookSpecificOutput"]["hookEventName"]
+            == "SessionStart"
+        )
 
     def test_block_still_exits_2_with_stderr(self) -> None:
         proto = ClaudeCodeProtocol()
@@ -168,7 +178,10 @@ class TestClaudeCodeProtocol:
             proto.feedback("trace text")
         assert exc.value.code == 0
         assert json.loads(buf.getvalue()) == {
-            "hookSpecificOutput": {"hookEventName": "Stop", "additionalContext": "trace text"},
+            "hookSpecificOutput": {
+                "hookEventName": "Stop",
+                "additionalContext": "trace text",
+            },
         }
 
     def test_supports_user_message_true(self) -> None:
@@ -190,7 +203,10 @@ class TestClaudeCodeProtocol:
         assert exc.value.code == 0
         assert json.loads(buf.getvalue()) == {
             "systemMessage": "user text",
-            "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": "ctx text"},
+            "hookSpecificOutput": {
+                "hookEventName": "SessionStart",
+                "additionalContext": "ctx text",
+            },
         }
 
     def test_allow_neither_emits_nothing(self) -> None:
@@ -231,12 +247,16 @@ class TestBlock:
         assert result["errorMessage"] == "bad command"
 
     def test_records_block_event_when_task_and_tool_given(self) -> None:
-        with patch("cline_hooks.state.store.TaskStateStore.record_block") as mock_record:
+        with patch(
+            "cline_hooks.state.store.TaskStateStore.record_block"
+        ) as mock_record:
             _capture_block("reason", task_id="task-1", tool_name="execute_command")
         mock_record.assert_called_once_with("task-1", "execute_command", "reason")
 
     def test_no_state_store_call_without_task_id(self) -> None:
-        with patch("cline_hooks.state.store.TaskStateStore.record_block") as mock_record:
+        with patch(
+            "cline_hooks.state.store.TaskStateStore.record_block"
+        ) as mock_record:
             _capture_block("reason")
         mock_record.assert_not_called()
 
@@ -247,6 +267,8 @@ class TestFeedback:
         assert result == {"cancel": True, "errorMessage": "trace text"}
 
     def test_never_records_block_event(self) -> None:
-        with patch("cline_hooks.state.store.TaskStateStore.record_block") as mock_record:
+        with patch(
+            "cline_hooks.state.store.TaskStateStore.record_block"
+        ) as mock_record:
             _capture_feedback("trace text")
         mock_record.assert_not_called()

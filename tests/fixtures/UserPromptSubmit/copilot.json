@@ -1,0 +1,6 @@
+{
+  "hook_event_name": "UserPromptSubmit",
+  "cwd": "/home/user/project",
+  "session_id": "fixture-session-id",
+  "prompt": "Add a new test for the parser."
+}

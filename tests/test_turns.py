@@ -7,7 +7,8 @@ from unittest.mock import patch
 
 import pytest
 
-from cline_hooks.frontends.cline import parse_cline_data as parse_data
+from cline_hooks.core.protocol import RawPayload
+from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.handlers.user_prompt import handle_user_prompt_submit
 from cline_hooks.state.turns import (
     _AGENT_NUDGE_THRESHOLD,
@@ -20,7 +21,12 @@ from cline_hooks.state.turns import (
 )
 
 if TYPE_CHECKING:
-    from cline_hooks.core.models import HookInputUserPromptSubmit
+    from cline_hooks.core.models import HookInput, HookInputUserPromptSubmit
+
+
+def parse_data(raw: str) -> HookInput:
+    return ClineProtocol().parse(RawPayload.from_stdin(raw))
+
 
 _BASE = {
     "clineVersion": "1.0.0",
@@ -108,17 +114,25 @@ class TestIntegration:
             hook = cast(
                 "HookInputUserPromptSubmit",
                 parse_data(
-                    json.dumps({
-                        **_BASE,
-                        "userPromptSubmit": {"userMessage": "neutral"},
-                    })
+                    json.dumps(
+                        {
+                            **_BASE,
+                            "userPromptSubmit": {"userMessage": "neutral"},
+                        }
+                    )
                 ),
             )
             output: list[str] = []
             try:
                 with (
-                    patch("builtins.print", side_effect=lambda s, _out=output, **kw: _out.append(s)),
-                    patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
+                    patch(
+                        "builtins.print",
+                        side_effect=lambda s, _out=output, **kw: _out.append(s),
+                    ),
+                    patch(
+                        "cline_hooks.handlers.user_prompt.random.random",
+                        return_value=1.0,
+                    ),
                     patch(
                         "cline_hooks.handlers.user_prompt.local_now",
                         return_value=datetime(2026, 1, 1, 12, 0, tzinfo=UTC),
@@ -136,7 +150,9 @@ class TestIntegration:
     def test_no_reminder_before_threshold(self) -> None:
         result = self._run_n_turns(_SCOPE_CHECK_THRESHOLD - 1)
         assert result is not None
-        assert "SESSION LENGTH CHECK" not in cast("str", result.get("contextModification", ""))
+        assert "SESSION LENGTH CHECK" not in cast(
+            "str", result.get("contextModification", "")
+        )
 
     def test_reminder_at_threshold(self) -> None:
         result = self._run_n_turns(_SCOPE_CHECK_THRESHOLD)
@@ -149,4 +165,6 @@ class TestIntegration:
     def test_reminder_repeats_at_intervals(self, extra: int) -> None:
         result = self._run_n_turns(_SCOPE_CHECK_THRESHOLD + extra)
         assert result is not None
-        assert "SESSION LENGTH CHECK" in cast("str", result.get("contextModification", ""))
+        assert "SESSION LENGTH CHECK" in cast(
+            "str", result.get("contextModification", "")
+        )
