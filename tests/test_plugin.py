@@ -166,6 +166,18 @@ class TestDefaultPluginBuildCommands:
         plugin = DefaultPlugin()
         assert "just" in plugin.get_build_commands()
 
+    def test_contains_pytest(self) -> None:
+        plugin = DefaultPlugin()
+        assert "pytest" in plugin.get_build_commands()
+
+    def test_contains_flutter(self) -> None:
+        plugin = DefaultPlugin()
+        assert "flutter" in plugin.get_build_commands()
+
+    def test_contains_dart(self) -> None:
+        plugin = DefaultPlugin()
+        assert "dart" in plugin.get_build_commands()
+
     def test_does_not_contain_brazil_build(self) -> None:
         plugin = DefaultPlugin()
         assert "brazil-build" not in plugin.get_build_commands()
