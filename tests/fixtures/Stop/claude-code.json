@@ -1,0 +1,7 @@
+{
+  "hook_event_name": "Stop",
+  "cwd": "/home/user/project",
+  "session_id": "fixture-session-id",
+  "transcript_path": "/home/user/.claude/projects/fixture/transcript.jsonl",
+  "stop_hook_active": false
+}

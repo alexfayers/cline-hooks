@@ -1,0 +1,12 @@
+{
+  "hook_event_name": "PreToolUse",
+  "cwd": "/home/user/project",
+  "session_id": "fixture-session-id",
+  "transcript_path": "/home/user/.claude/projects/fixture/transcript.jsonl",
+  "tool_name": "Edit",
+  "tool_input": {
+    "file_path": "/home/user/project/src/app.py",
+    "old_string": "old line",
+    "new_string": "new line"
+  }
+}

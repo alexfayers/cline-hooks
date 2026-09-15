@@ -5,13 +5,12 @@ from __future__ import annotations
 import json
 import logging
 
+from cline_hooks.core.vocabulary import PLAN_EXIT_TOOLS
 from cline_hooks.state.paths import get_data_dir
 
 logger = logging.getLogger("hooks")
 
 _STATE_PATH = get_data_dir() / "plan-state.json"
-
-_PLAN_EXIT_TOOLS: frozenset[str] = frozenset({"ExitPlanMode"})
 
 
 def _read() -> dict[str, bool]:
@@ -35,7 +34,7 @@ def is_plan_exit_tool(tool_name: str) -> bool:
     Returns:
         True if the tool signals a plan-mode exit.
     """
-    return tool_name in _PLAN_EXIT_TOOLS
+    return tool_name in PLAN_EXIT_TOOLS
 
 
 def record_plan_exit(task_id: str) -> None:

@@ -1,6 +1,7 @@
 # cline-hooks
 
-Lifecycle hooks framework for AI coding assistants. Supports Cline, Kiro, and Claude Code.
+Lifecycle hooks framework for AI coding assistants. Supports Cline, Claude Code,
+Codex, GitHub Copilot, and Kiro.
 
 ## Installation
 
@@ -20,22 +21,14 @@ source = "git+https://github.com/alexfayers/cline-hooks.git"
 
 Then run `llm-prompts setup` to install everything.
 
-### Cline
+One install subcommand per frontend, listed by `cline-hook install --help`:
 
 ```bash
 cline-hook install cline ~/Documents/Cline/Hooks
-```
-
-### Kiro
-
-```bash
-cline-hook install kiro ~/.kiro/agents/my-agent.json
-```
-
-### Claude Code
-
-```bash
 cline-hook install claude-code
+cline-hook install codex
+cline-hook install copilot
+cline-hook install kiro ~/.kiro/agents/my-agent.json
 ```
 
 ### List installed plugins
@@ -43,6 +36,69 @@ cline-hook install claude-code
 ```bash
 cline-hook plugins
 ```
+
+## Hook support matrix
+
+Which canonical hooks each frontend fires, and its native name for each.
+Generated from `Protocol.supported_hooks`; `tests/test_readme_matrix.py` fails
+the build if it drifts.
+
+<!-- HOOK_MATRIX_START -->
+| Canonical hook | Claude Code | Cline | Codex | GitHub Copilot | Kiro |
+|---|---|---|---|---|---|
+| PreToolUse | `PreToolUse` | `PreToolUse` | `PreToolUse` | `PreToolUse` | `preToolUse` |
+| PostToolUse | `PostToolUse` | `PostToolUse` | `PostToolUse` | `PostToolUse` | `postToolUse` |
+| TaskStart | `SessionStart` | `TaskStart` | `SessionStart` | `SessionStart` | `agentSpawn` |
+| TaskResume | - | `TaskResume` | - | - | - |
+| TaskCancel | - | `TaskCancel` | - | - | - |
+| TaskComplete | - | `TaskComplete` | - | - | - |
+| UserPromptSubmit | `UserPromptSubmit` | `UserPromptSubmit` | `UserPromptSubmit` | `UserPromptSubmit` | `userPromptSubmit` |
+| PreCompact | - | `PreCompact` | - | `PreCompact` | - |
+| Stop | `Stop` | `Stop` | `Stop` | `Stop` | `stop` |
+<!-- HOOK_MATRIX_END -->
+
+## Adding a frontend
+
+A frontend is one package under `src/cline_hooks/frontends/`. Nothing in
+`core/` names one: the registry imports every package it finds and reads the
+`@frontend` registrations, so a new package is picked up by detection, the CLI,
+the install subcommands, the conformance tests, and the matrix above.
+
+```python
+@frontend(
+    name="my-agent",                 # cline-hook install my-agent
+    display_name="My Agent",
+    installer=MyAgentInstaller(),
+    detect_priority=EXACT_MATCH,     # or SHAPE_SNIFF, where detection guesses
+)
+class MyAgentProtocol(StandardPayloadProtocol):
+    supported_hooks = {CanonicalHook.PRE_TOOL_USE: HookRegistration("preTool")}
+    tool_map = {"run": CanonicalTool.SHELL}
+    hook_models = {...}              # only where raw hook fields differ
+    tool_models = {...}              # only where raw tool input differs
+    mcp_prefix, mcp_separator = "mcp__", "__"
+
+    @classmethod
+    def detect(cls, payload): ...
+    def allow(self, message=None, *, system_message=None): ...
+    def block(self, message): ...
+```
+
+The package holds, at most:
+
+| File | Holds |
+|------|-------|
+| `protocol.py` | The `@frontend` declaration: hooks, tool names, output channel |
+| `models.py` | Models for payload fields whose raw shape differs from canonical |
+| `install.py` | An `Installer`, usually a few lines on `JsonHookInstaller` |
+| `transcript.py` | A `TranscriptReader`, if the frontend writes a readable transcript |
+
+A frontend speaking another's payload shape subclasses that frontend's spec
+class and overrides only what differs - all Codex and Copilot are.
+
+Handlers see only the canonical vocabulary, a normalised `HookInput`, and the
+capabilities the active `Protocol` exposes; a hook a frontend does not declare
+never reaches one.
 
 ## Plugins
 

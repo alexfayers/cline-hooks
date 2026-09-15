@@ -1,0 +1,9 @@
+{
+  "hook_event_name": "preToolUse",
+  "cwd": "/home/user/project",
+  "session_id": "fixture-session-id",
+  "tool_name": "fs_read",
+  "tool_input": {
+    "operations": [{"mode": "Line", "path": "/home/user/project/README.md"}]
+  }
+}

@@ -9,11 +9,24 @@ from typing import TYPE_CHECKING, Any
 import git
 import git.exc
 
-from cline_hooks.core.models import McpToolUse, extract_mcp_tool_name
+from cline_hooks.core.outcome import Outcome
+from cline_hooks.core.parameters import (
+    McpToolUse,
+    ReadParameters,
+    ShellParameters,
+    SkillParameters,
+    WebResearchParameters,
+)
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
-from cline_hooks.core.registry import hook_handler
-from cline_hooks.core.response import allow
-from cline_hooks.core.transcript import get_context_tokens
+from cline_hooks.core.protocol import get_protocol
+from cline_hooks.core.registry import TOOL_HANDLERS, hook_handler, tool_handler
+from cline_hooks.core.vocabulary import (
+    CanonicalHook,
+    CanonicalTool,
+    FILE_EDIT_TOOLS,
+    SHELL_TOOLS,
+    WEB_RESEARCH_TOOLS,
+)
 from cline_hooks.handlers.context_nudge import context_note, with_team_clause
 from cline_hooks.handlers.git_context import resolve_tooling_notes
 from cline_hooks.handlers.user_prompt import _PLAN_HANDOFF_NUDGE
@@ -39,12 +52,11 @@ from cline_hooks.state.workspace import should_note_workspace_change
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from cline_hooks.core.models import HookInputPostToolUse
+    from cline_hooks.core.models import HookInputPostToolUse, PostToolUseFields
     from cline_hooks.core.plugin import HooksPlugin
 
 logger = logging.getLogger("hooks")
 
-_SHELL_TOOL_NAMES = frozenset({"execute_command", "Bash"})
 _SKILL_MD_PATH = re.compile(r"([\w.-]+)/SKILL\.md\b")
 
 _COMMIT_REMINDER = (
@@ -91,13 +103,15 @@ def _get_all_research_tool_names(plugins: list[HooksPlugin]) -> frozenset[str]:
     Returns:
         Union of the default research tools and all plugin research tool sets.
     """
-    names = set(research_state.DEFAULT_RESEARCH_TOOLS)
+    names: set[str] = set(WEB_RESEARCH_TOOLS)
     for plugin in plugins:
         names.update(plugin.get_research_tool_names())
     return frozenset(names)
 
 
-def _get_all_research_detail_extractors(plugins: list[HooksPlugin]) -> dict[str, Callable[[dict[str, Any]], str]]:
+def _get_all_research_detail_extractors(
+    plugins: list[HooksPlugin],
+) -> dict[str, Callable[[dict[str, Any]], str]]:
     """Collect research detail extractors from all plugins.
 
     Later plugins override earlier ones on key collision.
@@ -142,10 +156,9 @@ def _extract_research_detail(
             logger.exception("Research detail extractor for %s failed", tool_name)
             return ""
         return str(detail or "")
-    if tool_name == "WebFetch":
-        return str(parameters.get("url", ""))
-    if tool_name == "WebSearch":
-        return str(parameters.get("query", ""))
+    if tool_name in WEB_RESEARCH_TOOLS:
+        params = WebResearchParameters.build(parameters)
+        return str(params.url if tool_name == CanonicalTool.WEB_FETCH else params.query)
     return ""
 
 
@@ -180,7 +193,11 @@ def _get_diff_line_count(workspace_roots: list[str]) -> int:
         try:
             repo = git.Repo(root)
             diff = repo.git.diff("--stat", "HEAD")
-        except (git.exc.InvalidGitRepositoryError, git.exc.GitCommandError, git.exc.NoSuchPathError):
+        except (
+            git.exc.InvalidGitRepositoryError,
+            git.exc.GitCommandError,
+            git.exc.NoSuchPathError,
+        ):
             continue
         else:
             return sum(_parse_diff_stat_line(line) for line in diff.splitlines())
@@ -202,35 +219,34 @@ def _skills_in_command(command: str) -> list[str]:
 def _record_skill_use(task_id: str, tool_name: str, parameters: dict[str, Any]) -> None:
     """Record any skill loaded by a tool call.
 
-    Skills load in several ways depending on the frontend: the Skill/use_skill
-    tools, a Read of a SKILL.md file, or a shell command that reads a SKILL.md
-    file (e.g. Codex reading it via cat/sed).
+    Skills load via the canonical skill tool, a read of a SKILL.md file, or a
+    shell command that reads one.
 
     Args:
         task_id: The session or task identifier.
         tool_name: The tool name as reported by the frontend.
         parameters: The tool parameters.
     """
-    if tool_name == "use_skill":
-        skill_name = str(parameters.get("skill_name", ""))
+    if tool_name == CanonicalTool.SKILL:
+        skill_name = str(SkillParameters.build(parameters).skill)
         if skill_name:
             _record_skill(task_id, skill_name)
-    elif tool_name == "Skill":
-        skill_name = str(parameters.get("skill", ""))
-        if skill_name:
-            _record_skill(task_id, skill_name)
-    elif tool_name in {"read_file", "Read"}:
-        path = parameters.get("path", "") or parameters.get("file_path", "")
+    elif tool_name == CanonicalTool.READ:
+        path = ReadParameters.build(parameters).path
         if path:
-            file_path = PurePosixPath(str(path))
+            file_path = PurePosixPath(path)
             if file_path.name == "SKILL.md":
                 _record_skill(task_id, file_path.parent.name)
-    elif tool_name in _SHELL_TOOL_NAMES:
-        for skill_name in _skills_in_command(str(parameters.get("command", ""))):
+    elif tool_name in SHELL_TOOLS:
+        for skill_name in _skills_in_command(
+            str(ShellParameters.build(parameters).command)
+        ):
             _record_skill(task_id, skill_name)
 
 
-def _is_skill_invocation(tool_name: str, parameters: dict[str, object], skill_names: frozenset[str]) -> bool:
+def _is_skill_invocation(
+    tool_name: str, parameters: dict[str, Any], skill_names: frozenset[str]
+) -> bool:
     """Check whether the current tool call invokes one of the given skills.
 
     Covers every way a skill loads: the Skill/use_skill tools, a Read of a
@@ -244,15 +260,13 @@ def _is_skill_invocation(tool_name: str, parameters: dict[str, object], skill_na
     Returns:
         True if the tool call invokes any of the given skills.
     """
-    if tool_name == "Skill":
-        return parameters.get("skill") in skill_names
-    if tool_name == "use_skill":
-        return parameters.get("skill_name") in skill_names
-    if tool_name in {"read_file", "Read"}:
-        path = str(parameters.get("path", "") or parameters.get("file_path", ""))
+    if tool_name == CanonicalTool.SKILL:
+        return SkillParameters.build(parameters).skill in skill_names
+    if tool_name == CanonicalTool.READ:
+        path = ReadParameters.build(parameters).path
         return any(path.endswith(f"{name}/SKILL.md") for name in skill_names)
-    if tool_name in _SHELL_TOOL_NAMES:
-        loaded = _skills_in_command(str(parameters.get("command", "")))
+    if tool_name in SHELL_TOOLS:
+        loaded = _skills_in_command(str(ShellParameters.build(parameters).command))
         return any(name in loaded for name in skill_names)
     return False
 
@@ -306,16 +320,12 @@ def _record_tool_use(  # noqa: PLR0913, PLR0917
     """
     mcp_tool_name: str | None = None
     arguments = parameters
-    if tool_name == "use_mcp_tool":
-        tool = McpToolUse(**parameters)
+    if tool_name == CanonicalTool.MCP:
+        tool = McpToolUse.build(parameters)
         mcp_tool_name = tool.tool_name
         arguments = tool.arguments
         if _is_memory_write(tool.tool_name):
             _record_memory_write(task_id, tool.tool_name)
-    elif "__" in tool_name:
-        mcp_tool_name = extract_mcp_tool_name(tool_name)
-        if _is_memory_write(tool_name):
-            _record_memory_write(task_id, tool_name)
     else:
         _record_skill_use(task_id, tool_name, parameters)
 
@@ -335,29 +345,82 @@ def _record_tool_use(  # noqa: PLR0913, PLR0917
     return is_state_write, mcp_tool_name
 
 
-def _note_workspace_change(hook: HookInputPostToolUse, plugins: list[HooksPlugin]) -> None:
-    """Emit ecosystem tooling guidance when the working directory has moved.
+def _workspace_change_outcome(
+    hook: HookInputPostToolUse, plugins: list[HooksPlugin]
+) -> Outcome:
+    """Build the ecosystem tooling guidance outcome for a workspace root change.
 
     Args:
         hook: The hook input data.
         plugins: Loaded plugin instances.
+
+    Returns:
+        An ALLOW Outcome with the tooling note, or an empty Outcome if the
+        working directory hasn't changed or there's no note to show.
     """
     if not should_note_workspace_change(hook.taskId, hook.workspaceRoots):
-        return
+        return Outcome()
     notes = resolve_tooling_notes(plugins, hook.workspaceRoots)
-    if notes:
-        allow(f"Working directory changed to {hook.workspaceRoots[0]}. " + "\n\n".join(notes))
+    if not notes:
+        return Outcome()
+    return Outcome.allow(
+        f"Working directory changed to {hook.workspaceRoots[0]}. " + "\n\n".join(notes),
+        label="REMINDER",
+    )
 
 
-@hook_handler("PostToolUse")
-def handle_post_tool_use(hook: HookInputPostToolUse) -> None:  # noqa: PLR0912, PLR0914
+@tool_handler(CanonicalHook.POST_TOOL_USE, *FILE_EDIT_TOOLS)
+def _post_file_edit(
+    hook: HookInputPostToolUse, _fields: PostToolUseFields, _plugins: list[HooksPlugin]
+) -> Outcome:
+    """Remind to commit when a large amount of uncommitted diff has accumulated.
+
+    Args:
+        hook: The hook input data.
+        _fields: The PostToolUse fields (unused).
+        _plugins: Loaded plugin instances (unused).
+
+    Returns:
+        An ALLOW Outcome with a commit reminder if the diff exceeds the
+        commit-line threshold, otherwise an empty Outcome.
+    """
+    diff_lines = _get_diff_line_count(hook.workspaceRoots)
+    if diff_lines > _COMMIT_LINE_THRESHOLD:
+        return Outcome.allow(f"{_COMMIT_REMINDER} ({diff_lines} lines changed)")
+    return Outcome()
+
+
+@tool_handler(CanonicalHook.POST_TOOL_USE, *SHELL_TOOLS)
+def _post_shell(
+    _hook: HookInputPostToolUse, fields: PostToolUseFields, _plugins: list[HooksPlugin]
+) -> Outcome:
+    """Alert when a shell command's result reports a build failure.
+
+    Args:
+        _hook: The hook input data (unused).
+        fields: The PostToolUse fields.
+        _plugins: Loaded plugin instances (unused).
+
+    Returns:
+        An ALLOW Outcome alerting on a build failure, otherwise an empty Outcome.
+    """
+    if fields.result and "BUILD FAILED" in fields.result:
+        return Outcome.allow("The build failed! It did NOT pass. It FAILED!!")
+    return Outcome()
+
+
+@hook_handler(CanonicalHook.POST_TOOL_USE)
+def handle_post_tool_use(hook: HookInputPostToolUse) -> Outcome:
     """Handle PostToolUse hook events.
 
     Args:
         hook: The hook input data.
+
+    Returns:
+        The merged Outcome for this tool call.
     """
     if hook.postToolUse is None:
-        return
+        return Outcome()
 
     tool_name = hook.postToolUse.toolName
     parameters = hook.postToolUse.parameters
@@ -366,12 +429,10 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> None:  # noqa: PLR0912, 
 
     if not hook.postToolUse.success:
         logger.warning("Tool %s failed", tool_name)
-        allow(
+        return Outcome.allow(
             "A tool just failed. When you fix this, MUST persist what went wrong and the fix "
-            "to memory (and to rules/skills where it reveals a missing process step).",
-            prefix="",
+            "to memory (and to rules/skills where it reveals a missing process step)."
         )
-        return
 
     plan_nudge_pending = _consume_plan_nudge(hook.taskId)
 
@@ -381,14 +442,23 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> None:  # noqa: PLR0912, 
     extractors = _get_all_research_detail_extractors(plugins)
 
     is_state_write, mcp_tool_name = _record_tool_use(
-        hook.taskId, tool_name, parameters, state_write_names, research_names, extractors
+        hook.taskId,
+        tool_name,
+        parameters,
+        state_write_names,
+        research_names,
+        extractors,
     )
 
-    retro_count = _record_retro_session(hook.taskId) if _is_wrap_up_skill(tool_name, parameters) else None
+    retro_count = (
+        _record_retro_session(hook.taskId)
+        if _is_wrap_up_skill(tool_name, parameters)
+        else None
+    )
 
     result = collect_hook_results(
         plugins,
-        "PostToolUse",
+        CanonicalHook.POST_TOOL_USE,
         task_id=hook.taskId,
         tool_name=tool_name,
         parameters=hook.postToolUse.parameters,
@@ -397,36 +467,34 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> None:  # noqa: PLR0912, 
         workspace_roots=hook.workspaceRoots,
         agent_type=hook.agentType,
     )
+
+    outcome = Outcome()
     if result.notes:
-        allow("\n\n".join(result.notes), prefix="")
+        outcome = outcome.merge(Outcome.allow("\n\n".join(result.notes)))
 
-    if tool_name in {"replace_in_file", "write_to_file"}:
-        diff_lines = _get_diff_line_count(hook.workspaceRoots)
-        if diff_lines > _COMMIT_LINE_THRESHOLD:
-            allow(
-                f"{_COMMIT_REMINDER} ({diff_lines} lines changed)",
-                prefix="",
-            )
-
-    if tool_name == "execute_command":
-        result_text = hook.postToolUse.result
-        if result_text and "BUILD FAILED" in result_text:
-            allow("The build failed! It did NOT pass. It FAILED!!", prefix="")
+    handler = TOOL_HANDLERS.get((CanonicalHook.POST_TOOL_USE, tool_name))
+    if handler is not None:
+        outcome = outcome.merge(handler(hook, hook.postToolUse, plugins))
 
     messages: list[str] = []
-    if _is_session_end_skill(tool_name, parameters) and not _has_memory_writes(hook.taskId):
+    if _is_session_end_skill(tool_name, parameters) and not _has_memory_writes(
+        hook.taskId
+    ):
         messages.append(_MEMORY_WARNING)
     if retro_count is not None and retro_count >= _RETRO_THRESHOLD:
         messages.append(_RETRO_REMINDER.format(count=retro_count))
     if plan_nudge_pending:
         messages.append(with_team_clause(_PLAN_HANDOFF_NUDGE, hook.taskId))
     if hook.transcriptPath:
-        token_count = get_context_tokens(hook.transcriptPath)
+        token_count = get_protocol().transcript.context_tokens(hook.transcriptPath)
         if token_count is not None:
             note = context_note(hook.taskId, token_count)
             if note is not None:
                 messages.append(note)
     if messages:
-        allow("\n\n".join(messages), prefix="")
+        outcome = outcome.merge(Outcome.allow("\n\n".join(messages)))
 
-    _note_workspace_change(hook, plugins)
+    if not outcome.notes:
+        outcome = outcome.merge(_workspace_change_outcome(hook, plugins))
+
+    return outcome

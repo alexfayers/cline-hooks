@@ -5,12 +5,13 @@ from typing import TYPE_CHECKING
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
+from cline_hooks.core.vocabulary import CanonicalHook
 
 if TYPE_CHECKING:
     from cline_hooks.core.models import HookInputPreCompact
 
 
-@hook_handler("PreCompact")
+@hook_handler(CanonicalHook.PRE_COMPACT)
 def handle_pre_compact(hook: HookInputPreCompact) -> None:
     """Handle PreCompact hook events.
 

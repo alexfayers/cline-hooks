@@ -1,0 +1,6 @@
+{
+  "hook_event_name": "stop",
+  "cwd": "/home/user/project",
+  "session_id": "fixture-session-id",
+  "stop_hook_active": false
+}

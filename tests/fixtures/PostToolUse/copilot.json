@@ -1,0 +1,10 @@
+{
+  "hook_event_name": "PostToolUse",
+  "cwd": "/home/user/project",
+  "session_id": "fixture-session-id",
+  "tool_name": "example_tool",
+  "tool_input": {},
+  "tool_response": {
+    "success": true
+  }
+}

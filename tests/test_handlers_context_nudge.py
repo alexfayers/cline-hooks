@@ -63,9 +63,9 @@ class TestContextNote:
         record_agent_use("task-1", "Agent")
         note = context_note("task-1", _JUST_ABOVE_REDUCED)
         assert note is not None
-        assert "TaskStop" in note
+        assert "stop the team" in note
 
     def test_no_team_clause_when_no_agent(self) -> None:
         note = context_note("task-1", _JUST_ABOVE_REDUCED)
         assert note is not None
-        assert "TaskStop" not in note
+        assert "stop the team" not in note

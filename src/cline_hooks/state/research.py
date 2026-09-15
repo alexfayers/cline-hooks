@@ -5,16 +5,12 @@ from __future__ import annotations
 import json
 import logging
 
+from cline_hooks.core.vocabulary import WEB_RESEARCH_TOOLS
 from cline_hooks.state.paths import get_data_dir
 
 logger = logging.getLogger("hooks")
 
 _STATE_PATH = get_data_dir() / "research-state.json"
-
-DEFAULT_RESEARCH_TOOLS: frozenset[str] = frozenset({
-    "WebFetch",
-    "WebSearch",
-})
 
 
 def _read() -> dict[str, list[dict[str, str]]]:
@@ -39,7 +35,7 @@ def is_research_tool(tool_name: str, extra: frozenset[str]) -> bool:
     Returns:
         True if the tool fetches external information.
     """
-    return tool_name in DEFAULT_RESEARCH_TOOLS or tool_name in extra
+    return tool_name in WEB_RESEARCH_TOOLS or tool_name in extra
 
 
 def record_research(task_id: str, tool: str, detail: str) -> None:

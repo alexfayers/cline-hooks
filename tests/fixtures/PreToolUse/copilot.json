@@ -1,0 +1,7 @@
+{
+  "hook_event_name": "PreToolUse",
+  "cwd": "/home/user/project",
+  "session_id": "fixture-session-id",
+  "tool_name": "example_tool",
+  "tool_input": {}
+}

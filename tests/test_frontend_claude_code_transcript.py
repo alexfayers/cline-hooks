@@ -3,14 +3,24 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any
 
-from cline_hooks.core.transcript import get_context_tokens, get_turn_assistant_text
+from cline_hooks.frontends.claude_code.transcript import ClaudeCodeTranscriptReader
+
+_reader = ClaudeCodeTranscriptReader()
+get_context_tokens = _reader.context_tokens
+get_turn_assistant_text = _reader.turn_assistant_text
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _user(content: str | list[dict[str, Any]] = "hello", *, sidechain: bool = False) -> dict[str, Any]:
-    return {"type": "user", "isSidechain": sidechain, "message": {"role": "user", "content": content}}
+def _user(
+    content: str | list[dict[str, Any]] = "hello", *, sidechain: bool = False
+) -> dict[str, Any]:
+    return {
+        "type": "user",
+        "isSidechain": sidechain,
+        "message": {"role": "user", "content": content},
+    }
 
 
 def _assistant_text(text: str, *, sidechain: bool = False) -> dict[str, Any]:
@@ -25,7 +35,10 @@ def _tool_result(result: str = "ok") -> dict[str, Any]:
     return {
         "type": "user",
         "isSidechain": False,
-        "message": {"role": "user", "content": [{"type": "tool_result", "content": result}]},
+        "message": {
+            "role": "user",
+            "content": [{"type": "tool_result", "content": result}],
+        },
     }
 
 
@@ -106,7 +119,10 @@ class TestGetContextTokens:
             tmp_path / "t.jsonl",
             [
                 _assistant(cache_read=100),
-                {"type": "user", "message": {"role": "user", "usage": {"input_tokens": 9}}},
+                {
+                    "type": "user",
+                    "message": {"role": "user", "usage": {"input_tokens": 9}},
+                },
                 {"type": "system", "message": {}},
             ],
         )
@@ -115,11 +131,16 @@ class TestGetContextTokens:
     def test_missing_usage_keys_default_to_zero(self, tmp_path: Path) -> None:
         path = tmp_path / "t.jsonl"
         path.write_text(
-            json.dumps({
-                "type": "assistant",
-                "isSidechain": False,
-                "message": {"role": "assistant", "usage": {"cache_read_input_tokens": 50}},
-            }),
+            json.dumps(
+                {
+                    "type": "assistant",
+                    "isSidechain": False,
+                    "message": {
+                        "role": "assistant",
+                        "usage": {"cache_read_input_tokens": 50},
+                    },
+                }
+            ),
             encoding="utf-8",
         )
         assert get_context_tokens(str(path)) == 50
@@ -129,7 +150,9 @@ class TestGetContextTokens:
 
     def test_malformed_line_is_skipped(self, tmp_path: Path) -> None:
         path = tmp_path / "t.jsonl"
-        path.write_text("not json\n" + json.dumps(_assistant(cache_read=42)), encoding="utf-8")
+        path.write_text(
+            "not json\n" + json.dumps(_assistant(cache_read=42)), encoding="utf-8"
+        )
         assert get_context_tokens(str(path)) == 42
 
     def test_empty_file_returns_none(self, tmp_path: Path) -> None:
@@ -137,7 +160,9 @@ class TestGetContextTokens:
         path.write_text("", encoding="utf-8")
         assert get_context_tokens(str(path)) is None
 
-    def test_server_tool_rollup_uses_last_message_iteration(self, tmp_path: Path) -> None:
+    def test_server_tool_rollup_uses_last_message_iteration(
+        self, tmp_path: Path
+    ) -> None:
         """A rolled-up server-tool usage reports the last message iteration.
 
         A turn that calls a server-side tool (e.g. advisor) reports a usage
@@ -203,7 +228,9 @@ class TestGetContextTokens:
 
 
 class TestGetTurnAssistantText:
-    def test_joins_all_assistant_text_since_last_user_prompt(self, tmp_path: Path) -> None:
+    def test_joins_all_assistant_text_since_last_user_prompt(
+        self, tmp_path: Path
+    ) -> None:
         path = _write_jsonl(
             tmp_path / "t.jsonl",
             [_user(), _assistant_text("first"), _assistant_text("second")],
@@ -220,7 +247,12 @@ class TestGetTurnAssistantText:
     def test_tool_result_entries_are_not_turn_boundaries(self, tmp_path: Path) -> None:
         path = _write_jsonl(
             tmp_path / "t.jsonl",
-            [_user(), _assistant_text("first"), _tool_result(), _assistant_text("second")],
+            [
+                _user(),
+                _assistant_text("first"),
+                _tool_result(),
+                _assistant_text("second"),
+            ],
         )
         assert get_turn_assistant_text(path) == "first\nsecond"
 
@@ -245,5 +277,7 @@ class TestGetTurnAssistantText:
 
     def test_malformed_line_is_skipped(self, tmp_path: Path) -> None:
         path = tmp_path / "t.jsonl"
-        path.write_text("not json\n" + json.dumps(_assistant_text("kept")), encoding="utf-8")
+        path.write_text(
+            "not json\n" + json.dumps(_assistant_text("kept")), encoding="utf-8"
+        )
         assert get_turn_assistant_text(str(path)) == "kept"
