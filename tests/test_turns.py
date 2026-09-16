@@ -130,11 +130,11 @@ class TestIntegration:
                         side_effect=lambda s, _out=output, **kw: _out.append(s),
                     ),
                     patch(
-                        "cline_hooks.handlers.user_prompt.random.random",
+                        "cline_hooks.plugins.nudges.random.random",
                         return_value=1.0,
                     ),
                     patch(
-                        "cline_hooks.handlers.user_prompt.local_now",
+                        "cline_hooks.plugins.nudges.local_now",
                         return_value=datetime(2026, 1, 1, 12, 0, tzinfo=UTC),
                     ),
                 ):

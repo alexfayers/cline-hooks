@@ -35,35 +35,6 @@ class ParsedCommand:
     args: list[str]
 
 
-def validate_git_commit_message(cmd: ParsedCommand, _all: list[ParsedCommand]) -> bool:
-    """Check if a git commit message contains newlines.
-
-    Returns:
-        bool: True if the message is invalid (contains newlines).
-    """
-    if "commit" not in cmd.args:
-        return False
-
-    for flag in cmd.flags:
-        if flag in {"-m", "--message"}:
-            msg_idx = (
-                cmd.flags.index(flag)
-                + 1
-                + len(
-                    [a for a in cmd.args if cmd.args.index(a) < cmd.flags.index(flag)]
-                )
-            )
-            all_words = cmd.args + cmd.flags
-            if msg_idx < len(all_words):
-                message = all_words[msg_idx]
-                return "\n" in message
-        elif flag.startswith("--message="):
-            message = flag[10:]
-            return "\n" in message
-
-    return False
-
-
 def is_git_push(commands: list[ParsedCommand]) -> bool:
     """Check if any command in the list is a `git push`.
 

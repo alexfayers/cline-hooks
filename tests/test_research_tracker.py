@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from cline_hooks.core.vocabulary import WEB_RESEARCH_TOOLS
+from cline_hooks.plugins.research import WEB_RESEARCH_TOOLS
 from cline_hooks.state.research import (
     get_research,
     is_research_tool,
@@ -12,11 +12,11 @@ _TASK = "task-1"
 
 
 class TestIsResearchTool:
-    def test_webfetch_is_research(self) -> None:
-        assert is_research_tool("web_fetch", frozenset())
+    def test_web_tool_is_research_when_supplied(self) -> None:
+        assert is_research_tool("web_fetch", WEB_RESEARCH_TOOLS)
 
-    def test_websearch_is_research(self) -> None:
-        assert is_research_tool("web_search", frozenset())
+    def test_web_tool_is_not_research_without_supplied_names(self) -> None:
+        assert not is_research_tool("web_fetch", frozenset())
 
     def test_read_is_not_research(self) -> None:
         assert not is_research_tool("read_file", frozenset())

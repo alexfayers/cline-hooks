@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from cline_hooks.handlers.context_nudge import context_note
+from cline_hooks.plugins.context_usage import context_note
 from cline_hooks.state.agents import record_agent_use
 from cline_hooks.state.context import (
     _BAND_SIZE,

@@ -41,6 +41,9 @@ class PluginScope(StrEnum):
 
     PRE_MCP_TOOL_USE = "PreMcpToolUse"
     ATTEMPT_COMPLETION = "AttemptCompletion"
+    PRE_SHELL = "PreShell"
+    TRACK_TOOL_USE = "TrackToolUse"
+    TOOL_FAILED = "ToolFailed"
 
 
 class TaskSource(StrEnum):
@@ -56,7 +59,6 @@ SHELL_TOOLS = frozenset({CanonicalTool.SHELL})
 FILE_EDIT_TOOLS = frozenset({CanonicalTool.EDIT, CanonicalTool.WRITE})
 FILE_READ_TOOLS = frozenset({CanonicalTool.READ})
 SKILL_TOOLS = frozenset({CanonicalTool.SKILL})
-WEB_RESEARCH_TOOLS = frozenset({CanonicalTool.WEB_FETCH, CanonicalTool.WEB_SEARCH})
 AGENT_SPAWN_TOOLS = frozenset({CanonicalTool.SPAWN_AGENT})
 PLAN_EXIT_TOOLS = frozenset({CanonicalTool.PLAN_EXIT, CanonicalTool.PLAN_MODE_RESPOND})
 KNOWN_TOOLS = frozenset(CanonicalTool)

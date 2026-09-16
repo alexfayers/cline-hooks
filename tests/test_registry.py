@@ -48,16 +48,9 @@ class TestHookHandler:
 
 class TestToolHandler:
     _EXPECTED_KEYS = [
-        (CanonicalHook.PRE_TOOL_USE, CanonicalTool.PLAN_MODE_RESPOND),
-        (CanonicalHook.PRE_TOOL_USE, CanonicalTool.READ),
         (CanonicalHook.PRE_TOOL_USE, CanonicalTool.SHELL),
-        (CanonicalHook.PRE_TOOL_USE, CanonicalTool.EDIT),
-        (CanonicalHook.PRE_TOOL_USE, CanonicalTool.WRITE),
         (CanonicalHook.PRE_TOOL_USE, CanonicalTool.MCP),
         (CanonicalHook.PRE_TOOL_USE, CanonicalTool.ATTEMPT_COMPLETION),
-        (CanonicalHook.POST_TOOL_USE, CanonicalTool.EDIT),
-        (CanonicalHook.POST_TOOL_USE, CanonicalTool.WRITE),
-        (CanonicalHook.POST_TOOL_USE, CanonicalTool.SHELL),
     ]
 
     @pytest.mark.parametrize("key", _EXPECTED_KEYS)

@@ -92,23 +92,36 @@ def _run_hook() -> NoReturn:
 
 def _list_plugins() -> None:
     """Print all loaded plugins and their capabilities."""
-    from cline_hooks.core.plugin import load_plugins  # noqa: PLC0415
+    from cline_hooks.core.plugin import (  # noqa: PLC0415
+        HooksPlugin,
+        list_plugin_methods,
+        load_plugins,
+    )
 
     plugins = load_plugins()
     if not plugins:
         print("No plugins loaded.")  # noqa: T201
         return
 
+    method_names = [info.name for info in list_plugin_methods()]
+
     for plugin in plugins:
         name = type(plugin).__name__
         module = type(plugin).__module__
         build_cmds = plugin.get_build_commands()
         rules = plugin.get_command_rules()
+        overrides = [
+            method_name
+            for method_name in method_names
+            if getattr(plugin, method_name).__func__
+            is not getattr(HooksPlugin, method_name)
+        ]
         print(f"{name} ({module})")  # noqa: T201
         if build_cmds:
             print(f"  build commands: {', '.join(sorted(build_cmds))}")  # noqa: T201
         if rules:
             print(f"  command rules:  {len(rules)}")  # noqa: T201
+        print(f"  overrides:      {', '.join(overrides) if overrides else 'none'}")  # noqa: T201
 
 
 def main() -> NoReturn:

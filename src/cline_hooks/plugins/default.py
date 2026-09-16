@@ -2,13 +2,43 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from cline_hooks.core.plugin import HooksPlugin
-from cline_hooks.handlers.commands import CommandRule, validate_git_commit_message
+from cline_hooks.core.plugin import HookResult, HooksPlugin
+from cline_hooks.core.vocabulary import CanonicalHook
+from cline_hooks.handlers.commands import CommandRule
 
 if TYPE_CHECKING:
     from cline_hooks.handlers.commands import ParsedCommand
 
 _BUILD_COMMANDS = frozenset({"just", "pnpm", "npm", "pytest", "flutter", "dart"})
+
+
+def validate_git_commit_message(cmd: ParsedCommand, _all: list[ParsedCommand]) -> bool:
+    """Check if a git commit message contains newlines.
+
+    Returns:
+        bool: True if the message is invalid (contains newlines).
+    """
+    if "commit" not in cmd.args:
+        return False
+
+    for flag in cmd.flags:
+        if flag in {"-m", "--message"}:
+            msg_idx = (
+                cmd.flags.index(flag)
+                + 1
+                + len(
+                    [a for a in cmd.args if cmd.args.index(a) < cmd.flags.index(flag)]
+                )
+            )
+            all_words = cmd.args + cmd.flags
+            if msg_idx < len(all_words):
+                message = all_words[msg_idx]
+                return "\n" in message
+        elif flag.startswith("--message="):
+            message = flag[10:]
+            return "\n" in message
+
+    return False
 
 
 def _requires_build_context(
@@ -119,3 +149,20 @@ class DefaultPlugin(HooksPlugin):
                 validator=_is_standalone,
             ),
         ]
+
+    def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+        """Alert when a PostToolUse shell result reports a build failure.
+
+        Args:
+            hook_name: The hook event name.
+            **kwargs: Hook-specific keyword arguments.
+
+        Returns:
+            A HookResult alerting on a build failure, otherwise None.
+        """
+        if hook_name != CanonicalHook.POST_TOOL_USE:
+            return None
+        tool_result = kwargs.get("tool_result")
+        if isinstance(tool_result, str) and "BUILD FAILED" in tool_result:
+            return HookResult(notes=["The build failed! It did NOT pass. It FAILED!!"])
+        return None

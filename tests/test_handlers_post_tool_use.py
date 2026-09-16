@@ -10,16 +10,16 @@ from cline_hooks.core.protocol import RawPayload
 from cline_hooks.core.response import emit
 from cline_hooks.frontends.claude_code import ClaudeCodeProtocol
 from cline_hooks.frontends.cline import ClineProtocol
-from cline_hooks.handlers.context_nudge import context_note
-from cline_hooks.handlers.post_tool_use import (
-    _RETRO_THRESHOLD,
-    _extract_research_detail,
-    _get_all_research_detail_extractors,
-    _get_all_research_tool_names,
-    _is_session_end_skill,
-    _is_wrap_up_skill,
-    _record_tool_use,
-    handle_post_tool_use,
+from cline_hooks.handlers.post_tool_use import _record_tool_use, handle_post_tool_use
+from cline_hooks.plugins.context_usage import context_note
+from cline_hooks.plugins.default import DefaultPlugin
+from cline_hooks.plugins.nudges import _RETRO_THRESHOLD, NudgesPlugin
+from cline_hooks.plugins.persistence import PersistencePlugin
+from cline_hooks.plugins.research import (
+    ResearchPlugin,
+    extract_research_detail,
+    get_all_research_detail_extractors,
+    get_all_research_tool_names,
 )
 from cline_hooks.state.memory import record_memory_write
 from cline_hooks.state.plan import consume_plan_nudge, record_plan_exit
@@ -178,7 +178,7 @@ class TestSkillDetectionViaRead:
             "read_file",
             parameters={"path": "/home/user/.kiro/skills/git-usage/SKILL.md"},
         )
-        with patch("cline_hooks.handlers.post_tool_use._record_skill") as mock_record:
+        with patch("cline_hooks.plugins.tracking.record_skill") as mock_record:
             _run(hook)
         mock_record.assert_called_once_with("task-1", "git-usage")
 
@@ -186,7 +186,7 @@ class TestSkillDetectionViaRead:
         hook = _make_hook(
             "read_file", parameters={"path": "/home/user/project/README.md"}
         )
-        with patch("cline_hooks.handlers.post_tool_use._record_skill") as mock_record:
+        with patch("cline_hooks.plugins.tracking.record_skill") as mock_record:
             _run(hook)
         mock_record.assert_not_called()
 
@@ -195,13 +195,13 @@ class TestSkillDetectionViaRead:
             "read_file",
             parameters={"path": "/deep/nested/skills/pre-implementation/SKILL.md"},
         )
-        with patch("cline_hooks.handlers.post_tool_use._record_skill") as mock_record:
+        with patch("cline_hooks.plugins.tracking.record_skill") as mock_record:
             _run(hook)
         mock_record.assert_called_once_with("task-1", "pre-implementation")
 
     def test_empty_path_does_not_record(self) -> None:
         hook = _make_hook("read_file", parameters={})
-        with patch("cline_hooks.handlers.post_tool_use._record_skill") as mock_record:
+        with patch("cline_hooks.plugins.tracking.record_skill") as mock_record:
             _run(hook)
         mock_record.assert_not_called()
 
@@ -222,7 +222,7 @@ class TestSkillDetectionViaRead:
             )
         )
         assert isinstance(hook, HookInputPostToolUse)
-        with patch("cline_hooks.handlers.post_tool_use._record_skill") as mock_record:
+        with patch("cline_hooks.plugins.tracking.record_skill") as mock_record:
             _run(hook)
         mock_record.assert_called_once_with("task-1", "git-usage")
 
@@ -233,7 +233,7 @@ class TestSkillDetectionViaShellCommand:
             "execute_command",
             parameters={"command": "cat /Users/me/.codex/skills/git-usage/SKILL.md"},
         )
-        with patch("cline_hooks.handlers.post_tool_use._record_skill") as mock_record:
+        with patch("cline_hooks.plugins.tracking.record_skill") as mock_record:
             _run(hook)
         mock_record.assert_called_once_with("task-1", "git-usage")
 
@@ -244,7 +244,7 @@ class TestSkillDetectionViaShellCommand:
                 "command": "sed -n '1,260p' /a/b/skills/pre-implementation/SKILL.md"
             },
         )
-        with patch("cline_hooks.handlers.post_tool_use._record_skill") as mock_record:
+        with patch("cline_hooks.plugins.tracking.record_skill") as mock_record:
             _run(hook)
         mock_record.assert_called_once_with("task-1", "pre-implementation")
 
@@ -253,19 +253,19 @@ class TestSkillDetectionViaShellCommand:
             "execute_command",
             parameters={"command": "less /deep/skills/cr/SKILL.md"},
         )
-        with patch("cline_hooks.handlers.post_tool_use._record_skill") as mock_record:
+        with patch("cline_hooks.plugins.tracking.record_skill") as mock_record:
             _run(hook)
         mock_record.assert_called_once_with("task-1", "cr")
 
     def test_git_command_does_not_record_skill(self) -> None:
         hook = _make_hook("Bash", parameters={"command": "git -P status --short"})
-        with patch("cline_hooks.handlers.post_tool_use._record_skill") as mock_record:
+        with patch("cline_hooks.plugins.tracking.record_skill") as mock_record:
             _run(hook)
         mock_record.assert_not_called()
 
     def test_bare_skill_md_reference_does_not_record(self) -> None:
         hook = _make_hook("Bash", parameters={"command": "find . -name SKILL.md"})
-        with patch("cline_hooks.handlers.post_tool_use._record_skill") as mock_record:
+        with patch("cline_hooks.plugins.tracking.record_skill") as mock_record:
             _run(hook)
         mock_record.assert_not_called()
 
@@ -273,27 +273,21 @@ class TestSkillDetectionViaShellCommand:
 class TestAgentUseRecording:
     def test_spawn_agent_records_use(self) -> None:
         hook = _make_hook("spawn_agent", parameters={"description": "research"})
-        with patch(
-            "cline_hooks.handlers.post_tool_use._record_agent_use"
-        ) as mock_record:
+        with patch("cline_hooks.plugins.tracking.record_agent_use") as mock_record:
             _run(hook)
         mock_record.assert_called_once_with("task-1", "spawn_agent")
 
     def test_non_agent_tool_does_not_record(self) -> None:
         hook = _make_hook("execute_command", parameters={"command": "echo hi"})
-        with patch(
-            "cline_hooks.handlers.post_tool_use._record_agent_use"
-        ) as mock_record:
+        with patch("cline_hooks.plugins.tracking.record_agent_use") as mock_record:
             _run(hook)
         mock_record.assert_not_called()
 
     def test_agent_tool_does_not_record_skill_or_memory(self) -> None:
         hook = _make_hook("spawn_agent", parameters={"description": "research"})
         with (
-            patch("cline_hooks.handlers.post_tool_use._record_skill") as mock_skill,
-            patch(
-                "cline_hooks.handlers.post_tool_use._record_memory_write"
-            ) as mock_memory,
+            patch("cline_hooks.plugins.tracking.record_skill") as mock_skill,
+            patch("cline_hooks.plugins.tracking.record_memory_write") as mock_memory,
         ):
             _run(hook)
         mock_skill.assert_not_called()
@@ -317,19 +311,41 @@ class TestPlanHandoffNudgeFromPostToolUse:
         assert result is not None
         assert "PLAN COMPLETE" in cast("str", result.get("contextModification", ""))
 
+    def test_nudge_does_not_self_consume_on_the_plan_exit_call(self) -> None:
+        exit_result = _run(_make_hook("exit_plan_mode"))
+        if exit_result is not None:
+            assert "PLAN COMPLETE" not in cast(
+                "str", exit_result.get("contextModification", "")
+            )
+
+        next_result = _run(_make_hook("Read", parameters={"file_path": "/x.py"}))
+        assert next_result is not None
+        assert "PLAN COMPLETE" in cast(
+            "str", next_result.get("contextModification", "")
+        )
+
+        third_result = _run(_make_hook("Read", parameters={"file_path": "/y.py"}))
+        if third_result is not None:
+            assert "PLAN COMPLETE" not in cast(
+                "str", third_result.get("contextModification", "")
+            )
+
 
 class TestGetAllResearchToolNames:
-    def test_defaults_present_with_no_plugins(self) -> None:
-        assert _get_all_research_tool_names([]) == frozenset(
+    def test_no_plugins_returns_empty(self) -> None:
+        assert get_all_research_tool_names([]) == frozenset()
+
+    def test_includes_default_plugin_tools(self) -> None:
+        assert get_all_research_tool_names([ResearchPlugin()]) == frozenset(
             {"web_fetch", "web_search"}
         )
 
     def test_union_with_plugin_names(self) -> None:
-        class ResearchPlugin(HooksPlugin):
+        class _ExtraToolsPlugin(HooksPlugin):
             def get_research_tool_names(self) -> frozenset[str]:
                 return frozenset({"InternalSearch", "InternalCodeSearch"})
 
-        result = _get_all_research_tool_names([ResearchPlugin()])
+        result = get_all_research_tool_names([ResearchPlugin(), _ExtraToolsPlugin()])
         assert result == frozenset(
             {"web_fetch", "web_search", "InternalSearch", "InternalCodeSearch"}
         )
@@ -337,7 +353,7 @@ class TestGetAllResearchToolNames:
 
 class TestGetAllResearchDetailExtractors:
     def test_empty_with_no_plugins(self) -> None:
-        assert _get_all_research_detail_extractors([]) == {}
+        assert get_all_research_detail_extractors([]) == {}
 
     def test_merges_from_plugin(self) -> None:
         class ExtractorPlugin(HooksPlugin):
@@ -346,7 +362,7 @@ class TestGetAllResearchDetailExtractors:
             ) -> dict[str, Callable[[dict[str, Any]], str]]:
                 return {"InternalSearch": lambda p: p.get("query", "")}
 
-        result = _get_all_research_detail_extractors([ExtractorPlugin()])
+        result = get_all_research_detail_extractors([ExtractorPlugin()])
         assert set(result) == {"InternalSearch"}
 
     def test_last_plugin_wins_on_collision(self) -> None:
@@ -362,35 +378,35 @@ class TestGetAllResearchDetailExtractors:
             ) -> dict[str, Callable[[dict[str, Any]], str]]:
                 return {"X": lambda _p: "b"}
 
-        result = _get_all_research_detail_extractors([PluginA(), PluginB()])
+        result = get_all_research_detail_extractors([PluginA(), PluginB()])
         assert result["X"]({}) == "b"
 
 
 class TestExtractResearchDetail:
     def test_extractor_used_when_present(self) -> None:
-        assert _extract_research_detail("X", {"k": "v"}, {"X": lambda p: p["k"]}) == "v"  # noqa: FURB118
+        assert extract_research_detail("X", {"k": "v"}, {"X": lambda p: p["k"]}) == "v"  # noqa: FURB118
 
     def test_webfetch_fallback(self) -> None:
-        assert _extract_research_detail("web_fetch", {"url": "u"}, {}) == "u"
+        assert extract_research_detail("web_fetch", {"url": "u"}, {}) == "u"
 
     def test_websearch_fallback(self) -> None:
-        assert _extract_research_detail("web_search", {"query": "q"}, {}) == "q"
+        assert extract_research_detail("web_search", {"query": "q"}, {}) == "q"
 
     def test_unknown_tool_returns_empty(self) -> None:
-        assert _extract_research_detail("Unknown", {"url": "u"}, {}) == ""
+        assert extract_research_detail("Unknown", {"url": "u"}, {}) == ""
 
     def test_extractor_raises_returns_empty(self) -> None:
         def _boom(_p: dict[str, Any]) -> str:
             msg = "boom"
             raise RuntimeError(msg)
 
-        assert _extract_research_detail("X", {}, {"X": _boom}) == ""
+        assert extract_research_detail("X", {}, {"X": _boom}) == ""
 
     def test_extractor_returns_none_coerced_empty(self) -> None:
         def _none(_p: dict[str, Any]) -> str:
             return cast("str", None)
 
-        assert _extract_research_detail("X", {}, {"X": _none}) == ""
+        assert extract_research_detail("X", {}, {"X": _none}) == ""
 
 
 class TestResearchRecording:
@@ -423,7 +439,7 @@ class TestClaudeCodeMcpResearchIntegration:
     def test_prefixed_mcp_tool_records_research_via_plugin(self) -> None:
         """A Claude Code mcp__ name reaches the handler already normalised."""
 
-        class ResearchPlugin(HooksPlugin):
+        class _ReadInternalWebsitesPlugin(HooksPlugin):
             def get_research_tool_names(self) -> frozenset[str]:
                 return frozenset({"ReadInternalWebsites"})
 
@@ -449,7 +465,7 @@ class TestClaudeCodeMcpResearchIntegration:
 
         with patch(
             "cline_hooks.handlers.post_tool_use.load_plugins",
-            return_value=[ResearchPlugin()],
+            return_value=[_ReadInternalWebsitesPlugin()],
         ):
             _run(hook)
         assert get_research("task-1") == [
@@ -534,25 +550,6 @@ class TestRecordToolUseMcpResolution:
         assert get_research("task-1") == [{"tool": "InternalSearch", "detail": "foo"}]
 
 
-class TestIsSessionEndSkill:
-    def test_use_skill_with_skill_key(self) -> None:
-        assert _is_session_end_skill("use_skill", {"skill": "session-end"})
-
-    def test_cline_use_skill(self) -> None:
-        assert _is_session_end_skill("use_skill", {"skill_name": "session-end"})
-
-    def test_read_skill_md(self) -> None:
-        assert _is_session_end_skill(
-            "read_file", {"path": "/home/user/.kiro/skills/session-end/SKILL.md"}
-        )
-
-    def test_other_skill_not_detected(self) -> None:
-        assert not _is_session_end_skill("use_skill", {"skill": "git-usage"})
-
-    def test_unrelated_tool_not_detected(self) -> None:
-        assert not _is_session_end_skill("execute_command", {"command": "echo hi"})
-
-
 class TestMemoryWarningOnSessionEnd:
     def test_warns_when_no_memory_writes(self) -> None:
         hook = _make_hook("use_skill", parameters={"skill": "session-end"})
@@ -575,25 +572,6 @@ class TestMemoryWarningOnSessionEnd:
         if result is not None:
             context = str(result.get("contextModification", ""))
             assert "No memory writes" not in context
-
-
-class TestIsWrapUpSkill:
-    def test_session_end_is_wrap_up(self) -> None:
-        assert _is_wrap_up_skill("use_skill", {"skill": "session-end"})
-
-    def test_handoff_is_wrap_up(self) -> None:
-        assert _is_wrap_up_skill("use_skill", {"skill": "handoff"})
-
-    def test_handoff_via_read(self) -> None:
-        assert _is_wrap_up_skill(
-            "read_file", {"path": "/Users/me/.claude/skills/handoff/SKILL.md"}
-        )
-
-    def test_unrelated_skill_not_wrap_up(self) -> None:
-        assert not _is_wrap_up_skill("use_skill", {"skill": "git-usage"})
-
-    def test_unrelated_tool_not_wrap_up(self) -> None:
-        assert not _is_wrap_up_skill("execute_command", {"command": "echo hi"})
 
 
 class TestRetrospectiveCounter:
@@ -937,7 +915,7 @@ class TestPluginNoteDoesNotTruncateLaterChecks:
         hook = _make_hook("execute_command", result="BUILD FAILED: boom")
         with patch(
             "cline_hooks.handlers.post_tool_use.load_plugins",
-            return_value=[_NotingPlugin()],
+            return_value=[_NotingPlugin(), DefaultPlugin()],
         ):
             result = _run(hook)
         assert result is not None
@@ -950,10 +928,10 @@ class TestPluginNoteDoesNotTruncateLaterChecks:
         with (
             patch(
                 "cline_hooks.handlers.post_tool_use.load_plugins",
-                return_value=[_NotingPlugin()],
+                return_value=[_NotingPlugin(), NudgesPlugin()],
             ),
             patch(
-                "cline_hooks.handlers.post_tool_use._get_diff_line_count",
+                "cline_hooks.plugins.nudges._get_diff_line_count",
                 return_value=500,
             ),
         ):
@@ -967,10 +945,91 @@ class TestPluginNoteDoesNotTruncateLaterChecks:
         hook = _make_hook("use_skill", parameters={"skill": "session-end"})
         with patch(
             "cline_hooks.handlers.post_tool_use.load_plugins",
-            return_value=[_NotingPlugin()],
+            return_value=[_NotingPlugin(), PersistencePlugin()],
         ):
             result = _run(hook)
         assert result is not None
         context = cast("str", result.get("contextModification", ""))
         assert "PLUGIN NOTE" in context
         assert "No memory writes" in context
+
+
+class _CapturingPlugin(HooksPlugin):
+    def __init__(self, scope: str, captured: list[dict[str, object]]) -> None:
+        self._scope = scope
+        self._captured = captured
+
+    def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+        if hook_name == self._scope:
+            self._captured.append(kwargs)
+        return None
+
+
+class TestTrackToolUsePluginScope:
+    def test_reaches_plugin_with_documented_kwargs(self) -> None:
+        captured: list[dict[str, object]] = []
+        hook = _make_hook(
+            "use_mcp_tool",
+            parameters={"server_name": "s", "tool_name": "t", "arguments": {}},
+        )
+        with patch(
+            "cline_hooks.handlers.post_tool_use.load_plugins",
+            return_value=[_CapturingPlugin("TrackToolUse", captured)],
+        ):
+            _run(hook)
+        assert len(captured) == 1
+        kwargs = captured[0]
+        assert kwargs["task_id"] == "task-1"
+        assert kwargs["tool_name"] == "use_mcp_tool"
+        assert kwargs["mcp_tool_name"] == "t"
+        assert kwargs["is_state_write"] is False
+        assert kwargs["workspace_roots"] == ["/workspace"]
+        assert kwargs["agent_type"] == ""
+
+    def test_not_reached_on_tool_failure(self) -> None:
+        captured: list[dict[str, object]] = []
+        hook = _make_hook("execute_command", success=False)
+        with patch(
+            "cline_hooks.handlers.post_tool_use.load_plugins",
+            return_value=[_CapturingPlugin("TrackToolUse", captured)],
+        ):
+            _run(hook)
+        assert captured == []
+
+
+class TestToolFailedPluginScope:
+    def test_reaches_plugin_with_documented_kwargs(self) -> None:
+        captured: list[dict[str, object]] = []
+        hook = _make_hook(
+            "execute_command", success=False, parameters={"command": "boom"}
+        )
+        with patch(
+            "cline_hooks.handlers.post_tool_use.load_plugins",
+            return_value=[_CapturingPlugin("ToolFailed", captured)],
+        ):
+            _run(hook)
+        assert len(captured) == 1
+        kwargs = captured[0]
+        assert kwargs["task_id"] == "task-1"
+        assert kwargs["tool_name"] == "execute_command"
+        assert kwargs["parameters"] == {"command": "boom"}
+        assert kwargs["workspace_roots"] == ["/workspace"]
+        assert kwargs["agent_type"] == ""
+
+    def test_plugin_note_merges_with_failure_reminder(self) -> None:
+        class _FailureNotingPlugin(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+                if hook_name == "ToolFailed":
+                    return HookResult(notes=["FAILURE PLUGIN NOTE"])
+                return None
+
+        hook = _make_hook("execute_command", success=False)
+        with patch(
+            "cline_hooks.handlers.post_tool_use.load_plugins",
+            return_value=[_FailureNotingPlugin(), PersistencePlugin()],
+        ):
+            result = _run(hook)
+        assert result is not None
+        context = cast("str", result.get("contextModification", ""))
+        assert "FAILURE PLUGIN NOTE" in context
+        assert "persist" in context.lower()

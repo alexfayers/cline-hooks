@@ -3,24 +3,19 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-import git
-import git.exc
-
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
 from cline_hooks.core.vocabulary import CanonicalHook, TaskSource
-from cline_hooks.handlers.git_context import get_git_context, resolve_tooling_notes
+from cline_hooks.handlers.git_context import resolve_tooling_notes
 from cline_hooks.state.agents import reset as _reset_agents
 from cline_hooks.state.context import reset as _reset_context
+from cline_hooks.state.delegation import reset as _reset_delegation
 from cline_hooks.state.memory import reset as _reset_memory
 from cline_hooks.state.plan import reset as _reset_plan
 from cline_hooks.state.research import reset as _reset_research
-from cline_hooks.state.skills import (
-    _SKILL_REQUIREMENTS,
-    reset as _reset_skills,
-)
+from cline_hooks.state.skills import reset as _reset_skills
 from cline_hooks.state.store import TaskStateStore
 from cline_hooks.state.turns import reset as _reset_turns
 from cline_hooks.state.workspace import (
@@ -42,24 +37,6 @@ logger = logging.getLogger("hooks")
 _store = TaskStateStore()
 
 _NO_RESET_SOURCES = frozenset({TaskSource.RESUME, TaskSource.COMPACT})
-
-
-def _get_dirty_count(workspace_roots: list[str]) -> int | None:
-    """Return the number of dirty files in the first valid git repo found.
-
-    Args:
-        workspace_roots: List of workspace root paths to search.
-
-    Returns:
-        Dirty file count, or None if no valid repo found.
-    """
-    for root in workspace_roots:
-        try:
-            repo = git.Repo(root)
-            return len(repo.index.diff(None)) + len(repo.untracked_files)
-        except (git.exc.InvalidGitRepositoryError, git.exc.NoSuchPathError):
-            continue
-    return None
 
 
 def _format_block_history(blocks: list[TaskBlockEvent]) -> str:
@@ -92,11 +69,8 @@ def handle_task_start(hook: HookInputTaskStart) -> None:
         _reset_context(hook.taskId)
         _reset_research(hook.taskId)
         _reset_plan(hook.taskId)
+        _reset_delegation(hook.taskId)
     parts: list[str] = []
-
-    git_context = get_git_context(hook.workspaceRoots)
-    if git_context:
-        parts.append(git_context)
 
     plugins = load_plugins()
 
@@ -129,24 +103,9 @@ def handle_task_resume(hook: HookInputTaskResume) -> None:
     """
     parts: list[str] = []
 
-    git_context = get_git_context(hook.workspaceRoots)
-    if git_context:
-        parts.append(git_context)
-
     blocks = _store.get_blocks(hook.taskId)
     if blocks:
         parts.append(_format_block_history(blocks))
-        pending_skills = {
-            skill
-            for block in blocks
-            for skill in _SKILL_REQUIREMENTS.values()
-            if skill in block.reason
-        }
-        if pending_skills:
-            skills_list = ", ".join(f"`{s}`" for s in sorted(pending_skills))
-            parts.append(
-                f"REQUIRED: use the {skills_list} skill(s) before retrying the blocked command."
-            )
 
     plugins = load_plugins()
 
@@ -158,6 +117,8 @@ def handle_task_resume(hook: HookInputTaskResume) -> None:
         "TaskResume",
         task_id=hook.taskId,
         workspace_roots=hook.workspaceRoots,
+        agent_type=hook.agentType,
+        block_reasons=[block.reason for block in blocks],
     )
     parts.extend(result.notes)
 

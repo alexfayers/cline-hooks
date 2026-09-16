@@ -1,100 +1,16 @@
 from __future__ import annotations
 
-import random
 import re
 from typing import TYPE_CHECKING
 
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
-from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
 from cline_hooks.core.vocabulary import CanonicalHook
-from cline_hooks.handlers.context_nudge import context_note, with_team_clause
-from cline_hooks.state.agents import agent_use_count
-from cline_hooks.state.plan import consume_plan_nudge
 from cline_hooks.state.timing import TIME_FORMAT, local_now
-from cline_hooks.state.turns import increment, should_nudge_agents, should_remind
 
 if TYPE_CHECKING:
     from cline_hooks.core.models import HookInputUserPromptSubmit
-
-_LATE_NIGHT_START = 22
-_EARLY_MORNING_END = 6
-_INFO_REMINDER_CHANCE = 0.25
-_SIDE_REQUEST_REMINDER_CHANCE = 0.15
-
-_CORRECTION_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(p, re.IGNORECASE)
-    for p in [
-        r"\byou should\b",
-        r"\bdon'?t\b",
-        r"\bplease don'?t\b",
-        r"\bstop\b",
-        r"\bstop doing\b",
-        r"\bfrom now on\b",
-        r"\bin future\b",
-        r"\bgoing forward\b",
-        r"\bcorrection\b",
-        r"\bwrong\b",
-        r"\bthat'?s not\b",
-        r"\bnot like that\b",
-        r"\bwhy didn'?t you\b",
-        r"\byou keep\b",
-        r"\byou always\b",
-        r"\byou never\b",
-    ]
-]
-
-_INFO_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(p, re.IGNORECASE)
-    for p in [
-        r"\bactually\b",
-        r"\bremember that\b",
-        r"\balways\b",
-        r"\bnever\b",
-        r"\bprefer\b",
-        r"\bi prefer\b",
-        r"\bnote that\b",
-        r"\bremember (to|this|that|how)\b",
-    ]
-]
-
-_SCOPE_CHECK_REMINDER = (
-    "SESSION LENGTH CHECK: This session has reached {turns} user turns. "
-    "MUST pause and assess: is this still one coherent change, or has scope crept? "
-    "Where multiple unrelated changes have accumulated, MUST commit what's done, note remaining work as TODOs, "
-    "and suggest splitting into a new session."
-)
-
-# Update prompts/shared/rules/hooks.md if this correction reminder changes.
-_CORRECTION_REMINDER = (
-    "CORRECTION DETECTED: The user is correcting your behavior. "
-    "MUST persist the correction to memory now, then ASK whether they want a rule or skill change for it."
-)
-
-_AGENT_NUDGE_REMINDER = (
-    "FAN-OUT CHECK: {turns} turns in and subagent use is lagging behind this session's length. "
-    "Where non-trivial work is left, MUST parallelise with subagents (research, independent edits, verification) "
-    "rather than work sequentially."
-)
-
-_PLAN_HANDOFF_NUDGE = (
-    "PLAN COMPLETE: A plan was just finalized this session. SHOULD hand off implementation to a fresh "
-    "session so planning and full implementation do not consume one long context. MUST persist the plan to memory "
-    "(rather than a heavy handoff doc) and capture any queued follow-on tasks as TODOs so a fresh session can "
-    "pick up cleanly. MAY continue implementing here - this is a default, not a block."
-)
-
-_INFO_REMINDER = (
-    "REMINDER: Has the user said anything that should be persisted?\n"
-    "MUST check: new information, preferences, decisions -> persist to memory."
-)
-
-_SIDE_REQUEST_REMINDER = (
-    "REMINDER: MUST scan recent turns for any side-request the user raised that hasn't been "
-    "tracked yet (a task/ entity in memory + a checklist entry), per the todos rule. "
-    "A prose acknowledgment ('I'll get to that after') does not count as tracked."
-)
 
 _AGENT_MESSAGE_PATTERN = re.compile(
     r"<(agent-message|teammate-message|task-notification).+?</\1>", re.DOTALL
@@ -111,24 +27,6 @@ def _is_agent_message(message: str) -> bool:
     return bool(_AGENT_MESSAGE_PATTERN.search(message))
 
 
-def _contains_correction_signal(message: str) -> bool:
-    """Check if a user message contains signals that the user is correcting behavior.
-
-    Returns:
-        True if the message matches any correction-signal pattern.
-    """
-    return any(pattern.search(message) for pattern in _CORRECTION_PATTERNS)
-
-
-def _contains_info_signal(message: str) -> bool:
-    """Check if a user message contains signals that new information should be persisted.
-
-    Returns:
-        True if the message matches any info-signal pattern.
-    """
-    return any(pattern.search(message) for pattern in _INFO_PATTERNS)
-
-
 @hook_handler(CanonicalHook.USER_PROMPT_SUBMIT)
 def handle_user_prompt_submit(hook: HookInputUserPromptSubmit) -> None:
     """Handle UserPromptSubmit hook events.
@@ -140,43 +38,17 @@ def handle_user_prompt_submit(hook: HookInputUserPromptSubmit) -> None:
     if not message or _is_agent_message(message):
         return
 
-    notes: list[str] = []
+    notes: list[str] = [f"TIME: {local_now().strftime(TIME_FORMAT)}."]
 
-    now = local_now()
-    notes.append(f"TIME: {now.strftime(TIME_FORMAT)}.")
-
-    turn_count = increment(hook.taskId)
-    if should_remind(turn_count):
-        notes.append(_SCOPE_CHECK_REMINDER.format(turns=turn_count))
-
-    if should_nudge_agents(turn_count, agent_use_count(hook.taskId)):
-        notes.append(_AGENT_NUDGE_REMINDER.format(turns=turn_count))
-
-    if consume_plan_nudge(hook.taskId):
-        notes.append(with_team_clause(_PLAN_HANDOFF_NUDGE, hook.taskId))
-
-    if hook.transcriptPath:
-        token_count = get_protocol().transcript.context_tokens(hook.transcriptPath)
-        if token_count is not None:
-            note = context_note(hook.taskId, token_count)
-            if note is not None:
-                notes.append(note)
-
-    hour = now.hour
-    if hour >= _LATE_NIGHT_START or hour < _EARLY_MORNING_END:
-        notes.append(
-            "You're working late/early. MUST double-check before committing or making major changes."
-        )
-
-    if _contains_correction_signal(message):
-        notes.append(_CORRECTION_REMINDER)
-    elif _contains_info_signal(message) or random.random() < _INFO_REMINDER_CHANCE:
-        notes.append(_INFO_REMINDER)
-
-    if random.random() < _SIDE_REQUEST_REMINDER_CHANCE:
-        notes.append(_SIDE_REQUEST_REMINDER)
-
-    result = collect_hook_results(load_plugins(), "UserPromptSubmit", message=message)
+    result = collect_hook_results(
+        load_plugins(),
+        "UserPromptSubmit",
+        message=message,
+        task_id=hook.taskId,
+        workspace_roots=hook.workspaceRoots,
+        agent_type=hook.agentType,
+        transcript_path=hook.transcriptPath,
+    )
     notes.extend(result.notes)
 
     if notes:

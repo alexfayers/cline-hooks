@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from cline_hooks._main import _build_parser, _run_hook, main
+from cline_hooks._main import _build_parser, _list_plugins, _run_hook, main
 from cline_hooks.core.frontends import FRONTENDS, FRONTENDS_BY_NAME
 from cline_hooks.core.vocabulary import CanonicalHook
 
@@ -114,3 +114,38 @@ class TestInstallSubcommands:
             pytest.raises(SystemExit),
         ):
             main()
+
+
+class TestListPlugins:
+    def test_reports_overridden_methods(self) -> None:
+        from cline_hooks.core.plugin import HookResult, HooksPlugin
+
+        class _Plugin(HooksPlugin):
+            def get_build_commands(self) -> frozenset[str]:
+                return frozenset({"make"})
+
+            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+                return None
+
+        output: list[str] = []
+        with (
+            patch("cline_hooks.core.plugin.load_plugins", return_value=[_Plugin()]),
+            patch("builtins.print", side_effect=lambda s, **kw: output.append(str(s))),
+        ):
+            _list_plugins()
+        overrides_line = next(line for line in output if "overrides:" in line)
+        assert "get_build_commands" in overrides_line
+        assert "on_hook" in overrides_line
+        assert "get_command_rules" not in overrides_line
+
+    def test_no_overrides_says_none_rather_than_nothing(self) -> None:
+        from cline_hooks.core.plugin import HooksPlugin
+
+        output: list[str] = []
+        with (
+            patch("cline_hooks.core.plugin.load_plugins", return_value=[HooksPlugin()]),
+            patch("builtins.print", side_effect=lambda s, **kw: output.append(str(s))),
+        ):
+            _list_plugins()
+        overrides_line = next(line for line in output if "overrides:" in line)
+        assert "none" in overrides_line

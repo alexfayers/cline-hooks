@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import importlib
 import importlib.metadata
+import inspect
 import logging
 import pkgutil
 from typing import TYPE_CHECKING
@@ -78,7 +79,7 @@ def collect_hook_results(
         result = plugin.on_hook(hook_name, **kwargs)
         if result is None:
             continue
-        merged.notes.extend(result.notes)
+        merged.notes.extend(note for note in result.notes if note.strip())
         merged.user_notes.extend(result.user_notes)
         if result.block and merged.block is None:
             merged.block = result.block
@@ -164,6 +165,73 @@ class HooksPlugin:
         return None
 
 
+@dataclass(frozen=True)
+class PluginMethodInfo:
+    """One introspected public method of the HooksPlugin protocol.
+
+    Attributes:
+        name: The method name.
+        params: The parameter list rendered as written in source, excluding
+            self (e.g. "workspace_roots" or "hook_name, **kwargs").
+        purpose: The method's docstring summary line.
+        return_type: The method's return type annotation as written in source.
+    """
+
+    name: str
+    params: str
+    purpose: str
+    return_type: str
+
+
+def _format_param(param: inspect.Parameter) -> str:
+    """Render a parameter as it appears in source, without its annotation.
+
+    Args:
+        param: The parameter to render.
+
+    Returns:
+        The parameter name, prefixed with `*`/`**` for variadic parameters.
+    """
+    if param.kind is inspect.Parameter.VAR_POSITIONAL:
+        return f"*{param.name}"
+    if param.kind is inspect.Parameter.VAR_KEYWORD:
+        return f"**{param.name}"
+    return param.name
+
+
+def list_plugin_methods() -> list[PluginMethodInfo]:
+    """List HooksPlugin's public overridable methods, in definition order.
+
+    The single source of truth for both the generated README table and the
+    plugins CLI listing's override detection.
+
+    Returns:
+        One PluginMethodInfo per public method defined directly on
+        HooksPlugin, in source-definition order.
+    """
+    infos: list[PluginMethodInfo] = []
+    for name, member in vars(HooksPlugin).items():
+        if name.startswith("_") or not inspect.isfunction(member):
+            continue
+        sig = inspect.signature(member)
+        params = ", ".join(
+            _format_param(param)
+            for param_name, param in sig.parameters.items()
+            if param_name != "self"
+        )
+        doc = inspect.getdoc(member) or ""
+        purpose = doc.splitlines()[0] if doc else ""
+        infos.append(
+            PluginMethodInfo(
+                name=name,
+                params=params,
+                purpose=purpose,
+                return_type=str(sig.return_annotation),
+            )
+        )
+    return infos
+
+
 class _PluginCache:
     """Holds the cached list of loaded plugins for the process lifetime."""
 
@@ -206,6 +274,7 @@ def load_plugins() -> list[HooksPlugin]:
                     isinstance(attr, type)
                     and issubclass(attr, HooksPlugin)
                     and attr is not HooksPlugin
+                    and attr.__module__ == name
                 ):
                     loaded.append(attr())
                     logger.debug("Loaded bundled plugin: %s", attr.__name__)

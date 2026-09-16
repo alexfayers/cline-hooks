@@ -20,12 +20,12 @@ from cline_hooks.frontends.claude_code import ClaudeCodeProtocol
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.frontends.kiro import KiroProtocol
 from cline_hooks.handlers.git_context import (
+    get_dirty_count,
     get_generic_tooling_note,
     resolve_tooling_notes,
 )
 from cline_hooks.handlers.task_lifecycle import (
     _format_block_history,
-    _get_dirty_count,
     handle_task_cancel,
     handle_task_complete,
     handle_task_resume,
@@ -117,22 +117,20 @@ class TestGetDirtyCount:
         mock_repo = MagicMock()
         mock_repo.index.diff.return_value = [1, 2]
         mock_repo.untracked_files = ["file.txt"]
-        with patch(
-            "cline_hooks.handlers.task_lifecycle.git.Repo", return_value=mock_repo
-        ):
-            assert _get_dirty_count([str(tmp_path)]) == 3
+        with patch("cline_hooks.handlers.git_context.git.Repo", return_value=mock_repo):
+            assert get_dirty_count([str(tmp_path)]) == 3
 
     def test_returns_none_for_invalid_repo(self, tmp_path: Path) -> None:
         import git.exc
 
         with patch(
-            "cline_hooks.handlers.task_lifecycle.git.Repo",
+            "cline_hooks.handlers.git_context.git.Repo",
             side_effect=git.exc.InvalidGitRepositoryError,
         ):
-            assert _get_dirty_count([str(tmp_path)]) is None
+            assert get_dirty_count([str(tmp_path)]) is None
 
     def test_returns_none_for_empty_roots(self) -> None:
-        assert _get_dirty_count([]) is None
+        assert get_dirty_count([]) is None
 
 
 class TestGetGenericToolingNote:
@@ -212,7 +210,7 @@ class TestHandleTaskStart:
 
     def test_git_context_included_when_present(self, tmp_path: Path) -> None:
         with patch(
-            "cline_hooks.handlers.task_lifecycle.get_git_context",
+            "cline_hooks.plugins.session_context.get_git_context",
             return_value="Branch: main",
         ):
             result = self._run(_task_start([str(tmp_path)]))
@@ -220,7 +218,7 @@ class TestHandleTaskStart:
 
     def test_cancel_is_false(self, tmp_path: Path) -> None:
         with patch(
-            "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
+            "cline_hooks.plugins.session_context.get_git_context", return_value=None
         ):
             result = self._run(_task_start([str(tmp_path)]))
         assert result["cancel"] is False
@@ -228,7 +226,7 @@ class TestHandleTaskStart:
     def test_agent_use_reset_on_start(self, tmp_path: Path) -> None:
         record_agent_use("task-1", "Agent")
         with patch(
-            "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
+            "cline_hooks.plugins.session_context.get_git_context", return_value=None
         ):
             self._run(_task_start([str(tmp_path)]))
         assert not has_agent_use("task-1")
@@ -236,7 +234,7 @@ class TestHandleTaskStart:
     def test_context_band_reset_on_start(self, tmp_path: Path) -> None:
         should_nudge_context("task-1", 210_000)
         with patch(
-            "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
+            "cline_hooks.plugins.session_context.get_git_context", return_value=None
         ):
             self._run(_task_start([str(tmp_path)]))
         assert should_nudge_context("task-1", 210_000) is True
@@ -244,7 +242,7 @@ class TestHandleTaskStart:
     def test_plan_exit_reset_on_start(self, tmp_path: Path) -> None:
         record_plan_exit("task-1")
         with patch(
-            "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
+            "cline_hooks.plugins.session_context.get_git_context", return_value=None
         ):
             self._run(_task_start([str(tmp_path)]))
         assert consume_plan_nudge("task-1") is False
@@ -252,7 +250,7 @@ class TestHandleTaskStart:
     def test_skill_preserved_on_compact(self, tmp_path: Path) -> None:
         record_skill("task-1", "git-usage")
         with patch(
-            "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
+            "cline_hooks.plugins.session_context.get_git_context", return_value=None
         ):
             self._run(_task_start([str(tmp_path)], source="compact"))
         assert is_skill_called("task-1", "git-usage")
@@ -260,7 +258,7 @@ class TestHandleTaskStart:
     def test_memory_writes_preserved_on_compact(self, tmp_path: Path) -> None:
         record_memory_write("task-1", "create_entities")
         with patch(
-            "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
+            "cline_hooks.plugins.session_context.get_git_context", return_value=None
         ):
             self._run(_task_start([str(tmp_path)], source="compact"))
         assert has_memory_writes("task-1")
@@ -268,7 +266,7 @@ class TestHandleTaskStart:
     def test_agent_use_preserved_on_compact(self, tmp_path: Path) -> None:
         record_agent_use("task-1", "Agent")
         with patch(
-            "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
+            "cline_hooks.plugins.session_context.get_git_context", return_value=None
         ):
             self._run(_task_start([str(tmp_path)], source="compact"))
         assert has_agent_use("task-1")
@@ -276,7 +274,7 @@ class TestHandleTaskStart:
     def test_context_band_preserved_on_compact(self, tmp_path: Path) -> None:
         should_nudge_context("task-1", 210_000)
         with patch(
-            "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
+            "cline_hooks.plugins.session_context.get_git_context", return_value=None
         ):
             self._run(_task_start([str(tmp_path)], source="compact"))
         assert should_nudge_context("task-1", 210_000) is False
@@ -285,7 +283,7 @@ class TestHandleTaskStart:
         increment("task-1")
         increment("task-1")
         with patch(
-            "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
+            "cline_hooks.plugins.session_context.get_git_context", return_value=None
         ):
             self._run(_task_start([str(tmp_path)], source="compact"))
         assert increment("task-1") == 3
@@ -293,7 +291,7 @@ class TestHandleTaskStart:
     def test_skill_preserved_on_resume(self, tmp_path: Path) -> None:
         record_skill("task-1", "git-usage")
         with patch(
-            "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
+            "cline_hooks.plugins.session_context.get_git_context", return_value=None
         ):
             self._run(_task_start([str(tmp_path)], source="resume"))
         assert is_skill_called("task-1", "git-usage")
@@ -301,14 +299,14 @@ class TestHandleTaskStart:
     def test_skill_reset_on_startup(self, tmp_path: Path) -> None:
         record_skill("task-1", "git-usage")
         with patch(
-            "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
+            "cline_hooks.plugins.session_context.get_git_context", return_value=None
         ):
             self._run(_task_start([str(tmp_path)], source="startup"))
         assert not is_skill_called("task-1", "git-usage")
 
     def test_git_context_emitted_on_compact(self, tmp_path: Path) -> None:
         with patch(
-            "cline_hooks.handlers.task_lifecycle.get_git_context",
+            "cline_hooks.plugins.session_context.get_git_context",
             return_value="Branch: main",
         ):
             result = self._run(_task_start([str(tmp_path)], source="compact"))
@@ -317,7 +315,7 @@ class TestHandleTaskStart:
     def test_tooling_note_included_when_unreplaced(self, tmp_path: Path) -> None:
         with (
             patch(
-                "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
+                "cline_hooks.plugins.session_context.get_git_context", return_value=None
             ),
             patch(
                 "cline_hooks.handlers.task_lifecycle.load_plugins",
@@ -334,7 +332,7 @@ class TestHandleTaskStart:
     def test_tooling_note_replaced_when_plugin_replaces(self, tmp_path: Path) -> None:
         with (
             patch(
-                "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
+                "cline_hooks.plugins.session_context.get_git_context", return_value=None
             ),
             patch(
                 "cline_hooks.handlers.task_lifecycle.load_plugins",
@@ -350,7 +348,7 @@ class TestHandleTaskStart:
 
     def test_workspace_state_seeded_on_start(self, tmp_path: Path) -> None:
         with patch(
-            "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
+            "cline_hooks.plugins.session_context.get_git_context", return_value=None
         ):
             self._run(_task_start([str(tmp_path)]))
         assert should_note_workspace_change("task-1", [str(tmp_path)]) is False
@@ -366,7 +364,7 @@ class TestHandleTaskStart:
 
         with (
             patch(
-                "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
+                "cline_hooks.plugins.session_context.get_git_context", return_value=None
             ),
             patch(
                 "cline_hooks.handlers.task_lifecycle.load_plugins",
@@ -386,7 +384,7 @@ class TestHandleTaskStart:
 
         with (
             patch(
-                "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
+                "cline_hooks.plugins.session_context.get_git_context", return_value=None
             ),
             patch(
                 "cline_hooks.handlers.task_lifecycle.load_plugins",
@@ -412,7 +410,7 @@ class TestHandleTaskStart:
         try:
             with (
                 patch(
-                    "cline_hooks.handlers.task_lifecycle.get_git_context",
+                    "cline_hooks.plugins.session_context.get_git_context",
                     return_value=None,
                 ),
                 patch(
@@ -433,7 +431,7 @@ class TestHandleTaskStart:
         try:
             with (
                 patch(
-                    "cline_hooks.handlers.task_lifecycle.get_git_context",
+                    "cline_hooks.plugins.session_context.get_git_context",
                     return_value=None,
                 ),
                 patch(
@@ -468,14 +466,14 @@ class TestHandleTaskResume:
         store = TaskStateStore(tmp_path / "state.json")
         store.record_block("task-1", "tool", "reason")
         with patch(
-            "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
+            "cline_hooks.plugins.session_context.get_git_context", return_value=None
         ):
             result = self._run(_task_resume([str(tmp_path)]), store=store)
         assert "interrupted" in cast("str", result["contextModification"])
 
     def test_no_block_history_when_none(self, tmp_path: Path) -> None:
         with patch(
-            "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
+            "cline_hooks.plugins.session_context.get_git_context", return_value=None
         ):
             result = self._run(_task_resume([str(tmp_path)]))
         assert "interrupted" not in cast("str", result["contextModification"])
@@ -483,7 +481,7 @@ class TestHandleTaskResume:
     def test_skills_preserved_on_resume(self, tmp_path: Path) -> None:
         record_skill("task-1", "git-usage")
         with patch(
-            "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
+            "cline_hooks.plugins.session_context.get_git_context", return_value=None
         ):
             self._run(_task_resume([str(tmp_path)]))
         assert is_skill_called("task-1", "git-usage")
@@ -491,7 +489,7 @@ class TestHandleTaskResume:
     def test_agent_use_preserved_on_resume(self, tmp_path: Path) -> None:
         record_agent_use("task-1", "Agent")
         with patch(
-            "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
+            "cline_hooks.plugins.session_context.get_git_context", return_value=None
         ):
             self._run(_task_resume([str(tmp_path)]))
         assert has_agent_use("task-1")
@@ -499,7 +497,7 @@ class TestHandleTaskResume:
     def test_tooling_note_included_when_unreplaced(self, tmp_path: Path) -> None:
         with (
             patch(
-                "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
+                "cline_hooks.plugins.session_context.get_git_context", return_value=None
             ),
             patch(
                 "cline_hooks.handlers.task_lifecycle.load_plugins",
@@ -516,7 +514,7 @@ class TestHandleTaskResume:
     def test_tooling_note_replaced_when_plugin_replaces(self, tmp_path: Path) -> None:
         with (
             patch(
-                "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
+                "cline_hooks.plugins.session_context.get_git_context", return_value=None
             ),
             patch(
                 "cline_hooks.handlers.task_lifecycle.load_plugins",
@@ -532,11 +530,65 @@ class TestHandleTaskResume:
 
     def test_workspace_state_seeded_on_resume(self, tmp_path: Path) -> None:
         with patch(
-            "cline_hooks.handlers.task_lifecycle.get_git_context", return_value=None
+            "cline_hooks.plugins.session_context.get_git_context", return_value=None
         ):
             self._run(_task_resume([str(tmp_path)]))
         assert should_note_workspace_change("task-1", [str(tmp_path)]) is False
         assert should_note_workspace_change("task-1", ["/other"]) is True
+
+    def test_block_reason_naming_skill_re_nudges_that_skill(
+        self, tmp_path: Path
+    ) -> None:
+        store = TaskStateStore(tmp_path / "state.json")
+        store.record_block(
+            "task-1",
+            "execute_command",
+            "MUST use the `git-usage` skill before running this command",
+        )
+        with patch(
+            "cline_hooks.plugins.session_context.get_git_context", return_value=None
+        ):
+            result = self._run(_task_resume([str(tmp_path)]), store=store)
+        context = cast("str", result["contextModification"])
+        assert "REQUIRED" in context
+        assert "`git-usage`" in context
+
+    def test_block_reason_without_skill_mention_is_not_re_nudged(
+        self, tmp_path: Path
+    ) -> None:
+        store = TaskStateStore(tmp_path / "state.json")
+        store.record_block("task-1", "execute_command", "some unrelated block reason")
+        with patch(
+            "cline_hooks.plugins.session_context.get_git_context", return_value=None
+        ):
+            result = self._run(_task_resume([str(tmp_path)]), store=store)
+        assert "REQUIRED" not in cast("str", result["contextModification"])
+
+    def test_multiple_distinct_skills_are_listed_sorted_and_deduplicated(
+        self, tmp_path: Path
+    ) -> None:
+        store = TaskStateStore(tmp_path / "state.json")
+        store.record_block(
+            "task-1",
+            "execute_command",
+            "MUST use the `cr` skill before running this command",
+        )
+        store.record_block(
+            "task-1",
+            "execute_command",
+            "MUST use the `git-usage` skill before running this command",
+        )
+        store.record_block(
+            "task-1",
+            "execute_command",
+            "MUST use the `cr` skill before running this command",
+        )
+        with patch(
+            "cline_hooks.plugins.session_context.get_git_context", return_value=None
+        ):
+            result = self._run(_task_resume([str(tmp_path)]), store=store)
+        context = cast("str", result["contextModification"])
+        assert "`cr`, `git-usage`" in context
 
 
 class TestHandleTaskCancel:
@@ -579,13 +631,7 @@ class TestHandleTaskComplete:
     def test_clears_blocks_on_complete(self, tmp_path: Path) -> None:
         store = TaskStateStore(tmp_path / "state.json")
         store.record_block("task-1", "tool", "reason")
-        import git.exc
-
-        with patch(
-            "cline_hooks.handlers.task_lifecycle.git.Repo",
-            side_effect=git.exc.InvalidGitRepositoryError,
-        ):
-            self._run(_task_complete([str(tmp_path)]), store=store)
+        self._run(_task_complete([str(tmp_path)]), store=store)
         assert store.get_blocks("task-1") == []
 
     def test_no_context_injected(self, tmp_path: Path) -> None:
@@ -594,13 +640,7 @@ class TestHandleTaskComplete:
 
     def test_agent_use_reset_on_complete(self, tmp_path: Path) -> None:
         record_agent_use("task-1", "Agent")
-        import git.exc
-
-        with patch(
-            "cline_hooks.handlers.task_lifecycle.git.Repo",
-            side_effect=git.exc.InvalidGitRepositoryError,
-        ):
-            self._run(_task_complete([str(tmp_path)]))
+        self._run(_task_complete([str(tmp_path)]))
         assert not has_agent_use("task-1")
 
     def test_context_band_reset_on_complete(self, tmp_path: Path) -> None:

@@ -11,10 +11,12 @@ from cline_hooks.core.plugin import HooksPlugin
 from cline_hooks.core.protocol import RawPayload, get_protocol
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.handlers.user_prompt import (
-    _contains_correction_signal,
-    _contains_info_signal,
     _is_agent_message,
     handle_user_prompt_submit,
+)
+from cline_hooks.plugins.nudges import (
+    _contains_correction_signal,
+    _contains_info_signal,
 )
 from cline_hooks.state.agents import record_agent_use
 from cline_hooks.state.context import (
@@ -122,13 +124,13 @@ def _run_with_transcript(token_count: int | None) -> dict[str, object] | None:
                 "builtins.print",
                 side_effect=lambda s, _out=output, **kw: _out.append(s),
             ),
-            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
+            patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
             patch.object(
                 type(get_protocol()),
                 "transcript",
                 StubTranscript(tokens=token_count),
             ),
-            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
+            patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(12)),
         ):
             handle_user_prompt_submit(hook)
     except SystemExit:
@@ -248,7 +250,7 @@ class TestIsAgentMessage:
 
 class TestHandleUserPromptSubmit:
     def test_correction_signal_fires_correction_reminder(self) -> None:
-        with patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0):
+        with patch("cline_hooks.plugins.nudges.random.random", return_value=1.0):
             result = _run("You should always run lint first")
         assert result is not None
         assert (
@@ -256,7 +258,7 @@ class TestHandleUserPromptSubmit:
         )
 
     def test_correction_takes_priority_over_info(self) -> None:
-        with patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0):
+        with patch("cline_hooks.plugins.nudges.random.random", return_value=1.0):
             result = _run("You should always use type hints")
         assert result is not None
         context = cast("str", result.get("contextModification", ""))
@@ -264,14 +266,14 @@ class TestHandleUserPromptSubmit:
         assert "persist to memory" not in context.lower()
 
     def test_info_signal_fires_info_reminder(self) -> None:
-        with patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0):
+        with patch("cline_hooks.plugins.nudges.random.random", return_value=1.0):
             result = _run("Actually, the deadline is Friday")
         assert result is not None
         context = cast("str", result.get("contextModification", ""))
         assert "persist to memory" in context.lower()
 
     def test_neutral_message_with_low_random_fires_info_reminder(self) -> None:
-        with patch("cline_hooks.handlers.user_prompt.random.random", return_value=0.0):
+        with patch("cline_hooks.plugins.nudges.random.random", return_value=0.0):
             result = _run("Can you implement this feature?")
         assert result is not None
         assert (
@@ -281,16 +283,16 @@ class TestHandleUserPromptSubmit:
 
     def test_neutral_message_with_high_random_no_reminder(self) -> None:
         with (
-            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
+            patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
+            patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(12)),
         ):
             result = _run("Can you implement this feature?")
         _assert_time_only(result)
 
     def test_late_night_adds_warning(self) -> None:
         with (
-            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(23)),
+            patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
+            patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(23)),
         ):
             result = _run("neutral message")
         assert result is not None
@@ -298,24 +300,24 @@ class TestHandleUserPromptSubmit:
 
     def test_daytime_no_late_warning(self) -> None:
         with (
-            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
+            patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
+            patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(12)),
         ):
             result = _run("neutral message")
         _assert_time_only(result)
 
     def test_no_agent_nudge_below_threshold(self) -> None:
         with (
-            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
+            patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
+            patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(12)),
         ):
             last = _run_n_turns(_AGENT_NUDGE_THRESHOLD - 1)
         _assert_time_only(last)
 
     def test_agent_nudge_at_threshold_without_agent_use(self) -> None:
         with (
-            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
+            patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
+            patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(12)),
         ):
             last = _run_n_turns(_AGENT_NUDGE_THRESHOLD)
         assert last is not None
@@ -324,8 +326,8 @@ class TestHandleUserPromptSubmit:
     def test_no_agent_nudge_when_rate_kept_up(self) -> None:
         record_agent_use("task-1", "Agent")
         with (
-            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
+            patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
+            patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(12)),
         ):
             last = _run_n_turns(_AGENT_NUDGE_THRESHOLD)
         if last is not None:
@@ -336,8 +338,8 @@ class TestHandleUserPromptSubmit:
     def test_agent_nudge_refires_when_rate_lags(self) -> None:
         record_agent_use("task-1", "Agent")
         with (
-            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
+            patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
+            patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(12)),
         ):
             last = _run_n_turns(2 * _AGENT_NUDGE_THRESHOLD)
         assert last is not None
@@ -346,8 +348,8 @@ class TestHandleUserPromptSubmit:
     def test_agent_message_emits_no_output(self) -> None:
         message = '<agent-message from="worker-1">\nYou should always run lint first\n</agent-message>'
         with (
-            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
+            patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
+            patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(12)),
         ):
             result = _run(message)
         assert result is None
@@ -359,8 +361,8 @@ class TestHandleUserPromptSubmit:
             "</teammate-message>"
         )
         with (
-            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
+            patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
+            patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(12)),
         ):
             result = _run(message)
         assert result is None
@@ -368,15 +370,15 @@ class TestHandleUserPromptSubmit:
     def test_agent_message_with_leading_whitespace_emits_no_output(self) -> None:
         message = '\n   <agent-message from="worker-1">\nYou should always run lint first\n</agent-message>'
         with (
-            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
+            patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
+            patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(12)),
         ):
             result = _run(message)
         assert result is None
 
     def test_agent_message_does_not_advance_turn_counter(self) -> None:
         message = '<agent-message from="worker-1">\nStatus update.\n</agent-message>'
-        with patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0):
+        with patch("cline_hooks.plugins.nudges.random.random", return_value=1.0):
             _run("neutral")
             for _ in range(5):
                 _run(message)
@@ -394,7 +396,7 @@ class TestHandleUserPromptSubmit:
         assert _run(message) is None
 
     def test_genuine_user_correction_still_fires_despite_agent_tag_absent(self) -> None:
-        with patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0):
+        with patch("cline_hooks.plugins.nudges.random.random", return_value=1.0):
             result = _run("You should always run lint first")
         assert result is not None
         assert (
@@ -404,8 +406,8 @@ class TestHandleUserPromptSubmit:
     def test_agent_message_suppresses_content_independent_notes_too(self) -> None:
         message = '<agent-message from="worker-1">\nYou should always run lint first\n</agent-message>'
         with (
-            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(23)),
+            patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
+            patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(23)),
         ):
             result = _run(message)
         assert result is None
@@ -419,12 +421,8 @@ class TestHandleUserPromptSubmit:
         try:
             with (
                 patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
-                patch(
-                    "cline_hooks.handlers.user_prompt.random.random", return_value=1.0
-                ),
-                patch(
-                    "cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)
-                ),
+                patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
+                patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(12)),
             ):
                 handle_user_prompt_submit(hook)
         except SystemExit:
@@ -435,8 +433,8 @@ class TestHandleUserPromptSubmit:
 class TestTimeNote:
     def test_time_note_always_emitted_first(self) -> None:
         with (
-            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
+            patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
+            patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(12)),
         ):
             result = _run("neutral message")
         assert result is not None
@@ -444,8 +442,8 @@ class TestTimeNote:
 
     def test_time_note_prefixed_before_other_reminders(self) -> None:
         with (
-            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(23)),
+            patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
+            patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(23)),
         ):
             result = _run("neutral message")
         assert result is not None
@@ -454,7 +452,7 @@ class TestTimeNote:
         assert "late" in context.lower()
 
     def test_no_reminder_prefix_when_co_firing_note(self) -> None:
-        with patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0):
+        with patch("cline_hooks.plugins.nudges.random.random", return_value=1.0):
             result = _run("You should always run lint first")
         assert result is not None
         context = cast("str", result.get("contextModification", ""))
@@ -465,8 +463,8 @@ class TestTimeNote:
 class TestSideRequestReminder:
     def test_low_random_fires_side_request_reminder(self) -> None:
         with (
-            patch("cline_hooks.handlers.user_prompt.random.random", return_value=0.0),
-            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
+            patch("cline_hooks.plugins.nudges.random.random", return_value=0.0),
+            patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(12)),
         ):
             result = _run("neutral message")
         assert result is not None
@@ -476,8 +474,8 @@ class TestSideRequestReminder:
 
     def test_high_random_no_side_request_reminder(self) -> None:
         with (
-            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
+            patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
+            patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(12)),
         ):
             result = _run("neutral message")
         _assert_time_only(result)
@@ -486,8 +484,8 @@ class TestSideRequestReminder:
 class TestContextNudge:
     def test_no_nudge_when_no_transcript_path(self) -> None:
         with (
-            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
+            patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
+            patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(12)),
         ):
             result = _run("neutral")
         _assert_time_only(result)
@@ -555,8 +553,8 @@ class TestPlanHandoffNudge:
     def test_plan_nudge_fires_after_plan_exit(self) -> None:
         record_plan_exit("task-1")
         with (
-            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
+            patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
+            patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(12)),
         ):
             result = _run("neutral")
         assert result is not None
@@ -565,8 +563,8 @@ class TestPlanHandoffNudge:
     def test_plan_nudge_fires_once(self) -> None:
         record_plan_exit("task-1")
         with (
-            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
-            patch("cline_hooks.handlers.user_prompt.local_now", return_value=_dt(12)),
+            patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
+            patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(12)),
         ):
             _run("neutral")
             second = _run("neutral")
@@ -604,7 +602,7 @@ class TestPluginMessageForwarding:
                 "cline_hooks.handlers.user_prompt.load_plugins",
                 return_value=[_CapturingPlugin()],
             ),
-            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
+            patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
         ):
             _run(message)
         assert called is False
@@ -623,7 +621,7 @@ class TestPluginMessageForwarding:
                 "cline_hooks.handlers.user_prompt.load_plugins",
                 return_value=[_CapturingPlugin()],
             ),
-            patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
+            patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
         ):
             _run(message)
         assert captured.get("message") == message

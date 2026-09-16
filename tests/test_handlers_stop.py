@@ -7,16 +7,14 @@ from unittest.mock import patch
 import pytest
 
 from cline_hooks.core.models import HookInputStop, StopFields
+from cline_hooks.core.plugin import HookResult, HooksPlugin
 from cline_hooks.core.protocol import set_protocol
 from cline_hooks.frontends.claude_code import ClaudeCodeProtocol
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.frontends.kiro import KiroProtocol
-from cline_hooks.handlers.stop import (
-    _RESEARCH_TRACE_CAP,
-    _contains_dismissal_signal,
-    _format_research_trace,
-    handle_stop,
-)
+from cline_hooks.handlers.stop import handle_stop
+from cline_hooks.plugins.nudges import _contains_dismissal_signal
+from cline_hooks.plugins.research import RESEARCH_TRACE_CAP, format_research_trace
 from cline_hooks.state.research import get_research, record_research
 
 if TYPE_CHECKING:
@@ -49,6 +47,16 @@ def _run(hook: HookInputStop) -> dict[str, object]:
     return cast("dict[str, object]", json.loads(output[0]))
 
 
+def _run_raw(hook: HookInputStop) -> str:
+    output: list[str] = []
+    with (
+        patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
+        pytest.raises(SystemExit),
+    ):
+        handle_stop(hook)
+    return output[0]
+
+
 def _run_cc(hook: HookInputStop) -> dict[str, object]:
     output: list[str] = []
     set_protocol(ClaudeCodeProtocol())
@@ -65,7 +73,7 @@ def _run_cc(hook: HookInputStop) -> dict[str, object]:
 
 class TestFormatResearchTrace:
     def test_empty_records_returns_empty(self) -> None:
-        assert _format_research_trace([], "HEADER") == ""
+        assert format_research_trace([], "HEADER") == ""
 
     def test_groups_by_tool(self) -> None:
         records = [
@@ -73,7 +81,7 @@ class TestFormatResearchTrace:
             {"tool": "WebSearch", "detail": "frozenset union"},
             {"tool": "WebFetch", "detail": "https://example.com"},
         ]
-        result = _format_research_trace(records, "HEADER")
+        result = format_research_trace(records, "HEADER")
         assert '- WebSearch: "python entry points", "frozenset union"' in result
         assert '- WebFetch: "https://example.com"' in result
 
@@ -82,31 +90,31 @@ class TestFormatResearchTrace:
             {"tool": "WebFetch", "detail": "https://example.com"},
             {"tool": "WebFetch", "detail": "https://example.com"},
         ]
-        result = _format_research_trace(records, "HEADER")
+        result = format_research_trace(records, "HEADER")
         assert result.count("https://example.com") == 1
 
     def test_bare_tool_line_when_no_detail(self) -> None:
         records = [{"tool": "InternalSearch", "detail": ""}]
-        result = _format_research_trace(records, "HEADER")
+        result = format_research_trace(records, "HEADER")
         assert "- InternalSearch" in result
         assert "InternalSearch:" not in result
 
     def test_truncates_with_explicit_note(self) -> None:
         records = [
             {"tool": "WebSearch", "detail": f"query {i}"}
-            for i in range(_RESEARCH_TRACE_CAP + 4)
+            for i in range(RESEARCH_TRACE_CAP + 4)
         ]
-        result = _format_research_trace(records, "HEADER")
+        result = format_research_trace(records, "HEADER")
         assert "(+4 more lookups not shown)" in result
 
     def test_no_truncation_note_when_under_cap(self) -> None:
         records = [{"tool": "WebSearch", "detail": f"query {i}"} for i in range(3)]
-        result = _format_research_trace(records, "HEADER")
+        result = format_research_trace(records, "HEADER")
         assert "more lookups not shown" not in result
 
     def test_header_included(self) -> None:
         records = [{"tool": "WebFetch", "detail": "https://example.com"}]
-        result = _format_research_trace(records, "CUSTOM HEADER TEXT")
+        result = format_research_trace(records, "CUSTOM HEADER TEXT")
         assert result.startswith("CUSTOM HEADER TEXT")
 
 
@@ -274,3 +282,45 @@ class TestHandleStopClaudeCode:
             set_protocol(ClineProtocol())
         assert exc.value.code == 0
         assert get_research("task-1") != []
+
+
+class TestHandleStopPluginDispatch:
+    def test_plugin_note_appears_when_handler_has_no_notes_of_its_own(self) -> None:
+        class _NotingPlugin(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+                return HookResult(notes=["PLUGIN NOTE"])
+
+        with patch(
+            "cline_hooks.handlers.stop.load_plugins",
+            return_value=[_NotingPlugin()],
+        ):
+            result = _run(_stop())
+        assert result["cancel"] is True
+        assert "PLUGIN NOTE" in cast("str", result["errorMessage"])
+
+    def test_plugin_block_string_surfaces_as_feedback_text(self) -> None:
+        class _BlockingPlugin(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+                return HookResult(block="plugin block text")
+
+        with patch(
+            "cline_hooks.handlers.stop.load_plugins",
+            return_value=[_BlockingPlugin()],
+        ):
+            result = _run(_stop())
+        assert result["cancel"] is True
+        assert "plugin block text" in cast("str", result["errorMessage"])
+
+    def test_plugin_returning_nothing_leaves_output_byte_identical(self) -> None:
+        class _QuietPlugin(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+                return None
+
+        baseline = _run_raw(_stop())
+
+        with patch(
+            "cline_hooks.handlers.stop.load_plugins",
+            return_value=[_QuietPlugin()],
+        ):
+            with_plugin = _run_raw(_stop())
+        assert with_plugin == baseline

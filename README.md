@@ -104,14 +104,14 @@ never reaches one.
 ## Plugins
 
 Plugins extend the hook framework with custom command rules, build tool
-detection, workspace context, and MCP tool validation.
+detection, ecosystem tooling notes, and hook-driven notes/blocking.
 
 ### Creating a plugin
 
 1. Subclass `HooksPlugin` and override the methods you need:
 
 ```python
-from cline_hooks.core.plugin import HooksPlugin
+from cline_hooks.core.plugin import HookResult, HooksPlugin, ToolingNote
 from cline_hooks.handlers.commands import CommandRule
 
 
@@ -130,12 +130,12 @@ class MyPlugin(HooksPlugin):
             ),
         ]
 
-    def get_workspace_context(self, workspace_roots: list[str]) -> str | None:
-        """Inject context at session start (e.g. workspace type detection)."""
+    def get_tooling_note(self, workspace_roots: list[str]) -> ToolingNote | None:
+        """Supply this plugin's ecosystem tooling note for these workspace roots."""
         return None
 
-    def validate_mcp_tool(self, tool_name: str, arguments: dict[str, object]) -> str | None:
-        """Return a block reason for an MCP tool call, or None to allow."""
+    def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+        """Handle any hook event, returning notes and/or a block reason."""
         return None
 ```
 
@@ -151,12 +151,17 @@ my-plugin = "my_package:MyPlugin"
 
 ### Plugin methods
 
+<!-- PLUGIN_METHODS_START -->
 | Method | Purpose | Return |
 |--------|---------|--------|
-| `get_build_commands()` | Names of build tools (e.g. `make`, `npm`) | `frozenset[str]` |
-| `get_command_rules()` | Rules to block or validate shell commands | `list[CommandRule]` |
-| `get_workspace_context(roots)` | Context string injected at session start | `str \| None` |
-| `validate_mcp_tool(name, args)` | Block reason for MCP tool calls | `str \| None` |
+| `get_build_commands()` | Return command names that are considered build tools. | `frozenset[str]` |
+| `get_command_rules()` | Return CommandRule instances this plugin wants to enforce. | `list[CommandRule]` |
+| `get_state_write_tool_names()` | Return MCP tool names that are considered state-write operations. | `frozenset[str]` |
+| `get_research_tool_names()` | Return additional tool names that count as research lookups. | `frozenset[str]` |
+| `get_research_detail_extractors()` | Return per-tool detail extractors for research lookups. | `dict[str, Callable[[dict[str, Any]], str]]` |
+| `get_tooling_note(workspace_roots)` | Return this plugin's ecosystem tooling note for these workspace roots. | `ToolingNote \| None` |
+| `on_hook(hook_name, **kwargs)` | Handle any hook event, returning notes and/or a block reason. | `HookResult \| None` |
+<!-- PLUGIN_METHODS_END -->
 
 ### CommandRule
 

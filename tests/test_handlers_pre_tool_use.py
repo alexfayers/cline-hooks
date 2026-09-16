@@ -8,14 +8,13 @@ from unittest.mock import patch
 import git
 import pytest
 
+from cline_hooks.core.plugin import HookResult, HooksPlugin
 from cline_hooks.core.protocol import RawPayload
 from cline_hooks.core.response import emit
 from cline_hooks.frontends.cline import ClineProtocol
-from cline_hooks.handlers.pre_tool_use import (
-    _is_managed_path,
-    _starts_with_emoji,
-    handle_pre_tool_use,
-)
+from cline_hooks.handlers.pre_tool_use import handle_pre_tool_use
+from cline_hooks.plugins.managed_files import _is_managed_path
+from cline_hooks.plugins.tool_guards import ToolGuardsPlugin, _starts_with_emoji
 from cline_hooks.state.skills import record_skill
 from cline_hooks.state.store import TaskStateStore
 
@@ -79,6 +78,15 @@ def _run(
     if not output:
         return None
     return cast("dict[str, object]", json.loads(output[0]))
+
+
+def _init_clean_repo(path: Path) -> None:
+    """Init a git repo at path with one committed file, leaving the tree clean."""
+    repo = git.Repo.init(path)
+    (path / "committed.txt").write_text("content")
+    repo.index.add(["committed.txt"])
+    author = git.Actor("Test", "test@example.com")
+    repo.index.commit("initial", author=author, committer=author)
 
 
 class TestStartsWithEmoji:
@@ -349,7 +357,7 @@ class TestManagedFileWriteGuard:
 
     @pytest.fixture(autouse=True)
     def _mock_managed_files(self) -> None:
-        import cline_hooks.handlers.pre_tool_use as module
+        import cline_hooks.plugins.managed_files as module
 
         module._managed_files = {self._MANAGED_FILE}
 
@@ -401,7 +409,7 @@ class TestManagedFileWriteGuard:
         self, mocker: MockerFixture
     ) -> None:
         mocker.patch(
-            "cline_hooks.handlers.pre_tool_use._get_source_impl",
+            "cline_hooks.plugins.managed_files._get_source_impl",
             return_value="/src/rules/managed-rule.md",
         )
         result = _run(
@@ -420,7 +428,7 @@ class TestManagedFileWriteGuard:
         self, mocker: MockerFixture
     ) -> None:
         mocker.patch(
-            "cline_hooks.handlers.pre_tool_use._get_source_impl", return_value=None
+            "cline_hooks.plugins.managed_files._get_source_impl", return_value=None
         )
         result = _run(
             "replace_in_file",
@@ -439,7 +447,7 @@ class TestManagedFileWriteGuard:
         self, mocker: MockerFixture
     ) -> None:
         mocker.patch(
-            "cline_hooks.handlers.pre_tool_use._get_source_impl",
+            "cline_hooks.plugins.managed_files._get_source_impl",
             side_effect=RuntimeError("boom"),
         )
         result = _run(
@@ -456,13 +464,18 @@ class TestManagedFileWriteGuard:
         )
 
 
+class _NotePlugin(HooksPlugin):
+    """Test double contributing a note to every hook, never a block."""
+
+    def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+        return HookResult(notes=["plugin note"])
+
+
 class TestPluginNoteDoesNotSuppressToolCheck:
     def test_plan_mode_respond_check_still_fires(self, mocker: MockerFixture) -> None:
-        from cline_hooks.core.plugin import HookResult
-
         mocker.patch(
-            "cline_hooks.handlers.pre_tool_use.collect_hook_results",
-            return_value=HookResult(notes=["plugin note"]),
+            "cline_hooks.handlers.pre_tool_use.load_plugins",
+            return_value=[_NotePlugin(), ToolGuardsPlugin()],
         )
         result = _run("plan_mode_respond", {"response": "No emoji"})
         assert result is not None
@@ -495,11 +508,9 @@ class TestPluginNoteDoesNotSuppressToolCheck:
     def test_plugin_note_accumulates_with_tool_note(
         self, mocker: MockerFixture
     ) -> None:
-        from cline_hooks.core.plugin import HookResult
-
         mocker.patch(
-            "cline_hooks.handlers.pre_tool_use.collect_hook_results",
-            return_value=HookResult(notes=["plugin note"]),
+            "cline_hooks.handlers.pre_tool_use.load_plugins",
+            return_value=[_NotePlugin(), ToolGuardsPlugin()],
         )
         result = _run(
             "replace_in_file",
@@ -516,3 +527,172 @@ class TestPluginNoteDoesNotSuppressToolCheck:
         context = cast("str", result.get("contextModification", ""))
         assert "plugin note" in context
         assert "MUST NOT write comments explaining the reasoning" in context
+
+
+class TestDelegationNudgeIntegration:
+    def test_fires_for_write_to_file(self, mocker: MockerFixture) -> None:
+        mocker.patch.dict(
+            "os.environ", {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"}, clear=True
+        )
+        result = _run("write_to_file", {"path": "/x.py", "content": "x"})
+        assert result is not None
+        assert "DELEGATION CHECK" in cast("str", result.get("contextModification", ""))
+
+    def test_fires_for_mutating_shell_command(self, mocker: MockerFixture) -> None:
+        mocker.patch.dict(
+            "os.environ", {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"}, clear=True
+        )
+        result = _run("execute_command", {"command": "npm run build"})
+        assert result is not None
+        assert "DELEGATION CHECK" in cast("str", result.get("contextModification", ""))
+
+
+class TestLargeFileReadGuard:
+    def test_long_file_without_range_is_blocked(self, tmp_path: Path) -> None:
+        file_path = tmp_path / "long.txt"
+        file_path.write_text("\n" * 1001)
+        result = _run("read_file", {"path": str(file_path)})
+        assert result is not None
+        error = cast("str", result.get("errorMessage", ""))
+        assert "1001 lines" in error
+        assert "MUST search it" in error
+
+    def test_long_file_with_bounded_range_is_allowed(self, tmp_path: Path) -> None:
+        file_path = tmp_path / "long.txt"
+        file_path.write_text("\n" * 1001)
+        result = _run(
+            "read_file", {"path": str(file_path), "start_line": 1, "end_line": 500}
+        )
+        assert result is None
+
+    def test_short_file_without_range_is_allowed(self, tmp_path: Path) -> None:
+        file_path = tmp_path / "short.txt"
+        file_path.write_text("\n" * 10)
+        result = _run("read_file", {"path": str(file_path)})
+        assert result is None
+
+
+class TestRequiredSkillGuardIntegration:
+    def test_command_without_recorded_skill_is_blocked(self) -> None:
+        result = _run("execute_command", {"command": "git status"})
+        assert result is not None
+        error = cast("str", result.get("errorMessage", ""))
+        assert "git-usage" in error
+        assert "skill" in error.lower()
+
+    def test_command_with_recorded_skill_is_allowed(self) -> None:
+        record_skill("task-1", "git-usage")
+        result = _run("execute_command", {"command": "git status"})
+        assert result is None
+
+
+class TestAttemptCompletionTaskProgressGuard:
+    def test_unchecked_items_block_with_count(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _init_clean_repo(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        result = _run(
+            "attempt_completion",
+            {"task_progress": "- [ ] one\n- [x] two\n- [ ] three"},
+        )
+        assert result is not None
+        error = cast("str", result.get("errorMessage", ""))
+        assert "2 incomplete" in error
+
+    def test_all_checked_items_is_allowed(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _init_clean_repo(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        result = _run("attempt_completion", {"task_progress": "- [x] one\n- [x] two"})
+        assert result is None
+
+    def test_empty_task_progress_is_allowed(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _init_clean_repo(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        result = _run("attempt_completion", {"task_progress": ""})
+        assert result is None
+
+    def test_absent_task_progress_is_allowed(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _init_clean_repo(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        result = _run("attempt_completion", {})
+        assert result is None
+
+
+class TestAttemptCompletionDirtyTreeGuard:
+    def test_dirty_working_tree_blocks(self, tmp_path: Path) -> None:
+        _init_clean_repo(tmp_path)
+        (tmp_path / "committed.txt").write_text("modified")
+        result = _run(
+            "attempt_completion",
+            {"task_progress": ""},
+            workspace_roots=[str(tmp_path)],
+        )
+        assert result is not None
+        assert "uncommitted changes" in cast("str", result.get("errorMessage", ""))
+
+    def test_clean_working_tree_is_allowed(self, tmp_path: Path) -> None:
+        _init_clean_repo(tmp_path)
+        result = _run(
+            "attempt_completion",
+            {"task_progress": ""},
+            workspace_roots=[str(tmp_path)],
+        )
+        assert result is None
+
+    def test_non_repo_path_is_tolerated(self, tmp_path: Path) -> None:
+        result = _run(
+            "attempt_completion",
+            {"task_progress": ""},
+            workspace_roots=[str(tmp_path)],
+        )
+        assert result is None
+
+
+class TestPreShellPluginScope:
+    def test_reaches_plugin_with_documented_kwargs(self, mocker: MockerFixture) -> None:
+        from cline_hooks.core.plugin import HooksPlugin
+        from cline_hooks.core.vocabulary import PluginScope
+
+        captured: list[dict[str, object]] = []
+
+        class _CapturingPlugin(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+                if hook_name == PluginScope.PRE_SHELL:
+                    captured.append(kwargs)
+                return None
+
+        mocker.patch(
+            "cline_hooks.handlers.pre_tool_use.load_plugins",
+            return_value=[_CapturingPlugin()],
+        )
+        _run("execute_command", {"command": "ls -la"}, workspace_roots=["/repo"])
+        assert len(captured) == 1
+        kwargs = captured[0]
+        assert kwargs["command"] == "ls -la"
+        assert kwargs["workspace_roots"] == ["/repo"]
+        assert kwargs["agent_type"] == ""
+
+    def test_plugin_block_blocks_the_shell_call(self, mocker: MockerFixture) -> None:
+        from cline_hooks.core.plugin import HookResult, HooksPlugin
+        from cline_hooks.core.vocabulary import PluginScope
+
+        class _BlockingPlugin(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+                if hook_name == PluginScope.PRE_SHELL:
+                    return HookResult(block="blocked by plugin")
+                return None
+
+        mocker.patch(
+            "cline_hooks.handlers.pre_tool_use.load_plugins",
+            return_value=[_BlockingPlugin()],
+        )
+        result = _run("execute_command", {"command": "ls -la"})
+        assert result is not None
+        assert "blocked by plugin" in cast("str", result.get("errorMessage", ""))

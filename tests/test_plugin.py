@@ -1,5 +1,17 @@
 from __future__ import annotations
 
+import importlib
+import importlib.metadata
+import sys
+from typing import TYPE_CHECKING
+
+import bashlex
+import pytest
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from pathlib import Path
+
 from cline_hooks.core.plugin import (
     HookResult,
     HooksPlugin,
@@ -11,9 +23,12 @@ from cline_hooks.core.plugin import (
 )
 from cline_hooks.handlers.commands import (
     CommandRule,
+    check_rules,
+    extract_commands,
     get_all_build_commands,
     get_all_command_rules,
 )
+import cline_hooks.plugins as plugins_pkg
 from cline_hooks.plugins.default import DefaultPlugin
 
 
@@ -137,8 +152,22 @@ class TestCollectHookResults:
         collect_hook_results([PluginA()], "TestHook", task_id="t1", tool_name="test")
         assert received == {"task_id": "t1", "tool_name": "test"}
 
+    def test_skips_blank_and_whitespace_only_notes(self) -> None:
+        class PluginA(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+                return HookResult(notes=["", "  ", "real"])
+
+        result = collect_hook_results([PluginA()], "TestHook")
+        assert result.notes == ["real"]
+
 
 class TestLoadPlugins:
+    @pytest.fixture(autouse=True)
+    def _reset_plugin_cache(self) -> Iterator[None]:
+        _plugin_cache._loaded = None
+        yield
+        _plugin_cache._loaded = None
+
     def test_returns_list(self) -> None:
         _plugin_cache._loaded = None
         plugins = load_plugins()
@@ -159,6 +188,38 @@ class TestLoadPlugins:
         _plugin_cache._loaded = None
         plugins = load_plugins()
         assert plugins is not None
+
+    def test_subclass_visible_in_two_bundled_modules_loaded_once(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        origin_name = "cline_hooks.plugins.temp_origin_plugin"
+        reexport_name = "cline_hooks.plugins.temp_reexport_plugin"
+        (tmp_path / "temp_origin_plugin.py").write_text(
+            "from cline_hooks.core.plugin import HooksPlugin\n\n\n"
+            "class FakePlugin(HooksPlugin):\n    pass\n"
+        )
+        (tmp_path / "temp_reexport_plugin.py").write_text(
+            "from cline_hooks.plugins.temp_origin_plugin import FakePlugin\n\n"
+            '__all__ = ["FakePlugin"]\n'
+        )
+
+        def fake_entry_points(
+            **_kwargs: object,
+        ) -> tuple[importlib.metadata.EntryPoint, ...]:
+            return ()
+
+        monkeypatch.setattr(
+            plugins_pkg, "__path__", [*plugins_pkg.__path__, str(tmp_path)]
+        )
+        monkeypatch.setattr(importlib.metadata, "entry_points", fake_entry_points)
+
+        try:
+            plugins = load_plugins()
+            origin_module = importlib.import_module(origin_name)
+            assert sum(isinstance(p, origin_module.FakePlugin) for p in plugins) == 1
+        finally:
+            sys.modules.pop(origin_name, None)
+            sys.modules.pop(reexport_name, None)
 
 
 class TestDefaultPluginBuildCommands:
@@ -211,6 +272,23 @@ class TestDefaultPluginCommandRules:
         plugin = DefaultPlugin()
         commands = [r.command for r in plugin.get_command_rules()]
         assert "grep" in commands
+
+
+class TestDefaultPluginGitCommitMessageRule:
+    def test_single_line_commit_message_is_allowed(self) -> None:
+        plugin = DefaultPlugin()
+        commands = extract_commands(
+            bashlex.parse('git commit -m "single line message"')
+        )
+        assert check_rules(commands, plugin.get_command_rules()) is None
+
+    def test_multi_line_commit_message_is_blocked(self) -> None:
+        plugin = DefaultPlugin()
+        commands = extract_commands(bashlex.parse('git commit -m "line one\nline two"'))
+        violated = check_rules(commands, plugin.get_command_rules())
+        assert violated is not None
+        assert violated.command == "git"
+        assert violated.message == "Commit messages MUST be single-line with no body."
 
 
 class TestDefaultPluginWorkspaceContext:

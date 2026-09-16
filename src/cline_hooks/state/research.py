@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import logging
 
-from cline_hooks.core.vocabulary import WEB_RESEARCH_TOOLS
 from cline_hooks.state.paths import get_data_dir
 
 logger = logging.getLogger("hooks")
@@ -30,12 +29,12 @@ def is_research_tool(tool_name: str, extra: frozenset[str]) -> bool:
 
     Args:
         tool_name: The tool name as reported by the frontend.
-        extra: Additional research tool names contributed by plugins.
+        extra: Research tool names contributed by plugins.
 
     Returns:
         True if the tool fetches external information.
     """
-    return tool_name in WEB_RESEARCH_TOOLS or tool_name in extra
+    return tool_name in extra
 
 
 def record_research(task_id: str, tool: str, detail: str) -> None:
