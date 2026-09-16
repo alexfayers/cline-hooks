@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import logging
+import os
 from typing import TYPE_CHECKING
 
 import pytest
@@ -11,6 +12,7 @@ from cline_hooks.core.protocol import get_protocol, set_protocol
 from cline_hooks.core.transcript import TranscriptReader
 import cline_hooks.state.agents as agents_tracker_module
 import cline_hooks.state.context as context_module
+import cline_hooks.state.delegation as delegation_module
 import cline_hooks.state.memory as memory_tracker_module
 import cline_hooks.state.plan as plan_module
 import cline_hooks.state.research as research_tracker_module
@@ -109,4 +111,8 @@ def isolate_state_files(mocker: MockerFixture, tmp_path: Path) -> None:
     mocker.patch.object(
         workspace_module, "_STATE_PATH", tmp_path / "workspace-state.json"
     )
+    mocker.patch.object(
+        delegation_module, "_STATE_PATH", tmp_path / "delegation-state.json"
+    )
+    mocker.patch.dict(os.environ, {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": ""})
     set_protocol(DEFAULT_PROTOCOL())

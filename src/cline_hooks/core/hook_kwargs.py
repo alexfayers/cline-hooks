@@ -38,6 +38,16 @@ class HookKwargs(BaseModel):
             return cls.model_construct(**dict(kwargs))
 
 
+class PreToolUseKwargs(HookKwargs):
+    """Typed kwargs for the generic PreToolUse dispatch."""
+
+    task_id: str = ""
+    tool_name: str = ""
+    parameters: dict[str, JsonValue] = Field(default_factory=dict)
+    workspace_roots: list[str] = Field(default_factory=list)
+    agent_type: str = ""
+
+
 class PreShellKwargs(HookKwargs):
     """Typed kwargs for the PreShell plugin scope."""
 
