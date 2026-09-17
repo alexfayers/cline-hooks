@@ -8,10 +8,13 @@ from __future__ import annotations
 
 import importlib
 import pkgutil
+from typing import TYPE_CHECKING
 
-import cline_hooks.frontends
 from cline_hooks.core.frontend import REGISTERED_FRONTENDS, FrontendSpec
-from cline_hooks.core.protocol import Protocol, RawPayload
+import cline_hooks.frontends
+
+if TYPE_CHECKING:
+    from cline_hooks.core.protocol import Protocol, RawPayload
 
 
 def _discover() -> tuple[FrontendSpec, ...]:

@@ -33,7 +33,7 @@ class Outcome:
 
     @property
     def message(self) -> str | None:
-        """Return the notes joined for display, or None if there are none."""
+        """The notes joined for display, or None if there are none."""
         return "\n\n".join(self.notes) or None
 
     @classmethod
@@ -93,9 +93,7 @@ class Outcome:
         Returns:
             The merged Outcome.
         """
-        user_message = "\n\n".join(
-            part for part in (self.user_message, other.user_message) if part
-        )
+        user_message = "\n\n".join(part for part in (self.user_message, other.user_message) if part)
         label = self.label or other.label
 
         if self.disposition is Disposition.BLOCK:
@@ -110,9 +108,7 @@ class Outcome:
             )
 
         disposition = (
-            Disposition.FEEDBACK
-            if Disposition.FEEDBACK in (self.disposition, other.disposition)
-            else Disposition.ALLOW
+            Disposition.FEEDBACK if Disposition.FEEDBACK in {self.disposition, other.disposition} else Disposition.ALLOW
         )
         return Outcome(
             disposition,

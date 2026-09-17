@@ -34,9 +34,7 @@ class CodexProtocol(ClaudeCodeHookSpec):
         """
         return False
 
-    def allow(
-        self, message: str | None = None, *, system_message: str | None = None
-    ) -> NoReturn:  # noqa: ARG002
+    def allow(self, message: str | None = None, *, system_message: str | None = None) -> NoReturn:
         """Allow via exit 0, context on stdout."""
         exit_allow(message)
 

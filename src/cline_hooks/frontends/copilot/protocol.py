@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, ClassVar, NoReturn
 
 from cline_hooks.core.frontend import EXACT_MATCH, frontend
-from cline_hooks.core.models import HookFields
 from cline_hooks.core.protocol import HookRegistration, exit_allow, exit_block
 from cline_hooks.core.vocabulary import CanonicalHook
 from cline_hooks.frontends.claude_code.protocol import ClaudeCodeHookSpec
@@ -15,6 +14,7 @@ from cline_hooks.frontends.copilot.models import CopilotPreCompact
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from cline_hooks.core.models import HookFields
     from cline_hooks.core.protocol import RawPayload
 
 
@@ -75,9 +75,7 @@ class CopilotProtocol(ClaudeCodeHookSpec):
             return False
         return data.get(cls.hook_event_key) in cls.own_hook_names()
 
-    def allow(
-        self, message: str | None = None, *, system_message: str | None = None
-    ) -> NoReturn:  # noqa: ARG002
+    def allow(self, message: str | None = None, *, system_message: str | None = None) -> NoReturn:
         """Allow via exit 0, context on stdout (see class docstring)."""
         exit_allow(message)
 

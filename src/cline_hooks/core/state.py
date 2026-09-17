@@ -5,7 +5,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import logging
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any
 
 from cline_hooks.state.paths import get_data_dir
 
@@ -16,15 +16,11 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("hooks")
 
-_StateT = TypeVar("_StateT", bound="DataclassInstance")
 
-
-class PluginStateStore(Generic[_StateT]):
+class PluginStateStore[StateT: "DataclassInstance"]:
     """Reads/writes one plugin's per-task-keyed JSON state file."""
 
-    def __init__(
-        self, filename: str, state_type: type[_StateT], path: Path | None = None
-    ) -> None:
+    def __init__(self, filename: str, state_type: type[StateT], path: Path | None = None) -> None:
         """Configure the store's backing file and per-task dataclass shape.
 
         Args:
@@ -64,7 +60,7 @@ class PluginStateStore(Generic[_StateT]):
         tmp.write_text(json.dumps(data))
         tmp.replace(self._path)
 
-    def get(self, task_id: str) -> _StateT:
+    def get(self, task_id: str) -> StateT:
         """Return the state entry for a task, or a default instance if none exists.
 
         Args:
@@ -76,15 +72,11 @@ class PluginStateStore(Generic[_StateT]):
         """
         entry = self._read_all().get(task_id, {})
         try:
-            return (
-                self._state_type(**entry)
-                if isinstance(entry, dict)
-                else self._state_type()
-            )
+            return self._state_type(**entry) if isinstance(entry, dict) else self._state_type()
         except TypeError:
             return self._state_type()
 
-    def set(self, task_id: str, state: _StateT) -> None:
+    def set(self, task_id: str, state: StateT) -> None:
         """Store the state entry for a task.
 
         Args:

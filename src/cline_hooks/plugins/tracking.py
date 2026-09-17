@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 from cline_hooks.core.hook_kwargs import TrackToolUseKwargs
 from cline_hooks.core.parameters import ReadParameters, ShellParameters, SkillParameters
 from cline_hooks.core.plugin import HooksPlugin
-from cline_hooks.core.vocabulary import CanonicalTool, PluginScope, SHELL_TOOLS
+from cline_hooks.core.vocabulary import SHELL_TOOLS, CanonicalTool, PluginScope
 from cline_hooks.state.agents import is_agent_tool, record_agent_use
 from cline_hooks.state.memory import is_memory_write, record_memory_write
 from cline_hooks.state.skills import record_skill, skills_in_command
@@ -37,9 +37,7 @@ def _record_skill_use(task_id: str, tool_name: str, parameters: dict[str, Any]) 
             if file_path.name == "SKILL.md":
                 record_skill(task_id, file_path.parent.name)
     elif tool_name in SHELL_TOOLS:
-        for skill_name in skills_in_command(
-            str(ShellParameters.build(parameters).command)
-        ):
+        for skill_name in skills_in_command(str(ShellParameters.build(parameters).command)):
             record_skill(task_id, skill_name)
 
 

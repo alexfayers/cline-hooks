@@ -26,15 +26,25 @@ def _read_entries(transcript_path: str) -> list[dict[str, Any]]:
     try:
         with Path(transcript_path).expanduser().open(encoding="utf-8") as handle:
             for line in handle:
-                try:
-                    entry = json.loads(line)
-                except (json.JSONDecodeError, ValueError):
-                    continue
-                if isinstance(entry, dict):
+                entry = _parse_entry(line)
+                if entry is not None:
                     entries.append(entry)
     except OSError:
         return []
     return entries
+
+
+def _parse_entry(line: str) -> dict[str, Any] | None:
+    """Parse a single JSONL line, or None if it isn't a JSON object.
+
+    Returns:
+        The parsed entry, or None if the line is not valid JSON or not an object.
+    """
+    try:
+        entry = json.loads(line)
+    except (json.JSONDecodeError, ValueError):
+        return None
+    return entry if isinstance(entry, dict) else None
 
 
 class AntigravityTranscriptReader(TranscriptReader):
@@ -73,6 +83,5 @@ class AntigravityTranscriptReader(TranscriptReader):
         return "\n".join(
             entry["content"]
             for entry in entries[last_user_index + 1 :]
-            if entry.get("source") == _MODEL_SOURCE
-            and isinstance(entry.get("content"), str)
+            if entry.get("source") == _MODEL_SOURCE and isinstance(entry.get("content"), str)
         )

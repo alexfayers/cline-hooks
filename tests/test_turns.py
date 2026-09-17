@@ -114,12 +114,10 @@ class TestIntegration:
             hook = cast(
                 "HookInputUserPromptSubmit",
                 parse_data(
-                    json.dumps(
-                        {
-                            **_BASE,
-                            "userPromptSubmit": {"userMessage": "neutral"},
-                        }
-                    )
+                    json.dumps({
+                        **_BASE,
+                        "userPromptSubmit": {"userMessage": "neutral"},
+                    })
                 ),
             )
             output: list[str] = []
@@ -150,9 +148,7 @@ class TestIntegration:
     def test_no_reminder_before_threshold(self) -> None:
         result = self._run_n_turns(_SCOPE_CHECK_THRESHOLD - 1)
         assert result is not None
-        assert "SESSION LENGTH CHECK" not in cast(
-            "str", result.get("contextModification", "")
-        )
+        assert "SESSION LENGTH CHECK" not in cast("str", result.get("contextModification", ""))
 
     def test_reminder_at_threshold(self) -> None:
         result = self._run_n_turns(_SCOPE_CHECK_THRESHOLD)
@@ -165,6 +161,4 @@ class TestIntegration:
     def test_reminder_repeats_at_intervals(self, extra: int) -> None:
         result = self._run_n_turns(_SCOPE_CHECK_THRESHOLD + extra)
         assert result is not None
-        assert "SESSION LENGTH CHECK" in cast(
-            "str", result.get("contextModification", "")
-        )
+        assert "SESSION LENGTH CHECK" in cast("str", result.get("contextModification", ""))

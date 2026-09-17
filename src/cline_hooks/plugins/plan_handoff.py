@@ -6,9 +6,9 @@ from cline_hooks.core.hook_kwargs import TrackToolUseKwargs
 from cline_hooks.core.plugin import HookResult, HooksPlugin
 from cline_hooks.core.state import PluginStateStore
 from cline_hooks.core.vocabulary import (
-    CanonicalHook,
     NO_RESET_TASK_START_SOURCES,
     PLAN_EXIT_TOOLS,
+    CanonicalHook,
     PluginScope,
 )
 from cline_hooks.handlers.context_nudge import with_team_clause

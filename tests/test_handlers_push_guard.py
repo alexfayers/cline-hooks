@@ -13,27 +13,19 @@ if TYPE_CHECKING:
 
 
 class TestMarkerAboveRepo:
-    def test_returns_none_when_no_markers_configured(
-        self, tmp_path: Path, mocker: MockerFixture
-    ) -> None:
-        mocker.patch(
-            "cline_hooks.handlers.push_guard.get_push_block_markers", return_value=()
-        )
+    def test_returns_none_when_no_markers_configured(self, tmp_path: Path, mocker: MockerFixture) -> None:
+        mocker.patch("cline_hooks.handlers.push_guard.get_push_block_markers", return_value=())
         git.Repo.init(tmp_path)
         assert marker_above_repo([str(tmp_path)]) is None
 
-    def test_returns_none_when_no_repo_found(
-        self, tmp_path: Path, mocker: MockerFixture
-    ) -> None:
+    def test_returns_none_when_no_repo_found(self, tmp_path: Path, mocker: MockerFixture) -> None:
         mocker.patch(
             "cline_hooks.handlers.push_guard.get_push_block_markers",
             return_value=("some-marker",),
         )
         assert marker_above_repo([str(tmp_path)]) is None
 
-    def test_finds_marker_at_repo_root(
-        self, tmp_path: Path, mocker: MockerFixture
-    ) -> None:
+    def test_finds_marker_at_repo_root(self, tmp_path: Path, mocker: MockerFixture) -> None:
         mocker.patch(
             "cline_hooks.handlers.push_guard.get_push_block_markers",
             return_value=("some-marker",),
@@ -42,9 +34,7 @@ class TestMarkerAboveRepo:
         (tmp_path / "some-marker").mkdir()
         assert marker_above_repo([str(tmp_path)]) == "some-marker"
 
-    def test_finds_marker_above_repo_root(
-        self, tmp_path: Path, mocker: MockerFixture
-    ) -> None:
+    def test_finds_marker_above_repo_root(self, tmp_path: Path, mocker: MockerFixture) -> None:
         mocker.patch(
             "cline_hooks.handlers.push_guard.get_push_block_markers",
             return_value=("some-marker",),
@@ -55,9 +45,7 @@ class TestMarkerAboveRepo:
         git.Repo.init(repo_dir)
         assert marker_above_repo([str(repo_dir)]) == "some-marker"
 
-    def test_returns_none_when_marker_not_found(
-        self, tmp_path: Path, mocker: MockerFixture
-    ) -> None:
+    def test_returns_none_when_marker_not_found(self, tmp_path: Path, mocker: MockerFixture) -> None:
         mocker.patch(
             "cline_hooks.handlers.push_guard.get_push_block_markers",
             return_value=("some-marker",),

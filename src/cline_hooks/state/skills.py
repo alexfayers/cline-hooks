@@ -6,7 +6,7 @@ import re
 from typing import Any
 
 from cline_hooks.core.parameters import ReadParameters, ShellParameters, SkillParameters
-from cline_hooks.core.vocabulary import CanonicalTool, SHELL_TOOLS
+from cline_hooks.core.vocabulary import SHELL_TOOLS, CanonicalTool
 from cline_hooks.state.paths import get_data_dir
 
 logger = logging.getLogger("hooks")
@@ -100,9 +100,7 @@ def reset(task_id: str) -> None:
         _write(data)
 
 
-def _is_skill_invocation(
-    tool_name: str, parameters: dict[str, Any], skill_names: frozenset[str]
-) -> bool:
+def _is_skill_invocation(tool_name: str, parameters: dict[str, Any], skill_names: frozenset[str]) -> bool:
     """Check whether the current tool call invokes one of the given skills.
 
     Covers every way a skill loads: the Skill/use_skill tools, a Read of a

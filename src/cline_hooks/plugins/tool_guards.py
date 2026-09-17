@@ -80,9 +80,7 @@ def _read_guard(parameters: dict[str, Any]) -> HookResult | None:
     if not params.path or _reads_bounded_range(params):
         return None
     try:
-        line_count = (
-            Path(params.path).read_text(encoding="utf-8", errors="replace").count("\n")
-        )
+        line_count = Path(params.path).read_text(encoding="utf-8", errors="replace").count("\n")
     except OSError:
         return None
     if line_count > _LARGE_FILE_THRESHOLD:
@@ -114,9 +112,7 @@ def _file_edit_comment_guard(parameters: dict[str, Any]) -> HookResult | None:
         for line in replacement_block.split("\n"):
             if (stripped_line := line.strip()) and contains_comment(line):
                 if "# type: ignore" in stripped_line and "ignore[" not in stripped_line:
-                    notes.add(
-                        "SHOULD NOT use type ignore comments; where necessary, MUST use a specific ignore."
-                    )
+                    notes.add("SHOULD NOT use type ignore comments; where necessary, MUST use a specific ignore.")
                 else:
                     notes.add(
                         "MUST NOT write comments explaining the reasoning for a specific change. "
@@ -142,7 +138,7 @@ def _pre_tool_use_guard(**kwargs: object) -> HookResult | None:
         return _plan_mode_respond_guard(parameters)
     if tool_name == CanonicalTool.READ:
         return _read_guard(parameters)
-    if tool_name in (CanonicalTool.EDIT, CanonicalTool.WRITE):
+    if tool_name in {CanonicalTool.EDIT, CanonicalTool.WRITE}:
         return _file_edit_comment_guard(parameters)
     return None
 
@@ -157,9 +153,7 @@ def _attempt_completion_guard(**kwargs: object) -> HookResult | None:
         A blocking HookResult for incomplete task_progress or a dirty repo.
     """
     task_progress = cast("str", kwargs.get("task_progress") or "")
-    incomplete = [
-        line for line in task_progress.splitlines() if line.strip().startswith("- [ ]")
-    ]
+    incomplete = [line for line in task_progress.splitlines() if line.strip().startswith("- [ ]")]
     if incomplete:
         return HookResult(
             block=f"task_progress has {len(incomplete)} incomplete item(s). MUST complete them before finishing."

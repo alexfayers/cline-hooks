@@ -47,25 +47,19 @@ def _pre_shell(command: str, *, agent_type: str = "") -> dict[str, object]:
 class TestFileEditTools:
     def test_fires_on_edit(self, mocker: MockerFixture) -> None:
         _enable(mocker)
-        result = DelegationPlugin().on_hook(
-            CanonicalHook.PRE_TOOL_USE, **_pre_tool_use("replace_in_file")
-        )
+        result = DelegationPlugin().on_hook(CanonicalHook.PRE_TOOL_USE, **_pre_tool_use("replace_in_file"))
         assert isinstance(result, HookResult)
         assert result.notes
 
     def test_fires_on_write(self, mocker: MockerFixture) -> None:
         _enable(mocker)
-        result = DelegationPlugin().on_hook(
-            CanonicalHook.PRE_TOOL_USE, **_pre_tool_use("write_to_file")
-        )
+        result = DelegationPlugin().on_hook(CanonicalHook.PRE_TOOL_USE, **_pre_tool_use("write_to_file"))
         assert isinstance(result, HookResult)
         assert result.notes
 
     def test_silent_when_env_var_unset(self, mocker: MockerFixture) -> None:
         _disable(mocker)
-        result = DelegationPlugin().on_hook(
-            CanonicalHook.PRE_TOOL_USE, **_pre_tool_use("replace_in_file")
-        )
+        result = DelegationPlugin().on_hook(CanonicalHook.PRE_TOOL_USE, **_pre_tool_use("replace_in_file"))
         assert result is None
 
     def test_silent_for_subagent(self, mocker: MockerFixture) -> None:
@@ -79,19 +73,13 @@ class TestFileEditTools:
     def test_silent_after_agent_recorded(self, mocker: MockerFixture) -> None:
         _enable(mocker)
         record_agent_use(_TASK, "Agent")
-        result = DelegationPlugin().on_hook(
-            CanonicalHook.PRE_TOOL_USE, **_pre_tool_use("replace_in_file")
-        )
+        result = DelegationPlugin().on_hook(CanonicalHook.PRE_TOOL_USE, **_pre_tool_use("replace_in_file"))
         assert result is None
 
     def test_fires_only_once_per_session(self, mocker: MockerFixture) -> None:
         _enable(mocker)
-        first = DelegationPlugin().on_hook(
-            CanonicalHook.PRE_TOOL_USE, **_pre_tool_use("replace_in_file")
-        )
-        second = DelegationPlugin().on_hook(
-            CanonicalHook.PRE_TOOL_USE, **_pre_tool_use("write_to_file")
-        )
+        first = DelegationPlugin().on_hook(CanonicalHook.PRE_TOOL_USE, **_pre_tool_use("replace_in_file"))
+        second = DelegationPlugin().on_hook(CanonicalHook.PRE_TOOL_USE, **_pre_tool_use("write_to_file"))
         assert first is not None
         assert first.notes
         assert second is None
@@ -102,13 +90,9 @@ class TestShellCommands:
         "command",
         ["ls -la", "git status", "rg foo", "ls && git log", ""],
     )
-    def test_silent_for_read_only_or_empty_command(
-        self, mocker: MockerFixture, command: str
-    ) -> None:
+    def test_silent_for_read_only_or_empty_command(self, mocker: MockerFixture, command: str) -> None:
         _enable(mocker)
-        result = DelegationPlugin().on_hook(
-            PluginScope.PRE_SHELL, **_pre_shell(command)
-        )
+        result = DelegationPlugin().on_hook(PluginScope.PRE_SHELL, **_pre_shell(command))
         assert result is None
 
     @pytest.mark.parametrize(
@@ -122,12 +106,8 @@ class TestShellCommands:
             "ls && rm y",
         ],
     )
-    def test_fires_for_mutating_command(
-        self, mocker: MockerFixture, command: str
-    ) -> None:
+    def test_fires_for_mutating_command(self, mocker: MockerFixture, command: str) -> None:
         _enable(mocker)
-        result = DelegationPlugin().on_hook(
-            PluginScope.PRE_SHELL, **_pre_shell(command)
-        )
+        result = DelegationPlugin().on_hook(PluginScope.PRE_SHELL, **_pre_shell(command))
         assert isinstance(result, HookResult)
         assert result.notes

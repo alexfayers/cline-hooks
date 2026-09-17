@@ -160,8 +160,6 @@ class McpToolUse(ToolParameters):
                 value = {}
 
         if not value:
-            logger.warning(
-                "No arguments found for tool %s", info.data.get("tool_name", "")
-            )
+            logger.warning("No arguments found for tool %s", info.data.get("tool_name", ""))
             return {}
         return value

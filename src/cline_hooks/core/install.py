@@ -1,4 +1,4 @@
-# ruff: noqa: T201
+# ruff: file-ignore[print]
 """Shared install machinery: one Installer per frontend, driven by its hook table.
 
 An installer never names the hooks it installs - it reads them from the
@@ -92,9 +92,7 @@ class JsonHookInstaller(Installer):
             Path to the frontend's hook config file.
         """
 
-    def build_entry(
-        self, binary: Path, registration: HookRegistration
-    ) -> dict[str, Any]:
+    def build_entry(self, binary: Path, registration: HookRegistration) -> dict[str, Any]:
         """Build one hook entry, in the nested "hook group" shape by default.
 
         Args:
@@ -120,11 +118,7 @@ class JsonHookInstaller(Installer):
         Returns:
             The entry's commands, used to skip re-adding this binary.
         """
-        return {
-            str(hook.get("command", ""))
-            for hook in entry.get("hooks", [])
-            if isinstance(hook, dict)
-        }
+        return {str(hook.get("command", "")) for hook in entry.get("hooks", []) if isinstance(hook, dict)}
 
     def _read_config(self, config_path: Path) -> dict[str, Any]:
         """Read the frontend's JSON config, creating its directory if allowed.
@@ -161,10 +155,7 @@ class JsonHookInstaller(Installer):
         for registration in protocol_cls.supported_hooks.values():
             current = existing.get(registration.native_name, [])
             installed = {
-                command
-                for entry in current
-                if isinstance(entry, dict)
-                for command in self.entry_commands(entry)
+                command for entry in current if isinstance(entry, dict) for command in self.entry_commands(entry)
             }
             if binary_str not in installed:
                 current.append(self.build_entry(binary, registration))

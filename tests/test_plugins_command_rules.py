@@ -45,9 +45,7 @@ class TestCommandRulesPluginCommandRules:
 class TestCommandRulesPluginGitCommitMessageRule:
     def test_single_line_commit_message_is_allowed(self) -> None:
         plugin = CommandRulesPlugin()
-        commands = extract_commands(
-            bashlex.parse('git commit -m "single line message"')
-        )
+        commands = extract_commands(bashlex.parse('git commit -m "single line message"'))
         assert check_rules(commands, plugin.get_command_rules()) is None
 
     def test_multi_line_commit_message_is_blocked(self) -> None:

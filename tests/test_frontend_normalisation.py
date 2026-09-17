@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -20,6 +19,9 @@ from cline_hooks.frontends.cline.protocol import ClineProtocol
 from cline_hooks.frontends.codex.protocol import CodexProtocol
 from cline_hooks.frontends.copilot.protocol import CopilotProtocol
 from cline_hooks.frontends.kiro.protocol import KiroProtocol
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -51,8 +53,7 @@ _ANTIGRAVITY_ENVELOPE: dict[str, Any] = {
     "taskId": "fixture-session-id",
     "workspaceRoots": ["/home/user/project"],
     "transcriptPath": (
-        "/home/user/.gemini/antigravity/brain/fixture-session-id"
-        "/.system_generated/logs/transcript.jsonl"
+        "/home/user/.gemini/antigravity/brain/fixture-session-id/.system_generated/logs/transcript.jsonl"
     ),
     "agentType": "gemini-3.6-flash-medium",
 }
@@ -199,9 +200,7 @@ class TestClaudeCodeNormalisation:
                 "parameters": {
                     "server_name": "memory",
                     "tool_name": "create_entities",
-                    "arguments": json.dumps(
-                        {"project": "demo", "entities": [{"name": "e1"}]}
-                    ),
+                    "arguments": json.dumps({"project": "demo", "entities": [{"name": "e1"}]}),
                 },
             },
         }
@@ -482,9 +481,7 @@ class TestCopilotNormalisation:
         }
 
     def test_pre_compact_session_id_falls_back_to_cwd_hash(self) -> None:
-        hook = _parse(
-            "copilot", "PreCompact", CopilotProtocol, overrides={"session_id": ""}
-        )
+        hook = _parse("copilot", "PreCompact", CopilotProtocol, overrides={"session_id": ""})
         expected_task_id = hashlib.sha256(b"/home/user/project").hexdigest()[:16]
         assert hook.model_dump() == {
             **_COPILOT_ENVELOPE,

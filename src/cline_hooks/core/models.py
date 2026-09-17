@@ -1,4 +1,4 @@
-# ruff: noqa: N815
+# ruff: file-ignore[mixed-case-variable-in-class-scope]
 from __future__ import annotations
 
 import logging
@@ -148,10 +148,8 @@ def hook_input(hook: CanonicalHook) -> Callable[[type[_HookInputT]], type[_HookI
                     break
 
         if len(payload_fields) != 1:
-            raise TypeError(
-                f"{cls.__name__} must have exactly one HookFields payload field, "
-                f"found {len(payload_fields)}"
-            )
+            msg = f"{cls.__name__} must have exactly one HookFields payload field, found {len(payload_fields)}"
+            raise TypeError(msg)
 
         cls.payload_field = payload_fields[0]
         return cls

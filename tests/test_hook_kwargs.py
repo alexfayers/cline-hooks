@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import logging
-
-import pytest
+from typing import TYPE_CHECKING
 
 from cline_hooks.core.hook_kwargs import (
     PreShellKwargs,
@@ -11,18 +10,19 @@ from cline_hooks.core.hook_kwargs import (
     TrackToolUseKwargs,
 )
 
+if TYPE_CHECKING:
+    import pytest
+
 
 class TestPreShellKwargs:
     def test_build_populates_documented_fields(self) -> None:
-        built = PreShellKwargs.build(
-            {
-                "task_id": "t1",
-                "tool_name": "execute_command",
-                "command": "ls -la",
-                "workspace_roots": ["/repo"],
-                "agent_type": "Explore",
-            }
-        )
+        built = PreShellKwargs.build({
+            "task_id": "t1",
+            "tool_name": "execute_command",
+            "command": "ls -la",
+            "workspace_roots": ["/repo"],
+            "agent_type": "Explore",
+        })
         assert built.task_id == "t1"
         assert built.tool_name == "execute_command"
         assert built.command == "ls -la"
@@ -42,15 +42,13 @@ class TestPreShellKwargs:
 
 class TestPreToolUseKwargs:
     def test_build_populates_documented_fields(self) -> None:
-        built = PreToolUseKwargs.build(
-            {
-                "task_id": "t1",
-                "tool_name": "replace_in_file",
-                "parameters": {"path": "/x.py"},
-                "workspace_roots": ["/repo"],
-                "agent_type": "Explore",
-            }
-        )
+        built = PreToolUseKwargs.build({
+            "task_id": "t1",
+            "tool_name": "replace_in_file",
+            "parameters": {"path": "/x.py"},
+            "workspace_roots": ["/repo"],
+            "agent_type": "Explore",
+        })
         assert built.task_id == "t1"
         assert built.tool_name == "replace_in_file"
         assert built.parameters == {"path": "/x.py"}
@@ -70,17 +68,15 @@ class TestPreToolUseKwargs:
 
 class TestTrackToolUseKwargs:
     def test_build_populates_documented_fields(self) -> None:
-        built = TrackToolUseKwargs.build(
-            {
-                "task_id": "t1",
-                "tool_name": "use_mcp_tool",
-                "parameters": {"k": "v"},
-                "is_state_write": True,
-                "mcp_tool_name": "SomeTool",
-                "workspace_roots": ["/repo"],
-                "agent_type": "Explore",
-            }
-        )
+        built = TrackToolUseKwargs.build({
+            "task_id": "t1",
+            "tool_name": "use_mcp_tool",
+            "parameters": {"k": "v"},
+            "is_state_write": True,
+            "mcp_tool_name": "SomeTool",
+            "workspace_roots": ["/repo"],
+            "agent_type": "Explore",
+        })
         assert built.parameters == {"k": "v"}
         assert built.is_state_write is True
         assert built.mcp_tool_name == "SomeTool"
@@ -96,15 +92,13 @@ class TestTrackToolUseKwargs:
 
 class TestToolFailedKwargs:
     def test_build_populates_documented_fields(self) -> None:
-        built = ToolFailedKwargs.build(
-            {
-                "task_id": "t1",
-                "tool_name": "execute_command",
-                "parameters": {"command": "boom"},
-                "workspace_roots": ["/repo"],
-                "agent_type": "Explore",
-            }
-        )
+        built = ToolFailedKwargs.build({
+            "task_id": "t1",
+            "tool_name": "execute_command",
+            "parameters": {"command": "boom"},
+            "workspace_roots": ["/repo"],
+            "agent_type": "Explore",
+        })
         assert built.tool_name == "execute_command"
         assert built.parameters == {"command": "boom"}
         assert built.workspace_roots == ["/repo"]
@@ -112,9 +106,7 @@ class TestToolFailedKwargs:
 
 
 class TestFailOpen:
-    def test_malformed_known_field_keeps_raw_value_and_warns(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_malformed_known_field_keeps_raw_value_and_warns(self, caplog: pytest.LogCaptureFixture) -> None:
         with caplog.at_level(logging.WARNING):
             built = TrackToolUseKwargs.build({"task_id": 123})
         assert built.task_id == 123  # type: ignore[comparison-overlap]

@@ -37,9 +37,7 @@ def _pre_shell_guard(**kwargs: object) -> HookResult | None:
 
     required_skill = required_skill_for([cmd.name for cmd in commands])
     if required_skill and not is_skill_called(task_id, required_skill):
-        return HookResult(
-            block=f"MUST use the `{required_skill}` skill before running this command"
-        )
+        return HookResult(block=f"MUST use the `{required_skill}` skill before running this command")
 
     if is_git_push(commands):
         marker = marker_above_repo(workspace_roots)
@@ -65,20 +63,11 @@ def _task_resume_guard(**kwargs: object) -> HookResult | None:
         A HookResult carrying the re-nudge note, or None if nothing pends.
     """
     block_reasons = cast("list[str]", kwargs.get("block_reasons") or [])
-    pending_skills = {
-        skill
-        for reason in block_reasons
-        for skill in _SKILL_REQUIREMENTS.values()
-        if skill in reason
-    }
+    pending_skills = {skill for reason in block_reasons for skill in _SKILL_REQUIREMENTS.values() if skill in reason}
     if not pending_skills:
         return None
     skills_list = ", ".join(f"`{s}`" for s in sorted(pending_skills))
-    return HookResult(
-        notes=[
-            f"REQUIRED: use the {skills_list} skill(s) before retrying the blocked command."
-        ]
-    )
+    return HookResult(notes=[f"REQUIRED: use the {skills_list} skill(s) before retrying the blocked command."])
 
 
 class ShellGuardsPlugin(HooksPlugin):

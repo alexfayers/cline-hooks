@@ -63,11 +63,8 @@ class ClaudeCodeTranscriptReader(TranscriptReader):
         try:
             with Path(transcript_path).open(encoding="utf-8") as handle:
                 for line in handle:
-                    try:
-                        entry = json.loads(line)
-                    except (json.JSONDecodeError, ValueError):
-                        continue
-                    if isinstance(entry, dict):
+                    entry = _parse_entry(line)
+                    if entry is not None:
                         entries.append(entry)
         except OSError:
             return ""
@@ -90,12 +87,23 @@ class ClaudeCodeTranscriptReader(TranscriptReader):
             texts.extend(
                 block["text"]
                 for block in content
-                if isinstance(block, dict)
-                and block.get("type") == "text"
-                and isinstance(block.get("text"), str)
+                if isinstance(block, dict) and block.get("type") == "text" and isinstance(block.get("text"), str)
             )
 
         return "\n".join(texts)
+
+
+def _parse_entry(line: str) -> dict[str, Any] | None:
+    """Parse a single JSONL line, or None if it isn't a JSON object.
+
+    Returns:
+        The parsed entry, or None if the line is not valid JSON or not an object.
+    """
+    try:
+        entry = json.loads(line)
+    except (json.JSONDecodeError, ValueError):
+        return None
+    return entry if isinstance(entry, dict) else None
 
 
 def _sum_context_fields(usage: dict[str, Any]) -> int:
@@ -137,10 +145,7 @@ def _is_user_prompt(entry: dict[str, Any]) -> bool:
     if isinstance(content, str):
         return True
     if isinstance(content, list):
-        return not any(
-            isinstance(block, dict) and block.get("type") == "tool_result"
-            for block in content
-        )
+        return not any(isinstance(block, dict) and block.get("type") == "tool_result" for block in content)
     return False
 
 
@@ -157,11 +162,7 @@ def _usage_from_line(line: str) -> dict[str, Any] | None:
         entry = json.loads(line)
     except (json.JSONDecodeError, ValueError):
         return None
-    if (
-        not isinstance(entry, dict)
-        or entry.get("type") != "assistant"
-        or entry.get("isSidechain")
-    ):
+    if not isinstance(entry, dict) or entry.get("type") != "assistant" or entry.get("isSidechain"):
         return None
     message = entry.get("message")
     if not isinstance(message, dict):
@@ -176,11 +177,7 @@ def _main_thread_usage(usage: dict[str, Any]) -> dict[str, Any]:
     """Return the true main-thread usage, unwrapping a server-tool roll-up."""
     iterations = usage.get("iterations")
     if isinstance(iterations, list):
-        messages = [
-            it
-            for it in iterations
-            if isinstance(it, dict) and it.get("type") == "message"
-        ]
+        messages = [it for it in iterations if isinstance(it, dict) and it.get("type") == "message"]
         if messages:
             return messages[-1]
     return usage

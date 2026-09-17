@@ -33,9 +33,7 @@ class KiroReadParams(ToolParams):
     or empty.
     """
 
-    path: str | None = Field(
-        default=None, validation_alias=AliasPath("operations", 0, "path")
-    )
+    path: str | None = Field(default=None, validation_alias=AliasPath("operations", 0, "path"))
 
 
 class KiroEditParams(ToolParams):

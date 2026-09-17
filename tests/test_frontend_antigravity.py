@@ -59,9 +59,7 @@ def _transcript(tmp_path: Path, *entries: dict[str, Any]) -> str:
         The path to the written transcript.
     """
     path = tmp_path / "transcript.jsonl"
-    path.write_text(
-        "".join(f"{json.dumps(entry)}\n" for entry in entries), encoding="utf-8"
-    )
+    path.write_text("".join(f"{json.dumps(entry)}\n" for entry in entries), encoding="utf-8")
     return str(path)
 
 
@@ -70,10 +68,7 @@ class TestEventInference:
 
     @pytest.mark.parametrize("canonical_hook", ["PreToolUse", "PostToolUse", "Stop"])
     def test_each_fixture_infers_its_own_event(self, canonical_hook: str) -> None:
-        assert (
-            AntigravityProtocol.infer_hook_event(_fixture(canonical_hook))
-            == canonical_hook
-        )
+        assert AntigravityProtocol.infer_hook_event(_fixture(canonical_hook)) == canonical_hook
 
     def test_a_reported_error_marks_a_tool_call_as_finished(self) -> None:
         data = {**_fixture("PreToolUse"), "error": "exit status 1"}
@@ -116,40 +111,30 @@ class TestOutput:
         protocol = AntigravityProtocol(CanonicalHook.PRE_TOOL_USE)
         assert _emit(capsys, protocol.allow) == {"decision": "allow"}
 
-    def test_pre_tool_use_allow_carries_context_as_a_reason(
-        self, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_pre_tool_use_allow_carries_context_as_a_reason(self, capsys: pytest.CaptureFixture[str]) -> None:
         protocol = AntigravityProtocol(CanonicalHook.PRE_TOOL_USE)
         assert _emit(capsys, protocol.allow, "a note") == {
             "decision": "allow",
             "reason": "a note",
         }
 
-    def test_pre_tool_use_block_denies(
-        self, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_pre_tool_use_block_denies(self, capsys: pytest.CaptureFixture[str]) -> None:
         protocol = AntigravityProtocol(CanonicalHook.PRE_TOOL_USE)
         assert _emit(capsys, protocol.block, "no") == {
             "decision": "deny",
             "reason": "no",
         }
 
-    def test_post_tool_use_answers_with_an_empty_object(
-        self, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_post_tool_use_answers_with_an_empty_object(self, capsys: pytest.CaptureFixture[str]) -> None:
         protocol = AntigravityProtocol(CanonicalHook.POST_TOOL_USE)
         assert _emit(capsys, protocol.allow, "a note") == {}
         assert _emit(capsys, protocol.block, "no") == {}
 
-    def test_stop_allow_lets_the_loop_end(
-        self, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_stop_allow_lets_the_loop_end(self, capsys: pytest.CaptureFixture[str]) -> None:
         protocol = AntigravityProtocol(CanonicalHook.STOP)
         assert _emit(capsys, protocol.allow) == {"decision": "allow"}
 
-    def test_stop_feedback_re_enters_the_loop(
-        self, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_stop_feedback_re_enters_the_loop(self, capsys: pytest.CaptureFixture[str]) -> None:
         protocol = AntigravityProtocol(CanonicalHook.STOP)
         assert _emit(capsys, protocol.feedback, "keep going") == {
             "decision": "continue",
@@ -163,9 +148,7 @@ class TestTranscriptReader:
         path = _transcript(tmp_path, {"source": "MODEL", "content": "hello"})
         assert reader.context_tokens(path) is None
 
-    def test_returns_model_text_since_the_last_user_message(
-        self, tmp_path: Path
-    ) -> None:
+    def test_returns_model_text_since_the_last_user_message(self, tmp_path: Path) -> None:
         path = _transcript(
             tmp_path,
             {"source": "MODEL", "content": "an earlier turn"},
@@ -174,9 +157,7 @@ class TestTranscriptReader:
             {"source": "MODEL", "content": "first"},
             {"source": "MODEL", "content": "second"},
         )
-        assert (
-            AntigravityTranscriptReader().turn_assistant_text(path) == "first\nsecond"
-        )
+        assert AntigravityTranscriptReader().turn_assistant_text(path) == "first\nsecond"
 
     def test_skips_a_line_that_is_not_a_json_object(self, tmp_path: Path) -> None:
         path = tmp_path / "transcript.jsonl"
@@ -186,16 +167,11 @@ class TestTranscriptReader:
         )
         assert AntigravityTranscriptReader().turn_assistant_text(str(path)) == "kept"
 
-    def test_expands_a_home_relative_path(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_expands_a_home_relative_path(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("HOME", str(tmp_path))
         monkeypatch.setenv("USERPROFILE", str(tmp_path))
         _transcript(tmp_path, {"source": "MODEL", "content": "expanded"})
-        assert (
-            AntigravityTranscriptReader().turn_assistant_text("~/transcript.jsonl")
-            == "expanded"
-        )
+        assert AntigravityTranscriptReader().turn_assistant_text("~/transcript.jsonl") == "expanded"
 
     def test_unreadable_transcript_is_empty(self, tmp_path: Path) -> None:
         reader = AntigravityTranscriptReader()

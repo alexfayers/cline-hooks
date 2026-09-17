@@ -32,9 +32,7 @@ class KiroInstaller(JsonHookInstaller):
         """
         return Path(target or "")
 
-    def build_entry(
-        self, binary: Path, registration: HookRegistration
-    ) -> dict[str, Any]:
+    def build_entry(self, binary: Path, registration: HookRegistration) -> dict[str, Any]:
         """Build one flat Kiro hook entry.
 
         Returns:

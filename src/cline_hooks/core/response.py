@@ -30,9 +30,7 @@ def allow(
     get_protocol().allow(message, system_message=system_message)
 
 
-def block(
-    message: str, *, task_id: str | None = None, tool_name: str | None = None
-) -> NoReturn:
+def block(message: str, *, task_id: str | None = None, tool_name: str | None = None) -> NoReturn:
     """Cancel the tool call with an error message.
 
     Args:
@@ -42,7 +40,7 @@ def block(
     """
     logger.warning("Blocking: %s", message)
     if task_id is not None and tool_name is not None:
-        from cline_hooks.state.store import TaskStateStore  # noqa: PLC0415
+        from cline_hooks.state.store import TaskStateStore  # ruff: ignore[import-outside-top-level]
 
         TaskStateStore().record_block(task_id, tool_name, message)
     get_protocol().block(message)

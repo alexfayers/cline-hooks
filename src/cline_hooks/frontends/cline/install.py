@@ -1,4 +1,4 @@
-# ruff: noqa: T201
+# ruff: file-ignore[print]
 """Cline hook installation - symlinks on Unix, PowerShell scripts on Windows."""
 
 from __future__ import annotations
@@ -41,15 +41,13 @@ def _powershell_literal(value: str) -> str:
 
 def _powershell_script(binary: Path) -> str:
     binary_literal = _powershell_literal(str(binary))
-    return "\n".join(
-        (
-            _PS1_HEADER,
-            "$inputData = [Console]::In.ReadToEnd()",
-            f"$inputData | & {binary_literal}",
-            "exit $LASTEXITCODE",
-            "",
-        )
-    )
+    return "\n".join((
+        _PS1_HEADER,
+        "$inputData = [Console]::In.ReadToEnd()",
+        f"$inputData | & {binary_literal}",
+        "exit $LASTEXITCODE",
+        "",
+    ))
 
 
 def _install_windows(binary: Path, target: Path, hooks: tuple[str, ...]) -> None:
@@ -127,10 +125,7 @@ class ClineInstaller(Installer):
             protocol_cls: The Cline protocol, whose hook names become file names.
             target: Directory in which to create hook entry points.
         """
-        hooks = tuple(
-            registration.native_name
-            for registration in protocol_cls.supported_hooks.values()
-        )
+        hooks = tuple(registration.native_name for registration in protocol_cls.supported_hooks.values())
         binary = resolve_binary()
         target_dir = Path(target or "")
         target_dir.mkdir(parents=True, exist_ok=True)

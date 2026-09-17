@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import contextlib
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import bashlex
@@ -14,9 +14,9 @@ from cline_hooks.core.hook_kwargs import PreShellKwargs, PreToolUseKwargs
 from cline_hooks.core.plugin import HookResult, HooksPlugin
 from cline_hooks.core.state import PluginStateStore
 from cline_hooks.core.vocabulary import (
-    CanonicalHook,
     FILE_EDIT_TOOLS,
     NO_RESET_TASK_START_SOURCES,
+    CanonicalHook,
     PluginScope,
 )
 from cline_hooks.handlers.commands import extract_commands
@@ -33,9 +33,7 @@ class _DelegationState:
     nudged: bool = False
 
 
-_store: PluginStateStore[_DelegationState] = PluginStateStore(
-    "delegation-state.json", _DelegationState
-)
+_store: PluginStateStore[_DelegationState] = PluginStateStore("delegation-state.json", _DelegationState)
 
 
 def should_nudge_inline_work(task_id: str) -> bool:
@@ -67,46 +65,42 @@ def reset(task_id: str) -> None:
     _store.reset(task_id)
 
 
-_READ_ONLY_COMMANDS = frozenset(
-    {
-        "ls",
-        "pwd",
-        "cat",
-        "head",
-        "tail",
-        "wc",
-        "stat",
-        "file",
-        "tree",
-        "find",
-        "grep",
-        "rg",
-        "fd",
-        "which",
-        "echo",
-        "date",
-        "env",
-        "printenv",
-        "jq",
-        "diff",
-        "du",
-        "df",
-        "cd",
-    }
-)
-_READ_ONLY_GIT_SUBCOMMANDS = frozenset(
-    {
-        "status",
-        "log",
-        "diff",
-        "show",
-        "branch",
-        "blame",
-        "remote",
-        "rev-parse",
-        "ls-files",
-    }
-)
+_READ_ONLY_COMMANDS = frozenset({
+    "ls",
+    "pwd",
+    "cat",
+    "head",
+    "tail",
+    "wc",
+    "stat",
+    "file",
+    "tree",
+    "find",
+    "grep",
+    "rg",
+    "fd",
+    "which",
+    "echo",
+    "date",
+    "env",
+    "printenv",
+    "jq",
+    "diff",
+    "du",
+    "df",
+    "cd",
+})
+_READ_ONLY_GIT_SUBCOMMANDS = frozenset({
+    "status",
+    "log",
+    "diff",
+    "show",
+    "branch",
+    "blame",
+    "remote",
+    "rev-parse",
+    "ls-files",
+})
 
 _DELEGATION_NUDGE = (
     "DELEGATION CHECK: An agent team is enabled and this session is about to do work "
@@ -177,7 +171,7 @@ class DelegationPlugin(HooksPlugin):
             if isinstance(task_id, str) and source not in NO_RESET_TASK_START_SOURCES:
                 reset(task_id)
             return None
-        if hook_name not in (CanonicalHook.PRE_TOOL_USE, PluginScope.PRE_SHELL):
+        if hook_name not in {CanonicalHook.PRE_TOOL_USE, PluginScope.PRE_SHELL}:
             return None
         if not agent_teams_enabled():
             return None

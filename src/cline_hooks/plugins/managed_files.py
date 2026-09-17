@@ -22,7 +22,7 @@ _managed_files: set[str] | None = None
 
 def _get_managed_files() -> set[str]:
     """Return cached set of managed file paths from the manifest."""
-    global _managed_files  # noqa: PLW0603
+    global _managed_files  # ruff: ignore[global-statement]
     if _managed_files is None:
         if _get_managed_files_impl is not None:
             _managed_files = _get_managed_files_impl()
@@ -79,7 +79,7 @@ def _pre_tool_use_guard(**kwargs: object) -> HookResult | None:
         A blocking HookResult for a managed-file edit, or None.
     """
     tool_name = kwargs.get("tool_name")
-    if tool_name not in (CanonicalTool.EDIT, CanonicalTool.WRITE):
+    if tool_name not in {CanonicalTool.EDIT, CanonicalTool.WRITE}:
         return None
     parameters = cast("dict[str, Any]", kwargs.get("parameters") or {})
     file_path = FileEditParameters.build(parameters).path

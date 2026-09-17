@@ -1,4 +1,4 @@
-# ruff: noqa: T201
+# ruff: file-ignore[print]
 """Claude Code exit-code protocol."""
 
 from __future__ import annotations
@@ -8,14 +8,12 @@ import sys
 from typing import TYPE_CHECKING, ClassVar, NoReturn, Self
 
 from cline_hooks.core.frontend import SHAPE_SNIFF, frontend
-from cline_hooks.core.models import HookFields
 from cline_hooks.core.payload import (
     PayloadEnvelope,
     StandardPayloadProtocol,
     ToolParams,
 )
 from cline_hooks.core.protocol import HookRegistration, exit_block
-from cline_hooks.core.transcript import TranscriptReader
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
 from cline_hooks.frontends.claude_code.install import ClaudeCodeInstaller
 from cline_hooks.frontends.claude_code.models import (
@@ -32,7 +30,9 @@ from cline_hooks.frontends.claude_code.transcript import ClaudeCodeTranscriptRea
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from cline_hooks.core.models import HookFields
     from cline_hooks.core.protocol import RawPayload
+    from cline_hooks.core.transcript import TranscriptReader
 
 
 class ClaudeCodeHookSpec(StandardPayloadProtocol):
@@ -160,9 +160,7 @@ class ClaudeCodeProtocol(ClaudeCodeHookSpec):
         """
         return True
 
-    def allow(
-        self, message: str | None = None, *, system_message: str | None = None
-    ) -> NoReturn:
+    def allow(self, message: str | None = None, *, system_message: str | None = None) -> NoReturn:
         """Continue via exit 0, context in hookSpecificOutput and/or systemMessage."""
         payload: dict[str, object] = {}
         if system_message is not None:

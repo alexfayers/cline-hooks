@@ -3,8 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sys
-from collections.abc import Mapping
-from typing import ClassVar, NoReturn, get_args
+from typing import TYPE_CHECKING, ClassVar, NoReturn, get_args
 
 from pydantic import BaseModel, model_validator
 
@@ -20,8 +19,12 @@ from cline_hooks.core.payload import (
     map_tool_name,
     mcp_parameters,
 )
-from cline_hooks.core.protocol import RawPayload
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from cline_hooks.core.protocol import RawPayload
 
 
 class _BaseStop(HookFields):
@@ -44,9 +47,7 @@ class _ConcreteProtocol(StandardPayloadProtocol):
     def detect(cls, payload: RawPayload) -> bool:
         return False
 
-    def allow(
-        self, message: str | None = None, *, system_message: str | None = None
-    ) -> NoReturn:
+    def allow(self, message: str | None = None, *, system_message: str | None = None) -> NoReturn:
         sys.exit(0)
 
     def block(self, message: str) -> NoReturn:
@@ -54,12 +55,8 @@ class _ConcreteProtocol(StandardPayloadProtocol):
 
 
 class _BaseSpec(_ConcreteProtocol):
-    hook_models: ClassVar[Mapping[CanonicalHook, type[HookFields]]] = {
-        CanonicalHook.STOP: _BaseStop
-    }
-    tool_models: ClassVar[Mapping[CanonicalTool, type[ToolParams]]] = {
-        CanonicalTool.READ: _BaseRead
-    }
+    hook_models: ClassVar[Mapping[CanonicalHook, type[HookFields]]] = {CanonicalHook.STOP: _BaseStop}
+    tool_models: ClassVar[Mapping[CanonicalTool, type[ToolParams]]] = {CanonicalTool.READ: _BaseRead}
 
 
 class _DerivedSpec(_BaseSpec):
@@ -88,9 +85,7 @@ class TestDeclaredModelInheritance:
 
 class TestPayloadEnvelope:
     def test_payload_session_id_wins(self) -> None:
-        result = PayloadEnvelope.model_validate(
-            {"session_id": "sid-1", "cwd": "/x"}, context={"env": {}}
-        )
+        result = PayloadEnvelope.model_validate({"session_id": "sid-1", "cwd": "/x"}, context={"env": {}})
         assert result.taskId == "sid-1"
 
     def test_falls_back_to_first_present_env_key(self) -> None:
@@ -222,9 +217,7 @@ class TestMapToolName:
         """
 
         class _Protocol(_ConcreteProtocol):
-            tool_map: ClassVar[Mapping[str, CanonicalTool]] = {
-                "native_shell": CanonicalTool.SHELL
-            }
+            tool_map: ClassVar[Mapping[str, CanonicalTool]] = {"native_shell": CanonicalTool.SHELL}
 
         return _Protocol
 
@@ -232,9 +225,7 @@ class TestMapToolName:
         assert map_tool_name("native_shell", self._protocol()) == CanonicalTool.SHELL
 
     def test_unmapped_name_unchanged(self) -> None:
-        assert (
-            map_tool_name("some_unknown_tool", self._protocol()) == "some_unknown_tool"
-        )
+        assert map_tool_name("some_unknown_tool", self._protocol()) == "some_unknown_tool"
 
     def test_mcp_prefixed_name_maps_to_mcp(self) -> None:
         assert map_tool_name("@server/tool", self._protocol()) == CanonicalTool.MCP
@@ -254,7 +245,8 @@ def _payload_field_base(hook: CanonicalHook) -> type[BaseModel]:
     for candidate in get_args(annotation) or (annotation,):
         if isinstance(candidate, type) and issubclass(candidate, HookFields):
             return candidate
-    raise AssertionError(f"no HookFields base found for hook {hook!r}")
+    msg = f"no HookFields base found for hook {hook!r}"
+    raise AssertionError(msg)
 
 
 class TestDeclaredModelsInvariant:
@@ -264,9 +256,7 @@ class TestDeclaredModelsInvariant:
         for spec in FRONTENDS:
             models = getattr(spec.protocol, "hook_models", {})
             for hook, model in models.items():
-                assert issubclass(model, _payload_field_base(hook)), (
-                    f"{spec.name}: {model.__name__} for {hook}"
-                )
+                assert issubclass(model, _payload_field_base(hook)), f"{spec.name}: {model.__name__} for {hook}"
 
     def test_tool_models_subclass_tool_params(self) -> None:
         for spec in FRONTENDS:

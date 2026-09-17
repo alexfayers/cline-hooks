@@ -36,6 +36,6 @@ class SessionContextPlugin(HooksPlugin):
         Returns:
             A HookResult carrying the git context note, or None.
         """
-        if hook_name in (CanonicalHook.TASK_START, CanonicalHook.TASK_RESUME):
+        if hook_name in {CanonicalHook.TASK_START, CanonicalHook.TASK_RESUME}:
             return _git_context_guard(**kwargs)
         return None

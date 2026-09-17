@@ -28,9 +28,7 @@ class CopilotInstaller(JsonHookInstaller):
         """
         return Path.home() / ".copilot" / "hooks" / "cline-hooks.json"
 
-    def build_entry(
-        self, binary: Path, registration: HookRegistration
-    ) -> dict[str, Any]:
+    def build_entry(self, binary: Path, registration: HookRegistration) -> dict[str, Any]:
         """Build one flat Copilot hook entry.
 
         Returns:

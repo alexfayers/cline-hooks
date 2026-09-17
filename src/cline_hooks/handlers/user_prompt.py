@@ -12,9 +12,7 @@ from cline_hooks.core.vocabulary import CanonicalHook
 if TYPE_CHECKING:
     from cline_hooks.core.models import HookInputUserPromptSubmit
 
-_AGENT_MESSAGE_PATTERN = re.compile(
-    r"<(agent-message|teammate-message|task-notification).+?</\1>", re.DOTALL
-)
+_AGENT_MESSAGE_PATTERN = re.compile(r"<(agent-message|teammate-message|task-notification).+?</\1>", re.DOTALL)
 
 
 def _is_agent_message(message: str) -> bool:

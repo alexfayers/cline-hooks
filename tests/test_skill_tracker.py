@@ -57,9 +57,7 @@ class TestIsSessionEndSkill:
         assert is_session_end_skill("use_skill", {"skill_name": "session-end"})
 
     def test_read_skill_md(self) -> None:
-        assert is_session_end_skill(
-            "read_file", {"path": "/home/user/.kiro/skills/session-end/SKILL.md"}
-        )
+        assert is_session_end_skill("read_file", {"path": "/home/user/.kiro/skills/session-end/SKILL.md"})
 
     def test_other_skill_not_detected(self) -> None:
         assert not is_session_end_skill("use_skill", {"skill": "git-usage"})
@@ -76,9 +74,7 @@ class TestIsWrapUpSkill:
         assert is_wrap_up_skill("use_skill", {"skill": "handoff"})
 
     def test_handoff_via_read(self) -> None:
-        assert is_wrap_up_skill(
-            "read_file", {"path": "/Users/me/.claude/skills/handoff/SKILL.md"}
-        )
+        assert is_wrap_up_skill("read_file", {"path": "/Users/me/.claude/skills/handoff/SKILL.md"})
 
     def test_unrelated_skill_not_wrap_up(self) -> None:
         assert not is_wrap_up_skill("use_skill", {"skill": "git-usage"})

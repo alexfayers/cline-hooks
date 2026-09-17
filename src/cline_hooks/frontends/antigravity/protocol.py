@@ -1,4 +1,4 @@
-# ruff: noqa: T201
+# ruff: file-ignore[print]
 """Antigravity JSON stdout protocol."""
 
 from __future__ import annotations
@@ -9,7 +9,6 @@ import sys
 from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, Self
 
 from cline_hooks.core.frontend import EXACT_MATCH, frontend
-from cline_hooks.core.models import HookFields
 from cline_hooks.core.payload import (
     PayloadEnvelope,
     StandardPayloadProtocol,
@@ -18,7 +17,6 @@ from cline_hooks.core.payload import (
     parse_standard_payload,
 )
 from cline_hooks.core.protocol import HookRegistration
-from cline_hooks.core.transcript import TranscriptReader
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
 from cline_hooks.frontends.antigravity.install import AntigravityInstaller
 from cline_hooks.frontends.antigravity.models import (
@@ -35,8 +33,9 @@ from cline_hooks.frontends.antigravity.transcript import AntigravityTranscriptRe
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from cline_hooks.core.models import HookInput
+    from cline_hooks.core.models import HookFields, HookInput
     from cline_hooks.core.protocol import RawPayload
+    from cline_hooks.core.transcript import TranscriptReader
 
 # Antigravity sends both on every event, and no other frontend sends either.
 _ENVELOPE_KEYS = ("conversationId", "artifactDirectoryPath")
@@ -170,9 +169,7 @@ class AntigravityProtocol(StandardPayloadProtocol):
         print(json.dumps(decision), end="")
         sys.exit(0)
 
-    def allow(
-        self, message: str | None = None, *, system_message: str | None = None
-    ) -> NoReturn:
+    def allow(self, message: str | None = None, *, system_message: str | None = None) -> NoReturn:
         """Allow via JSON stdout, carrying any context as the decision's reason."""
         if self._hook == CanonicalHook.POST_TOOL_USE:
             self._respond({})

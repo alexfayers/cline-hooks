@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import re
 from pathlib import Path
+import re
 
 from cline_hooks.core.frontends import FRONTENDS
 from cline_hooks.core.plugin import list_plugin_methods
@@ -31,9 +31,7 @@ def _generate_hook_matrix() -> str:
         cells = []
         for spec in FRONTENDS:
             registration = spec.protocol.supported_hooks.get(hook)
-            cells.append(
-                f"`{registration.native_name}`" if registration is not None else "-"
-            )
+            cells.append(f"`{registration.native_name}`" if registration is not None else "-")
         lines.append(f"| {hook.value} | " + " | ".join(cells) + " |")
     return "\n".join(lines)
 

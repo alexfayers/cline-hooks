@@ -40,9 +40,7 @@ class TestRecordAndGet:
 
     def test_record_appends(self) -> None:
         record_research(_TASK, "web_fetch", "https://example.com")
-        assert get_research(_TASK) == [
-            {"tool": "web_fetch", "detail": "https://example.com"}
-        ]
+        assert get_research(_TASK) == [{"tool": "web_fetch", "detail": "https://example.com"}]
 
     def test_records_preserve_order(self) -> None:
         record_research(_TASK, "web_search", "python entry points")

@@ -48,15 +48,11 @@ def _make_hook(
     return cast(
         "HookInputPreToolUse",
         parse_data(
-            json.dumps(
-                {
-                    **_BASE,
-                    "workspaceRoots": workspace_roots
-                    if workspace_roots is not None
-                    else [],
-                    "preToolUse": {"toolName": tool_name, "parameters": parameters},
-                }
-            )
+            json.dumps({
+                **_BASE,
+                "workspaceRoots": workspace_roots if workspace_roots is not None else [],
+                "preToolUse": {"toolName": tool_name, "parameters": parameters},
+            })
         ),
     )
 
@@ -188,9 +184,7 @@ class TestCatBlock:
         assert "Read tool" in cast("str", result.get("errorMessage", ""))
 
     def test_cat_piped_to_other_command_is_allowed(self) -> None:
-        result = _run(
-            "execute_command", {"command": "cat file.json | python3 -c 'import json'"}
-        )
+        result = _run("execute_command", {"command": "cat file.json | python3 -c 'import json'"})
         assert result is None
 
     def test_cat_piped_to_grep_is_allowed(self) -> None:
@@ -279,9 +273,7 @@ class TestForwardsAgentType:
     def _run_capturing_kwargs(self, agent_type: str) -> list[dict[str, object]]:
         captured: list[dict[str, object]] = []
 
-        def _fake_collect(
-            _plugins: object, _hook_name: str, **kwargs: object
-        ) -> object:
+        def _fake_collect(_plugins: object, _hook_name: str, **kwargs: object) -> object:
             captured.append(kwargs)
             from cline_hooks.core.plugin import HookResult
 
@@ -290,16 +282,14 @@ class TestForwardsAgentType:
         hook = cast(
             "HookInputPreToolUse",
             parse_data(
-                json.dumps(
-                    {
-                        **_BASE,
-                        "agentType": agent_type,
-                        "preToolUse": {
-                            "toolName": "read_file",
-                            "parameters": {"path": "/x.py"},
-                        },
-                    }
-                )
+                json.dumps({
+                    **_BASE,
+                    "agentType": agent_type,
+                    "preToolUse": {
+                        "toolName": "read_file",
+                        "parameters": {"path": "/x.py"},
+                    },
+                })
             ),
         )
         with (
@@ -345,9 +335,7 @@ class TestGitPushMarkerBlock:
             "cline_hooks.handlers.push_guard.get_push_block_markers",
             return_value=("some-marker",),
         )
-        result = _run(
-            "execute_command", {"command": "git push"}, workspace_roots=[str(repo_dir)]
-        )
+        result = _run("execute_command", {"command": "git push"}, workspace_roots=[str(repo_dir)])
         assert result is not None
         assert "managed workspace" in cast("str", result.get("errorMessage", ""))
 
@@ -392,10 +380,7 @@ class TestManagedFileWriteGuard:
                 "diff": "------- SEARCH\n=======\nnew\n+++++++ REPLACE",
             },
         )
-        assert (
-            result is None
-            or "source file" not in cast("str", result.get("errorMessage", "")).lower()
-        )
+        assert result is None or "source file" not in cast("str", result.get("errorMessage", "")).lower()
 
     def test_write_to_file_blocked_for_managed_file(self) -> None:
         result = _run(
@@ -405,9 +390,7 @@ class TestManagedFileWriteGuard:
         assert result is not None
         assert "source file" in cast("str", result.get("errorMessage", "")).lower()
 
-    def test_edit_blocked_message_names_resolved_source(
-        self, mocker: MockerFixture
-    ) -> None:
+    def test_edit_blocked_message_names_resolved_source(self, mocker: MockerFixture) -> None:
         mocker.patch(
             "cline_hooks.plugins.managed_files._get_source_impl",
             return_value="/src/rules/managed-rule.md",
@@ -420,16 +403,10 @@ class TestManagedFileWriteGuard:
             },
         )
         assert result is not None
-        assert "/src/rules/managed-rule.md" in cast(
-            "str", result.get("errorMessage", "")
-        )
+        assert "/src/rules/managed-rule.md" in cast("str", result.get("errorMessage", ""))
 
-    def test_edit_blocked_message_falls_back_when_source_unresolved(
-        self, mocker: MockerFixture
-    ) -> None:
-        mocker.patch(
-            "cline_hooks.plugins.managed_files._get_source_impl", return_value=None
-        )
+    def test_edit_blocked_message_falls_back_when_source_unresolved(self, mocker: MockerFixture) -> None:
+        mocker.patch("cline_hooks.plugins.managed_files._get_source_impl", return_value=None)
         result = _run(
             "replace_in_file",
             {
@@ -443,9 +420,7 @@ class TestManagedFileWriteGuard:
             "instead, then run `llm-prompts update`."
         )
 
-    def test_edit_blocked_message_falls_back_when_source_resolution_raises(
-        self, mocker: MockerFixture
-    ) -> None:
+    def test_edit_blocked_message_falls_back_when_source_resolution_raises(self, mocker: MockerFixture) -> None:
         mocker.patch(
             "cline_hooks.plugins.managed_files._get_source_impl",
             side_effect=RuntimeError("boom"),
@@ -492,9 +467,7 @@ class TestPluginNoteDoesNotSuppressToolCheck:
         assert result is not None
         assert "rm -f" in cast("str", result.get("errorMessage", "")).lower()
 
-    def test_plugin_note_still_reaches_context_modification(
-        self, mocker: MockerFixture
-    ) -> None:
+    def test_plugin_note_still_reaches_context_modification(self, mocker: MockerFixture) -> None:
         from cline_hooks.core.plugin import HookResult
 
         mocker.patch(
@@ -505,9 +478,7 @@ class TestPluginNoteDoesNotSuppressToolCheck:
         assert result is not None
         assert "plugin note" in cast("str", result.get("contextModification", ""))
 
-    def test_plugin_note_accumulates_with_tool_note(
-        self, mocker: MockerFixture
-    ) -> None:
+    def test_plugin_note_accumulates_with_tool_note(self, mocker: MockerFixture) -> None:
         mocker.patch(
             "cline_hooks.handlers.pre_tool_use.load_plugins",
             return_value=[_NotePlugin(), ToolGuardsPlugin()],
@@ -516,11 +487,7 @@ class TestPluginNoteDoesNotSuppressToolCheck:
             "replace_in_file",
             {
                 "path": "/Users/test/.claude/rules/my-custom-rule.md",
-                "diff": (
-                    "------- SEARCH\n=======\n"
-                    "# explains why we did this\n"
-                    "+++++++ REPLACE"
-                ),
+                "diff": ("------- SEARCH\n=======\n# explains why we did this\n+++++++ REPLACE"),
             },
         )
         assert result is not None
@@ -531,17 +498,13 @@ class TestPluginNoteDoesNotSuppressToolCheck:
 
 class TestDelegationNudgeIntegration:
     def test_fires_for_write_to_file(self, mocker: MockerFixture) -> None:
-        mocker.patch.dict(
-            "os.environ", {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"}, clear=True
-        )
+        mocker.patch.dict("os.environ", {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"}, clear=True)
         result = _run("write_to_file", {"path": "/x.py", "content": "x"})
         assert result is not None
         assert "DELEGATION CHECK" in cast("str", result.get("contextModification", ""))
 
     def test_fires_for_mutating_shell_command(self, mocker: MockerFixture) -> None:
-        mocker.patch.dict(
-            "os.environ", {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"}, clear=True
-        )
+        mocker.patch.dict("os.environ", {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"}, clear=True)
         result = _run("execute_command", {"command": "npm run build"})
         assert result is not None
         assert "DELEGATION CHECK" in cast("str", result.get("contextModification", ""))
@@ -560,9 +523,7 @@ class TestLargeFileReadGuard:
     def test_long_file_with_bounded_range_is_allowed(self, tmp_path: Path) -> None:
         file_path = tmp_path / "long.txt"
         file_path.write_text("\n" * 1001)
-        result = _run(
-            "read_file", {"path": str(file_path), "start_line": 1, "end_line": 500}
-        )
+        result = _run("read_file", {"path": str(file_path), "start_line": 1, "end_line": 500})
         assert result is None
 
     def test_short_file_without_range_is_allowed(self, tmp_path: Path) -> None:
@@ -587,9 +548,7 @@ class TestRequiredSkillGuardIntegration:
 
 
 class TestAttemptCompletionTaskProgressGuard:
-    def test_unchecked_items_block_with_count(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_unchecked_items_block_with_count(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         _init_clean_repo(tmp_path)
         monkeypatch.chdir(tmp_path)
         result = _run(
@@ -600,25 +559,19 @@ class TestAttemptCompletionTaskProgressGuard:
         error = cast("str", result.get("errorMessage", ""))
         assert "2 incomplete" in error
 
-    def test_all_checked_items_is_allowed(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_all_checked_items_is_allowed(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         _init_clean_repo(tmp_path)
         monkeypatch.chdir(tmp_path)
         result = _run("attempt_completion", {"task_progress": "- [x] one\n- [x] two"})
         assert result is None
 
-    def test_empty_task_progress_is_allowed(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_empty_task_progress_is_allowed(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         _init_clean_repo(tmp_path)
         monkeypatch.chdir(tmp_path)
         result = _run("attempt_completion", {"task_progress": ""})
         assert result is None
 
-    def test_absent_task_progress_is_allowed(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_absent_task_progress_is_allowed(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         _init_clean_repo(tmp_path)
         monkeypatch.chdir(tmp_path)
         result = _run("attempt_completion", {})

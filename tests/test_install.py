@@ -17,9 +17,7 @@ if TYPE_CHECKING:
 _FAKE_PYTHON = str(Path("/fake/bin/python"))
 _EXPECTED_BINARY = str(Path(_FAKE_PYTHON).parent / "cline-hook")
 
-_JSON_FRONTENDS = [
-    spec for spec in FRONTENDS if isinstance(spec.installer, JsonHookInstaller)
-]
+_JSON_FRONTENDS = [spec for spec in FRONTENDS if isinstance(spec.installer, JsonHookInstaller)]
 
 
 def _installer(spec: FrontendSpec) -> JsonHookInstaller:
@@ -96,9 +94,7 @@ def _commands(spec: FrontendSpec, config: dict[str, Any], event: str) -> list[st
     """
     installer = _installer(spec)
     return [
-        command
-        for entry in config[installer.root_key][event]
-        for command in sorted(installer.entry_commands(entry))
+        command for entry in config[installer.root_key][event] for command in sorted(installer.entry_commands(entry))
     ]
 
 
@@ -115,35 +111,26 @@ def _first_event(spec: FrontendSpec) -> str:
 class TestJsonHookInstallers:
     """Invariants every JSON-configured frontend's installer must hold."""
 
-    def test_installs_an_entry_for_every_registered_hook(
-        self, spec: FrontendSpec, home: Path
-    ) -> None:
+    def test_installs_an_entry_for_every_registered_hook(self, spec: FrontendSpec, home: Path) -> None:
         _seed(spec, home)
         config = _install(spec, home)
         assert set(config[_installer(spec).root_key]) == {
-            registration.native_name
-            for registration in spec.protocol.supported_hooks.values()
+            registration.native_name for registration in spec.protocol.supported_hooks.values()
         }
 
-    def test_every_entry_runs_the_resolved_binary(
-        self, spec: FrontendSpec, home: Path
-    ) -> None:
+    def test_every_entry_runs_the_resolved_binary(self, spec: FrontendSpec, home: Path) -> None:
         _seed(spec, home)
         config = _install(spec, home)
         for event in config[_installer(spec).root_key]:
             assert _EXPECTED_BINARY in _commands(spec, config, event)
 
-    def test_preserves_unrelated_config_keys(
-        self, spec: FrontendSpec, home: Path
-    ) -> None:
+    def test_preserves_unrelated_config_keys(self, spec: FrontendSpec, home: Path) -> None:
         _seed(spec, home, {"other": "value"})
         config = _install(spec, home)
         assert config["other"] == "value"
         assert _installer(spec).root_key in config
 
-    def test_preserves_entries_from_other_sources(
-        self, spec: FrontendSpec, home: Path
-    ) -> None:
+    def test_preserves_entries_from_other_sources(self, spec: FrontendSpec, home: Path) -> None:
         installer = _installer(spec)
         event = _first_event(spec)
         registration = next(iter(spec.protocol.supported_hooks.values()))
@@ -155,9 +142,7 @@ class TestJsonHookInstallers:
         assert "/other/tool" in commands
         assert _EXPECTED_BINARY in commands
 
-    def test_idempotent_when_already_installed(
-        self, spec: FrontendSpec, home: Path
-    ) -> None:
+    def test_idempotent_when_already_installed(self, spec: FrontendSpec, home: Path) -> None:
         _seed(spec, home)
         target = _target_for(spec, home)
         spec.install(target)
@@ -185,9 +170,7 @@ class TestNestedEntryFrontends:
             ("copilot", (".copilot", "hooks", "cline-hooks.json")),
         ],
     )
-    def test_config_path(
-        self, name: str, expected: tuple[str, ...], home: Path
-    ) -> None:
+    def test_config_path(self, name: str, expected: tuple[str, ...], home: Path) -> None:
         spec = FRONTENDS_BY_NAME[name]
         assert _installer(spec).config_path(None) == home.joinpath(*expected)
 
@@ -211,9 +194,7 @@ class TestKiroInstaller:
         assert config["description"] == "test"
         assert config["tools"] == ["x"]
 
-    def test_missing_agent_config_exits(
-        self, home: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_missing_agent_config_exits(self, home: Path, capsys: pytest.CaptureFixture[str]) -> None:
         spec = FRONTENDS_BY_NAME["kiro"]
         with pytest.raises(SystemExit) as excinfo:
             spec.install(str(home / "nope.json"))
@@ -240,22 +221,16 @@ class TestAntigravityInstaller:
                 }
             ]
 
-    def test_stop_entries_are_handlers_directly_under_the_event(
-        self, home: Path
-    ) -> None:
+    def test_stop_entries_are_handlers_directly_under_the_event(self, home: Path) -> None:
         spec = FRONTENDS_BY_NAME["antigravity"]
         config = _install(spec, home)
-        assert config["cline-hooks"]["Stop"] == [
-            {"type": "command", "command": _EXPECTED_BINARY}
-        ]
+        assert config["cline-hooks"]["Stop"] == [{"type": "command", "command": _EXPECTED_BINARY}]
 
     def test_reinstalling_leaves_the_flat_stop_entry_alone(self, home: Path) -> None:
         spec = FRONTENDS_BY_NAME["antigravity"]
         spec.install(None)
         config = _install(spec, home)
-        assert config["cline-hooks"]["Stop"] == [
-            {"type": "command", "command": _EXPECTED_BINARY}
-        ]
+        assert config["cline-hooks"]["Stop"] == [{"type": "command", "command": _EXPECTED_BINARY}]
 
 
 class TestCopilotInstaller:
@@ -272,9 +247,7 @@ class TestResolveBinary:
         scripts_dir.mkdir()
         exe = scripts_dir / "cline-hook.exe"
         exe.write_text("", encoding="utf-8")
-        with patch(
-            "cline_hooks.core.install.sys.executable", str(scripts_dir / "python.exe")
-        ):
+        with patch("cline_hooks.core.install.sys.executable", str(scripts_dir / "python.exe")):
             assert resolve_binary() == exe
 
     def test_falls_back_to_the_unsuffixed_name(self, tmp_path: Path) -> None:

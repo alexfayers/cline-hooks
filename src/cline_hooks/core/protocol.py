@@ -122,7 +122,7 @@ class Protocol(ABC):
         """Return True if this protocol's frontend produced the given payload."""
 
     @classmethod
-    def from_payload(cls, payload: RawPayload) -> Self:  # noqa: ARG003
+    def from_payload(cls, payload: RawPayload) -> Self:
         """Construct an instance of this protocol from the detected payload.
 
         Returns:
@@ -135,13 +135,11 @@ class Protocol(ABC):
     def parse(self, payload: RawPayload) -> HookInput:
         """Parse the raw payload into a typed HookInput."""
 
-    def configure_logging(self) -> None:
+    def configure_logging(self) -> None:  # ruff: ignore[empty-method-without-abstract-decorator]
         """Adjust logging for this frontend. Defaults to a no-op."""
 
     @abstractmethod
-    def allow(
-        self, message: str | None = None, *, system_message: str | None = None
-    ) -> NoReturn:
+    def allow(self, message: str | None = None, *, system_message: str | None = None) -> NoReturn:
         """Allow the operation, optionally injecting context."""
 
     def supports_user_message(self) -> bool:
@@ -169,10 +167,7 @@ class Protocol(ABC):
         Returns:
             The instruction header for this frontend.
         """
-        return (
-            "RESEARCH TRACE: MUST cite the lookups behind this turn's claims to "
-            "the user, in ONE line only."
-        )
+        return "RESEARCH TRACE: MUST cite the lookups behind this turn's claims to the user, in ONE line only."
 
 
 @cache
@@ -182,28 +177,25 @@ def _native_to_canonical(protocol_cls: type[Protocol]) -> Mapping[str, Canonical
     Returns:
         A mapping from each native hook event name to its canonical hook.
     """
-    return {
-        registration.native_name: canonical
-        for canonical, registration in protocol_cls.supported_hooks.items()
-    }
+    return {registration.native_name: canonical for canonical, registration in protocol_cls.supported_hooks.items()}
 
 
 def exit_allow(message: str | None = None) -> NoReturn:
     """Allow via exit 0, context on stdout."""
     if message is not None:
-        print(message, end="")  # noqa: T201
+        print(message, end="")  # ruff: ignore[print]
     sys.exit(0)
 
 
 def exit_block(message: str) -> NoReturn:
     """Block via exit 2, error on stderr."""
-    print(message, end="", file=sys.stderr)  # noqa: T201
+    print(message, end="", file=sys.stderr)  # ruff: ignore[print]
     sys.exit(2)
 
 
 def set_protocol(protocol: Protocol) -> None:
     """Set the active output protocol for this process."""
-    global _active_protocol  # noqa: PLW0603
+    global _active_protocol  # ruff: ignore[global-statement]
     _active_protocol = protocol
 
 

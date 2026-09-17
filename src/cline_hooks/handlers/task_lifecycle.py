@@ -7,7 +7,7 @@ from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
-from cline_hooks.core.vocabulary import CanonicalHook, NO_RESET_TASK_START_SOURCES
+from cline_hooks.core.vocabulary import NO_RESET_TASK_START_SOURCES, CanonicalHook
 from cline_hooks.handlers.git_context import resolve_tooling_notes
 from cline_hooks.state.agents import reset as _reset_agents
 from cline_hooks.state.memory import reset as _reset_memory

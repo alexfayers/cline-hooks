@@ -49,13 +49,8 @@ class TestHookInputsTable:
             assert issubclass(input_cls, HookInput)
             assert input_cls.model_fields["hookName"].default == canonical_hook
             payload_field_info = input_cls.model_fields[input_cls.payload_field]
-            candidates = get_args(payload_field_info.annotation) or (
-                payload_field_info.annotation,
-            )
-            assert any(
-                isinstance(candidate, type) and issubclass(candidate, HookFields)
-                for candidate in candidates
-            )
+            candidates = get_args(payload_field_info.annotation) or (payload_field_info.annotation,)
+            assert any(isinstance(candidate, type) and issubclass(candidate, HookFields) for candidate in candidates)
 
 
 class TestParseData:
@@ -138,17 +133,13 @@ class TestParseData:
         assert result.taskStart.task == ""
 
     def test_task_start_unknown_only_dict_defaults_task(self) -> None:
-        result = parse_data(
-            _make_json(hookName="TaskStart", taskStart={"taskMetadata": {}})
-        )
+        result = parse_data(_make_json(hookName="TaskStart", taskStart={"taskMetadata": {}}))
         assert isinstance(result, HookInputTaskStart)
         assert result.taskStart is not None
         assert result.taskStart.task == ""
 
     def test_task_start_with_task_field(self) -> None:
-        result = parse_data(
-            _make_json(hookName="TaskStart", taskStart={"task": "do something"})
-        )
+        result = parse_data(_make_json(hookName="TaskStart", taskStart={"task": "do something"}))
         assert isinstance(result, HookInputTaskStart)
         assert result.taskStart is not None
         assert result.taskStart.task == "do something"

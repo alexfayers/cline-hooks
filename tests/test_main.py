@@ -35,14 +35,12 @@ class TestHookDispatchGating:
     """A frontend only handles the hooks it declares."""
 
     def test_runs_a_hook_the_detected_frontend_fires(self) -> None:
-        output = _run(
-            {
-                "hookName": "TaskStart",
-                "taskId": "task-1",
-                "workspaceRoots": [],
-                "taskStart": {"task": "", "source": "startup"},
-            }
-        )
+        output = _run({
+            "hookName": "TaskStart",
+            "taskId": "task-1",
+            "workspaceRoots": [],
+            "taskStart": {"task": "", "source": "startup"},
+        })
         assert json.loads(output[0])["cancel"] is False
 
     def test_ignores_a_hook_the_detected_frontend_does_not_fire(self) -> None:
@@ -57,17 +55,13 @@ class TestHookDispatchGating:
             "conversation_length": 10,
             "estimated_tokens": 1000,
         }
-        with patch(
-            "cline_hooks._main.select_protocol", return_value=claude_code
-        ) as select:
+        with patch("cline_hooks._main.select_protocol", return_value=claude_code) as select:
             output = _run(payload)
         assert select.called
         assert output == []
 
     def test_an_unknown_event_name_is_ignored(self) -> None:
-        output = _run(
-            {"hookName": "SomethingElse", "taskId": "task-1", "workspaceRoots": []}
-        )
+        output = _run({"hookName": "SomethingElse", "taskId": "task-1", "workspaceRoots": []})
         assert json.loads(output[0])["cancel"] is False
 
 
@@ -79,11 +73,7 @@ class TestInstallSubcommands:
         parser = _build_parser()
         args = parser.parse_args(
             ["install", spec.name]
-            + (
-                ["some-target"]
-                if spec.installer is not None and spec.installer.argument is not None
-                else []
-            )
+            + (["some-target"] if spec.installer is not None and spec.installer.argument is not None else [])
         )
         assert args.install_mode == spec.name
 

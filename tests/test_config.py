@@ -18,9 +18,7 @@ class TestAgentTeamsEnabled:
         assert agent_teams_enabled() is True
 
     def test_true_for_falsy_looking_string_value(self, mocker: MockerFixture) -> None:
-        mocker.patch.dict(
-            "os.environ", {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "false"}
-        )
+        mocker.patch.dict("os.environ", {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "false"})
         assert agent_teams_enabled() is True
 
     def test_false_when_set_to_empty_string(self, mocker: MockerFixture) -> None:
@@ -37,10 +35,6 @@ class TestGetPushBlockMarkers:
         mocker.patch.dict("os.environ", {"CLINE_HOOKS_PUSH_BLOCK_MARKERS": "foo,bar"})
         assert get_push_block_markers() == ("foo", "bar")
 
-    def test_strips_whitespace_and_drops_empty_entries(
-        self, mocker: MockerFixture
-    ) -> None:
-        mocker.patch.dict(
-            "os.environ", {"CLINE_HOOKS_PUSH_BLOCK_MARKERS": " foo , , bar "}
-        )
+    def test_strips_whitespace_and_drops_empty_entries(self, mocker: MockerFixture) -> None:
+        mocker.patch.dict("os.environ", {"CLINE_HOOKS_PUSH_BLOCK_MARKERS": " foo , , bar "})
         assert get_push_block_markers() == ("foo", "bar")

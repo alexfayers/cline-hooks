@@ -14,17 +14,17 @@ from cline_hooks.handlers.user_prompt import (
     _is_agent_message,
     handle_user_prompt_submit,
 )
-from cline_hooks.plugins.nudges import (
-    _contains_correction_signal,
-    _contains_info_signal,
-)
 from cline_hooks.plugins.context_usage import (
     _BAND_SIZE,
     CONTEXT_DEGRADED_THRESHOLD,
     CONTEXT_REDUCED_THRESHOLD,
 )
 import cline_hooks.plugins.nudges as nudges_module
-from cline_hooks.plugins.nudges import _AGENT_NUDGE_THRESHOLD
+from cline_hooks.plugins.nudges import (
+    _AGENT_NUDGE_THRESHOLD,
+    _contains_correction_signal,
+    _contains_info_signal,
+)
 from cline_hooks.plugins.plan_handoff import record_plan_exit
 from cline_hooks.state.agents import record_agent_use
 from tests.conftest import StubTranscript
@@ -64,12 +64,10 @@ def _make_hook(user_message: str = "") -> HookInputUserPromptSubmit:
     return cast(
         "HookInputUserPromptSubmit",
         parse_data(
-            json.dumps(
-                {
-                    **_BASE,
-                    "userPromptSubmit": {"userMessage": user_message},
-                }
-            )
+            json.dumps({
+                **_BASE,
+                "userPromptSubmit": {"userMessage": user_message},
+            })
         ),
     )
 
@@ -108,13 +106,11 @@ def _run_with_transcript(token_count: int | None) -> dict[str, object] | None:
     hook = cast(
         "HookInputUserPromptSubmit",
         parse_data(
-            json.dumps(
-                {
-                    **_BASE,
-                    "userPromptSubmit": {"userMessage": "neutral"},
-                    "transcriptPath": "session.jsonl",
-                }
-            )
+            json.dumps({
+                **_BASE,
+                "userPromptSubmit": {"userMessage": "neutral"},
+                "transcriptPath": "session.jsonl",
+            })
         ),
     )
     output: list[str] = []
@@ -253,9 +249,7 @@ class TestHandleUserPromptSubmit:
         with patch("cline_hooks.plugins.nudges.random.random", return_value=1.0):
             result = _run("You should always run lint first")
         assert result is not None
-        assert (
-            "correction" in cast("str", result.get("contextModification", "")).lower()
-        )
+        assert "correction" in cast("str", result.get("contextModification", "")).lower()
 
     def test_correction_takes_priority_over_info(self) -> None:
         with patch("cline_hooks.plugins.nudges.random.random", return_value=1.0):
@@ -276,10 +270,7 @@ class TestHandleUserPromptSubmit:
         with patch("cline_hooks.plugins.nudges.random.random", return_value=0.0):
             result = _run("Can you implement this feature?")
         assert result is not None
-        assert (
-            "persist to memory"
-            in cast("str", result.get("contextModification", "")).lower()
-        )
+        assert "persist to memory" in cast("str", result.get("contextModification", "")).lower()
 
     def test_neutral_message_with_high_random_no_reminder(self) -> None:
         with (
@@ -331,9 +322,7 @@ class TestHandleUserPromptSubmit:
         ):
             last = _run_n_turns(_AGENT_NUDGE_THRESHOLD)
         if last is not None:
-            assert "FAN-OUT CHECK" not in cast(
-                "str", last.get("contextModification", "")
-            )
+            assert "FAN-OUT CHECK" not in cast("str", last.get("contextModification", ""))
 
     def test_agent_nudge_refires_when_rate_lags(self) -> None:
         record_agent_use("task-1", "Agent")
@@ -399,9 +388,7 @@ class TestHandleUserPromptSubmit:
         with patch("cline_hooks.plugins.nudges.random.random", return_value=1.0):
             result = _run("You should always run lint first")
         assert result is not None
-        assert (
-            "correction" in cast("str", result.get("contextModification", "")).lower()
-        )
+        assert "correction" in cast("str", result.get("contextModification", "")).lower()
 
     def test_agent_message_suppresses_content_independent_notes_too(self) -> None:
         message = '<agent-message from="worker-1">\nYou should always run lint first\n</agent-message>'
@@ -468,9 +455,7 @@ class TestSideRequestReminder:
         ):
             result = _run("neutral message")
         assert result is not None
-        assert (
-            "side-request" in cast("str", result.get("contextModification", "")).lower()
-        )
+        assert "side-request" in cast("str", result.get("contextModification", "")).lower()
 
     def test_high_random_no_side_request_reminder(self) -> None:
         with (
@@ -520,9 +505,7 @@ class TestContextNudge:
         assert "Accuracy degrading" in cast("str", first.get("contextModification", ""))
         second = _run_with_transcript(_SAME_BAND_AS_REDUCED)
         if second is not None:
-            assert "Accuracy degrading" not in cast(
-                "str", second.get("contextModification", "")
-            )
+            assert "Accuracy degrading" not in cast("str", second.get("contextModification", ""))
 
     def test_next_band_in_same_tier_omits_boundary_text(self) -> None:
         _run_with_transcript(_JUST_ABOVE_REDUCED)
@@ -538,9 +521,7 @@ class TestContextNudge:
         assert "CONTEXT STATUS" in cast("str", first.get("contextModification", ""))
         second = _run_with_transcript(_BELOW_REDUCED_SAME_BAND)
         if second is not None:
-            assert "CONTEXT STATUS" not in cast(
-                "str", second.get("contextModification", "")
-            )
+            assert "CONTEXT STATUS" not in cast("str", second.get("contextModification", ""))
 
     def test_info_note_refires_in_next_band(self) -> None:
         _run_with_transcript(_BELOW_REDUCED)
@@ -569,9 +550,7 @@ class TestPlanHandoffNudge:
             _run("neutral")
             second = _run("neutral")
         if second is not None:
-            assert "PLAN COMPLETE" not in cast(
-                "str", second.get("contextModification", "")
-            )
+            assert "PLAN COMPLETE" not in cast("str", second.get("contextModification", ""))
 
 
 class TestTeamActiveClause:

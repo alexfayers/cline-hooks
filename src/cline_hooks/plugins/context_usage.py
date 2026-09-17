@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from cline_hooks.core.plugin import HookResult, HooksPlugin
 from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.state import PluginStateStore
-from cline_hooks.core.vocabulary import CanonicalHook, NO_RESET_TASK_START_SOURCES
+from cline_hooks.core.vocabulary import NO_RESET_TASK_START_SOURCES, CanonicalHook
 from cline_hooks.handlers.context_nudge import with_team_clause
 
 _BAND_SIZE = 10_000
@@ -23,9 +23,7 @@ class _ContextState:
     boundary: int = 0
 
 
-_store: PluginStateStore[_ContextState] = PluginStateStore(
-    "context-state.json", _ContextState
-)
+_store: PluginStateStore[_ContextState] = PluginStateStore("context-state.json", _ContextState)
 
 
 def _band_for(token_count: int) -> int:
@@ -131,13 +129,9 @@ def context_note(task_id: str, token_count: int) -> str | None:
         return None
     boundary = crossed_boundary(task_id, token_count)
     if boundary == CONTEXT_DEGRADED_THRESHOLD:
-        return with_team_clause(
-            _CONTEXT_NUDGE_SEVERE.format(tokens=token_count), task_id
-        )
+        return with_team_clause(_CONTEXT_NUDGE_SEVERE.format(tokens=token_count), task_id)
     if boundary == CONTEXT_REDUCED_THRESHOLD:
-        return with_team_clause(
-            _CONTEXT_NUDGE_REDUCED.format(tokens=token_count), task_id
-        )
+        return with_team_clause(_CONTEXT_NUDGE_REDUCED.format(tokens=token_count), task_id)
     return _CONTEXT_NUDGE_INFO.format(tokens=token_count)
 
 
@@ -165,10 +159,10 @@ class ContextUsagePlugin(HooksPlugin):
             if isinstance(task_id, str):
                 reset(task_id)
             return None
-        if hook_name not in (
+        if hook_name not in {
             CanonicalHook.POST_TOOL_USE,
             CanonicalHook.USER_PROMPT_SUBMIT,
-        ):
+        }:
             return None
         task_id = kwargs.get("task_id")
         transcript_path = kwargs.get("transcript_path")

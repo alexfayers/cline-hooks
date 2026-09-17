@@ -29,9 +29,7 @@ if TYPE_CHECKING:
     StubTranscriptT = Callable[..., StubTranscript]
 
 
-def _stop(
-    *, stop_hook_active: bool = False, transcript_path: str = ""
-) -> HookInputStop:
+def _stop(*, stop_hook_active: bool = False, transcript_path: str = "") -> HookInputStop:
     return HookInputStop(
         taskId="task-1",
         workspaceRoots=["/workspace"],
@@ -104,10 +102,7 @@ class TestFormatResearchTrace:
         assert "InternalSearch:" not in result
 
     def test_truncates_with_explicit_note(self) -> None:
-        records = [
-            {"tool": "WebSearch", "detail": f"query {i}"}
-            for i in range(RESEARCH_TRACE_CAP + 4)
-        ]
+        records = [{"tool": "WebSearch", "detail": f"query {i}"} for i in range(RESEARCH_TRACE_CAP + 4)]
         result = format_research_trace(records, "HEADER")
         assert "(+4 more lookups not shown)" in result
 
@@ -124,17 +119,13 @@ class TestFormatResearchTrace:
 
 class TestContainsDismissalSignal:
     def test_matches_pre_existing_error(self) -> None:
-        assert _contains_dismissal_signal(
-            "This is a pre-existing error unrelated to my change."
-        )
+        assert _contains_dismissal_signal("This is a pre-existing error unrelated to my change.")
 
     def test_matches_preexisting_issue_no_hyphen(self) -> None:
         assert _contains_dismissal_signal("That's a preexisting issue in the codebase.")
 
     def test_matches_error_was_pre_existing(self) -> None:
-        assert _contains_dismissal_signal(
-            "The error was pre-existing before I started."
-        )
+        assert _contains_dismissal_signal("The error was pre-existing before I started.")
 
     def test_matches_out_of_scope(self) -> None:
         assert _contains_dismissal_signal("Fixing that is out of scope for this fix.")
@@ -168,17 +159,13 @@ class TestHandleStop:
         assert result["cancel"] is False
         assert get_research("task-1") != []
 
-    def test_dismissal_signal_forces_block_with_nudge(
-        self, stub_transcript: StubTranscriptT
-    ) -> None:
+    def test_dismissal_signal_forces_block_with_nudge(self, stub_transcript: StubTranscriptT) -> None:
         stub_transcript(text="This is a pre-existing issue.")
         result = _run(_stop(transcript_path="session.jsonl"))
         assert result["cancel"] is True
         assert "DISMISSED ISSUE DETECTED" in cast("str", result["errorMessage"])
 
-    def test_dismissal_signal_and_research_both_included(
-        self, stub_transcript: StubTranscriptT
-    ) -> None:
+    def test_dismissal_signal_and_research_both_included(self, stub_transcript: StubTranscriptT) -> None:
         stub_transcript(text="This is a pre-existing issue.")
         record_research("task-1", "WebFetch", "https://example.com/docs")
         result = _run(_stop(transcript_path="session.jsonl"))
@@ -186,26 +173,18 @@ class TestHandleStop:
         assert "DISMISSED ISSUE DETECTED" in message
         assert "https://example.com/docs" in message
 
-    def test_no_dismissal_signal_no_research_allows(
-        self, stub_transcript: StubTranscriptT
-    ) -> None:
+    def test_no_dismissal_signal_no_research_allows(self, stub_transcript: StubTranscriptT) -> None:
         stub_transcript(text="Everything looks good.")
         result = _run(_stop(transcript_path="session.jsonl"))
         assert result["cancel"] is False
 
-    def test_dismissal_signal_anywhere_in_turn_text_detected(
-        self, stub_transcript: StubTranscriptT
-    ) -> None:
-        stub_transcript(
-            text="This is a pre-existing issue, moving on.\nAll done, tests pass."
-        )
+    def test_dismissal_signal_anywhere_in_turn_text_detected(self, stub_transcript: StubTranscriptT) -> None:
+        stub_transcript(text="This is a pre-existing issue, moving on.\nAll done, tests pass.")
         result = _run(_stop(transcript_path="session.jsonl"))
         assert result["cancel"] is True
         assert "DISMISSED ISSUE DETECTED" in cast("str", result["errorMessage"])
 
-    def test_stop_hook_active_skips_dismissal_check(
-        self, stub_transcript: StubTranscriptT
-    ) -> None:
+    def test_stop_hook_active_skips_dismissal_check(self, stub_transcript: StubTranscriptT) -> None:
         stub_transcript(text="This is a pre-existing issue.")
         result = _run(_stop(stop_hook_active=True, transcript_path="session.jsonl"))
         assert result["cancel"] is False
@@ -239,10 +218,7 @@ class TestHandleStopKiro:
         assert "raw output" not in header
 
     def test_kiro_header_differs_from_claude_code(self) -> None:
-        assert (
-            KiroProtocol().research_trace_header()
-            != ClaudeCodeProtocol().research_trace_header()
-        )
+        assert KiroProtocol().research_trace_header() != ClaudeCodeProtocol().research_trace_header()
 
 
 class TestHandleStopClaudeCode:

@@ -9,7 +9,7 @@ from cline_hooks.core.frontends import FRONTENDS, FRONTENDS_BY_NAME, select_prot
 from cline_hooks.core.protocol import RawPayload, set_protocol
 from cline_hooks.core.registry import HOOK_HANDLERS
 from cline_hooks.core.response import allow, emit
-import cline_hooks.handlers  # noqa: F401
+import cline_hooks.handlers  # ruff: ignore[unused-import]
 from cline_hooks.state.paths import get_data_dir
 
 logging.basicConfig(
@@ -29,9 +29,7 @@ def _build_parser() -> argparse.ArgumentParser:
     Returns:
         The configured argument parser.
     """
-    parser = argparse.ArgumentParser(
-        prog="cline-hook", description="AI coding assistant lifecycle hooks"
-    )
+    parser = argparse.ArgumentParser(prog="cline-hook", description="AI coding assistant lifecycle hooks")
     sub = parser.add_subparsers(dest="command")
 
     install_parser = sub.add_parser("install", help="Install hooks")
@@ -43,22 +41,14 @@ def _build_parser() -> argparse.ArgumentParser:
             continue
         frontend_parser = install_sub.add_parser(frontend.name, help=installer.help)
         if installer.argument is not None:
-            frontend_parser.add_argument(
-                installer.argument.name, help=installer.argument.help
-            )
+            frontend_parser.add_argument(installer.argument.name, help=installer.argument.help)
 
     sub.add_parser("plugins", help="List installed plugins")
 
-    retro_parser = sub.add_parser(
-        "retro-count", help="Read or reset the retrospective session counter"
-    )
+    retro_parser = sub.add_parser("retro-count", help="Read or reset the retrospective session counter")
     retro_group = retro_parser.add_mutually_exclusive_group(required=True)
-    retro_group.add_argument(
-        "--get", action="store_true", help="Print the current session count"
-    )
-    retro_group.add_argument(
-        "--reset", action="store_true", help="Reset the session count to zero"
-    )
+    retro_group.add_argument("--get", action="store_true", help="Print the current session count")
+    retro_group.add_argument("--reset", action="store_true", help="Reset the session count to zero")
 
     return parser
 
@@ -76,9 +66,7 @@ def _run_hook() -> NoReturn:
         allow()
 
     if not proto.fires(hook.hookName):
-        logger.debug(
-            "Ignoring %s: not a hook %s fires", hook.hookName, type(proto).__name__
-        )
+        logger.debug("Ignoring %s: not a hook %s fires", hook.hookName, type(proto).__name__)
         allow()
 
     handler = HOOK_HANDLERS.get(hook.hookName)
@@ -92,7 +80,7 @@ def _run_hook() -> NoReturn:
 
 def _list_plugins() -> None:
     """Print all loaded plugins and their capabilities."""
-    from cline_hooks.core.plugin import (  # noqa: PLC0415
+    from cline_hooks.core.plugin import (  # ruff: ignore[import-outside-top-level]
         HooksPlugin,
         list_plugin_methods,
         load_plugins,
@@ -100,7 +88,7 @@ def _list_plugins() -> None:
 
     plugins = load_plugins()
     if not plugins:
-        print("No plugins loaded.")  # noqa: T201
+        print("No plugins loaded.")  # ruff: ignore[print]
         return
 
     method_names = [info.name for info in list_plugin_methods()]
@@ -113,15 +101,14 @@ def _list_plugins() -> None:
         overrides = [
             method_name
             for method_name in method_names
-            if getattr(plugin, method_name).__func__
-            is not getattr(HooksPlugin, method_name)
+            if getattr(plugin, method_name).__func__ is not getattr(HooksPlugin, method_name)
         ]
-        print(f"{name} ({module})")  # noqa: T201
+        print(f"{name} ({module})")  # ruff: ignore[print]
         if build_cmds:
-            print(f"  build commands: {', '.join(sorted(build_cmds))}")  # noqa: T201
+            print(f"  build commands: {', '.join(sorted(build_cmds))}")  # ruff: ignore[print]
         if rules:
-            print(f"  command rules:  {len(rules)}")  # noqa: T201
-        print(f"  overrides:      {', '.join(overrides) if overrides else 'none'}")  # noqa: T201
+            print(f"  command rules:  {len(rules)}")  # ruff: ignore[print]
+        print(f"  overrides:      {', '.join(overrides) if overrides else 'none'}")  # ruff: ignore[print]
 
 
 def main() -> NoReturn:
@@ -143,12 +130,12 @@ def main() -> NoReturn:
         sys.exit(0)
 
     if args.command == "retro-count":
-        from cline_hooks.state import retrospective  # noqa: PLC0415
+        from cline_hooks.state import retrospective  # ruff: ignore[import-outside-top-level]
 
         if args.reset:
             retrospective.reset()
         else:
-            print(retrospective.get_count())  # noqa: T201
+            print(retrospective.get_count())  # ruff: ignore[print]
         sys.exit(0)
 
     _run_hook()

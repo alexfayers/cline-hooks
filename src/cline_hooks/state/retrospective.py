@@ -27,9 +27,7 @@ def _read() -> dict[str, object]:
 
 def _write(count: int, counted_sessions: list[str]) -> None:
     _STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    _STATE_PATH.write_text(
-        json.dumps({"count": count, "counted_sessions": counted_sessions})
-    )
+    _STATE_PATH.write_text(json.dumps({"count": count, "counted_sessions": counted_sessions}))
 
 
 def record_session(task_id: str) -> int | None:

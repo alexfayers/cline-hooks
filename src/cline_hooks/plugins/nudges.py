@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import contextlib
+from dataclasses import dataclass
 import random
 import re
 
@@ -13,9 +13,9 @@ from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.state import PluginStateStore
 from cline_hooks.core.timing import local_now
 from cline_hooks.core.vocabulary import (
-    CanonicalHook,
     FILE_EDIT_TOOLS,
     NO_RESET_TASK_START_SOURCES,
+    CanonicalHook,
 )
 from cline_hooks.state.agents import agent_use_count
 from cline_hooks.state.retrospective import record_session
@@ -29,9 +29,7 @@ class _TurnsState:
     count: int = 0
 
 
-_store: PluginStateStore[_TurnsState] = PluginStateStore(
-    "turns-state.json", _TurnsState
-)
+_store: PluginStateStore[_TurnsState] = PluginStateStore("turns-state.json", _TurnsState)
 
 _SCOPE_CHECK_THRESHOLD = 80
 _REMINDER_INTERVAL = 40

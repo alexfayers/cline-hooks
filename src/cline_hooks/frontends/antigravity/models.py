@@ -28,9 +28,7 @@ class AntigravityEnvelope(PayloadEnvelope):
     """
 
     taskId: str = Field(default="", validation_alias="conversationId")
-    workspaceRoots: list[str] = Field(
-        default_factory=list, validation_alias="workspacePaths"
-    )
+    workspaceRoots: list[str] = Field(default_factory=list, validation_alias="workspacePaths")
     transcriptPath: str = Field(default="", validation_alias="transcriptPath")
     agentType: str = Field(default="", validation_alias="modelName")
 
@@ -67,9 +65,7 @@ class AntigravityEditWriteParams(ToolParams):
     path: str | None = Field(default=None, validation_alias="TargetFile")
     diff: str | None = None
 
-    _diff = model_validator(mode="before")(
-        diff_envelope("ReplacementContent", "CodeContent")
-    )
+    _diff = model_validator(mode="before")(diff_envelope("ReplacementContent", "CodeContent"))
 
 
 class AntigravityShellParams(ToolParams):

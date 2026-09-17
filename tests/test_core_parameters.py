@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import logging
-
-import pytest
+from typing import TYPE_CHECKING
 
 from cline_hooks.core.parameters import (
     PARAMETER_MODELS,
@@ -17,6 +16,9 @@ from cline_hooks.core.parameters import (
     parameters_for,
 )
 from cline_hooks.core.vocabulary import CanonicalTool
+
+if TYPE_CHECKING:
+    import pytest
 
 
 class TestRegistry:
@@ -55,9 +57,7 @@ class TestExtraKeysSurvive:
 
 
 class TestFailOpen:
-    def test_malformed_known_field_keeps_raw_value_and_warns(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_malformed_known_field_keeps_raw_value_and_warns(self, caplog: pytest.LogCaptureFixture) -> None:
         with caplog.at_level(logging.WARNING):
             built = ReadParameters.build({"path": 123})
         assert built.path == 123  # type: ignore[comparison-overlap]
@@ -84,36 +84,26 @@ class TestSkillParametersAlias:
 
 class TestMcpToolUse:
     def test_json_string_arguments_decode(self) -> None:
-        built = McpToolUse.build(
-            {"server_name": "s", "tool_name": "t", "arguments": '{"a": 1}'}
-        )
+        built = McpToolUse.build({"server_name": "s", "tool_name": "t", "arguments": '{"a": 1}'})
         assert built.arguments == {"a": 1}
 
-    def test_unparseable_json_logs_and_becomes_empty(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_unparseable_json_logs_and_becomes_empty(self, caplog: pytest.LogCaptureFixture) -> None:
         with caplog.at_level(logging.WARNING):
-            built = McpToolUse.build(
-                {"server_name": "s", "tool_name": "t", "arguments": "not json"}
-            )
+            built = McpToolUse.build({"server_name": "s", "tool_name": "t", "arguments": "not json"})
         assert built.arguments == {}
         assert "Failed to parse MCP arguments as JSON" in caplog.text
 
-    def test_missing_arguments_logs_and_becomes_empty(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_missing_arguments_logs_and_becomes_empty(self, caplog: pytest.LogCaptureFixture) -> None:
         with caplog.at_level(logging.WARNING):
             built = McpToolUse.build({"server_name": "s", "tool_name": "t"})
         assert built.arguments == {}
         assert "No arguments found for tool t" in caplog.text
 
     def test_extra_key_is_preserved_and_does_not_raise(self) -> None:
-        built = McpToolUse.build(
-            {
-                "server_name": "s",
-                "tool_name": "t",
-                "arguments": {},
-                "unexpected": "value",
-            }
-        )
+        built = McpToolUse.build({
+            "server_name": "s",
+            "tool_name": "t",
+            "arguments": {},
+            "unexpected": "value",
+        })
         assert built.model_extra == {"unexpected": "value"}

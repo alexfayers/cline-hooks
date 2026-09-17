@@ -27,9 +27,7 @@ class _Bare(Protocol):
     def parse(self, payload: RawPayload) -> NoReturn:
         raise NotImplementedError
 
-    def allow(
-        self, message: str | None = None, *, system_message: str | None = None
-    ) -> NoReturn:
+    def allow(self, message: str | None = None, *, system_message: str | None = None) -> NoReturn:
         raise NotImplementedError
 
     def block(self, message: str) -> NoReturn:
@@ -58,9 +56,7 @@ class TestFrontendDecorator:
         before = dict(REGISTERED_FRONTENDS)
         try:
 
-            @frontend(
-                name="test-only", display_name="Test Only", detect_priority=EXACT_MATCH
-            )
+            @frontend(name="test-only", display_name="Test Only", detect_priority=EXACT_MATCH)
             class _Registered(_Bare):
                 pass
 
@@ -84,6 +80,7 @@ class TestFrontendDecorator:
                 @frontend(name="test-only", display_name="Second")
                 class _Second(_Bare):
                     pass
+
         finally:
             REGISTERED_FRONTENDS.clear()
             REGISTERED_FRONTENDS.update(before)

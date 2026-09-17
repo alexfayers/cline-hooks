@@ -4,7 +4,6 @@ from typing import cast
 
 import pytest
 
-import cline_hooks.handlers  # noqa: F401
 from cline_hooks.core.outcome import Outcome
 from cline_hooks.core.registry import (
     HOOK_HANDLERS,
@@ -13,6 +12,7 @@ from cline_hooks.core.registry import (
     tool_handler,
 )
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
+import cline_hooks.handlers  # ruff: ignore[unused-import]
 
 
 class TestHookHandler:
@@ -47,16 +47,14 @@ class TestHookHandler:
 
 
 class TestToolHandler:
-    _EXPECTED_KEYS = [
+    _EXPECTED_KEYS = (
         (CanonicalHook.PRE_TOOL_USE, CanonicalTool.SHELL),
         (CanonicalHook.PRE_TOOL_USE, CanonicalTool.MCP),
         (CanonicalHook.PRE_TOOL_USE, CanonicalTool.ATTEMPT_COMPLETION),
-    ]
+    )
 
     @pytest.mark.parametrize("key", _EXPECTED_KEYS)
-    def test_expected_key_is_registered(
-        self, key: tuple[CanonicalHook, CanonicalTool]
-    ) -> None:
+    def test_expected_key_is_registered(self, key: tuple[CanonicalHook, CanonicalTool]) -> None:
         assert key in TOOL_HANDLERS
 
     def test_decorator_registers_same_function_under_every_tool(self) -> None:

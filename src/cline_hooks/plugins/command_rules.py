@@ -22,11 +22,7 @@ def validate_git_commit_message(cmd: ParsedCommand, _all: list[ParsedCommand]) -
     for flag in cmd.flags:
         if flag in {"-m", "--message"}:
             msg_idx = (
-                cmd.flags.index(flag)
-                + 1
-                + len(
-                    [a for a in cmd.args if cmd.args.index(a) < cmd.flags.index(flag)]
-                )
+                cmd.flags.index(flag) + 1 + len([a for a in cmd.args if cmd.args.index(a) < cmd.flags.index(flag)])
             )
             all_words = cmd.args + cmd.flags
             if msg_idx < len(all_words):
@@ -39,9 +35,7 @@ def validate_git_commit_message(cmd: ParsedCommand, _all: list[ParsedCommand]) -
     return False
 
 
-def _requires_build_context(
-    _cmd: ParsedCommand, all_commands: list[ParsedCommand]
-) -> bool:
+def _requires_build_context(_cmd: ParsedCommand, all_commands: list[ParsedCommand]) -> bool:
     """Return True only when a build tool is present in the same command list."""
     return any(cmd.name in DEFAULT_BUILD_COMMANDS for cmd in all_commands)
 
@@ -55,11 +49,7 @@ def _is_follow(cmd: ParsedCommand) -> bool:
     """Return True when tail is following a file (-f / -F / --follow)."""
     return any(
         flag.startswith("--follow")
-        or (
-            flag.startswith("-")
-            and not flag.startswith("--")
-            and ("f" in flag[1:] or "F" in flag[1:])
-        )
+        or (flag.startswith("-") and not flag.startswith("--") and ("f" in flag[1:] or "F" in flag[1:]))
         for flag in cmd.flags
     )
 

@@ -43,25 +43,21 @@ def _dispatch(raw: str, env: Mapping[str, str] | None = None) -> HookInput:
 
 class TestDispatch:
     def test_kiro_sets_kiro_protocol(self) -> None:
-        data = json.dumps(
-            {
-                "hook_event_name": "agentSpawn",
-                "cwd": "/project",
-            }
-        )
+        data = json.dumps({
+            "hook_event_name": "agentSpawn",
+            "cwd": "/project",
+        })
         hook = _dispatch(data)
         assert isinstance(hook, HookInputTaskStart)
         assert isinstance(protocol_module._active_protocol, KiroProtocol)
 
     def test_cline_sets_cline_protocol(self) -> None:
-        data = json.dumps(
-            {
-                "hookName": "PreToolUse",
-                "taskId": "t1",
-                "workspaceRoots": [],
-                "preToolUse": {"toolName": "read_file", "parameters": {}},
-            }
-        )
+        data = json.dumps({
+            "hookName": "PreToolUse",
+            "taskId": "t1",
+            "workspaceRoots": [],
+            "preToolUse": {"toolName": "read_file", "parameters": {}},
+        })
         hook = _dispatch(data)
         assert isinstance(hook, HookInputPreToolUse)
         assert isinstance(protocol_module._active_protocol, ClineProtocol)
@@ -87,14 +83,12 @@ class TestDispatch:
 class TestEndToEndKiro:
     def test_pre_tool_use_block_rm_rf(self) -> None:
         """Kiro preToolUse with rm -rf should exit 2 with error on stderr."""
-        data = json.dumps(
-            {
-                "hook_event_name": "preToolUse",
-                "cwd": "/tmp/test",  # noqa: S108
-                "tool_name": "shell",
-                "tool_input": {"command": "rm -rf /tmp/test"},
-            }
-        )
+        data = json.dumps({
+            "hook_event_name": "preToolUse",
+            "cwd": "/tmp/test",
+            "tool_name": "shell",
+            "tool_input": {"command": "rm -rf /tmp/test"},
+        })
         result = subprocess.run(
             [sys.executable, "-m", "cline_hooks"],
             input=data,
@@ -108,14 +102,12 @@ class TestEndToEndKiro:
 
     def test_pre_tool_use_allow_safe_command(self) -> None:
         """Kiro preToolUse with safe command should exit 0."""
-        data = json.dumps(
-            {
-                "hook_event_name": "preToolUse",
-                "cwd": "/tmp/test",  # noqa: S108
-                "tool_name": "shell",
-                "tool_input": {"command": "ls -la"},
-            }
-        )
+        data = json.dumps({
+            "hook_event_name": "preToolUse",
+            "cwd": "/tmp/test",
+            "tool_name": "shell",
+            "tool_input": {"command": "ls -la"},
+        })
         result = subprocess.run(
             [sys.executable, "-m", "cline_hooks"],
             input=data,

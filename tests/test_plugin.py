@@ -192,12 +192,10 @@ class TestLoadPlugins:
         origin_name = "cline_hooks.plugins.temp_origin_plugin"
         reexport_name = "cline_hooks.plugins.temp_reexport_plugin"
         (tmp_path / "temp_origin_plugin.py").write_text(
-            "from cline_hooks.core.plugin import HooksPlugin\n\n\n"
-            "class FakePlugin(HooksPlugin):\n    pass\n"
+            "from cline_hooks.core.plugin import HooksPlugin\n\n\nclass FakePlugin(HooksPlugin):\n    pass\n"
         )
         (tmp_path / "temp_reexport_plugin.py").write_text(
-            "from cline_hooks.plugins.temp_origin_plugin import FakePlugin\n\n"
-            '__all__ = ["FakePlugin"]\n'
+            'from cline_hooks.plugins.temp_origin_plugin import FakePlugin\n\n__all__ = ["FakePlugin"]\n'
         )
 
         def fake_entry_points(
@@ -205,9 +203,7 @@ class TestLoadPlugins:
         ) -> tuple[importlib.metadata.EntryPoint, ...]:
             return ()
 
-        monkeypatch.setattr(
-            plugins_pkg, "__path__", [*plugins_pkg.__path__, str(tmp_path)]
-        )
+        monkeypatch.setattr(plugins_pkg, "__path__", [*plugins_pkg.__path__, str(tmp_path)])
         monkeypatch.setattr(importlib.metadata, "entry_points", fake_entry_points)
 
         try:

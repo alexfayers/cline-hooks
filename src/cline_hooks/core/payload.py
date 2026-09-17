@@ -63,9 +63,7 @@ def ensure_dict(value: dict[str, Any] | str | list[Any] | None) -> dict[str, Any
     return {}
 
 
-def mcp_parameters(
-    native_name: str, tool_input: dict[str, Any], prefix: str, separator: str
-) -> dict[str, Any]:
+def mcp_parameters(native_name: str, tool_input: dict[str, Any], prefix: str, separator: str) -> dict[str, Any]:
     """Build use_mcp_tool-style parameters from a frontend's native MCP tool name.
 
     Args:
@@ -140,8 +138,8 @@ class PayloadEnvelope(BaseModel):
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     taskId: str = Field(default="", validation_alias=_SESSION_ID_KEY)
-    workspaceRoots: Annotated[list[str], BeforeValidator(_cwd_to_workspace_roots)] = (
-        Field(default_factory=list, validation_alias="cwd")
+    workspaceRoots: Annotated[list[str], BeforeValidator(_cwd_to_workspace_roots)] = Field(
+        default_factory=list, validation_alias="cwd"
     )
     transcriptPath: str = Field(default="", validation_alias="transcript_path")
     agentType: str = Field(default="", validation_alias="agent_type")
@@ -229,9 +227,7 @@ def _tool_parameters(
         no model for this tool.
     """
     if raw_tool.startswith(protocol_cls.mcp_prefix):
-        return mcp_parameters(
-            raw_tool, tool_input, protocol_cls.mcp_prefix, protocol_cls.mcp_separator
-        )
+        return mcp_parameters(raw_tool, tool_input, protocol_cls.mcp_prefix, protocol_cls.mcp_separator)
     params_cls = protocol_cls.tool_models.get(cast("CanonicalTool", tool))
     if params_cls is None:
         return tool_input
@@ -263,16 +259,12 @@ def _tool_hook_fields(
         response = ensure_dict(data.get("tool_response", {}))
         result = response.get("result")
         merged["success"] = bool(response.get("success", True))
-        merged["result"] = (
-            result if result is None or isinstance(result, str) else str(result)
-        )
+        merged["result"] = result if result is None or isinstance(result, str) else str(result)
     fields_cls = protocol_cls.hook_models.get(hook) or _TOOL_HOOK_FIELDS[hook]
     return fields_cls.model_validate(merged)
 
 
-def parse_standard_payload(
-    payload: RawPayload, protocol_cls: type[StandardPayloadProtocol]
-) -> HookInput:
+def parse_standard_payload(payload: RawPayload, protocol_cls: type[StandardPayloadProtocol]) -> HookInput:
     """Parse a raw payload into a HookInput using the frontend's declared models.
 
     Args:
@@ -289,9 +281,7 @@ def parse_standard_payload(
         _SESSION_ENV_KEYS_KEY: protocol_cls.session_env_keys,
     }
 
-    fields = protocol_cls.envelope_model.model_validate(
-        data, context=context
-    ).model_dump()
+    fields = protocol_cls.envelope_model.model_validate(data, context=context).model_dump()
     fields["hookName"] = hook
 
     if hook in _TOOL_HOOK_FIELDS:
@@ -301,20 +291,14 @@ def parse_standard_payload(
         if not raw_tool:
             return input_cls.build(fields)
         tool = map_tool_name(raw_tool, protocol_cls)
-        params = _tool_parameters(
-            raw_tool, tool, ensure_dict(data.get("tool_input", {})), protocol_cls
-        )
-        fields[input_cls.payload_field] = _tool_hook_fields(
-            data, tool_hook, tool, params, protocol_cls
-        )
+        params = _tool_parameters(raw_tool, tool, ensure_dict(data.get("tool_input", {})), protocol_cls)
+        fields[input_cls.payload_field] = _tool_hook_fields(data, tool_hook, tool, params, protocol_cls)
         return input_cls.build(fields)
 
     fields_cls = protocol_cls.hook_models.get(cast("CanonicalHook", hook))
     if fields_cls is not None:
         input_cls = HOOK_INPUTS[hook]
-        fields[input_cls.payload_field] = fields_cls.model_validate(
-            data, context=context
-        ).model_dump()
+        fields[input_cls.payload_field] = fields_cls.model_validate(data, context=context).model_dump()
         return input_cls.build(fields)
 
     return HookInput.build(fields)

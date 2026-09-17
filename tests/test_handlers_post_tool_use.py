@@ -11,19 +11,19 @@ from cline_hooks.core.response import emit
 from cline_hooks.frontends.claude_code import ClaudeCodeProtocol
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.handlers.post_tool_use import _record_tool_use, handle_post_tool_use
-from cline_hooks.plugins.context_usage import context_note
 from cline_hooks.plugins.build_tools import BuildToolsPlugin
+from cline_hooks.plugins.context_usage import context_note
 from cline_hooks.plugins.nudges import _RETRO_THRESHOLD, NudgesPlugin
 from cline_hooks.plugins.persistence import PersistencePlugin
+from cline_hooks.plugins.plan_handoff import consume_plan_nudge, record_plan_exit
 from cline_hooks.plugins.research import (
     ResearchPlugin,
     extract_research_detail,
     get_all_research_detail_extractors,
     get_all_research_tool_names,
+    get_research,
 )
 from cline_hooks.state.memory import record_memory_write
-from cline_hooks.plugins.plan_handoff import consume_plan_nudge, record_plan_exit
-from cline_hooks.plugins.research import get_research
 from cline_hooks.state.retrospective import get_count, record_session
 from cline_hooks.state.workspace import record_workspace
 
@@ -50,7 +50,7 @@ _BASE = {
 }
 
 
-def _make_hook(  # noqa: PLR0913, PLR0917
+def _make_hook(  # ruff: ignore[too-many-arguments, too-many-positional-arguments]
     tool_name: str,
     success: bool = True,
     result: str | None = None,
@@ -60,9 +60,7 @@ def _make_hook(  # noqa: PLR0913, PLR0917
 ) -> HookInputPostToolUse:
     data = {
         **_BASE,
-        "workspaceRoots": workspace_roots
-        if workspace_roots is not None
-        else ["/workspace"],
+        "workspaceRoots": workspace_roots if workspace_roots is not None else ["/workspace"],
         "postToolUse": {
             "toolName": tool_name,
             "parameters": parameters or {},
@@ -102,9 +100,7 @@ class TestHandlePostToolUse:
         assert "persist" in context.lower()
 
     def test_build_failed_triggers_alert(self) -> None:
-        hook = _make_hook(
-            "execute_command", result="BUILD FAILED: something went wrong"
-        )
+        hook = _make_hook("execute_command", result="BUILD FAILED: something went wrong")
         result = _run(hook)
         assert result is not None
         context = cast("str", result.get("contextModification", ""))
@@ -112,9 +108,7 @@ class TestHandlePostToolUse:
 
 
 class TestPostToolUseContextNudge:
-    def test_info_note_fires_on_tool_use(
-        self, stub_transcript: StubTranscriptT
-    ) -> None:
+    def test_info_note_fires_on_tool_use(self, stub_transcript: StubTranscriptT) -> None:
         stub_transcript(tokens=150_000)
         hook = _make_hook("Read", transcript_path="session.jsonl")
         result = _run(hook)
@@ -128,17 +122,13 @@ class TestPostToolUseContextNudge:
         result = _run(hook)
         assert result is None
 
-    def test_no_nudge_when_token_count_unavailable(
-        self, stub_transcript: StubTranscriptT
-    ) -> None:
+    def test_no_nudge_when_token_count_unavailable(self, stub_transcript: StubTranscriptT) -> None:
         stub_transcript(tokens=None)
         hook = _make_hook("Read", transcript_path="session.jsonl")
         result = _run(hook)
         assert result is None
 
-    def test_band_already_claimed_by_user_prompt_submit_does_not_refire(
-        self, stub_transcript: StubTranscriptT
-    ) -> None:
+    def test_band_already_claimed_by_user_prompt_submit_does_not_refire(self, stub_transcript: StubTranscriptT) -> None:
         stub_transcript(tokens=155_000)
         context_note("task-1", 150_000)
         hook = _make_hook("Read", transcript_path="session.jsonl")
@@ -150,9 +140,7 @@ class TestForwardsAgentType:
     def test_agent_type_forwarded_to_plugins(self) -> None:
         captured: list[dict[str, object]] = []
 
-        def _fake_collect(
-            _plugins: object, _hook_name: str, **kwargs: object
-        ) -> object:
+        def _fake_collect(_plugins: object, _hook_name: str, **kwargs: object) -> object:
             captured.append(kwargs)
             from cline_hooks.core.plugin import HookResult
 
@@ -183,9 +171,7 @@ class TestSkillDetectionViaRead:
         mock_record.assert_called_once_with("task-1", "git-usage")
 
     def test_non_skill_read_does_not_record(self) -> None:
-        hook = _make_hook(
-            "read_file", parameters={"path": "/home/user/project/README.md"}
-        )
+        hook = _make_hook("read_file", parameters={"path": "/home/user/project/README.md"})
         with patch("cline_hooks.plugins.tracking.record_skill") as mock_record:
             _run(hook)
         mock_record.assert_not_called()
@@ -208,17 +194,13 @@ class TestSkillDetectionViaRead:
     def test_claude_code_read_skill_detected(self) -> None:
         hook = ClaudeCodeProtocol().parse(
             RawPayload.from_stdin(
-                json.dumps(
-                    {
-                        "hook_event_name": "PostToolUse",
-                        "session_id": "task-1",
-                        "cwd": "/workspace",
-                        "tool_name": "Read",
-                        "tool_input": {
-                            "file_path": "/Users/me/.claude/skills/git-usage/SKILL.md"
-                        },
-                    }
-                )
+                json.dumps({
+                    "hook_event_name": "PostToolUse",
+                    "session_id": "task-1",
+                    "cwd": "/workspace",
+                    "tool_name": "Read",
+                    "tool_input": {"file_path": "/Users/me/.claude/skills/git-usage/SKILL.md"},
+                })
             )
         )
         assert isinstance(hook, HookInputPostToolUse)
@@ -240,9 +222,7 @@ class TestSkillDetectionViaShellCommand:
     def test_sed_skill_md_records_skill(self) -> None:
         hook = _make_hook(
             "execute_command",
-            parameters={
-                "command": "sed -n '1,260p' /a/b/skills/pre-implementation/SKILL.md"
-            },
+            parameters={"command": "sed -n '1,260p' /a/b/skills/pre-implementation/SKILL.md"},
         )
         with patch("cline_hooks.plugins.tracking.record_skill") as mock_record:
             _run(hook)
@@ -314,21 +294,15 @@ class TestPlanHandoffNudgeFromPostToolUse:
     def test_nudge_does_not_self_consume_on_the_plan_exit_call(self) -> None:
         exit_result = _run(_make_hook("exit_plan_mode"))
         if exit_result is not None:
-            assert "PLAN COMPLETE" not in cast(
-                "str", exit_result.get("contextModification", "")
-            )
+            assert "PLAN COMPLETE" not in cast("str", exit_result.get("contextModification", ""))
 
         next_result = _run(_make_hook("Read", parameters={"file_path": "/x.py"}))
         assert next_result is not None
-        assert "PLAN COMPLETE" in cast(
-            "str", next_result.get("contextModification", "")
-        )
+        assert "PLAN COMPLETE" in cast("str", next_result.get("contextModification", ""))
 
         third_result = _run(_make_hook("Read", parameters={"file_path": "/y.py"}))
         if third_result is not None:
-            assert "PLAN COMPLETE" not in cast(
-                "str", third_result.get("contextModification", "")
-            )
+            assert "PLAN COMPLETE" not in cast("str", third_result.get("contextModification", ""))
 
 
 class TestGetAllResearchToolNames:
@@ -336,9 +310,7 @@ class TestGetAllResearchToolNames:
         assert get_all_research_tool_names([]) == frozenset()
 
     def test_includes_default_plugin_tools(self) -> None:
-        assert get_all_research_tool_names([ResearchPlugin()]) == frozenset(
-            {"web_fetch", "web_search"}
-        )
+        assert get_all_research_tool_names([ResearchPlugin()]) == frozenset({"web_fetch", "web_search"})
 
     def test_union_with_plugin_names(self) -> None:
         class _ExtraToolsPlugin(HooksPlugin):
@@ -346,9 +318,7 @@ class TestGetAllResearchToolNames:
                 return frozenset({"InternalSearch", "InternalCodeSearch"})
 
         result = get_all_research_tool_names([ResearchPlugin(), _ExtraToolsPlugin()])
-        assert result == frozenset(
-            {"web_fetch", "web_search", "InternalSearch", "InternalCodeSearch"}
-        )
+        assert result == frozenset({"web_fetch", "web_search", "InternalSearch", "InternalCodeSearch"})
 
 
 class TestGetAllResearchDetailExtractors:
@@ -384,7 +354,7 @@ class TestGetAllResearchDetailExtractors:
 
 class TestExtractResearchDetail:
     def test_extractor_used_when_present(self) -> None:
-        assert extract_research_detail("X", {"k": "v"}, {"X": lambda p: p["k"]}) == "v"  # noqa: FURB118
+        assert extract_research_detail("X", {"k": "v"}, {"X": lambda p: p["k"]}) == "v"  # ruff: ignore[reimplemented-operator]
 
     def test_webfetch_fallback(self) -> None:
         assert extract_research_detail("web_fetch", {"url": "u"}, {}) == "u"
@@ -412,26 +382,18 @@ class TestExtractResearchDetail:
 class TestResearchRecording:
     def test_webfetch_records_url(self) -> None:
         _run(_make_hook("web_fetch", parameters={"url": "https://example.com/docs"}))
-        assert get_research("task-1") == [
-            {"tool": "web_fetch", "detail": "https://example.com/docs"}
-        ]
+        assert get_research("task-1") == [{"tool": "web_fetch", "detail": "https://example.com/docs"}]
 
     def test_websearch_records_query(self) -> None:
         _run(_make_hook("web_search", parameters={"query": "python entry points"}))
-        assert get_research("task-1") == [
-            {"tool": "web_search", "detail": "python entry points"}
-        ]
+        assert get_research("task-1") == [{"tool": "web_search", "detail": "python entry points"}]
 
     def test_non_research_tool_records_nothing(self) -> None:
         _run(_make_hook("read_file", parameters={"path": "/x.py"}))
         assert get_research("task-1") == []
 
     def test_failed_research_tool_records_nothing(self) -> None:
-        _run(
-            _make_hook(
-                "web_fetch", success=False, parameters={"url": "https://example.com"}
-            )
-        )
+        _run(_make_hook("web_fetch", success=False, parameters={"url": "https://example.com"}))
         assert get_research("task-1") == []
 
 
@@ -456,9 +418,7 @@ class TestClaudeCodeMcpResearchIntegration:
             "tool_input": {"inputs": ["https://example.com/x"]},
             "tool_response": {"success": True},
         }
-        hook = ClaudeCodeProtocol().parse(
-            RawPayload(raw=json.dumps(payload), data=payload, env={})
-        )
+        hook = ClaudeCodeProtocol().parse(RawPayload(raw=json.dumps(payload), data=payload, env={}))
         assert isinstance(hook, HookInputPostToolUse)
         assert hook.postToolUse is not None
         assert hook.postToolUse.toolName == "use_mcp_tool"
@@ -468,14 +428,10 @@ class TestClaudeCodeMcpResearchIntegration:
             return_value=[_ReadInternalWebsitesPlugin()],
         ):
             _run(hook)
-        assert get_research("task-1") == [
-            {"tool": "ReadInternalWebsites", "detail": "https://example.com/x"}
-        ]
+        assert get_research("task-1") == [{"tool": "ReadInternalWebsites", "detail": "https://example.com/x"}]
 
 
-def _mcp_parameters(
-    server_name: str, tool_name: str, arguments: dict[str, Any] | None = None
-) -> dict[str, Any]:
+def _mcp_parameters(server_name: str, tool_name: str, arguments: dict[str, Any] | None = None) -> dict[str, Any]:
     """Build the canonical use_mcp_tool parameters a frontend normalises to.
 
     Returns:
@@ -502,9 +458,7 @@ class TestRecordToolUseMcpResolution:
             frozenset({"ReadInternalWebsites"}),
             {"ReadInternalWebsites": lambda p: p["inputs"][0]},
         )
-        assert get_research("task-1") == [
-            {"tool": "ReadInternalWebsites", "detail": "https://example.com/x"}
-        ]
+        assert get_research("task-1") == [{"tool": "ReadInternalWebsites", "detail": "https://example.com/x"}]
 
     def test_mcp_research_empty_extractors(self) -> None:
         _record_tool_use(
@@ -519,9 +473,7 @@ class TestRecordToolUseMcpResolution:
             frozenset({"ReadInternalWebsites"}),
             {},
         )
-        assert get_research("task-1") == [
-            {"tool": "ReadInternalWebsites", "detail": ""}
-        ]
+        assert get_research("task-1") == [{"tool": "ReadInternalWebsites", "detail": ""}]
 
     def test_mcp_state_write(self) -> None:
         result = _record_tool_use(
@@ -665,9 +617,7 @@ class TestWorkspaceChangeToolingNote:
                     workspace_roots=[str(tmp_path)],
                 )
             )
-        assert result is None or "TOOLING NOTE" not in cast(
-            "str", result.get("contextModification", "")
-        )
+        assert result is None or "TOOLING NOTE" not in cast("str", result.get("contextModification", ""))
 
     def test_additive_note_fires_on_cwd_change(self, tmp_path: Path) -> None:
         record_workspace("task-1", ["/old"])
@@ -705,9 +655,7 @@ class TestWorkspaceChangeToolingNote:
                     workspace_roots=[str(tmp_path)],
                 )
             )
-        assert result is None or "TOOLING NOTE" not in cast(
-            "str", result.get("contextModification", "")
-        )
+        assert result is None or "TOOLING NOTE" not in cast("str", result.get("contextModification", ""))
 
     def test_no_repeat_note_for_same_cwd(self, tmp_path: Path) -> None:
         record_workspace("task-1", [str(tmp_path)])
@@ -722,9 +670,7 @@ class TestWorkspaceChangeToolingNote:
                     workspace_roots=[str(tmp_path)],
                 )
             )
-        assert result is None or "TOOLING NOTE" not in cast(
-            "str", result.get("contextModification", "")
-        )
+        assert result is None or "TOOLING NOTE" not in cast("str", result.get("contextModification", ""))
 
     def test_note_fires_once_then_stops(self, tmp_path: Path) -> None:
         record_workspace("task-1", ["/old"])
@@ -748,9 +694,7 @@ class TestWorkspaceChangeToolingNote:
             )
         assert first is not None
         assert "TOOLING NOTE" in cast("str", first.get("contextModification", ""))
-        assert second is None or "TOOLING NOTE" not in cast(
-            "str", second.get("contextModification", "")
-        )
+        assert second is None or "TOOLING NOTE" not in cast("str", second.get("contextModification", ""))
 
     def test_note_refires_when_returning_to_previous_dir(self, tmp_path: Path) -> None:
         dir_a = tmp_path / "a"
@@ -790,9 +734,7 @@ class TestWorkspaceChangeToolingNote:
                 workspace_roots=[str(tmp_path)],
             )
         )
-        assert result is None or "Working directory changed" not in cast(
-            "str", result.get("contextModification", "")
-        )
+        assert result is None or "Working directory changed" not in cast("str", result.get("contextModification", ""))
 
     def test_unhandled_tool_fires_note(self, tmp_path: Path) -> None:
         record_workspace("task-1", ["/old"])
@@ -889,9 +831,7 @@ class TestWorkspaceChangeToolingNote:
             "cline_hooks.handlers.git_context.get_generic_tooling_note",
             return_value="TOOLING NOTE",
         ):
-            failed = _run(
-                _make_hook("Bash", success=False, workspace_roots=[str(tmp_path)])
-            )
+            failed = _run(_make_hook("Bash", success=False, workspace_roots=[str(tmp_path)]))
             succeeded = _run(
                 _make_hook(
                     "Read",
@@ -1000,9 +940,7 @@ class TestTrackToolUsePluginScope:
 class TestToolFailedPluginScope:
     def test_reaches_plugin_with_documented_kwargs(self) -> None:
         captured: list[dict[str, object]] = []
-        hook = _make_hook(
-            "execute_command", success=False, parameters={"command": "boom"}
-        )
+        hook = _make_hook("execute_command", success=False, parameters={"command": "boom"})
         with patch(
             "cline_hooks.handlers.post_tool_use.load_plugins",
             return_value=[_CapturingPlugin("ToolFailed", captured)],

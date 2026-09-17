@@ -40,7 +40,7 @@ def _get_all_state_write_tool_names(plugins: list[HooksPlugin]) -> frozenset[str
     return frozenset(names)
 
 
-def _record_tool_use(  # noqa: PLR0913, PLR0917
+def _record_tool_use(  # ruff: ignore[too-many-arguments, too-many-positional-arguments]
     task_id: str,
     tool_name: str,
     parameters: dict[str, Any],
@@ -70,16 +70,12 @@ def _record_tool_use(  # noqa: PLR0913, PLR0917
 
     is_state_write = mcp_tool_name is not None and mcp_tool_name in state_write_names
 
-    record_research_use(
-        task_id, tool_name, mcp_tool_name, arguments, research_names, extractors
-    )
+    record_research_use(task_id, tool_name, mcp_tool_name, arguments, research_names, extractors)
 
     return is_state_write, mcp_tool_name
 
 
-def _workspace_change_outcome(
-    hook: HookInputPostToolUse, plugins: list[HooksPlugin]
-) -> Outcome:
+def _workspace_change_outcome(hook: HookInputPostToolUse, plugins: list[HooksPlugin]) -> Outcome:
     """Build the ecosystem tooling guidance outcome for a workspace root change.
 
     Args:

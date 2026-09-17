@@ -94,10 +94,7 @@ def frontend(
         )
         existing = REGISTERED_FRONTENDS.get(name)
         if existing is not None and existing.protocol is not cls:
-            msg = (
-                f"frontend {name!r} is already registered "
-                f"by {existing.protocol.__name__}"
-            )
+            msg = f"frontend {name!r} is already registered by {existing.protocol.__name__}"
             raise RuntimeError(msg)
         REGISTERED_FRONTENDS[name] = spec
         cls.frontend_spec = spec

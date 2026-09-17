@@ -2,12 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
-
 if TYPE_CHECKING:
     from collections.abc import Callable
 
     from cline_hooks.core.outcome import Outcome
+    from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
 
 HOOK_HANDLERS: dict[str, Callable[..., Any]] = {}
 

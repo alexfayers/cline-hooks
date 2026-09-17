@@ -61,9 +61,7 @@ class ToolingNote:
     replaces_generic: bool = True
 
 
-def collect_hook_results(
-    plugins: list[HooksPlugin], hook_name: str, **kwargs: object
-) -> HookResult:
+def collect_hook_results(plugins: list[HooksPlugin], hook_name: str, **kwargs: object) -> HookResult:
     """Collect and merge HookResults from all plugins for a given hook.
 
     Args:
@@ -138,7 +136,7 @@ class HooksPlugin:
         """
         return {}
 
-    def get_tooling_note(self, workspace_roots: list[str]) -> ToolingNote | None:  # noqa: ARG002
+    def get_tooling_note(self, workspace_roots: list[str]) -> ToolingNote | None:
         """Return this plugin's ecosystem tooling note for these workspace roots.
 
         A plugin supplies its own build-tool guidance here, optionally
@@ -152,7 +150,7 @@ class HooksPlugin:
         """
         return None
 
-    def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:  # noqa: ARG002
+    def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
         """Handle any hook event, returning notes and/or a block reason.
 
         Args:
@@ -214,11 +212,7 @@ def list_plugin_methods() -> list[PluginMethodInfo]:
         if name.startswith("_") or not inspect.isfunction(member):
             continue
         sig = inspect.signature(member)
-        params = ", ".join(
-            _format_param(param)
-            for param_name, param in sig.parameters.items()
-            if param_name != "self"
-        )
+        params = ", ".join(_format_param(param) for param_name, param in sig.parameters.items() if param_name != "self")
         doc = inspect.getdoc(member) or ""
         purpose = doc.splitlines()[0] if doc else ""
         infos.append(
@@ -264,9 +258,7 @@ def load_plugins() -> list[HooksPlugin]:
 
     loaded: list[HooksPlugin] = []
 
-    for _finder, name, _ispkg in pkgutil.iter_modules(
-        _plugins_pkg.__path__, _plugins_pkg.__name__ + "."
-    ):
+    for _finder, name, _ispkg in pkgutil.iter_modules(_plugins_pkg.__path__, _plugins_pkg.__name__ + "."):
         try:
             module = importlib.import_module(name)
             for attr in vars(module).values():

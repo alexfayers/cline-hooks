@@ -1,4 +1,4 @@
-# ruff: noqa: T201
+# ruff: file-ignore[print]
 """Cline JSON stdout protocol."""
 
 from __future__ import annotations
@@ -58,10 +58,12 @@ class ClineProtocol(Protocol):
         return payload.data is not None and "hookName" in payload.data
 
     def parse(self, payload: RawPayload) -> HookInput:
-        """Parse Cline's native JSON payload into the most specific HookInput subclass."""
-        data: dict[str, Any] = (
-            payload.data if payload.data is not None else json.loads(payload.raw)
-        )
+        """Parse Cline's native JSON payload into the most specific HookInput subclass.
+
+        Returns:
+            The parsed HookInput subclass matching the payload's hook name.
+        """
+        data: dict[str, Any] = payload.data if payload.data is not None else json.loads(payload.raw)
         for key in _TOOL_HOOK_KEYS:
             fields = data.get(key)
             if isinstance(fields, dict) and (native := fields.get("toolName")):
@@ -76,9 +78,7 @@ class ClineProtocol(Protocol):
         """Also stream hook logs to stderr, since Cline surfaces no other channel for them."""
         logging.getLogger("hooks").addHandler(logging.StreamHandler())
 
-    def allow(
-        self, message: str | None = None, *, system_message: str | None = None
-    ) -> NoReturn:  # noqa: ARG002
+    def allow(self, message: str | None = None, *, system_message: str | None = None) -> NoReturn:
         """Allow via JSON stdout."""
         res: dict[str, object] = {"cancel": False}
         if message is not None:

@@ -73,9 +73,7 @@ class TestMergeBlockPrecedence:
 
 class TestMergeUserMessage:
     def test_accumulates_across_allow_and_allow(self) -> None:
-        merged = Outcome.allow(user_message="first").merge(
-            Outcome.allow(user_message="second")
-        )
+        merged = Outcome.allow(user_message="first").merge(Outcome.allow(user_message="second"))
         assert merged.user_message == "first\n\nsecond"
 
     def test_accumulates_across_a_block(self) -> None:
@@ -87,9 +85,7 @@ class TestMergeUserMessage:
 
 class TestMergeLabel:
     def test_first_non_empty_label_wins(self) -> None:
-        merged = Outcome.allow("a", label="FIRST").merge(
-            Outcome.allow("b", label="SECOND")
-        )
+        merged = Outcome.allow("a", label="FIRST").merge(Outcome.allow("b", label="SECOND"))
         assert merged.label == "FIRST"
 
     def test_later_label_used_when_first_is_empty(self) -> None:

@@ -9,9 +9,9 @@ from cline_hooks.core.plugin import HookResult, HooksPlugin
 from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.state import PluginStateStore
 from cline_hooks.core.vocabulary import (
+    NO_RESET_TASK_START_SOURCES,
     CanonicalHook,
     CanonicalTool,
-    NO_RESET_TASK_START_SOURCES,
 )
 
 if TYPE_CHECKING:
@@ -31,9 +31,7 @@ class _ResearchState:
     records: list[dict[str, str]] = field(default_factory=list)
 
 
-_store: PluginStateStore[_ResearchState] = PluginStateStore(
-    "research-state.json", _ResearchState
-)
+_store: PluginStateStore[_ResearchState] = PluginStateStore("research-state.json", _ResearchState)
 
 
 def is_research_tool(tool_name: str, extra: frozenset[str]) -> bool:
@@ -154,7 +152,7 @@ def extract_research_detail(
     return ""
 
 
-def record_research_use(  # noqa: PLR0913, PLR0917
+def record_research_use(  # ruff: ignore[too-many-arguments, too-many-positional-arguments]
     task_id: str,
     tool_name: str,
     mcp_tool_name: str | None,
@@ -265,9 +263,7 @@ class ResearchPlugin(HooksPlugin):
         task_id = kwargs.get("task_id")
         if not isinstance(task_id, str):
             return None
-        trace = format_research_trace(
-            get_research(task_id), get_protocol().research_trace_header()
-        )
+        trace = format_research_trace(get_research(task_id), get_protocol().research_trace_header())
         reset(task_id)
         if not trace:
             return None

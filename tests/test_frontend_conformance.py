@@ -74,9 +74,7 @@ def _payload_for(name: str, canonical_hook: str) -> RawPayload:
     return RawPayload(raw=raw, data=json.loads(raw), env=_DETECT_ENV.get(name, {}))
 
 
-_FIXTURE_FRONTENDS = [
-    spec for spec in FRONTENDS if _fixture_hooks(_fixture_owner(spec))
-]
+_FIXTURE_FRONTENDS = [spec for spec in FRONTENDS if _fixture_hooks(_fixture_owner(spec))]
 _ALL_FIXTURE_PAIRS = [
     (name, canonical_hook)
     for name in sorted({_fixture_owner(spec) for spec in FRONTENDS})
@@ -106,11 +104,7 @@ def _concrete_protocols() -> set[type[Protocol]]:
             continue
         seen.add(current)
         work.extend(current.__subclasses__())
-    return {
-        cls
-        for cls in seen
-        if not inspect.isabstract(cls) and cls.__module__.startswith("cline_hooks.")
-    }
+    return {cls for cls in seen if not inspect.isabstract(cls) and cls.__module__.startswith("cline_hooks.")}
 
 
 @pytest.mark.parametrize("spec", FRONTENDS, ids=lambda spec: spec.name)
@@ -122,22 +116,15 @@ class TestFrontendConformance:
         assert not inspect.isabstract(spec.protocol)
 
     def test_declares_its_own_detection(self, spec: FrontendSpec) -> None:
-        assert "detect" in spec.protocol.__dict__, (
-            f"{spec.protocol.__name__}.detect is inherited, not declared"
-        )
+        assert "detect" in spec.protocol.__dict__, f"{spec.protocol.__name__}.detect is inherited, not declared"
 
-    def test_supported_hooks_are_non_empty_and_handled(
-        self, spec: FrontendSpec
-    ) -> None:
+    def test_supported_hooks_are_non_empty_and_handled(self, spec: FrontendSpec) -> None:
         assert spec.protocol.supported_hooks
         for canonical_hook in spec.protocol.supported_hooks:
             assert canonical_hook in HOOK_HANDLERS
 
     def test_native_hook_names_are_unique(self, spec: FrontendSpec) -> None:
-        native_names = [
-            registration.native_name
-            for registration in spec.protocol.supported_hooks.values()
-        ]
+        native_names = [registration.native_name for registration in spec.protocol.supported_hooks.values()]
         assert len(native_names) == len(set(native_names))
 
     def test_spec_is_reachable_from_its_protocol(self, spec: FrontendSpec) -> None:
@@ -178,27 +165,20 @@ class TestBorrowedShapeFrontends:
     """
 
     @pytest.mark.parametrize(("name", "canonical_hook"), _ALL_FIXTURE_PAIRS)
-    def test_every_payload_routes_to_the_frontend_that_should_handle_it(
-        self, name: str, canonical_hook: str
-    ) -> None:
+    def test_every_payload_routes_to_the_frontend_that_should_handle_it(self, name: str, canonical_hook: str) -> None:
         payload = _payload_for(name, canonical_hook)
         expected = FRONTENDS_BY_NAME[_expected_route(name, canonical_hook)]
         assert select_protocol(payload) is expected.protocol
 
     @pytest.mark.parametrize("name", sorted(_SHAPE_SOURCE))
-    def test_borrowed_payloads_parse_identically_at_their_shape_source(
-        self, name: str
-    ) -> None:
+    def test_borrowed_payloads_parse_identically_at_their_shape_source(self, name: str) -> None:
         spec = FRONTENDS_BY_NAME[name]
         source = FRONTENDS_BY_NAME[_SHAPE_SOURCE[name]]
         for canonical_hook in _fixture_hooks(_fixture_owner(spec)):
             if _ROUTE_EXCEPTIONS.get((name, canonical_hook)):
                 continue
             payload = _payload_for(_fixture_owner(spec), canonical_hook)
-            assert (
-                source.protocol().parse(payload).model_dump()
-                == spec.protocol().parse(payload).model_dump()
-            )
+            assert source.protocol().parse(payload).model_dump() == spec.protocol().parse(payload).model_dump()
 
     def test_an_own_event_carries_fields_its_shape_source_would_drop(self) -> None:
         payload = _payload_for("copilot", "PreCompact")

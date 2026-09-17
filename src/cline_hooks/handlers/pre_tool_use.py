@@ -15,11 +15,11 @@ from cline_hooks.core.parameters import (
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.registry import TOOL_HANDLERS, hook_handler, tool_handler
 from cline_hooks.core.vocabulary import (
+    KNOWN_TOOLS,
+    SHELL_TOOLS,
     CanonicalHook,
     CanonicalTool,
-    KNOWN_TOOLS,
     PluginScope,
-    SHELL_TOOLS,
 )
 from cline_hooks.handlers.commands import (
     check_rules,
@@ -55,9 +55,7 @@ def _hook_result_outcome(
         A BLOCK Outcome for a plugin block, an ALLOW Outcome carrying plugin
         notes, otherwise an empty Outcome.
     """
-    result = collect_hook_results(
-        plugins, hook_name, task_id=task_id, tool_name=tool_name, **kwargs
-    )
+    result = collect_hook_results(plugins, hook_name, task_id=task_id, tool_name=tool_name, **kwargs)
     if result.block:
         return Outcome.block(result.block)
     if result.notes:
@@ -66,9 +64,7 @@ def _hook_result_outcome(
 
 
 @tool_handler(CanonicalHook.PRE_TOOL_USE, *SHELL_TOOLS)
-def _pre_shell(
-    hook: HookInputPreToolUse, fields: PreToolUseFields, plugins: list[HooksPlugin]
-) -> Outcome:
+def _pre_shell(hook: HookInputPreToolUse, fields: PreToolUseFields, plugins: list[HooksPlugin]) -> Outcome:
     """Enforce command rules and dispatch to plugins' shell guards.
 
     Args:
@@ -108,9 +104,7 @@ def _pre_shell(
 
 
 @tool_handler(CanonicalHook.PRE_TOOL_USE, CanonicalTool.MCP)
-def _pre_mcp(
-    hook: HookInputPreToolUse, fields: PreToolUseFields, plugins: list[HooksPlugin]
-) -> Outcome:
+def _pre_mcp(hook: HookInputPreToolUse, fields: PreToolUseFields, plugins: list[HooksPlugin]) -> Outcome:
     """Dispatch a use_mcp_tool call to plugins' PreMcpToolUse handling.
 
     Args:
@@ -134,9 +128,7 @@ def _pre_mcp(
 
 
 @tool_handler(CanonicalHook.PRE_TOOL_USE, CanonicalTool.ATTEMPT_COMPLETION)
-def _pre_attempt_completion(
-    hook: HookInputPreToolUse, fields: PreToolUseFields, plugins: list[HooksPlugin]
-) -> Outcome:
+def _pre_attempt_completion(hook: HookInputPreToolUse, fields: PreToolUseFields, plugins: list[HooksPlugin]) -> Outcome:
     """Dispatch attempt_completion validation to plugins.
 
     Args:
@@ -148,9 +140,7 @@ def _pre_attempt_completion(
         A BLOCK Outcome for a plugin block, an ALLOW Outcome carrying plugin
         notes, otherwise an empty Outcome.
     """
-    task_progress: str = (
-        AttemptCompletionParameters.build(fields.parameters).task_progress or ""
-    )
+    task_progress: str = AttemptCompletionParameters.build(fields.parameters).task_progress or ""
     result = collect_hook_results(
         plugins,
         PluginScope.ATTEMPT_COMPLETION,

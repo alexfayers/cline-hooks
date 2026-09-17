@@ -50,8 +50,7 @@ class TestExtractReplacementBlocks:
 
     def test_extracts_multiple_blocks(self) -> None:
         diff = (
-            "------- SEARCH\nold1\n=======\nnew1\n+++++++ REPLACE\n"
-            "------- SEARCH\nold2\n=======\nnew2\n+++++++ REPLACE"
+            "------- SEARCH\nold1\n=======\nnew1\n+++++++ REPLACE\n------- SEARCH\nold2\n=======\nnew2\n+++++++ REPLACE"
         )
         assert extract_replacement_blocks(diff) == ["new1", "new2"]
 
