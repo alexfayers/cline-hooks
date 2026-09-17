@@ -55,6 +55,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def _run_hook() -> NoReturn:
     """Read hook input from stdin and dispatch to the appropriate handler."""
+    logger.debug("=== start ===")
     try:
         payload = RawPayload.from_stdin(input())
         proto = select_protocol(payload).from_payload(payload)

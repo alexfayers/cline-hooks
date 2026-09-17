@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from cline_hooks.core.plugin import HookResult, HooksPlugin
 from cline_hooks.core.vocabulary import CanonicalHook
+
+if TYPE_CHECKING:
+    import logging
 
 DEFAULT_BUILD_COMMANDS = frozenset({"just", "pnpm", "npm", "pytest", "flutter", "dart"})
 
@@ -17,11 +22,12 @@ class BuildToolsPlugin(HooksPlugin):
         """
         return DEFAULT_BUILD_COMMANDS
 
-    def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+    def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
         """Alert when a PostToolUse shell result reports a build failure.
 
         Args:
             hook_name: The hook event name.
+            logger: This plugin's hook-scoped child logger.
             **kwargs: Hook-specific keyword arguments.
 
         Returns:
@@ -31,5 +37,6 @@ class BuildToolsPlugin(HooksPlugin):
             return None
         tool_result = kwargs.get("tool_result")
         if isinstance(tool_result, str) and "BUILD FAILED" in tool_result:
+            logger.debug("Detected build failure in tool result")
             return HookResult(notes=["The build failed! It did NOT pass. It FAILED!!"])
         return None

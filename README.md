@@ -111,6 +111,8 @@ detection, ecosystem tooling notes, and hook-driven notes/blocking.
 1. Subclass `HooksPlugin` and override the methods you need:
 
 ```python
+import logging
+
 from cline_hooks.core.plugin import HookResult, HooksPlugin, ToolingNote
 from cline_hooks.handlers.commands import CommandRule
 
@@ -134,7 +136,7 @@ class MyPlugin(HooksPlugin):
         """Supply this plugin's ecosystem tooling note for these workspace roots."""
         return None
 
-    def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+    def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
         """Handle any hook event, returning notes and/or a block reason."""
         return None
 ```
@@ -160,7 +162,7 @@ my-plugin = "my_package:MyPlugin"
 | `get_research_tool_names()` | Return additional tool names that count as research lookups. | `frozenset[str]` |
 | `get_research_detail_extractors()` | Return per-tool detail extractors for research lookups. | `dict[str, Callable[[dict[str, Any]], str]]` |
 | `get_tooling_note(workspace_roots)` | Return this plugin's ecosystem tooling note for these workspace roots. | `ToolingNote \| None` |
-| `on_hook(hook_name, **kwargs)` | Handle any hook event, returning notes and/or a block reason. | `HookResult \| None` |
+| `on_hook(hook_name, logger, **kwargs)` | Handle any hook event, returning notes and/or a block reason. | `HookResult \| None` |
 <!-- PLUGIN_METHODS_END -->
 
 ### CommandRule

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from cline_hooks.core.parameters import (
     FileEditParameters,
@@ -13,6 +13,9 @@ from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool, PluginScope
 from cline_hooks.handlers.commands import contains_comment, extract_replacement_blocks
 from cline_hooks.handlers.git_context import get_dirty_count
+
+if TYPE_CHECKING:
+    import logging
 
 _LARGE_FILE_THRESHOLD = 1000
 _EMOJI_THRESHOLD = 0x7F
@@ -45,10 +48,11 @@ def _reads_bounded_range(params: ReadParameters) -> bool:
     return params.end_line - (params.start_line or 0) <= _LARGE_FILE_THRESHOLD
 
 
-def _plan_mode_respond_guard(parameters: dict[str, Any]) -> HookResult | None:
+def _plan_mode_respond_guard(logger: logging.Logger, parameters: dict[str, Any]) -> HookResult | None:
     """Block a plan-mode response that doesn't start with the emoji canary.
 
     Args:
+        logger: This plugin's hook-scoped child logger.
         parameters: The plan_mode_respond call's parameters.
 
     Returns:
@@ -58,6 +62,7 @@ def _plan_mode_respond_guard(parameters: dict[str, Any]) -> HookResult | None:
     if _starts_with_emoji(response):
         return None
     spawn_tool = get_protocol().native_tool_name(CanonicalTool.SPAWN_AGENT)
+    logger.debug("Blocked plan-mode response: missing emoji canary")
     return HookResult(
         block=(
             "Response does not start with an emoji - context window may be degraded. "
@@ -66,10 +71,11 @@ def _plan_mode_respond_guard(parameters: dict[str, Any]) -> HookResult | None:
     )
 
 
-def _read_guard(parameters: dict[str, Any]) -> HookResult | None:
+def _read_guard(logger: logging.Logger, parameters: dict[str, Any]) -> HookResult | None:
     """Block reading a file that's too large to read in full.
 
     Args:
+        logger: This plugin's hook-scoped child logger.
         parameters: The read call's parameters.
 
     Returns:
@@ -84,6 +90,7 @@ def _read_guard(parameters: dict[str, Any]) -> HookResult | None:
     except OSError:
         return None
     if line_count > _LARGE_FILE_THRESHOLD:
+        logger.debug("Blocked read: file exceeds large-file threshold")
         return HookResult(
             block=(
                 f"{params.path} is {line_count} lines. "
@@ -93,10 +100,11 @@ def _read_guard(parameters: dict[str, Any]) -> HookResult | None:
     return None
 
 
-def _file_edit_comment_guard(parameters: dict[str, Any]) -> HookResult | None:
+def _file_edit_comment_guard(logger: logging.Logger, parameters: dict[str, Any]) -> HookResult | None:
     """Flag disallowed explanatory comments and bare type-ignore comments.
 
     Args:
+        logger: This plugin's hook-scoped child logger.
         parameters: The file-edit call's parameters.
 
     Returns:
@@ -120,13 +128,17 @@ def _file_edit_comment_guard(parameters: dict[str, Any]) -> HookResult | None:
                         "required, consider a different approach."
                     )
 
-    return HookResult(notes=list(notes)) if notes else None
+    if not notes:
+        return None
+    logger.debug("Flagged disallowed comment(s) in file edit")
+    return HookResult(notes=list(notes))
 
 
-def _pre_tool_use_guard(**kwargs: object) -> HookResult | None:
+def _pre_tool_use_guard(logger: logging.Logger, **kwargs: object) -> HookResult | None:
     """Guard a PreToolUse call based on its tool name.
 
     Args:
+        logger: This plugin's hook-scoped child logger.
         **kwargs: The PreToolUse dispatch kwargs (tool_name, parameters, ...).
 
     Returns:
@@ -135,18 +147,19 @@ def _pre_tool_use_guard(**kwargs: object) -> HookResult | None:
     tool_name = kwargs.get("tool_name")
     parameters = cast("dict[str, Any]", kwargs.get("parameters") or {})
     if tool_name == CanonicalTool.PLAN_MODE_RESPOND:
-        return _plan_mode_respond_guard(parameters)
+        return _plan_mode_respond_guard(logger, parameters)
     if tool_name == CanonicalTool.READ:
-        return _read_guard(parameters)
+        return _read_guard(logger, parameters)
     if tool_name in {CanonicalTool.EDIT, CanonicalTool.WRITE}:
-        return _file_edit_comment_guard(parameters)
+        return _file_edit_comment_guard(logger, parameters)
     return None
 
 
-def _attempt_completion_guard(**kwargs: object) -> HookResult | None:
+def _attempt_completion_guard(logger: logging.Logger, **kwargs: object) -> HookResult | None:
     """Block finishing with incomplete task_progress items or a dirty working tree.
 
     Args:
+        logger: This plugin's hook-scoped child logger.
         **kwargs: The AttemptCompletion dispatch kwargs (task_progress, workspace_roots).
 
     Returns:
@@ -155,11 +168,13 @@ def _attempt_completion_guard(**kwargs: object) -> HookResult | None:
     task_progress = cast("str", kwargs.get("task_progress") or "")
     incomplete = [line for line in task_progress.splitlines() if line.strip().startswith("- [ ]")]
     if incomplete:
+        logger.debug("Blocked completion: task_progress has incomplete item(s)")
         return HookResult(
             block=f"task_progress has {len(incomplete)} incomplete item(s). MUST complete them before finishing."
         )
     workspace_roots = cast("list[str]", kwargs.get("workspace_roots") or [])
     if get_dirty_count(workspace_roots):
+        logger.debug("Blocked completion: working directory has uncommitted changes")
         return HookResult(block="Working directory has uncommitted changes")
     return None
 
@@ -167,18 +182,19 @@ def _attempt_completion_guard(**kwargs: object) -> HookResult | None:
 class ToolGuardsPlugin(HooksPlugin):
     """Bundled plugin enforcing per-tool PreToolUse and attempt-completion guards."""
 
-    def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+    def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
         """Dispatch PreToolUse and AttemptCompletion events to their guards.
 
         Args:
             hook_name: The hook or plugin-scope name.
+            logger: This plugin's hook-scoped child logger.
             **kwargs: Hook-specific keyword arguments.
 
         Returns:
             A HookResult with a block reason or notes, or None.
         """
         if hook_name == CanonicalHook.PRE_TOOL_USE:
-            return _pre_tool_use_guard(**kwargs)
+            return _pre_tool_use_guard(logger, **kwargs)
         if hook_name == PluginScope.ATTEMPT_COMPLETION:
-            return _attempt_completion_guard(**kwargs)
+            return _attempt_completion_guard(logger, **kwargs)
         return None

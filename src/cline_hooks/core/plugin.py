@@ -74,7 +74,7 @@ def collect_hook_results(plugins: list[HooksPlugin], hook_name: str, **kwargs: o
     """
     merged = HookResult()
     for plugin in plugins:
-        result = plugin.on_hook(hook_name, **kwargs)
+        result = plugin.on_hook(hook_name, logger=plugin.logger.getChild(hook_name), **kwargs)
         if result is None:
             continue
         merged.notes.extend(note for note in result.notes if note.strip())
@@ -90,6 +90,11 @@ class HooksPlugin:
     Override any methods to provide custom behaviour. All methods return
     empty/None by default so the core framework has zero built-in opinions.
     """
+
+    @property
+    def logger(self) -> logging.Logger:
+        """This plugin's dedicated logger, named after its concrete class."""
+        return logging.getLogger(f"hooks.{type(self).__name__}")
 
     def get_build_commands(self) -> frozenset[str]:
         """Return command names that are considered build tools.
@@ -150,11 +155,12 @@ class HooksPlugin:
         """
         return None
 
-    def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+    def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
         """Handle any hook event, returning notes and/or a block reason.
 
         Args:
             hook_name: The hook event name (e.g. "TaskStart", "PreToolUse").
+            logger: This plugin's hook-scoped child logger.
             **kwargs: Hook-specific keyword arguments.
 
         Returns:
@@ -256,31 +262,38 @@ def load_plugins() -> list[HooksPlugin]:
     if cached is not None:
         return cached
 
-    loaded: list[HooksPlugin] = []
+    loaded_bundled: list[HooksPlugin] = []
 
     for _finder, name, _ispkg in pkgutil.iter_modules(_plugins_pkg.__path__, _plugins_pkg.__name__ + "."):
         try:
             module = importlib.import_module(name)
-            for attr in vars(module).values():
+            loaded_bundled.extend(
+                attr()
+                for attr in vars(module).values()
                 if (
                     isinstance(attr, type)
                     and issubclass(attr, HooksPlugin)
                     and attr is not HooksPlugin
                     and attr.__module__ == name
-                ):
-                    loaded.append(attr())
-                    logger.debug("Loaded bundled plugin: %s", attr.__name__)
+                )
+            )
         except Exception:
             logger.exception("Failed to load bundled plugin module: %s", name)
+
+    loaded_external: list[HooksPlugin] = []
 
     for ep in importlib.metadata.entry_points(group="cline_hooks"):
         try:
             cls = ep.load()
             if isinstance(cls, type) and issubclass(cls, HooksPlugin):
-                loaded.append(cls())
-                logger.debug("Loaded external plugin: %s", ep.name)
+                loaded_external.append(cls())
         except Exception:
             logger.exception("Failed to load external plugin: %s", ep.name)
+
+    logger.debug("Bundled plugins: %s", ",".join([plugin.__class__.__name__ for plugin in loaded_bundled]))
+    logger.debug("External plugins: %s", ",".join([plugin.__class__.__name__ for plugin in loaded_external]))
+
+    loaded = [*loaded_bundled, *loaded_external]
 
     _plugin_cache.set(loaded)
     return loaded

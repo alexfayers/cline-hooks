@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import bashlex
 import bashlex.errors
@@ -15,11 +15,15 @@ from cline_hooks.state.skills import (
     required_skill_for,
 )
 
+if TYPE_CHECKING:
+    import logging
 
-def _pre_shell_guard(**kwargs: object) -> HookResult | None:
+
+def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | None:
     """Block a shell command missing a required skill or a blocked git push.
 
     Args:
+        logger: This plugin's hook-scoped child logger.
         **kwargs: The PreShell dispatch kwargs (command, task_id, workspace_roots).
 
     Returns:
@@ -37,11 +41,13 @@ def _pre_shell_guard(**kwargs: object) -> HookResult | None:
 
     required_skill = required_skill_for([cmd.name for cmd in commands])
     if required_skill and not is_skill_called(task_id, required_skill):
+        logger.debug("Blocked shell command: missing required skill")
         return HookResult(block=f"MUST use the `{required_skill}` skill before running this command")
 
     if is_git_push(commands):
         marker = marker_above_repo(workspace_roots)
         if marker:
+            logger.debug("Blocked git push: repo is inside a managed workspace")
             return HookResult(
                 block=(
                     f"git push is blocked here: this repository is inside a managed "
@@ -53,10 +59,11 @@ def _pre_shell_guard(**kwargs: object) -> HookResult | None:
     return None
 
 
-def _task_resume_guard(**kwargs: object) -> HookResult | None:
+def _task_resume_guard(logger: logging.Logger, **kwargs: object) -> HookResult | None:
     """Re-nudge any skill named in this task's recorded block reasons.
 
     Args:
+        logger: This plugin's hook-scoped child logger.
         **kwargs: The TaskResume dispatch kwargs (block_reasons, ...).
 
     Returns:
@@ -67,24 +74,26 @@ def _task_resume_guard(**kwargs: object) -> HookResult | None:
     if not pending_skills:
         return None
     skills_list = ", ".join(f"`{s}`" for s in sorted(pending_skills))
+    logger.debug("Re-nudged pending skill requirement(s) on task resume")
     return HookResult(notes=[f"REQUIRED: use the {skills_list} skill(s) before retrying the blocked command."])
 
 
 class ShellGuardsPlugin(HooksPlugin):
     """Bundled plugin enforcing shell-command guards."""
 
-    def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+    def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
         """Dispatch PreShell and TaskResume events to the shell-command guards.
 
         Args:
             hook_name: The hook or plugin-scope name.
+            logger: This plugin's hook-scoped child logger.
             **kwargs: Hook-specific keyword arguments.
 
         Returns:
             A HookResult with a block reason or notes, or None.
         """
         if hook_name == PluginScope.PRE_SHELL:
-            return _pre_shell_guard(**kwargs)
+            return _pre_shell_guard(logger, **kwargs)
         if hook_name == CanonicalHook.TASK_RESUME:
-            return _task_resume_guard(**kwargs)
+            return _task_resume_guard(logger, **kwargs)
         return None

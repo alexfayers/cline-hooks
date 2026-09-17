@@ -4,6 +4,7 @@ import contextlib
 from dataclasses import dataclass
 import random
 import re
+from typing import TYPE_CHECKING
 
 import git
 import git.exc
@@ -20,6 +21,9 @@ from cline_hooks.core.vocabulary import (
 from cline_hooks.state.agents import agent_use_count
 from cline_hooks.state.retrospective import record_session
 from cline_hooks.state.skills import is_wrap_up_skill
+
+if TYPE_CHECKING:
+    import logging
 
 
 @dataclass
@@ -274,22 +278,23 @@ def _contains_info_signal(message: str) -> bool:
 class NudgesPlugin(HooksPlugin):
     """Assorted reminders: commit size, retrospective, dismissals, and prompt nudges."""
 
-    def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+    def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
         """Dispatch to the per-scope reminder builder.
 
         Args:
             hook_name: The hook event or plugin-scope name.
+            logger: This plugin's hook-scoped child logger.
             **kwargs: Hook-specific keyword arguments.
 
         Returns:
             A HookResult carrying any reminders, or None.
         """
         if hook_name == CanonicalHook.POST_TOOL_USE:
-            return self._post_tool_use(kwargs)
+            return self._post_tool_use(logger, kwargs)
         if hook_name == CanonicalHook.STOP:
-            return self._stop(kwargs)
+            return self._stop(logger, kwargs)
         if hook_name == CanonicalHook.USER_PROMPT_SUBMIT:
-            return self._user_prompt_submit(kwargs)
+            return self._user_prompt_submit(logger, kwargs)
         if hook_name == CanonicalHook.TASK_START:
             task_id = kwargs.get("task_id")
             source = kwargs.get("source")
@@ -303,8 +308,12 @@ class NudgesPlugin(HooksPlugin):
             return None
         return None
 
-    def _post_tool_use(self, kwargs: dict[str, object]) -> HookResult | None:
+    def _post_tool_use(self, logger: logging.Logger, kwargs: dict[str, object]) -> HookResult | None:
         """Build the commit-size and retrospective reminders for a tool call.
+
+        Args:
+            logger: This plugin's hook-scoped child logger.
+            kwargs: Hook-specific keyword arguments.
 
         Returns:
             A HookResult with any reminders, or None.
@@ -324,10 +333,16 @@ class NudgesPlugin(HooksPlugin):
             count = record_session(task_id)
             if count is not None and count >= _RETRO_THRESHOLD:
                 notes.append(_RETRO_REMINDER.format(count=count))
+        if notes:
+            logger.debug("Fired post-tool-use reminder(s)")
         return HookResult(notes=notes) if notes else None
 
-    def _stop(self, kwargs: dict[str, object]) -> HookResult | None:
+    def _stop(self, logger: logging.Logger, kwargs: dict[str, object]) -> HookResult | None:
         """Build the dismissed-issue nudge from the assistant's last turn.
+
+        Args:
+            logger: This plugin's hook-scoped child logger.
+            kwargs: Hook-specific keyword arguments.
 
         Returns:
             A HookResult with the nudge, or None.
@@ -337,11 +352,16 @@ class NudgesPlugin(HooksPlugin):
             return None
         text = get_protocol().transcript.turn_assistant_text(transcript_path)
         if _contains_dismissal_signal(text):
+            logger.debug("Fired dismissed-issue nudge")
             return HookResult(notes=[_DISMISSAL_NUDGE])
         return None
 
-    def _user_prompt_submit(self, kwargs: dict[str, object]) -> HookResult | None:
+    def _user_prompt_submit(self, logger: logging.Logger, kwargs: dict[str, object]) -> HookResult | None:
         """Build the session-length, fan-out, timing, and signal reminders.
+
+        Args:
+            logger: This plugin's hook-scoped child logger.
+            kwargs: Hook-specific keyword arguments.
 
         Returns:
             A HookResult with any reminders, or None.
@@ -365,4 +385,6 @@ class NudgesPlugin(HooksPlugin):
             notes.append(_INFO_REMINDER)
         if random.random() < _SIDE_REQUEST_REMINDER_CHANCE:
             notes.append(_SIDE_REQUEST_REMINDER)
+        if notes:
+            logger.debug("Fired user-prompt-submit reminder(s)")
         return HookResult(notes=notes) if notes else None

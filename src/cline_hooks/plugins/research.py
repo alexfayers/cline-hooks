@@ -17,7 +17,7 @@ from cline_hooks.core.vocabulary import (
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-logger = logging.getLogger("hooks")
+logger = logging.getLogger("hooks.ResearchPlugin")
 
 WEB_RESEARCH_TOOLS = frozenset({CanonicalTool.WEB_FETCH, CanonicalTool.WEB_SEARCH})
 
@@ -236,11 +236,12 @@ class ResearchPlugin(HooksPlugin):
         """
         return WEB_RESEARCH_TOOLS
 
-    def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+    def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
         """Emit the grouped research-citation trace on Stop.
 
         Args:
             hook_name: The hook event name.
+            logger: This plugin's hook-scoped child logger.
             **kwargs: Hook-specific keyword arguments.
 
         Returns:

@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import contextlib
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from cline_hooks.core.parameters import FileEditParameters
 from cline_hooks.core.plugin import HookResult, HooksPlugin
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
+
+if TYPE_CHECKING:
+    import logging
 
 try:
     from llm_prompts.install import (
@@ -97,16 +100,20 @@ def _pre_tool_use_guard(**kwargs: object) -> HookResult | None:
 class ManagedFilesPlugin(HooksPlugin):
     """Bundled plugin blocking edits to llm-prompts-managed files."""
 
-    def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+    def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
         """Dispatch PreToolUse events to the managed-file guard.
 
         Args:
             hook_name: The hook or plugin-scope name.
+            logger: This plugin's hook-scoped child logger.
             **kwargs: Hook-specific keyword arguments.
 
         Returns:
             A HookResult with a block reason, or None.
         """
         if hook_name == CanonicalHook.PRE_TOOL_USE:
-            return _pre_tool_use_guard(**kwargs)
+            result = _pre_tool_use_guard(**kwargs)
+            if result is not None:
+                logger.debug("Blocked edit/write to a managed file")
+            return result
         return None

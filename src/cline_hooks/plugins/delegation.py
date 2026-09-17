@@ -23,6 +23,8 @@ from cline_hooks.handlers.commands import extract_commands
 from cline_hooks.state.agents import has_agent_use
 
 if TYPE_CHECKING:
+    import logging
+
     from cline_hooks.handlers.commands import ParsedCommand
 
 
@@ -155,11 +157,12 @@ def _is_read_only_command(command: str) -> bool:
 class DelegationPlugin(HooksPlugin):
     """Nudges the main session to delegate its first unit of work to a teammate."""
 
-    def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+    def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
         """Fire a one-shot delegation nudge before the first inline edit/write/mutating-shell call.
 
         Args:
             hook_name: The hook or plugin-scope name.
+            logger: This plugin's hook-scoped child logger.
             **kwargs: Hook-specific keyword arguments.
 
         Returns:
@@ -193,4 +196,5 @@ class DelegationPlugin(HooksPlugin):
 
         if not should_nudge_inline_work(task_id):
             return None
+        logger.debug("Fired inline-work delegation nudge")
         return HookResult(notes=[_DELEGATION_NUDGE])

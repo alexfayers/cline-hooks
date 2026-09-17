@@ -12,6 +12,8 @@ from cline_hooks.state.memory import is_memory_write, record_memory_write
 from cline_hooks.state.skills import record_skill, skills_in_command
 
 if TYPE_CHECKING:
+    import logging
+
     from cline_hooks.core.plugin import HookResult
 
 
@@ -44,11 +46,12 @@ def _record_skill_use(task_id: str, tool_name: str, parameters: dict[str, Any]) 
 class TrackingPlugin(HooksPlugin):
     """Records skill loads, memory writes, and agent-spawn tool use."""
 
-    def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+    def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
         """Record tool-use tracking state on the TrackToolUse scope.
 
         Args:
             hook_name: The hook event or plugin-scope name.
+            logger: This plugin's hook-scoped child logger.
             **kwargs: Hook-specific keyword arguments.
 
         Returns:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from cline_hooks.core.hook_kwargs import TrackToolUseKwargs
 from cline_hooks.core.plugin import HookResult, HooksPlugin
@@ -12,6 +13,9 @@ from cline_hooks.core.vocabulary import (
     PluginScope,
 )
 from cline_hooks.handlers.context_nudge import with_team_clause
+
+if TYPE_CHECKING:
+    import logging
 
 
 @dataclass
@@ -103,7 +107,7 @@ def _consumed_nudge(task_id: str) -> HookResult | None:
 class PlanHandoffPlugin(HooksPlugin):
     """Records plan-mode exits and emits a one-shot fresh-session handoff nudge."""
 
-    def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+    def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
         """Consume the pending handoff nudge, then record any plan exit.
 
         On the tool-tracking scope the pending nudge is consumed BEFORE the
@@ -112,6 +116,7 @@ class PlanHandoffPlugin(HooksPlugin):
 
         Args:
             hook_name: The hook event or plugin-scope name.
+            logger: This plugin's hook-scoped child logger.
             **kwargs: Hook-specific keyword arguments.
 
         Returns:
@@ -120,13 +125,18 @@ class PlanHandoffPlugin(HooksPlugin):
         if hook_name == PluginScope.TRACK_TOOL_USE:
             kw = TrackToolUseKwargs.build(kwargs)
             result = _consumed_nudge(kw.task_id)
+            if result is not None:
+                logger.debug("Fired plan-handoff nudge")
             if is_plan_exit_tool(kw.tool_name):
                 record_plan_exit(kw.task_id)
             return result
         if hook_name == CanonicalHook.USER_PROMPT_SUBMIT:
             task_id = kwargs.get("task_id")
             if isinstance(task_id, str):
-                return _consumed_nudge(task_id)
+                result = _consumed_nudge(task_id)
+                if result is not None:
+                    logger.debug("Fired plan-handoff nudge")
+                return result
             return None
         if hook_name == CanonicalHook.TASK_START:
             task_id = kwargs.get("task_id")

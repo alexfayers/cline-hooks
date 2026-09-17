@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import importlib.metadata
+import logging
 import sys
 from typing import TYPE_CHECKING
 
@@ -48,7 +49,7 @@ class TestHooksPluginDefaults:
 
     def test_on_hook_returns_none(self) -> None:
         plugin = HooksPlugin()
-        assert plugin.on_hook("AnyHook") is None
+        assert plugin.on_hook("AnyHook", logger=logging.getLogger("test")) is None
 
     def test_get_tooling_note_returns_none(self) -> None:
         plugin = HooksPlugin()
@@ -142,7 +143,7 @@ class TestCollectHookResults:
         received: dict[str, object] = {}
 
         class PluginA(HooksPlugin):
-            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+            def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
                 received.update(kwargs)
                 return None
 

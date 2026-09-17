@@ -19,6 +19,7 @@ from cline_hooks.state.skills import record_skill
 from cline_hooks.state.store import TaskStateStore
 
 if TYPE_CHECKING:
+    import logging
     from pathlib import Path
 
     from pytest_mock import MockerFixture
@@ -442,7 +443,7 @@ class TestManagedFileWriteGuard:
 class _NotePlugin(HooksPlugin):
     """Test double contributing a note to every hook, never a block."""
 
-    def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+    def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
         return HookResult(notes=["plugin note"])
 
 
@@ -616,7 +617,7 @@ class TestPreShellPluginScope:
         captured: list[dict[str, object]] = []
 
         class _CapturingPlugin(HooksPlugin):
-            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+            def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
                 if hook_name == PluginScope.PRE_SHELL:
                     captured.append(kwargs)
                 return None
@@ -637,7 +638,7 @@ class TestPreShellPluginScope:
         from cline_hooks.core.vocabulary import PluginScope
 
         class _BlockingPlugin(HooksPlugin):
-            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+            def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
                 if hook_name == PluginScope.PRE_SHELL:
                     return HookResult(block="blocked by plugin")
                 return None

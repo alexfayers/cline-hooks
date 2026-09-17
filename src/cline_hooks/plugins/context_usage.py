@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from cline_hooks.core.plugin import HookResult, HooksPlugin
 from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.state import PluginStateStore
 from cline_hooks.core.vocabulary import NO_RESET_TASK_START_SOURCES, CanonicalHook
 from cline_hooks.handlers.context_nudge import with_team_clause
+
+if TYPE_CHECKING:
+    import logging
 
 _BAND_SIZE = 10_000
 
@@ -138,11 +142,12 @@ def context_note(task_id: str, token_count: int) -> str | None:
 class ContextUsagePlugin(HooksPlugin):
     """Emits the per-band context-usage tier note on tool use and user prompts."""
 
-    def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+    def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
         """Emit the context-usage note from the transcript's token count.
 
         Args:
             hook_name: The hook event name.
+            logger: This plugin's hook-scoped child logger.
             **kwargs: Hook-specific keyword arguments.
 
         Returns:
@@ -176,4 +181,5 @@ class ContextUsagePlugin(HooksPlugin):
         note = context_note(task_id, token_count)
         if note is None:
             return None
+        logger.debug("Emitted context-usage note")
         return HookResult(notes=[note])

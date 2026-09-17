@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from cline_hooks.plugins.build_tools import BuildToolsPlugin
 
 
@@ -36,4 +38,4 @@ class TestBuildToolsPluginBuildCommands:
 class TestBuildToolsPluginWorkspaceContext:
     def test_on_hook_returns_none_for_unhandled_hook(self) -> None:
         plugin = BuildToolsPlugin()
-        assert plugin.on_hook("TaskStart", workspace_roots=[]) is None
+        assert plugin.on_hook("TaskStart", logger=logging.getLogger("test"), workspace_roots=[]) is None

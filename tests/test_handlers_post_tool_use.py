@@ -29,6 +29,7 @@ from cline_hooks.state.workspace import record_workspace
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    import logging
     from pathlib import Path
 
     from tests.conftest import StubTranscript
@@ -846,7 +847,7 @@ class TestWorkspaceChangeToolingNote:
 
 
 class _NotingPlugin(HooksPlugin):
-    def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+    def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
         return HookResult(notes=["PLUGIN NOTE"])
 
 
@@ -899,7 +900,7 @@ class _CapturingPlugin(HooksPlugin):
         self._scope = scope
         self._captured = captured
 
-    def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+    def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
         if hook_name == self._scope:
             self._captured.append(kwargs)
         return None
@@ -956,7 +957,7 @@ class TestToolFailedPluginScope:
 
     def test_plugin_note_merges_with_failure_reminder(self) -> None:
         class _FailureNotingPlugin(HooksPlugin):
-            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+            def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
                 if hook_name == "ToolFailed":
                     return HookResult(notes=["FAILURE PLUGIN NOTE"])
                 return None

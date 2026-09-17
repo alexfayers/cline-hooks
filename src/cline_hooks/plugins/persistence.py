@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from cline_hooks.core.plugin import HookResult, HooksPlugin
 from cline_hooks.core.vocabulary import CanonicalHook, PluginScope
 from cline_hooks.state.memory import has_memory_writes
 from cline_hooks.state.skills import is_session_end_skill
+
+if TYPE_CHECKING:
+    import logging
 
 _FAILURE_PERSIST_NOTE = (
     "A tool just failed. When you fix this, MUST persist what went wrong and the fix "
@@ -20,17 +25,19 @@ _MEMORY_WARNING = (
 class PersistencePlugin(HooksPlugin):
     """Nudges toward memory persistence on tool failure and at session end."""
 
-    def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+    def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
         """Emit a persist-to-memory nudge on tool failure or session end.
 
         Args:
             hook_name: The hook event or plugin-scope name.
+            logger: This plugin's hook-scoped child logger.
             **kwargs: Hook-specific keyword arguments.
 
         Returns:
             A HookResult carrying the relevant nudge, or None.
         """
         if hook_name == PluginScope.TOOL_FAILED:
+            logger.debug("Fired persist-to-memory nudge after tool failure")
             return HookResult(notes=[_FAILURE_PERSIST_NOTE])
         if hook_name == CanonicalHook.POST_TOOL_USE:
             tool_name = kwargs.get("tool_name")
@@ -43,5 +50,6 @@ class PersistencePlugin(HooksPlugin):
                 and is_session_end_skill(tool_name, parameters)
                 and not has_memory_writes(task_id)
             ):
+                logger.debug("Fired no-memory-writes warning at session end")
                 return HookResult(notes=[_MEMORY_WARNING])
         return None
