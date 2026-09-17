@@ -62,3 +62,5 @@ SKILL_TOOLS = frozenset({CanonicalTool.SKILL})
 AGENT_SPAWN_TOOLS = frozenset({CanonicalTool.SPAWN_AGENT})
 PLAN_EXIT_TOOLS = frozenset({CanonicalTool.PLAN_EXIT, CanonicalTool.PLAN_MODE_RESPOND})
 KNOWN_TOOLS = frozenset(CanonicalTool)
+
+NO_RESET_TASK_START_SOURCES = frozenset({TaskSource.RESUME, TaskSource.COMPACT})

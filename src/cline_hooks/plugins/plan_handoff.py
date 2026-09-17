@@ -1,14 +1,82 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from cline_hooks.core.hook_kwargs import TrackToolUseKwargs
 from cline_hooks.core.plugin import HookResult, HooksPlugin
-from cline_hooks.core.vocabulary import CanonicalHook, PluginScope
-from cline_hooks.handlers.context_nudge import with_team_clause
-from cline_hooks.state.plan import (
-    consume_plan_nudge,
-    is_plan_exit_tool,
-    record_plan_exit,
+from cline_hooks.core.state import PluginStateStore
+from cline_hooks.core.vocabulary import (
+    CanonicalHook,
+    NO_RESET_TASK_START_SOURCES,
+    PLAN_EXIT_TOOLS,
+    PluginScope,
 )
+from cline_hooks.handlers.context_nudge import with_team_clause
+
+
+@dataclass
+class _PlanState:
+    """Whether a plan-mode exit occurred this session, arming a pending nudge."""
+
+    pending_nudge: bool = False
+
+
+_store: PluginStateStore[_PlanState] = PluginStateStore("plan-state.json", _PlanState)
+
+
+def is_plan_exit_tool(tool_name: str) -> bool:
+    """Check whether a tool name marks the end of plan mode.
+
+    Args:
+        tool_name: The tool name as reported by the frontend.
+
+    Returns:
+        True if the tool signals a plan-mode exit.
+    """
+    return tool_name in PLAN_EXIT_TOOLS
+
+
+def record_plan_exit(task_id: str) -> None:
+    """Record that a plan-mode exit occurred this session.
+
+    Arms a one-shot handoff nudge to be shown on the next user prompt.
+
+    Args:
+        task_id: The session or task identifier.
+    """
+    state = _store.get(task_id)
+    state.pending_nudge = True
+    _store.set(task_id, state)
+
+
+def consume_plan_nudge(task_id: str) -> bool:
+    """Return whether a pending plan-handoff nudge should fire, consuming it.
+
+    Fires True at most once per recorded plan exit; subsequent calls return
+    False until another plan exit is recorded.
+
+    Args:
+        task_id: The session or task identifier.
+
+    Returns:
+        True if a plan-handoff nudge is pending for this session.
+    """
+    state = _store.get(task_id)
+    if not state.pending_nudge:
+        return False
+    state.pending_nudge = False
+    _store.set(task_id, state)
+    return True
+
+
+def reset(task_id: str) -> None:
+    """Clear the plan-exit record for a session.
+
+    Args:
+        task_id: The session or task identifier.
+    """
+    _store.reset(task_id)
+
 
 _PLAN_HANDOFF_NUDGE = (
     "PLAN COMPLETE: A plan was just finalized this session. SHOULD hand off implementation to a fresh "
@@ -59,4 +127,16 @@ class PlanHandoffPlugin(HooksPlugin):
             task_id = kwargs.get("task_id")
             if isinstance(task_id, str):
                 return _consumed_nudge(task_id)
+            return None
+        if hook_name == CanonicalHook.TASK_START:
+            task_id = kwargs.get("task_id")
+            source = kwargs.get("source")
+            if isinstance(task_id, str) and source not in NO_RESET_TASK_START_SOURCES:
+                reset(task_id)
+            return None
+        if hook_name == CanonicalHook.TASK_COMPLETE:
+            task_id = kwargs.get("task_id")
+            if isinstance(task_id, str):
+                reset(task_id)
+            return None
         return None

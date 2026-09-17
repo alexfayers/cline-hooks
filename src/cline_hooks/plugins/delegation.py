@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 import contextlib
 from typing import TYPE_CHECKING
 
@@ -11,13 +12,60 @@ import bashlex.errors
 from cline_hooks.config import agent_teams_enabled
 from cline_hooks.core.hook_kwargs import PreShellKwargs, PreToolUseKwargs
 from cline_hooks.core.plugin import HookResult, HooksPlugin
-from cline_hooks.core.vocabulary import CanonicalHook, FILE_EDIT_TOOLS, PluginScope
+from cline_hooks.core.state import PluginStateStore
+from cline_hooks.core.vocabulary import (
+    CanonicalHook,
+    FILE_EDIT_TOOLS,
+    NO_RESET_TASK_START_SOURCES,
+    PluginScope,
+)
 from cline_hooks.handlers.commands import extract_commands
 from cline_hooks.state.agents import has_agent_use
-from cline_hooks.state.delegation import should_nudge_inline_work
 
 if TYPE_CHECKING:
     from cline_hooks.handlers.commands import ParsedCommand
+
+
+@dataclass
+class _DelegationState:
+    """Whether the one-shot inline-work delegation nudge has fired for a session."""
+
+    nudged: bool = False
+
+
+_store: PluginStateStore[_DelegationState] = PluginStateStore(
+    "delegation-state.json", _DelegationState
+)
+
+
+def should_nudge_inline_work(task_id: str) -> bool:
+    """Check whether the inline-work delegation nudge should fire, consuming it.
+
+    Fires True the first time it is called for a session; every subsequent
+    call for the same session returns False.
+
+    Args:
+        task_id: The session or task identifier.
+
+    Returns:
+        True only on the first call for this task_id.
+    """
+    state = _store.get(task_id)
+    if state.nudged:
+        return False
+    state.nudged = True
+    _store.set(task_id, state)
+    return True
+
+
+def reset(task_id: str) -> None:
+    """Clear the delegation-nudge record for a session.
+
+    Args:
+        task_id: The session or task identifier.
+    """
+    _store.reset(task_id)
+
 
 _READ_ONLY_COMMANDS = frozenset(
     {
@@ -123,6 +171,12 @@ class DelegationPlugin(HooksPlugin):
         Returns:
             A HookResult carrying the nudge, or None.
         """
+        if hook_name == CanonicalHook.TASK_START:
+            task_id = kwargs.get("task_id")
+            source = kwargs.get("source")
+            if isinstance(task_id, str) and source not in NO_RESET_TASK_START_SOURCES:
+                reset(task_id)
+            return None
         if hook_name not in (CanonicalHook.PRE_TOOL_USE, PluginScope.PRE_SHELL):
             return None
         if not agent_teams_enabled():

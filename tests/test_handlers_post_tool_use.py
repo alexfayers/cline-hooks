@@ -22,8 +22,8 @@ from cline_hooks.plugins.research import (
     get_all_research_tool_names,
 )
 from cline_hooks.state.memory import record_memory_write
-from cline_hooks.state.plan import consume_plan_nudge, record_plan_exit
-from cline_hooks.state.research import get_research
+from cline_hooks.plugins.plan_handoff import consume_plan_nudge, record_plan_exit
+from cline_hooks.plugins.research import get_research
 from cline_hooks.state.retrospective import get_count, record_session
 from cline_hooks.state.workspace import record_workspace
 

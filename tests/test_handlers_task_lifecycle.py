@@ -31,13 +31,13 @@ from cline_hooks.handlers.task_lifecycle import (
     handle_task_resume,
     handle_task_start,
 )
+from cline_hooks.plugins.context_usage import should_nudge_context
+from cline_hooks.plugins.nudges import increment
+from cline_hooks.plugins.plan_handoff import consume_plan_nudge, record_plan_exit
 from cline_hooks.state.agents import has_agent_use, record_agent_use
-from cline_hooks.state.context import should_nudge_context
 from cline_hooks.state.memory import has_memory_writes, record_memory_write
-from cline_hooks.state.plan import consume_plan_nudge, record_plan_exit
 from cline_hooks.state.skills import is_skill_called, record_skill
 from cline_hooks.state.store import TaskBlockEvent, TaskStateStore
-from cline_hooks.state.turns import increment
 from cline_hooks.state.workspace import record_workspace, should_note_workspace_change
 
 BASE = {

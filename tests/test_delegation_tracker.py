@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from cline_hooks.state.delegation import reset, should_nudge_inline_work
+from cline_hooks.plugins.delegation import reset, should_nudge_inline_work
 
 _TASK = "task-1"
 

@@ -14,8 +14,12 @@ from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.frontends.kiro import KiroProtocol
 from cline_hooks.handlers.stop import handle_stop
 from cline_hooks.plugins.nudges import _contains_dismissal_signal
-from cline_hooks.plugins.research import RESEARCH_TRACE_CAP, format_research_trace
-from cline_hooks.state.research import get_research, record_research
+from cline_hooks.plugins.research import (
+    RESEARCH_TRACE_CAP,
+    format_research_trace,
+    get_research,
+    record_research,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable

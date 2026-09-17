@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from cline_hooks.state.plan import (
+from cline_hooks.plugins.plan_handoff import (
     consume_plan_nudge,
     is_plan_exit_tool,
     record_plan_exit,

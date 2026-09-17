@@ -18,15 +18,15 @@ from cline_hooks.plugins.nudges import (
     _contains_correction_signal,
     _contains_info_signal,
 )
-from cline_hooks.state.agents import record_agent_use
-from cline_hooks.state.context import (
+from cline_hooks.plugins.context_usage import (
     _BAND_SIZE,
     CONTEXT_DEGRADED_THRESHOLD,
     CONTEXT_REDUCED_THRESHOLD,
 )
-from cline_hooks.state.plan import record_plan_exit
-import cline_hooks.state.turns as turns_module
-from cline_hooks.state.turns import _AGENT_NUDGE_THRESHOLD
+import cline_hooks.plugins.nudges as nudges_module
+from cline_hooks.plugins.nudges import _AGENT_NUDGE_THRESHOLD
+from cline_hooks.plugins.plan_handoff import record_plan_exit
+from cline_hooks.state.agents import record_agent_use
 from tests.conftest import StubTranscript
 
 if TYPE_CHECKING:
@@ -382,9 +382,9 @@ class TestHandleUserPromptSubmit:
             _run("neutral")
             for _ in range(5):
                 _run(message)
-        assert turns_module._read().get("task-1") == 1
+        assert nudges_module._store.get("task-1").count == 1
         _run("neutral")
-        assert turns_module._read().get("task-1") == 2
+        assert nudges_module._store.get("task-1").count == 2
 
     def test_agent_tag_preceded_by_other_text_does_not_fire_info_reminder(self) -> None:
         message = (

@@ -10,7 +10,7 @@ import pytest
 from cline_hooks.core.protocol import RawPayload
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.handlers.user_prompt import handle_user_prompt_submit
-from cline_hooks.state.turns import (
+from cline_hooks.plugins.nudges import (
     _AGENT_NUDGE_THRESHOLD,
     _REMINDER_INTERVAL,
     _SCOPE_CHECK_THRESHOLD,

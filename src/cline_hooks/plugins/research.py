@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 import logging
 from typing import TYPE_CHECKING, Any
 
 from cline_hooks.core.parameters import WebResearchParameters
 from cline_hooks.core.plugin import HookResult, HooksPlugin
 from cline_hooks.core.protocol import get_protocol
-from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
-import cline_hooks.state.research as research_state
+from cline_hooks.core.state import PluginStateStore
+from cline_hooks.core.vocabulary import (
+    CanonicalHook,
+    CanonicalTool,
+    NO_RESET_TASK_START_SOURCES,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -17,6 +22,68 @@ logger = logging.getLogger("hooks")
 WEB_RESEARCH_TOOLS = frozenset({CanonicalTool.WEB_FETCH, CanonicalTool.WEB_SEARCH})
 
 RESEARCH_TRACE_CAP = 15
+
+
+@dataclass
+class _ResearchState:
+    """Research lookups recorded for a session."""
+
+    records: list[dict[str, str]] = field(default_factory=list)
+
+
+_store: PluginStateStore[_ResearchState] = PluginStateStore(
+    "research-state.json", _ResearchState
+)
+
+
+def is_research_tool(tool_name: str, extra: frozenset[str]) -> bool:
+    """Check whether a tool name counts as an external research lookup.
+
+    Args:
+        tool_name: The tool name as reported by the frontend.
+        extra: Research tool names contributed by plugins.
+
+    Returns:
+        True if the tool fetches external information.
+    """
+    return tool_name in extra
+
+
+def record_research(task_id: str, tool: str, detail: str) -> None:
+    """Record that a research lookup was made for a session.
+
+    Every lookup is recorded so the surfaced trace reflects the full set of
+    external information gathered during the turn.
+
+    Args:
+        task_id: The session or task identifier.
+        tool: The research tool that was called.
+        detail: A short identifier for the lookup (e.g. a URL or query).
+    """
+    state = _store.get(task_id)
+    state.records.append({"tool": tool, "detail": detail})
+    _store.set(task_id, state)
+
+
+def get_research(task_id: str) -> list[dict[str, str]]:
+    """Return the research lookups recorded for a session.
+
+    Args:
+        task_id: The session or task identifier.
+
+    Returns:
+        A list of {"tool": ..., "detail": ...} records in call order.
+    """
+    return _store.get(task_id).records
+
+
+def reset(task_id: str) -> None:
+    """Clear recorded research for a session.
+
+    Args:
+        task_id: The session or task identifier.
+    """
+    _store.reset(task_id)
 
 
 def get_all_research_tool_names(plugins: list[HooksPlugin]) -> frozenset[str]:
@@ -106,9 +173,9 @@ def record_research_use(  # noqa: PLR0913, PLR0917
         extractors: Per-tool research detail extractors contributed by plugins.
     """
     research_tool = mcp_tool_name or tool_name
-    if research_state.is_research_tool(research_tool, research_names):
+    if is_research_tool(research_tool, research_names):
         detail = extract_research_detail(research_tool, arguments, extractors)
-        research_state.record_research(task_id, research_tool, detail)
+        record_research(task_id, research_tool, detail)
 
 
 def format_research_trace(records: list[dict[str, str]], header: str) -> str:
@@ -182,15 +249,26 @@ class ResearchPlugin(HooksPlugin):
             A HookResult carrying the trace note, or None if there is nothing
             to report.
         """
+        if hook_name == CanonicalHook.TASK_START:
+            task_id = kwargs.get("task_id")
+            source = kwargs.get("source")
+            if isinstance(task_id, str) and source not in NO_RESET_TASK_START_SOURCES:
+                reset(task_id)
+            return None
+        if hook_name == CanonicalHook.TASK_COMPLETE:
+            task_id = kwargs.get("task_id")
+            if isinstance(task_id, str):
+                reset(task_id)
+            return None
         if hook_name != CanonicalHook.STOP:
             return None
         task_id = kwargs.get("task_id")
         if not isinstance(task_id, str):
             return None
         trace = format_research_trace(
-            research_state.get_research(task_id), get_protocol().research_trace_header()
+            get_research(task_id), get_protocol().research_trace_header()
         )
-        research_state.reset(task_id)
+        reset(task_id)
         if not trace:
             return None
         return HookResult(notes=[trace])

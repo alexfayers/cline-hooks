@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from cline_hooks.plugins.research import WEB_RESEARCH_TOOLS
-from cline_hooks.state.research import (
+from cline_hooks.plugins.research import (
+    WEB_RESEARCH_TOOLS,
     get_research,
     is_research_tool,
     record_research,

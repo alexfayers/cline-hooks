@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 import contextlib
 import random
 import re
@@ -9,12 +10,92 @@ import git.exc
 
 from cline_hooks.core.plugin import HookResult, HooksPlugin
 from cline_hooks.core.protocol import get_protocol
-from cline_hooks.core.vocabulary import CanonicalHook, FILE_EDIT_TOOLS
+from cline_hooks.core.state import PluginStateStore
+from cline_hooks.core.timing import local_now
+from cline_hooks.core.vocabulary import (
+    CanonicalHook,
+    FILE_EDIT_TOOLS,
+    NO_RESET_TASK_START_SOURCES,
+)
 from cline_hooks.state.agents import agent_use_count
 from cline_hooks.state.retrospective import record_session
 from cline_hooks.state.skills import is_wrap_up_skill
-from cline_hooks.state.timing import local_now
-from cline_hooks.state.turns import increment, should_nudge_agents, should_remind
+
+
+@dataclass
+class _TurnsState:
+    """Per-session user-prompt turn count."""
+
+    count: int = 0
+
+
+_store: PluginStateStore[_TurnsState] = PluginStateStore(
+    "turns-state.json", _TurnsState
+)
+
+_SCOPE_CHECK_THRESHOLD = 80
+_REMINDER_INTERVAL = 40
+_AGENT_NUDGE_THRESHOLD = 50
+
+
+def increment(task_id: str) -> int:
+    """Increment and return the turn count for a session.
+
+    Args:
+        task_id: The session or task identifier.
+
+    Returns:
+        The new turn count after incrementing.
+    """
+    state = _store.get(task_id)
+    state.count += 1
+    _store.set(task_id, state)
+    return state.count
+
+
+def should_remind(turn_count: int) -> bool:
+    """Check whether the current turn count should trigger a scope reminder.
+
+    Triggers at the threshold, then every REMINDER_INTERVAL turns after.
+
+    Args:
+        turn_count: The current turn count.
+
+    Returns:
+        True if a scope-check reminder should be shown.
+    """
+    if turn_count < _SCOPE_CHECK_THRESHOLD:
+        return False
+    return (turn_count - _SCOPE_CHECK_THRESHOLD) % _REMINDER_INTERVAL == 0
+
+
+def should_nudge_agents(turn_count: int, agent_count: int) -> bool:
+    """Check whether to nudge for more subagent fan-out, based on usage rate.
+
+    Checked every AGENT_NUDGE_THRESHOLD turns, targeting roughly one subagent
+    per checkpoint, so it re-fires in a session that fanned out early and then
+    ran on sequentially.
+
+    Args:
+        turn_count: The current turn count.
+        agent_count: The number of subagent invocations recorded this session.
+
+    Returns:
+        True if an agent fan-out nudge should be shown.
+    """
+    if turn_count < _AGENT_NUDGE_THRESHOLD or turn_count % _AGENT_NUDGE_THRESHOLD != 0:
+        return False
+    return agent_count < turn_count // _AGENT_NUDGE_THRESHOLD
+
+
+def reset(task_id: str) -> None:
+    """Clear the turn count for a session.
+
+    Args:
+        task_id: The session or task identifier.
+    """
+    _store.reset(task_id)
+
 
 _COMMIT_REMINDER = (
     "COMMIT REMINDER: There are a large number of uncommitted changes. "
@@ -211,6 +292,17 @@ class NudgesPlugin(HooksPlugin):
             return self._stop(kwargs)
         if hook_name == CanonicalHook.USER_PROMPT_SUBMIT:
             return self._user_prompt_submit(kwargs)
+        if hook_name == CanonicalHook.TASK_START:
+            task_id = kwargs.get("task_id")
+            source = kwargs.get("source")
+            if isinstance(task_id, str) and source not in NO_RESET_TASK_START_SOURCES:
+                reset(task_id)
+            return None
+        if hook_name == CanonicalHook.TASK_COMPLETE:
+            task_id = kwargs.get("task_id")
+            if isinstance(task_id, str):
+                reset(task_id)
+            return None
         return None
 
     def _post_tool_use(self, kwargs: dict[str, object]) -> HookResult | None:

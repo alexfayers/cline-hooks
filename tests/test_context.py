@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from cline_hooks.state.context import (
+from cline_hooks.plugins.context_usage import (
     _BAND_SIZE,
-    CONTEXT_REDUCED_THRESHOLD,
     reset,
     should_nudge_context,
 )
@@ -40,26 +39,6 @@ class TestShouldNudgeContext:
     def test_band_boundary_stays_in_band(self) -> None:
         assert should_nudge_context("t", _BAND_SIZE + 5) is True
         assert should_nudge_context("t", _BAND_SIZE + 6) is False
-
-
-class TestLegacyIntEntryMigration:
-    def test_legacy_int_entry_does_not_crash_should_nudge(self) -> None:
-        from cline_hooks.state.context import _STATE_PATH
-
-        _STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
-        _STATE_PATH.write_text('{"legacy-task": 3}')
-        assert should_nudge_context("legacy-task", 3 * _BAND_SIZE) is False
-        assert should_nudge_context("legacy-task", 4 * _BAND_SIZE) is True
-
-    def test_legacy_int_entry_does_not_crash_crossed_boundary(self) -> None:
-        from cline_hooks.state.context import _STATE_PATH, crossed_boundary
-
-        _STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
-        _STATE_PATH.write_text('{"legacy-task": 5}')
-        assert (
-            crossed_boundary("legacy-task", CONTEXT_REDUCED_THRESHOLD + _BAND_SIZE)
-            == CONTEXT_REDUCED_THRESHOLD
-        )
 
 
 class TestReset:

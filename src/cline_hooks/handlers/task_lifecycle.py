@@ -7,17 +7,12 @@ from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
-from cline_hooks.core.vocabulary import CanonicalHook, TaskSource
+from cline_hooks.core.vocabulary import CanonicalHook, NO_RESET_TASK_START_SOURCES
 from cline_hooks.handlers.git_context import resolve_tooling_notes
 from cline_hooks.state.agents import reset as _reset_agents
-from cline_hooks.state.context import reset as _reset_context
-from cline_hooks.state.delegation import reset as _reset_delegation
 from cline_hooks.state.memory import reset as _reset_memory
-from cline_hooks.state.plan import reset as _reset_plan
-from cline_hooks.state.research import reset as _reset_research
 from cline_hooks.state.skills import reset as _reset_skills
 from cline_hooks.state.store import TaskStateStore
-from cline_hooks.state.turns import reset as _reset_turns
 from cline_hooks.state.workspace import (
     record_workspace,
     reset as reset_workspace,
@@ -35,8 +30,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger("hooks")
 
 _store = TaskStateStore()
-
-_NO_RESET_SOURCES = frozenset({TaskSource.RESUME, TaskSource.COMPACT})
 
 
 def _format_block_history(blocks: list[TaskBlockEvent]) -> str:
@@ -61,15 +54,10 @@ def handle_task_start(hook: HookInputTaskStart) -> None:
         hook: The hook input data.
     """
     source = hook.taskStart.source if hook.taskStart else ""
-    if source not in _NO_RESET_SOURCES:
+    if source not in NO_RESET_TASK_START_SOURCES:
         _reset_skills(hook.taskId)
         _reset_memory(hook.taskId)
-        _reset_turns(hook.taskId)
         _reset_agents(hook.taskId)
-        _reset_context(hook.taskId)
-        _reset_research(hook.taskId)
-        _reset_plan(hook.taskId)
-        _reset_delegation(hook.taskId)
     parts: list[str] = []
 
     plugins = load_plugins()
@@ -153,11 +141,7 @@ def handle_task_complete(hook: HookInputTaskComplete) -> None:
     """
     _store.clear_blocks(hook.taskId)
     _reset_memory(hook.taskId)
-    _reset_turns(hook.taskId)
     _reset_agents(hook.taskId)
-    _reset_context(hook.taskId)
-    _reset_research(hook.taskId)
-    _reset_plan(hook.taskId)
     reset_workspace(hook.taskId)
     collect_hook_results(load_plugins(), "TaskComplete", task_id=hook.taskId)
     allow()

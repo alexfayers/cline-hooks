@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
+from cline_hooks.core.timing import TIME_FORMAT, local_now
 from cline_hooks.core.vocabulary import CanonicalHook
-from cline_hooks.state.timing import TIME_FORMAT, local_now
 
 if TYPE_CHECKING:
     from cline_hooks.core.models import HookInputUserPromptSubmit
