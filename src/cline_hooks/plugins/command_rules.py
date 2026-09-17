@@ -2,14 +2,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from cline_hooks.core.plugin import HookResult, HooksPlugin
-from cline_hooks.core.vocabulary import CanonicalHook
+from cline_hooks.core.plugin import HooksPlugin
 from cline_hooks.handlers.commands import CommandRule
+from cline_hooks.plugins.build_tools import DEFAULT_BUILD_COMMANDS
 
 if TYPE_CHECKING:
     from cline_hooks.handlers.commands import ParsedCommand
-
-_BUILD_COMMANDS = frozenset({"just", "pnpm", "npm", "pytest", "flutter", "dart"})
 
 
 def validate_git_commit_message(cmd: ParsedCommand, _all: list[ParsedCommand]) -> bool:
@@ -45,7 +43,7 @@ def _requires_build_context(
     _cmd: ParsedCommand, all_commands: list[ParsedCommand]
 ) -> bool:
     """Return True only when a build tool is present in the same command list."""
-    return any(cmd.name in _BUILD_COMMANDS for cmd in all_commands)
+    return any(cmd.name in DEFAULT_BUILD_COMMANDS for cmd in all_commands)
 
 
 def _is_standalone(_cmd: ParsedCommand, all_commands: list[ParsedCommand]) -> bool:
@@ -71,16 +69,8 @@ def _is_standalone_tail(cmd: ParsedCommand, all_commands: list[ParsedCommand]) -
     return len(all_commands) == 1 and not _is_follow(cmd)
 
 
-class DefaultPlugin(HooksPlugin):
-    """Default bundled plugin providing standard hook behaviour."""
-
-    def get_build_commands(self) -> frozenset[str]:
-        """Return the standard set of build tool command names.
-
-        Returns:
-            frozenset containing just, pnpm, npm, pytest, flutter, and dart.
-        """
-        return _BUILD_COMMANDS
+class CommandRulesPlugin(HooksPlugin):
+    """Standard shell-safety command rules (rm -f, commit messages, build output)."""
 
     def get_command_rules(self) -> list[CommandRule]:
         """Return the standard set of command rules.
@@ -149,20 +139,3 @@ class DefaultPlugin(HooksPlugin):
                 validator=_is_standalone,
             ),
         ]
-
-    def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
-        """Alert when a PostToolUse shell result reports a build failure.
-
-        Args:
-            hook_name: The hook event name.
-            **kwargs: Hook-specific keyword arguments.
-
-        Returns:
-            A HookResult alerting on a build failure, otherwise None.
-        """
-        if hook_name != CanonicalHook.POST_TOOL_USE:
-            return None
-        tool_result = kwargs.get("tool_result")
-        if isinstance(tool_result, str) and "BUILD FAILED" in tool_result:
-            return HookResult(notes=["The build failed! It did NOT pass. It FAILED!!"])
-        return None

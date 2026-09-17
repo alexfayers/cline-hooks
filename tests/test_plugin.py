@@ -5,7 +5,6 @@ import importlib.metadata
 import sys
 from typing import TYPE_CHECKING
 
-import bashlex
 import pytest
 
 if TYPE_CHECKING:
@@ -23,13 +22,11 @@ from cline_hooks.core.plugin import (
 )
 from cline_hooks.handlers.commands import (
     CommandRule,
-    check_rules,
-    extract_commands,
     get_all_build_commands,
     get_all_command_rules,
 )
 import cline_hooks.plugins as plugins_pkg
-from cline_hooks.plugins.default import DefaultPlugin
+from cline_hooks.plugins.command_rules import CommandRulesPlugin
 
 
 class TestHooksPluginDefaults:
@@ -173,10 +170,10 @@ class TestLoadPlugins:
         plugins = load_plugins()
         assert isinstance(plugins, list)
 
-    def test_includes_default_plugin(self) -> None:
+    def test_includes_command_rules_plugin(self) -> None:
         _plugin_cache._loaded = None
         plugins = load_plugins()
-        assert any(isinstance(p, DefaultPlugin) for p in plugins)
+        assert any(isinstance(p, CommandRulesPlugin) for p in plugins)
 
     def test_result_is_cached(self) -> None:
         _plugin_cache._loaded = None
@@ -220,81 +217,6 @@ class TestLoadPlugins:
         finally:
             sys.modules.pop(origin_name, None)
             sys.modules.pop(reexport_name, None)
-
-
-class TestDefaultPluginBuildCommands:
-    def test_contains_just(self) -> None:
-        plugin = DefaultPlugin()
-        assert "just" in plugin.get_build_commands()
-
-    def test_contains_pytest(self) -> None:
-        plugin = DefaultPlugin()
-        assert "pytest" in plugin.get_build_commands()
-
-    def test_contains_flutter(self) -> None:
-        plugin = DefaultPlugin()
-        assert "flutter" in plugin.get_build_commands()
-
-    def test_contains_dart(self) -> None:
-        plugin = DefaultPlugin()
-        assert "dart" in plugin.get_build_commands()
-
-    def test_does_not_contain_brazil_build(self) -> None:
-        plugin = DefaultPlugin()
-        assert "brazil-build" not in plugin.get_build_commands()
-
-    def test_does_not_contain_eda(self) -> None:
-        plugin = DefaultPlugin()
-        assert "eda" not in plugin.get_build_commands()
-
-    def test_does_not_contain_bb(self) -> None:
-        plugin = DefaultPlugin()
-        assert "bb" not in plugin.get_build_commands()
-
-
-class TestDefaultPluginCommandRules:
-    def test_returns_command_rules(self) -> None:
-        plugin = DefaultPlugin()
-        rules = plugin.get_command_rules()
-        assert all(isinstance(r, CommandRule) for r in rules)
-
-    def test_includes_rm_rule(self) -> None:
-        plugin = DefaultPlugin()
-        commands = [r.command for r in plugin.get_command_rules()]
-        assert "rm" in commands
-
-    def test_includes_git_rule(self) -> None:
-        plugin = DefaultPlugin()
-        commands = [r.command for r in plugin.get_command_rules()]
-        assert "git" in commands
-
-    def test_includes_grep_rule(self) -> None:
-        plugin = DefaultPlugin()
-        commands = [r.command for r in plugin.get_command_rules()]
-        assert "grep" in commands
-
-
-class TestDefaultPluginGitCommitMessageRule:
-    def test_single_line_commit_message_is_allowed(self) -> None:
-        plugin = DefaultPlugin()
-        commands = extract_commands(
-            bashlex.parse('git commit -m "single line message"')
-        )
-        assert check_rules(commands, plugin.get_command_rules()) is None
-
-    def test_multi_line_commit_message_is_blocked(self) -> None:
-        plugin = DefaultPlugin()
-        commands = extract_commands(bashlex.parse('git commit -m "line one\nline two"'))
-        violated = check_rules(commands, plugin.get_command_rules())
-        assert violated is not None
-        assert violated.command == "git"
-        assert violated.message == "Commit messages MUST be single-line with no body."
-
-
-class TestDefaultPluginWorkspaceContext:
-    def test_on_hook_returns_none(self) -> None:
-        plugin = DefaultPlugin()
-        assert plugin.on_hook("TaskStart", workspace_roots=[]) is None
 
 
 class TestGetAllBuildCommands:

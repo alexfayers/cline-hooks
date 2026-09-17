@@ -12,7 +12,7 @@ from cline_hooks.frontends.claude_code import ClaudeCodeProtocol
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.handlers.post_tool_use import _record_tool_use, handle_post_tool_use
 from cline_hooks.plugins.context_usage import context_note
-from cline_hooks.plugins.default import DefaultPlugin
+from cline_hooks.plugins.build_tools import BuildToolsPlugin
 from cline_hooks.plugins.nudges import _RETRO_THRESHOLD, NudgesPlugin
 from cline_hooks.plugins.persistence import PersistencePlugin
 from cline_hooks.plugins.research import (
@@ -915,7 +915,7 @@ class TestPluginNoteDoesNotTruncateLaterChecks:
         hook = _make_hook("execute_command", result="BUILD FAILED: boom")
         with patch(
             "cline_hooks.handlers.post_tool_use.load_plugins",
-            return_value=[_NotingPlugin(), DefaultPlugin()],
+            return_value=[_NotingPlugin(), BuildToolsPlugin()],
         ):
             result = _run(hook)
         assert result is not None
