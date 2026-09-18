@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-logger = logging.getLogger("hooks")
+logger = logging.getLogger("hooks.hook_kwargs")
 
 
 class HookKwargs(BaseModel):

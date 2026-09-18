@@ -7,7 +7,7 @@ import logging
 
 from cline_hooks.state.paths import get_data_dir
 
-logger = logging.getLogger("hooks")
+logger = logging.getLogger("hooks.state.memory")
 
 _STATE_PATH = get_data_dir() / "memory-state.json"
 

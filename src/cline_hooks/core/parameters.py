@@ -21,7 +21,7 @@ from cline_hooks.core.vocabulary import CanonicalTool
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
 
-logger = logging.getLogger("hooks")
+logger = logging.getLogger("hooks.parameters")
 
 _ModelT = TypeVar("_ModelT", bound="ToolParameters")
 

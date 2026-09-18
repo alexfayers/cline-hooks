@@ -8,7 +8,7 @@ import logging
 from cline_hooks.core.vocabulary import AGENT_SPAWN_TOOLS
 from cline_hooks.state.paths import get_data_dir
 
-logger = logging.getLogger("hooks")
+logger = logging.getLogger("hooks.state.agents")
 
 _STATE_PATH = get_data_dir() / "agents-state.json"
 

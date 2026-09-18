@@ -6,7 +6,7 @@ from typing import NoReturn
 from cline_hooks.core.outcome import Disposition, Outcome
 from cline_hooks.core.protocol import get_protocol
 
-logger = logging.getLogger("hooks")
+logger = logging.getLogger("hooks.response")
 
 
 def allow(

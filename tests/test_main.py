@@ -1,12 +1,20 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
 
-from cline_hooks._main import _build_parser, _list_plugins, _run_hook, main
+from cline_hooks._main import (
+    _build_parser,
+    _invocation_filter,
+    _InvocationContextFilter,
+    _list_plugins,
+    _run_hook,
+    main,
+)
 from cline_hooks.core.frontends import FRONTENDS, FRONTENDS_BY_NAME
 from cline_hooks.core.vocabulary import CanonicalHook
 
@@ -63,6 +71,52 @@ class TestHookDispatchGating:
     def test_an_unknown_event_name_is_ignored(self) -> None:
         output = _run({"hookName": "SomethingElse", "taskId": "task-1", "workspaceRoots": []})
         assert json.loads(output[0])["cancel"] is False
+
+
+_TASK_START_PAYLOAD: dict[str, object] = {
+    "hookName": "TaskStart",
+    "taskId": "task-1",
+    "workspaceRoots": [],
+    "taskStart": {"task": "", "source": "startup"},
+}
+
+
+class TestInvocationContextFilter:
+    """Every log record is stamped with the invocation's frontend and agent."""
+
+    def test_defaults_agent_to_main_when_absent(self) -> None:
+        _run(_TASK_START_PAYLOAD)
+        assert _invocation_filter.agent == "main"
+
+    def test_uses_the_payload_agent_type(self) -> None:
+        _run({**_TASK_START_PAYLOAD, "agentType": "general-purpose"})
+        assert _invocation_filter.agent == "general-purpose"
+
+    def test_uses_the_detected_frontends_name(self) -> None:
+        _run(_TASK_START_PAYLOAD)
+        assert _invocation_filter.frontend == "cline"
+
+    def test_context_omits_the_agent_when_main(self) -> None:
+        context_filter = _InvocationContextFilter()
+        context_filter.frontend = "cline"
+        context_filter.agent = "main"
+        record = logging.LogRecord("hooks", logging.INFO, __file__, 1, "msg", (), None)
+        context_filter.filter(record)
+        assert record.context == "cline"  # type: ignore[attr-defined]
+
+    def test_context_includes_the_agent_when_not_main(self) -> None:
+        context_filter = _InvocationContextFilter()
+        context_filter.frontend = "cline"
+        context_filter.agent = "general-purpose"
+        record = logging.LogRecord("hooks", logging.INFO, __file__, 1, "msg", (), None)
+        context_filter.filter(record)
+        assert record.context == "cline/general-purpose"  # type: ignore[attr-defined]
+
+    def test_context_is_just_a_dash_before_the_frontend_is_known(self) -> None:
+        context_filter = _InvocationContextFilter()
+        record = logging.LogRecord("hooks", logging.INFO, __file__, 1, "msg", (), None)
+        context_filter.filter(record)
+        assert record.context == "-"  # type: ignore[attr-defined]
 
 
 class TestInstallSubcommands:

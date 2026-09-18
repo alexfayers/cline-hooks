@@ -9,7 +9,7 @@ from cline_hooks.core.parameters import ReadParameters, ShellParameters, SkillPa
 from cline_hooks.core.vocabulary import SHELL_TOOLS, CanonicalTool
 from cline_hooks.state.paths import get_data_dir
 
-logger = logging.getLogger("hooks")
+logger = logging.getLogger("hooks.state.skills")
 
 _SKILL_REQUIREMENTS: dict[str, str] = {
     "git": "git-usage",

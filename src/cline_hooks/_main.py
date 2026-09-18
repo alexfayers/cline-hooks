@@ -3,22 +3,50 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
-from typing import NoReturn
+from typing import TYPE_CHECKING, NoReturn
 
 from cline_hooks.core.frontends import FRONTENDS, FRONTENDS_BY_NAME, select_protocol
-from cline_hooks.core.protocol import RawPayload, set_protocol
+from cline_hooks.core.protocol import Protocol, RawPayload, set_protocol
 from cline_hooks.core.registry import HOOK_HANDLERS
 from cline_hooks.core.response import allow, emit
 import cline_hooks.handlers  # ruff: ignore[unused-import]
 from cline_hooks.state.paths import get_data_dir
 
+if TYPE_CHECKING:
+    from cline_hooks.core.models import HookInput
+
+
+class _InvocationContextFilter(logging.Filter):
+    """Stamps every record with the current invocation's frontend and agent."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.frontend = "-"
+        self.agent = "-"
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        """Attach the current invocation context to the record and always allow it through.
+
+        Returns:
+            True, unconditionally.
+        """
+        if self.frontend == "-" or self.agent == "main":
+            record.context = self.frontend
+        else:
+            record.context = f"{self.frontend}/{self.agent}"
+        return True
+
+
+_invocation_filter = _InvocationContextFilter()
+
 logging.basicConfig(
     level=logging.DEBUG,
     filename=get_data_dir() / "cline-hooks.log",
     filemode="a",
-    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    format="%(asctime)s %(levelname)s %(name)s[%(context)s]: %(message)s",
     datefmt="%Y-%m-%dT%H:%M:%S",
 )
+logging.root.handlers[0].addFilter(_invocation_filter)
 
 logger = logging.getLogger("hooks")
 
@@ -53,15 +81,27 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _parse_hook(payload: RawPayload) -> tuple[Protocol, HookInput]:
+    """Detect the frontend, configure logging for it, and parse the payload.
+
+    Returns:
+        The detected protocol and the parsed hook input.
+    """
+    proto = select_protocol(payload).from_payload(payload)
+    set_protocol(proto)
+    proto.configure_logging()
+    hook = proto.parse(payload)
+    _invocation_filter.frontend = proto.frontend_spec.name if proto.frontend_spec else "-"
+    _invocation_filter.agent = hook.agentType or "main"
+    return proto, hook
+
+
 def _run_hook() -> NoReturn:
     """Read hook input from stdin and dispatch to the appropriate handler."""
     logger.debug("=== start ===")
     try:
         payload = RawPayload.from_stdin(input())
-        proto = select_protocol(payload).from_payload(payload)
-        set_protocol(proto)
-        proto.configure_logging()
-        hook = proto.parse(payload)
+        proto, hook = _parse_hook(payload)
     except Exception:
         logger.exception("Failed to parse hook input")
         allow()

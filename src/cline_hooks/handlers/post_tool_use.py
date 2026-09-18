@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from cline_hooks.core.models import HookInputPostToolUse
     from cline_hooks.core.plugin import HooksPlugin
 
-logger = logging.getLogger("hooks")
+logger = logging.getLogger("hooks.post_tool_use")
 
 
 def _get_all_state_write_tool_names(plugins: list[HooksPlugin]) -> frozenset[str]:

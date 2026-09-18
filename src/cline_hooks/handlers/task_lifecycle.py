@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     )
     from cline_hooks.state.store import TaskBlockEvent
 
-logger = logging.getLogger("hooks")
+logger = logging.getLogger("hooks.task_lifecycle")
 
 _store = TaskStateStore()
 

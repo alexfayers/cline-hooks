@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
     from cline_hooks.handlers.commands import CommandRule
 
-logger = logging.getLogger("hooks")
+logger = logging.getLogger("hooks.plugin_loader")
 
 
 @dataclass
@@ -74,9 +74,12 @@ def collect_hook_results(plugins: list[HooksPlugin], hook_name: str, **kwargs: o
     """
     merged = HookResult()
     for plugin in plugins:
-        result = plugin.on_hook(hook_name, logger=plugin.logger.getChild(hook_name), **kwargs)
+        plugin_logger = plugin.logger.getChild(hook_name)
+        result = plugin.on_hook(hook_name, logger=plugin_logger, **kwargs)
         if result is None:
             continue
+        if result.notes or result.user_notes or result.block:
+            plugin_logger.info("Produced a hook result")
         merged.notes.extend(note for note in result.notes if note.strip())
         merged.user_notes.extend(result.user_notes)
         if result.block and merged.block is None:

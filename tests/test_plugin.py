@@ -90,6 +90,26 @@ class TestCollectHookResults:
         assert result.notes == []
         assert result.block is None
 
+    def test_logs_under_the_plugin_and_hook_when_it_produces_a_result(self, caplog: pytest.LogCaptureFixture) -> None:
+        class PluginA(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+                return HookResult(notes=["a"])
+
+        with caplog.at_level(logging.INFO, logger="hooks"):
+            collect_hook_results([PluginA()], "TestHook")
+
+        assert any(r.name == "hooks.PluginA.TestHook" for r in caplog.records)
+
+    def test_does_not_log_when_a_plugin_returns_nothing(self, caplog: pytest.LogCaptureFixture) -> None:
+        class PluginA(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+                return None
+
+        with caplog.at_level(logging.INFO, logger="hooks"):
+            collect_hook_results([PluginA()], "TestHook")
+
+        assert caplog.records == []
+
     def test_merges_notes(self) -> None:
         class PluginA(HooksPlugin):
             def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:

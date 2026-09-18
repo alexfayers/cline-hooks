@@ -12,7 +12,7 @@ import git.exc
 if TYPE_CHECKING:
     from cline_hooks.core.plugin import HooksPlugin
 
-logger = logging.getLogger("hooks")
+logger = logging.getLogger("hooks.git_context")
 
 
 def get_git_context(workspace_roots: list[str]) -> str | None:

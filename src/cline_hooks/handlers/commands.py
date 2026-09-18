@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
     from cline_hooks.core.plugin import HooksPlugin
 
-logger = logging.getLogger("hooks")
+logger = logging.getLogger("hooks.commands")
 
 
 @dataclass(frozen=True)

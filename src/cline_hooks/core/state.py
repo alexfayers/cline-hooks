@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
     from _typeshed import DataclassInstance
 
-logger = logging.getLogger("hooks")
+logger = logging.getLogger("hooks.state")
 
 
 class PluginStateStore[StateT: "DataclassInstance"]:

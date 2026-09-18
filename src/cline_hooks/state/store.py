@@ -11,7 +11,7 @@ from cline_hooks.state.paths import get_data_dir
 if TYPE_CHECKING:
     from pathlib import Path
 
-logger = logging.getLogger("hooks")
+logger = logging.getLogger("hooks.state.store")
 
 _STATE_PATH = get_data_dir() / "hook-state.json"
 
