@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from typing import TYPE_CHECKING
 
 import pytest
@@ -55,3 +56,19 @@ class TestTaskStateStore:
         store.record_block("task-1", "tool", "reason")
         block = store.get_blocks("task-1")[0]
         assert block.timestamp
+
+    def test_concurrent_record_block_does_not_lose_updates(self, store: TaskStateStore) -> None:
+        thread_count = 32
+        barrier = threading.Barrier(thread_count)
+
+        def record(i: int) -> None:
+            barrier.wait()
+            store.record_block("task-1", f"tool-{i}", "reason")
+
+        threads = [threading.Thread(target=record, args=(i,)) for i in range(thread_count)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        assert len(store.get_blocks("task-1")) == thread_count

@@ -63,6 +63,9 @@ extend-ignore = [
 "src/cline_hooks/frontends/*/models.py" = [
     "mixed-case-variable-in-class-scope", # camelCase fields mirror the external JSON payload keys
 ]
+"src/cline_hooks/state/jsonfile.py" = [
+    "fallible-context-manager", # deliberate: a failed mutation must not persist a partial write
+]
 "tests/**" = [
     "pytest-fixture-autouse", # autouse fixtures are the standard way to isolate test state here
     "hardcoded-temp-file",    # /tmp paths in tests are fixture data, never actually written to

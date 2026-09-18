@@ -49,10 +49,12 @@ def increment(task_id: str) -> int:
     Returns:
         The new turn count after incrementing.
     """
-    state = _store.get(task_id)
-    state.count += 1
-    _store.set(task_id, state)
-    return state.count
+
+    def bump(state: _TurnsState) -> int:
+        state.count += 1
+        return state.count
+
+    return _store.update(task_id, bump)
 
 
 def should_remind(turn_count: int) -> bool:

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import threading
+
 from cline_hooks.state.agents import (
     agent_use_count,
     has_agent_use,
@@ -62,6 +64,24 @@ class TestAgentUseCount:
         record_agent_use("other-task", "Workflow")
         assert agent_use_count(_TASK) == 1
         assert agent_use_count("other-task") == 2
+
+
+class TestConcurrentRecordAgentUse:
+    def test_no_lost_updates_under_concurrent_writes(self) -> None:
+        thread_count = 32
+        barrier = threading.Barrier(thread_count)
+
+        def record(i: int) -> None:
+            barrier.wait()
+            record_agent_use(_TASK, f"tool-{i}")
+
+        threads = [threading.Thread(target=record, args=(i,)) for i in range(thread_count)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        assert agent_use_count(_TASK) == thread_count
 
 
 class TestReset:

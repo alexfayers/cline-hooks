@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import threading
+
+from cline_hooks.state.jsonfile import read_json
+import cline_hooks.state.memory as memory_tracker_module
 from cline_hooks.state.memory import (
     has_memory_writes,
     is_memory_write,
@@ -67,3 +71,23 @@ class TestRecordAndCheck:
     def test_writes_isolated_per_task(self) -> None:
         record_memory_write(_TASK, "create_entities")
         assert not has_memory_writes("other-task")
+
+
+class TestConcurrentWrites:
+    def test_no_lost_update_under_concurrent_writes(self) -> None:
+        thread_count = 32
+        barrier = threading.Barrier(thread_count)
+
+        def record(tool_name: str) -> None:
+            barrier.wait()
+            record_memory_write(_TASK, tool_name)
+
+        tool_names = [f"tool-{i}" for i in range(thread_count)]
+        threads = [threading.Thread(target=record, args=(name,)) for name in tool_names]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        data: dict[str, list[str]] = read_json(memory_tracker_module._STATE_PATH, {})
+        assert sorted(data[_TASK]) == sorted(tool_names)

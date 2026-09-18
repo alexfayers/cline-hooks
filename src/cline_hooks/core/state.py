@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import dataclasses
-import json
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
+from cline_hooks.state.jsonfile import discard_key, read_json, updated_json
 from cline_hooks.state.paths import get_data_dir
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
     from _typeshed import DataclassInstance
@@ -37,28 +38,22 @@ class PluginStateStore[StateT: "DataclassInstance"]:
         Returns:
             Mapping of task IDs to their raw state field dicts.
         """
-        try:
-            raw = json.loads(self._path.read_text())
-        except (
-            FileNotFoundError,
-            json.JSONDecodeError,
-            TypeError,
-            ValueError,
-            OSError,
-        ):
-            return {}
-        return raw if isinstance(raw, dict) else {}
+        data: dict[str, dict[str, Any]] = read_json(self._path, {})
+        return data if isinstance(data, dict) else {}
 
-    def _write_all(self, data: dict[str, dict[str, Any]]) -> None:
-        """Atomically write the whole state file via a tmp-file-then-replace.
+    def _parse(self, entry: dict[str, Any]) -> StateT:
+        """Build a state instance from a raw entry, falling back to defaults.
 
         Args:
-            data: Mapping of task IDs to their raw state field dicts.
+            entry: The task's raw state field dict.
+
+        Returns:
+            The parsed state, or a default-constructed instance on a malformed entry.
         """
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = self._path.with_suffix(self._path.suffix + ".tmp")
-        tmp.write_text(json.dumps(data))
-        tmp.replace(self._path)
+        try:
+            return self._state_type(**entry) if isinstance(entry, dict) else self._state_type()
+        except TypeError:
+            return self._state_type()
 
     def get(self, task_id: str) -> StateT:
         """Return the state entry for a task, or a default instance if none exists.
@@ -70,22 +65,23 @@ class PluginStateStore[StateT: "DataclassInstance"]:
             The task's state, or a default-constructed instance on a missing or
             malformed entry.
         """
-        entry = self._read_all().get(task_id, {})
-        try:
-            return self._state_type(**entry) if isinstance(entry, dict) else self._state_type()
-        except TypeError:
-            return self._state_type()
+        return self._parse(self._read_all().get(task_id, {}))
 
-    def set(self, task_id: str, state: StateT) -> None:
-        """Store the state entry for a task.
+    def update[ResultT](self, task_id: str, mutate: Callable[[StateT], ResultT]) -> ResultT:
+        """Mutate a task's state under an exclusive lock, persisting the result.
 
         Args:
             task_id: The session or task identifier.
-            state: The state to persist.
+            mutate: Called with the task's current state, mutating it in place.
+
+        Returns:
+            Whatever the mutation returned.
         """
-        data = self._read_all()
-        data[task_id] = dataclasses.asdict(state)
-        self._write_all(data)
+        with updated_json(self._path, cast("dict[str, dict[str, Any]]", {})) as data:
+            state = self._parse(data.get(task_id, {}))
+            result = mutate(state)
+            data[task_id] = dataclasses.asdict(state)
+        return result
 
     def reset(self, task_id: str) -> None:
         """Clear the state entry for a task.
@@ -93,6 +89,4 @@ class PluginStateStore[StateT: "DataclassInstance"]:
         Args:
             task_id: The session or task identifier.
         """
-        data = self._read_all()
-        if data.pop(task_id, None) is not None:
-            self._write_all(data)
+        discard_key(self._path, task_id)

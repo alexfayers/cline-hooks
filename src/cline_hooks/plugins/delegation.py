@@ -50,12 +50,14 @@ def should_nudge_inline_work(task_id: str) -> bool:
     Returns:
         True only on the first call for this task_id.
     """
-    state = _store.get(task_id)
-    if state.nudged:
-        return False
-    state.nudged = True
-    _store.set(task_id, state)
-    return True
+
+    def decide(state: _DelegationState) -> bool:
+        if state.nudged:
+            return False
+        state.nudged = True
+        return True
+
+    return _store.update(task_id, decide)
 
 
 def reset(task_id: str) -> None:
