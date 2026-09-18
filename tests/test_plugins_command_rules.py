@@ -42,6 +42,25 @@ class TestCommandRulesPluginCommandRules:
         assert "grep" in commands
 
 
+class TestCommandRulesPluginFindRootRule:
+    def test_find_root_is_blocked(self) -> None:
+        plugin = CommandRulesPlugin()
+        commands = extract_commands(bashlex.parse("find / -name '*.tmp'"))
+        violated = check_rules(commands, plugin.get_command_rules())
+        assert violated is not None
+        assert violated.command == "find"
+
+    def test_find_relative_dot_is_allowed(self) -> None:
+        plugin = CommandRulesPlugin()
+        commands = extract_commands(bashlex.parse("find . -name '*.tmp'"))
+        assert check_rules(commands, plugin.get_command_rules()) is None
+
+    def test_find_scoped_directory_is_allowed(self) -> None:
+        plugin = CommandRulesPlugin()
+        commands = extract_commands(bashlex.parse("find /tmp -name '*.tmp'"))
+        assert check_rules(commands, plugin.get_command_rules()) is None
+
+
 class TestCommandRulesPluginGitCommitMessageRule:
     def test_single_line_commit_message_is_allowed(self) -> None:
         plugin = CommandRulesPlugin()

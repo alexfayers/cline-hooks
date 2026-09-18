@@ -59,6 +59,11 @@ def _is_standalone_tail(cmd: ParsedCommand, all_commands: list[ParsedCommand]) -
     return len(all_commands) == 1 and not _is_follow(cmd)
 
 
+def _targets_filesystem_root(cmd: ParsedCommand, _all: list[ParsedCommand]) -> bool:
+    """Return True when find's search path is the filesystem root."""
+    return "/" in cmd.args
+
+
 class CommandRulesPlugin(HooksPlugin):
     """Standard shell-safety command rules (rm -f, commit messages, build output)."""
 
@@ -127,5 +132,13 @@ class CommandRulesPlugin(HooksPlugin):
                     "on a background task. MUST output text directly instead of echoing it."
                 ),
                 validator=_is_standalone,
+            ),
+            CommandRule(
+                command="find",
+                message=(
+                    "find / scans the whole filesystem. MUST scope the search path to a specific "
+                    "directory instead of the root."
+                ),
+                validator=_targets_filesystem_root,
             ),
         ]
