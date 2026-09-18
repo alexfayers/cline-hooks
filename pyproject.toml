@@ -60,6 +60,9 @@ extend-ignore = [
 "src/cline_hooks/core/parameters.py" = [
     "any-type", # pydantic "before" validators receive raw, untyped JSON
 ]
+"src/cline_hooks/handlers/git_context.py" = [
+    "import-outside-top-level", # gitpython is deferred to keep it off the hot startup path
+]
 "src/cline_hooks/frontends/*/models.py" = [
     "mixed-case-variable-in-class-scope", # camelCase fields mirror the external JSON payload keys
 ]
