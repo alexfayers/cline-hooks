@@ -17,6 +17,7 @@ from cline_hooks.core.install import Installer
 from cline_hooks.core.payload import StandardPayloadProtocol
 from cline_hooks.core.protocol import Protocol, RawPayload
 from cline_hooks.core.registry import HOOK_HANDLERS
+from cline_hooks.plugins.research import RESEARCH_TRACE_HEADERS
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -213,3 +214,6 @@ class TestRegistry:
         payload = RawPayload(raw="{}", data={}, env={})
         default = next(spec for spec in FRONTENDS if spec.default)
         assert select_protocol(payload) is default.protocol
+
+    def test_research_trace_header_keys_are_real_frontends(self) -> None:
+        assert set(RESEARCH_TRACE_HEADERS) <= set(FRONTENDS_BY_NAME)

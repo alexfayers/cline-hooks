@@ -158,17 +158,6 @@ class Protocol(ABC):
         """Continue the conversation with non-error feedback. Defaults to block()."""
         self.block(message)
 
-    def research_trace_header(self) -> str:
-        """Return the instruction header prepended to a Stop research trace.
-
-        The default assumes nothing about where hook output surfaces, so it
-        asks the model to cite the lookups itself.
-
-        Returns:
-            The instruction header for this frontend.
-        """
-        return "RESEARCH TRACE: MUST cite the lookups behind this turn's claims to the user, in ONE line only."
-
 
 @cache
 def _native_to_canonical(protocol_cls: type[Protocol]) -> Mapping[str, CanonicalHook]:

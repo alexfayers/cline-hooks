@@ -182,17 +182,3 @@ class ClaudeCodeProtocol(ClaudeCodeHookSpec):
         """Continue via exit 0, non-error context in hookSpecificOutput."""
         self._print_additional_context(message)
         sys.exit(0)
-
-    def research_trace_header(self) -> str:
-        """Return the Stop research-trace header for Claude Code.
-
-        Claude Code shows this hook's raw output to the user itself, so the
-        model need not re-render the lookups.
-
-        Returns:
-            The instruction header for Claude Code.
-        """
-        return (
-            "RESEARCH TRACE: MUST cite lookups behind this turn's claims, in ONE "
-            "line only - the user already sees this hook's raw output."
-        )

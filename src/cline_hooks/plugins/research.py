@@ -23,6 +23,27 @@ WEB_RESEARCH_TOOLS = frozenset({CanonicalTool.WEB_FETCH, CanonicalTool.WEB_SEARC
 
 RESEARCH_TRACE_CAP = 15
 
+DEFAULT_RESEARCH_TRACE_HEADER = (
+    "RESEARCH TRACE: MUST cite the lookups behind this turn's claims to the user, in ONE line only."
+)
+
+# Keyed by FrontendSpec.name; a frontend with no entry gets the default, which
+# assumes nothing about where hook output surfaces.
+RESEARCH_TRACE_HEADERS = {
+    "claude-code": (
+        "RESEARCH TRACE: MUST cite lookups behind this turn's claims, in ONE "
+        "line only - the user already sees this hook's raw output."
+    ),
+    "kiro": (
+        "RESEARCH TRACE: MUST start your reply with a line break, then write ONE "
+        "line in exactly this format and nothing else: Sources: <tool> "
+        '"<detail>", <tool> "<detail>", ... - substituting each tool/detail '
+        "pair from the lookups below, copied verbatim, each detail written "
+        "only once. No narration, no commentary, no parentheses, no restating "
+        "a detail a second time."
+    ),
+}
+
 
 @dataclass
 class _ResearchState:
@@ -176,6 +197,18 @@ def record_research_use(  # ruff: ignore[too-many-arguments, too-many-positional
         record_research(task_id, research_tool, detail)
 
 
+def research_trace_header() -> str:
+    """Return the Stop research-trace instruction header for the live frontend.
+
+    Returns:
+        The frontend's header, or DEFAULT_RESEARCH_TRACE_HEADER where it
+        declares none.
+    """
+    spec = get_protocol().frontend_spec
+    name = spec.name if spec else ""
+    return RESEARCH_TRACE_HEADERS.get(name, DEFAULT_RESEARCH_TRACE_HEADER)
+
+
 def format_research_trace(records: list[dict[str, str]], header: str) -> str:
     """Format recorded research lookups into a grouped, deduped, capped note.
 
@@ -264,7 +297,7 @@ class ResearchPlugin(HooksPlugin):
         task_id = kwargs.get("task_id")
         if not isinstance(task_id, str):
             return None
-        trace = format_research_trace(get_research(task_id), get_protocol().research_trace_header())
+        trace = format_research_trace(get_research(task_id), research_trace_header())
         reset(task_id)
         if not trace:
             return None

@@ -19,6 +19,7 @@ from cline_hooks.plugins.research import (
     format_research_trace,
     get_research,
     record_research,
+    research_trace_header,
 )
 
 if TYPE_CHECKING:
@@ -213,12 +214,22 @@ class TestHandleStopKiro:
 
     def test_a_frontend_that_declares_nothing_gets_the_neutral_header(self) -> None:
         """The base header assumes nothing about where hook output surfaces."""
-        header = ClineProtocol().research_trace_header()
+        set_protocol(ClineProtocol())
+        try:
+            header = research_trace_header()
+        finally:
+            set_protocol(ClineProtocol())
         assert "MUST cite the lookups" in header
         assert "raw output" not in header
 
-    def test_kiro_header_differs_from_claude_code(self) -> None:
-        assert KiroProtocol().research_trace_header() != ClaudeCodeProtocol().research_trace_header()
+    def test_kiro_header_differs_from_the_neutral_default(self) -> None:
+        set_protocol(KiroProtocol())
+        try:
+            kiro_header = research_trace_header()
+        finally:
+            set_protocol(ClineProtocol())
+        cline_header = research_trace_header()
+        assert kiro_header != cline_header
 
 
 class TestHandleStopClaudeCode:

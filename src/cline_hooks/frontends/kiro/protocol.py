@@ -99,23 +99,3 @@ class KiroProtocol(StandardPayloadProtocol):
         """
         print(json.dumps({"decision": "block", "reason": message}), end="")
         sys.exit(0)
-
-    def research_trace_header(self) -> str:
-        """Return the Stop research-trace header for Kiro.
-
-        Kiro shows only the model's own reply, appended to its prior turn text
-        with no separator, so the model must render the trace itself. The
-        format is spelled out exactly because a looser instruction let the
-        model narrate or invent its own punctuation.
-
-        Returns:
-            The instruction header for Kiro.
-        """
-        return (
-            "RESEARCH TRACE: MUST start your reply with a line break, then write ONE "
-            "line in exactly this format and nothing else: Sources: <tool> "
-            '"<detail>", <tool> "<detail>", ... - substituting each tool/detail '
-            "pair from the lookups below, copied verbatim, each detail written "
-            "only once. No narration, no commentary, no parentheses, no restating "
-            "a detail a second time."
-        )
