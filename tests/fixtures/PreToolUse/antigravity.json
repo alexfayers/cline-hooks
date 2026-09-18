@@ -1,0 +1,16 @@
+{
+  "toolCall": {
+    "name": "run_command",
+    "args": {
+      "CommandLine": "ls -la",
+      "Cwd": "/home/user/project",
+      "WaitMsBeforeAsync": 5000
+    }
+  },
+  "stepIdx": 19,
+  "conversationId": "fixture-session-id",
+  "workspacePaths": ["/home/user/project"],
+  "transcriptPath": "/home/user/.gemini/antigravity/brain/fixture-session-id/.system_generated/logs/transcript.jsonl",
+  "artifactDirectoryPath": "/home/user/.gemini/antigravity/brain/fixture-session-id",
+  "modelName": "gemini-3.6-flash-medium"
+}

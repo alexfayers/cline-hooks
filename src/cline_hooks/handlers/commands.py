@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
     from cline_hooks.core.plugin import HooksPlugin
 
-logger = logging.getLogger("hooks")
+logger = logging.getLogger("hooks.commands")
 
 
 @dataclass(frozen=True)
@@ -33,31 +33,6 @@ class ParsedCommand:
     name: str
     flags: list[str]
     args: list[str]
-
-
-def validate_git_commit_message(cmd: ParsedCommand, _all: list[ParsedCommand]) -> bool:
-    """Check if a git commit message contains newlines.
-
-    Returns:
-        bool: True if the message is invalid (contains newlines).
-    """
-    if "commit" not in cmd.args:
-        return False
-
-    for flag in cmd.flags:
-        if flag in {"-m", "--message"}:
-            msg_idx = (
-                cmd.flags.index(flag) + 1 + len([a for a in cmd.args if cmd.args.index(a) < cmd.flags.index(flag)])
-            )
-            all_words = cmd.args + cmd.flags
-            if msg_idx < len(all_words):
-                message = all_words[msg_idx]
-                return "\n" in message
-        elif flag.startswith("--message="):
-            message = flag[10:]
-            return "\n" in message
-
-    return False
 
 
 def is_git_push(commands: list[ParsedCommand]) -> bool:
@@ -182,7 +157,7 @@ def matches_rule(
         if blocked_flag.startswith("--"):
             if blocked_flag in cmd.flags:
                 return True
-        elif len(blocked_flag) >= 2 and blocked_flag[0] == "-":  # noqa: PLR2004
+        elif len(blocked_flag) >= 2 and blocked_flag[0] == "-":  # ruff: ignore[magic-value-comparison]
             flag_char = blocked_flag[1]
             for cmd_flag in cmd.flags:
                 if cmd_flag.startswith("-") and not cmd_flag.startswith("--") and flag_char in cmd_flag[1:]:

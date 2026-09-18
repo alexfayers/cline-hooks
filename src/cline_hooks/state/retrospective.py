@@ -8,7 +8,7 @@ from typing import cast
 
 from cline_hooks.state.paths import get_data_dir
 
-logger = logging.getLogger("hooks")
+logger = logging.getLogger("hooks.state.retrospective")
 
 _STATE_PATH = get_data_dir() / "retrospective-state.json"
 

@@ -7,9 +7,10 @@ from unittest.mock import patch
 
 import pytest
 
-from cline_hooks.frontends.cline import parse_cline_data as parse_data
+from cline_hooks.core.protocol import RawPayload
+from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.handlers.user_prompt import handle_user_prompt_submit
-from cline_hooks.state.turns import (
+from cline_hooks.plugins.nudges import (
     _AGENT_NUDGE_THRESHOLD,
     _REMINDER_INTERVAL,
     _SCOPE_CHECK_THRESHOLD,
@@ -20,7 +21,12 @@ from cline_hooks.state.turns import (
 )
 
 if TYPE_CHECKING:
-    from cline_hooks.core.models import HookInputUserPromptSubmit
+    from cline_hooks.core.models import HookInput, HookInputUserPromptSubmit
+
+
+def parse_data(raw: str) -> HookInput:
+    return ClineProtocol().parse(RawPayload.from_stdin(raw))
+
 
 _BASE = {
     "clineVersion": "1.0.0",
@@ -117,10 +123,16 @@ class TestIntegration:
             output: list[str] = []
             try:
                 with (
-                    patch("builtins.print", side_effect=lambda s, _out=output, **kw: _out.append(s)),
-                    patch("cline_hooks.handlers.user_prompt.random.random", return_value=1.0),
                     patch(
-                        "cline_hooks.handlers.user_prompt.local_now",
+                        "builtins.print",
+                        side_effect=lambda s, _out=output, **kw: _out.append(s),
+                    ),
+                    patch(
+                        "cline_hooks.plugins.nudges.random.random",
+                        return_value=1.0,
+                    ),
+                    patch(
+                        "cline_hooks.plugins.nudges.local_now",
                         return_value=datetime(2026, 1, 1, 12, 0, tzinfo=UTC),
                     ),
                 ):

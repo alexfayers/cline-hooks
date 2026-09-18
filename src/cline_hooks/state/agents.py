@@ -5,18 +5,12 @@ from __future__ import annotations
 import json
 import logging
 
+from cline_hooks.core.vocabulary import AGENT_SPAWN_TOOLS
 from cline_hooks.state.paths import get_data_dir
 
-logger = logging.getLogger("hooks")
+logger = logging.getLogger("hooks.state.agents")
 
 _STATE_PATH = get_data_dir() / "agents-state.json"
-
-_AGENT_TOOLS: frozenset[str] = frozenset({
-    "Agent",
-    "Workflow",
-    "new_task",
-    "subagent",
-})
 
 
 def _read() -> dict[str, list[str]]:
@@ -40,7 +34,7 @@ def is_agent_tool(tool_name: str) -> bool:
     Returns:
         True if the tool fans work out to a subagent.
     """
-    return tool_name in _AGENT_TOOLS
+    return tool_name in AGENT_SPAWN_TOOLS
 
 
 def record_agent_use(task_id: str, tool_name: str) -> None:

@@ -7,7 +7,7 @@ import logging
 
 from cline_hooks.state.paths import get_data_dir
 
-logger = logging.getLogger("hooks")
+logger = logging.getLogger("hooks.state.workspace")
 
 _STATE_PATH = get_data_dir() / "workspace-state.json"
 
@@ -41,10 +41,9 @@ def record_workspace(task_id: str, workspace_roots: list[str]) -> None:
 def should_note_workspace_change(task_id: str, workspace_roots: list[str]) -> bool:
     """Check whether the workspace roots differ from the last recorded ones.
 
-    First sighting for a session records silently - task start/resume has
-    already delivered context for those roots. The store is "last seen", not
-    "ever seen": returning to a previously-visited directory fires again,
-    since the note is guidance about where the agent is now.
+    A session's first sighting records silently, since task start/resume has
+    already delivered that context. The store is "last seen", not "ever seen",
+    so returning to a previous directory fires again.
 
     Args:
         task_id: The session or task identifier.

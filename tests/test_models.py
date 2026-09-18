@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import json
+from typing import get_args
 
 from cline_hooks.core.models import (
+    HOOK_INPUTS,
+    HookFields,
     HookInput,
     HookInputPostToolUse,
     HookInputPreCompact,
@@ -12,12 +15,15 @@ from cline_hooks.core.models import (
     HookInputTaskComplete,
     HookInputTaskResume,
     HookInputTaskStart,
-    HookInputUserPromptSubmit,
-    _filter_fields,
-    extract_mcp_tool_name,
-    inheritors,
 )
-from cline_hooks.frontends.cline import parse_cline_data as parse_data
+from cline_hooks.core.protocol import RawPayload
+from cline_hooks.core.vocabulary import CanonicalHook
+from cline_hooks.frontends.cline import ClineProtocol
+
+
+def parse_data(raw: str) -> HookInput:
+    return ClineProtocol().parse(RawPayload.from_stdin(raw))
+
 
 BASE_FIELDS = {
     "clineVersion": "1.0",
@@ -33,51 +39,18 @@ def _make_json(**extra: object) -> str:
     return json.dumps({**BASE_FIELDS, **extra})
 
 
-class TestInheritors:
-    def test_returns_all_subclasses(self) -> None:
-        result = inheritors(HookInput)
-        assert HookInputPreToolUse in result
-        assert HookInputPostToolUse in result
-        assert HookInputTaskStart in result
-        assert HookInputTaskResume in result
-        assert HookInputTaskCancel in result
-        assert HookInputTaskComplete in result
-        assert HookInputUserPromptSubmit in result
-        assert HookInputPreCompact in result
-        assert HookInputStop in result
+class TestHookInputsTable:
+    def test_covers_every_canonical_hook(self) -> None:
+        for canonical_hook in CanonicalHook:
+            assert canonical_hook in HOOK_INPUTS
 
-    def test_does_not_include_base(self) -> None:
-        assert HookInput not in inheritors(HookInput)
-
-    def test_empty_for_leaf_class(self) -> None:
-        assert inheritors(HookInputPreCompact) == set()
-
-
-class TestFilterFields:
-    def test_keeps_known_fields(self) -> None:
-        data = {
-            "hookName": "TaskStart",
-            "taskId": "id",
-            "unknown": "drop",
-        }
-        result = _filter_fields(HookInput, data)
-        assert "hookName" in result
-        assert "taskId" in result
-        assert "unknown" not in result
-
-    def test_empty_data(self) -> None:
-        assert _filter_fields(HookInput, {}) == {}
-
-
-class TestExtractMcpToolName:
-    def test_bare_name_unchanged(self) -> None:
-        assert extract_mcp_tool_name("create_entities") == "create_entities"
-
-    def test_claude_code_prefix_stripped(self) -> None:
-        assert extract_mcp_tool_name("mcp__builder-mcp__ReadInternalWebsites") == "ReadInternalWebsites"
-
-    def test_trailing_segment_returned(self) -> None:
-        assert extract_mcp_tool_name("mcp__memory__create_entities") == "create_entities"
+    def test_entries_are_self_consistent(self) -> None:
+        for canonical_hook, input_cls in HOOK_INPUTS.items():
+            assert issubclass(input_cls, HookInput)
+            assert input_cls.model_fields["hookName"].default == canonical_hook
+            payload_field_info = input_cls.model_fields[input_cls.payload_field]
+            candidates = get_args(payload_field_info.annotation) or (payload_field_info.annotation,)
+            assert any(isinstance(candidate, type) and issubclass(candidate, HookFields) for candidate in candidates)
 
 
 class TestParseData:

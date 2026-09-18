@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import importlib
 import importlib.metadata
+import inspect
 import logging
 import pkgutil
 from typing import TYPE_CHECKING
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
 
     from cline_hooks.handlers.commands import CommandRule
 
-logger = logging.getLogger("hooks")
+logger = logging.getLogger("hooks.plugin_loader")
 
 
 @dataclass
@@ -73,10 +74,13 @@ def collect_hook_results(plugins: list[HooksPlugin], hook_name: str, **kwargs: o
     """
     merged = HookResult()
     for plugin in plugins:
-        result = plugin.on_hook(hook_name, **kwargs)
+        plugin_logger = plugin.logger.getChild(hook_name)
+        result = plugin.on_hook(hook_name, logger=plugin_logger, **kwargs)
         if result is None:
             continue
-        merged.notes.extend(result.notes)
+        if result.notes or result.user_notes or result.block:
+            plugin_logger.info("Produced a hook result")
+        merged.notes.extend(note for note in result.notes if note.strip())
         merged.user_notes.extend(result.user_notes)
         if result.block and merged.block is None:
             merged.block = result.block
@@ -89,6 +93,11 @@ class HooksPlugin:
     Override any methods to provide custom behaviour. All methods return
     empty/None by default so the core framework has zero built-in opinions.
     """
+
+    @property
+    def logger(self) -> logging.Logger:
+        """This plugin's dedicated logger, named after its concrete class."""
+        return logging.getLogger(f"hooks.{type(self).__name__}")
 
     def get_build_commands(self) -> frozenset[str]:
         """Return command names that are considered build tools.
@@ -122,7 +131,9 @@ class HooksPlugin:
         """
         return frozenset()
 
-    def get_research_detail_extractors(self) -> dict[str, Callable[[dict[str, Any]], str]]:
+    def get_research_detail_extractors(
+        self,
+    ) -> dict[str, Callable[[dict[str, Any]], str]]:
         """Return per-tool detail extractors for research lookups.
 
         Each maps a research tool name to a callable that derives a short
@@ -133,13 +144,11 @@ class HooksPlugin:
         """
         return {}
 
-    def get_tooling_note(self, workspace_roots: list[str]) -> ToolingNote | None:  # noqa: ARG002
+    def get_tooling_note(self, workspace_roots: list[str]) -> ToolingNote | None:
         """Return this plugin's ecosystem tooling note for these workspace roots.
 
-        Overriding plugins use this to supply their own build-tool guidance,
-        optionally replacing the generic ecosystem tooling note for the same
-        roots (regardless of which ecosystem detector would otherwise have
-        matched).
+        A plugin supplies its own build-tool guidance here, optionally
+        replacing the generic ecosystem note for the same roots.
 
         Args:
             workspace_roots: List of workspace root paths.
@@ -149,17 +158,81 @@ class HooksPlugin:
         """
         return None
 
-    def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:  # noqa: ARG002
+    def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
         """Handle any hook event, returning notes and/or a block reason.
 
         Args:
             hook_name: The hook event name (e.g. "TaskStart", "PreToolUse").
+            logger: This plugin's hook-scoped child logger.
             **kwargs: Hook-specific keyword arguments.
 
         Returns:
             A HookResult with notes/block, or None to do nothing.
         """
         return None
+
+
+@dataclass(frozen=True)
+class PluginMethodInfo:
+    """One introspected public method of the HooksPlugin protocol.
+
+    Attributes:
+        name: The method name.
+        params: The parameter list rendered as written in source, excluding
+            self (e.g. "workspace_roots" or "hook_name, **kwargs").
+        purpose: The method's docstring summary line.
+        return_type: The method's return type annotation as written in source.
+    """
+
+    name: str
+    params: str
+    purpose: str
+    return_type: str
+
+
+def _format_param(param: inspect.Parameter) -> str:
+    """Render a parameter as it appears in source, without its annotation.
+
+    Args:
+        param: The parameter to render.
+
+    Returns:
+        The parameter name, prefixed with `*`/`**` for variadic parameters.
+    """
+    if param.kind is inspect.Parameter.VAR_POSITIONAL:
+        return f"*{param.name}"
+    if param.kind is inspect.Parameter.VAR_KEYWORD:
+        return f"**{param.name}"
+    return param.name
+
+
+def list_plugin_methods() -> list[PluginMethodInfo]:
+    """List HooksPlugin's public overridable methods, in definition order.
+
+    The single source of truth for both the generated README table and the
+    plugins CLI listing's override detection.
+
+    Returns:
+        One PluginMethodInfo per public method defined directly on
+        HooksPlugin, in source-definition order.
+    """
+    infos: list[PluginMethodInfo] = []
+    for name, member in vars(HooksPlugin).items():
+        if name.startswith("_") or not inspect.isfunction(member):
+            continue
+        sig = inspect.signature(member)
+        params = ", ".join(_format_param(param) for param_name, param in sig.parameters.items() if param_name != "self")
+        doc = inspect.getdoc(member) or ""
+        purpose = doc.splitlines()[0] if doc else ""
+        infos.append(
+            PluginMethodInfo(
+                name=name,
+                params=params,
+                purpose=purpose,
+                return_type=str(sig.return_annotation),
+            )
+        )
+    return infos
 
 
 class _PluginCache:
@@ -192,26 +265,38 @@ def load_plugins() -> list[HooksPlugin]:
     if cached is not None:
         return cached
 
-    loaded: list[HooksPlugin] = []
+    loaded_bundled: list[HooksPlugin] = []
 
     for _finder, name, _ispkg in pkgutil.iter_modules(_plugins_pkg.__path__, _plugins_pkg.__name__ + "."):
         try:
             module = importlib.import_module(name)
-            for attr in vars(module).values():
-                if isinstance(attr, type) and issubclass(attr, HooksPlugin) and attr is not HooksPlugin:
-                    loaded.append(attr())
-                    logger.debug("Loaded bundled plugin: %s", attr.__name__)
+            loaded_bundled.extend(
+                attr()
+                for attr in vars(module).values()
+                if (
+                    isinstance(attr, type)
+                    and issubclass(attr, HooksPlugin)
+                    and attr is not HooksPlugin
+                    and attr.__module__ == name
+                )
+            )
         except Exception:
             logger.exception("Failed to load bundled plugin module: %s", name)
+
+    loaded_external: list[HooksPlugin] = []
 
     for ep in importlib.metadata.entry_points(group="cline_hooks"):
         try:
             cls = ep.load()
             if isinstance(cls, type) and issubclass(cls, HooksPlugin):
-                loaded.append(cls())
-                logger.debug("Loaded external plugin: %s", ep.name)
+                loaded_external.append(cls())
         except Exception:
             logger.exception("Failed to load external plugin: %s", ep.name)
+
+    logger.debug("Bundled plugins: %s", ",".join([plugin.__class__.__name__ for plugin in loaded_bundled]))
+    logger.debug("External plugins: %s", ",".join([plugin.__class__.__name__ for plugin in loaded_external]))
+
+    loaded = [*loaded_bundled, *loaded_external]
 
     _plugin_cache.set(loaded)
     return loaded

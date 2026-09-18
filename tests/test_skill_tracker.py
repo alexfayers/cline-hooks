@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import cline_hooks.state.skills as module
 from cline_hooks.state.skills import (
+    is_session_end_skill,
     is_skill_called,
+    is_wrap_up_skill,
     record_skill,
     required_skill_for,
     reset,
@@ -45,6 +47,40 @@ class TestRecordAndCheck:
         record_skill(_TASK, "git-usage")
         assert is_skill_called(_TASK, "git-usage")
         assert is_skill_called(_TASK, "git-usage")
+
+
+class TestIsSessionEndSkill:
+    def test_use_skill_with_skill_key(self) -> None:
+        assert is_session_end_skill("use_skill", {"skill": "session-end"})
+
+    def test_cline_use_skill(self) -> None:
+        assert is_session_end_skill("use_skill", {"skill_name": "session-end"})
+
+    def test_read_skill_md(self) -> None:
+        assert is_session_end_skill("read_file", {"path": "/home/user/.kiro/skills/session-end/SKILL.md"})
+
+    def test_other_skill_not_detected(self) -> None:
+        assert not is_session_end_skill("use_skill", {"skill": "git-usage"})
+
+    def test_unrelated_tool_not_detected(self) -> None:
+        assert not is_session_end_skill("execute_command", {"command": "echo hi"})
+
+
+class TestIsWrapUpSkill:
+    def test_session_end_is_wrap_up(self) -> None:
+        assert is_wrap_up_skill("use_skill", {"skill": "session-end"})
+
+    def test_handoff_is_wrap_up(self) -> None:
+        assert is_wrap_up_skill("use_skill", {"skill": "handoff"})
+
+    def test_handoff_via_read(self) -> None:
+        assert is_wrap_up_skill("read_file", {"path": "/Users/me/.claude/skills/handoff/SKILL.md"})
+
+    def test_unrelated_skill_not_wrap_up(self) -> None:
+        assert not is_wrap_up_skill("use_skill", {"skill": "git-usage"})
+
+    def test_unrelated_tool_not_wrap_up(self) -> None:
+        assert not is_wrap_up_skill("execute_command", {"command": "echo hi"})
 
 
 class TestRequiredSkillFor:

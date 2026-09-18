@@ -11,6 +11,7 @@ dependencies = [
     "bashlex",
     "gitpython",
     "platformdirs",
+    "pydantic>=2",
 ]
 
 [project.scripts]
@@ -41,6 +42,32 @@ source = [
 [tool.coverage.report]
 show_missing = true
 
+[tool.ruff]
+extend = ".venv/.fayers-configs/ruff/pyproject.toml"
+
+[tool.ruff.lint]
+extend-ignore = [
+    "unused-method-argument",       # unused arg - required to conform to a Protocol/ABC method signature
+    "unused-class-method-argument", # same, for classmethods
+    "too-many-return-statements",   # plugin on_hook() dispatchers are guard-clause chains by design
+]
+
+[tool.ruff.lint.per-file-ignores]
+"src/cline_hooks/core/payload.py" = [
+    "mixed-case-variable-in-class-scope", # camelCase fields mirror the external JSON payload keys
+    "any-type",                           # pydantic "before" validators receive raw, untyped JSON
+]
+"src/cline_hooks/core/parameters.py" = [
+    "any-type", # pydantic "before" validators receive raw, untyped JSON
+]
+"src/cline_hooks/frontends/*/models.py" = [
+    "mixed-case-variable-in-class-scope", # camelCase fields mirror the external JSON payload keys
+]
+"tests/**" = [
+    "pytest-fixture-autouse", # autouse fixtures are the standard way to isolate test state here
+    "hardcoded-temp-file",    # /tmp paths in tests are fixture data, never actually written to
+]
+
 [tool.mypy]
 strict = true
 
@@ -70,7 +97,11 @@ test = [
 ]
 lint = [
     "ruff>=0.11.0",
+    "fayers-configs",
 ]
 typecheck = [
     "mypy>=1.15",
 ]
+
+[tool.uv.sources]
+fayers-configs = { git = "https://github.com/alexfayers/fayers-configs" }

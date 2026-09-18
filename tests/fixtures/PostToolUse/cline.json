@@ -1,0 +1,17 @@
+{
+  "hookName": "PostToolUse",
+  "clineVersion": "1.0.0",
+  "timestamp": "2024-01-01T00:00:01Z",
+  "taskId": "fixture-task-1",
+  "userId": "fixture-user-1",
+  "workspaceRoots": ["/home/user/project"],
+  "postToolUse": {
+    "toolName": "execute_command",
+    "parameters": {
+      "command": "ls -la"
+    },
+    "success": true,
+    "executionTimeMs": 42,
+    "result": "file1\nfile2"
+  }
+}

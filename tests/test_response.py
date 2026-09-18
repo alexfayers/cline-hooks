@@ -143,7 +143,10 @@ class TestClaudeCodeProtocol:
             proto.allow("ctx text")
         assert exc.value.code == 0
         assert json.loads(buf.getvalue()) == {
-            "hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": "ctx text"},
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "additionalContext": "ctx text",
+            },
         }
 
     def test_allow_echoes_raw_event_name_not_remapped_name(self) -> None:
@@ -168,7 +171,10 @@ class TestClaudeCodeProtocol:
             proto.feedback("trace text")
         assert exc.value.code == 0
         assert json.loads(buf.getvalue()) == {
-            "hookSpecificOutput": {"hookEventName": "Stop", "additionalContext": "trace text"},
+            "hookSpecificOutput": {
+                "hookEventName": "Stop",
+                "additionalContext": "trace text",
+            },
         }
 
     def test_supports_user_message_true(self) -> None:
@@ -190,7 +196,10 @@ class TestClaudeCodeProtocol:
         assert exc.value.code == 0
         assert json.loads(buf.getvalue()) == {
             "systemMessage": "user text",
-            "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": "ctx text"},
+            "hookSpecificOutput": {
+                "hookEventName": "SessionStart",
+                "additionalContext": "ctx text",
+            },
         }
 
     def test_allow_neither_emits_nothing(self) -> None:

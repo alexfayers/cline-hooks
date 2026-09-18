@@ -12,20 +12,11 @@ _TASK = "task-1"
 
 
 class TestIsAgentTool:
-    def test_agent(self) -> None:
-        assert is_agent_tool("Agent")
-
-    def test_workflow(self) -> None:
-        assert is_agent_tool("Workflow")
-
-    def test_new_task(self) -> None:
-        assert is_agent_tool("new_task")
-
-    def test_subagent(self) -> None:
-        assert is_agent_tool("subagent")
+    def test_spawn_agent(self) -> None:
+        assert is_agent_tool("spawn_agent")
 
     def test_bash_is_not_agent(self) -> None:
-        assert not is_agent_tool("Bash")
+        assert not is_agent_tool("execute_command")
 
     def test_read_is_not_agent(self) -> None:
         assert not is_agent_tool("Read")

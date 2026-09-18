@@ -1,33 +1,52 @@
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import sys
 from typing import TYPE_CHECKING, NoReturn
 
-from cline_hooks.core.protocol import set_protocol
+from cline_hooks.core.frontends import FRONTENDS, FRONTENDS_BY_NAME, select_protocol
+from cline_hooks.core.protocol import Protocol, RawPayload, set_protocol
 from cline_hooks.core.registry import HOOK_HANDLERS
-from cline_hooks.core.response import allow
-from cline_hooks.frontends.antigravity import AntigravityProtocol, install_antigravity, parse_antigravity_data
-from cline_hooks.frontends.claude_code import ClaudeCodeProtocol, install_claude_code
-from cline_hooks.frontends.cline import ClineProtocol, install_cline, parse_cline_data
-from cline_hooks.frontends.codex import install_codex
-from cline_hooks.frontends.copilot import install_copilot
-from cline_hooks.frontends.kiro import KiroProtocol, install_kiro, parse_kiro_data
-import cline_hooks.handlers  # noqa: F401
+from cline_hooks.core.response import allow, emit
+import cline_hooks.handlers  # ruff: ignore[unused-import]
 from cline_hooks.state.paths import get_data_dir
 
 if TYPE_CHECKING:
     from cline_hooks.core.models import HookInput
 
+
+class _InvocationContextFilter(logging.Filter):
+    """Stamps every record with the current invocation's frontend and agent."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.frontend = "-"
+        self.agent = "-"
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        """Attach the current invocation context to the record and always allow it through.
+
+        Returns:
+            True, unconditionally.
+        """
+        if self.frontend == "-" or self.agent == "main":
+            record.context = self.frontend
+        else:
+            record.context = f"{self.frontend}/{self.agent}"
+        return True
+
+
+_invocation_filter = _InvocationContextFilter()
+
 logging.basicConfig(
     level=logging.DEBUG,
     filename=get_data_dir() / "cline-hooks.log",
     filemode="a",
-    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    format="%(asctime)s %(levelname)s %(name)s[%(context)s]: %(message)s",
     datefmt="%Y-%m-%dT%H:%M:%S",
 )
+logging.root.handlers[0].addFilter(_invocation_filter)
 
 logger = logging.getLogger("hooks")
 
@@ -44,24 +63,13 @@ def _build_parser() -> argparse.ArgumentParser:
     install_parser = sub.add_parser("install", help="Install hooks")
     install_sub = install_parser.add_subparsers(dest="install_mode")
 
-    cline_parser = install_sub.add_parser("cline", help="Install Cline hooks (symlinks/scripts)")
-    cline_parser.add_argument("target_dir", help="Directory to install hook entry points into")
-
-    kiro_parser = install_sub.add_parser("kiro", help="Install Kiro hooks into agent config")
-    kiro_parser.add_argument("agent_config", help="Path to Kiro agent config JSON file")
-
-    install_sub.add_parser("claude-code", help="Install Claude Code hooks into settings")
-    install_sub.add_parser("codex", help="Install Codex hooks into hooks.json")
-    install_sub.add_parser("copilot", help="Install GitHub Copilot hooks into ~/.copilot/hooks/")
-    install_sub.add_parser("antigravity", help="Install Antigravity hooks into ~/.gemini/config/hooks.json")
-
-    agy_parser = sub.add_parser("antigravity", help="Run Antigravity hook handler")
-    agy_parser.add_argument(
-        "--event",
-        choices=["PreToolUse", "PostToolUse", "Stop"],
-        default=None,
-        help="Hook event name",
-    )
+    for frontend in FRONTENDS:
+        installer = frontend.installer
+        if installer is None:
+            continue
+        frontend_parser = install_sub.add_parser(frontend.name, help=installer.help)
+        if installer.argument is not None:
+            frontend_parser.add_argument(installer.argument.name, help=installer.argument.help)
 
     sub.add_parser("plugins", help="List installed plugins")
 
@@ -73,133 +81,75 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _detect_kiro(raw_data: str) -> bool:
-    """Detect whether the input is from Kiro based on JSON shape.
-
-    Args:
-        raw_data: The raw JSON string from stdin.
+def _parse_hook(payload: RawPayload) -> tuple[Protocol, HookInput]:
+    """Detect the frontend, configure logging for it, and parse the payload.
 
     Returns:
-        True if hook_event_name is a top-level key (Kiro format).
+        The detected protocol and the parsed hook input.
     """
-    try:
-        data = json.loads(raw_data)
-    except (json.JSONDecodeError, ValueError):
-        return False
-    return isinstance(data, dict) and "hook_event_name" in data
-
-
-def _detect_claude_code(raw_data: str) -> bool:
-    """Detect whether Kiro-shaped input is actually from Claude Code.
-
-    Claude Code's hook_event_name values are PascalCase (Stop, SessionStart);
-    Kiro's are lowercase/camelCase (stop, agentSpawn). Verified against every
-    event each frontend actually registers (frontends/*/install.py) - zero
-    overlap.
-
-    Args:
-        raw_data: The raw JSON string from stdin.
-
-    Returns:
-        True if the hook_event_name is PascalCase (Claude Code).
-    """
-    try:
-        data = json.loads(raw_data)
-    except (json.JSONDecodeError, ValueError):
-        return False
-    name = data.get("hook_event_name") if isinstance(data, dict) else None
-    return isinstance(name, str) and name[:1].isupper()
-
-
-def _detect_antigravity(raw_data: str) -> bool:
-    """Detect whether the input is from Antigravity based on JSON shape.
-
-    Antigravity payloads always include 'conversationId' and execution metadata
-    like 'toolCall', 'executionNum', 'stepIdx', or 'workspacePaths'.
-    """
-    try:
-        data = json.loads(raw_data)
-    except (json.JSONDecodeError, ValueError):
-        return False
-    return isinstance(data, dict) and "conversationId" in data and (
-        "toolCall" in data
-        or "executionNum" in data
-        or "terminationReason" in data
-        or "stepIdx" in data
-        or "workspacePaths" in data
-    )
-
-
-def _parse_input(raw_data: str) -> HookInput:
-    """Parse hook input, auto-detecting the frontend.
-
-    Args:
-        raw_data: The raw JSON string from stdin.
-
-    Returns:
-        A typed HookInput subclass.
-    """
-    if _detect_antigravity(raw_data):
-        hook_event: str | None = None
-        try:
-            data = json.loads(raw_data)
-            if "toolCall" in data:
-                hook_event = "PreToolUse"
-            elif "executionNum" in data or "terminationReason" in data:
-                hook_event = "Stop"
-            elif "stepIdx" in data:
-                hook_event = "PostToolUse"
-        except Exception:
-            pass
-        set_protocol(AntigravityProtocol(hook_event or "PreToolUse"))
-        return parse_antigravity_data(raw_data)
-
-    if _detect_kiro(raw_data):
-        if _detect_claude_code(raw_data):
-            hook_event_name = json.loads(raw_data).get("hook_event_name", "")
-            set_protocol(ClaudeCodeProtocol(hook_event_name))
-        else:
-            set_protocol(KiroProtocol())
-        return parse_kiro_data(raw_data)
-    logging.getLogger("hooks").addHandler(logging.StreamHandler())
-    set_protocol(ClineProtocol())
-    return parse_cline_data(raw_data)
+    proto = select_protocol(payload).from_payload(payload)
+    set_protocol(proto)
+    proto.configure_logging()
+    hook = proto.parse(payload)
+    _invocation_filter.frontend = proto.frontend_spec.name if proto.frontend_spec else "-"
+    _invocation_filter.agent = hook.agentType or "main"
+    return proto, hook
 
 
 def _run_hook() -> NoReturn:
     """Read hook input from stdin and dispatch to the appropriate handler."""
+    logger.debug("=== start ===")
     try:
-        hook = _parse_input(input())
+        payload = RawPayload.from_stdin(input())
+        proto, hook = _parse_hook(payload)
     except Exception:
         logger.exception("Failed to parse hook input")
         allow()
 
+    if not proto.fires(hook.hookName):
+        logger.debug("Ignoring %s: not a hook %s fires", hook.hookName, type(proto).__name__)
+        allow()
+
     handler = HOOK_HANDLERS.get(hook.hookName)
     if handler is not None:
-        handler(hook)
+        outcome = handler(hook)
+        if outcome is not None:
+            emit(outcome)
 
     allow()
 
 
 def _list_plugins() -> None:
     """Print all loaded plugins and their capabilities."""
-    from cline_hooks.core.plugin import load_plugins  # noqa: PLC0415
+    from cline_hooks.core.plugin import (  # ruff: ignore[import-outside-top-level]
+        HooksPlugin,
+        list_plugin_methods,
+        load_plugins,
+    )
 
     plugins = load_plugins()
     if not plugins:
-        print("No plugins loaded.")  # noqa: T201
+        print("No plugins loaded.")  # ruff: ignore[print]
         return
+
+    method_names = [info.name for info in list_plugin_methods()]
 
     for plugin in plugins:
         name = type(plugin).__name__
         module = type(plugin).__module__
         build_cmds = plugin.get_build_commands()
         rules = plugin.get_command_rules()
-        print(f"{name} ({module})")  # noqa: T201
+        overrides = [
+            method_name
+            for method_name in method_names
+            if getattr(plugin, method_name).__func__ is not getattr(HooksPlugin, method_name)
+        ]
+        print(f"{name} ({module})")  # ruff: ignore[print]
         if build_cmds:
-            print(f"  build commands: {', '.join(sorted(build_cmds))}")  # noqa: T201
+            print(f"  build commands: {', '.join(sorted(build_cmds))}")  # ruff: ignore[print]
         if rules:
-            print(f"  command rules:  {len(rules)}")  # noqa: T201
+            print(f"  command rules:  {len(rules)}")  # ruff: ignore[print]
+        print(f"  overrides:      {', '.join(overrides) if overrides else 'none'}")  # ruff: ignore[print]
 
 
 def main() -> NoReturn:
@@ -207,54 +157,26 @@ def main() -> NoReturn:
     args = _build_parser().parse_args()
 
     if args.command == "install":
-        if args.install_mode == "kiro":
-            install_kiro(args.agent_config)
-        elif args.install_mode == "cline":
-            install_cline(args.target_dir)
-        elif args.install_mode == "claude-code":
-            install_claude_code()
-        elif args.install_mode == "codex":
-            install_codex()
-        elif args.install_mode == "copilot":
-            install_copilot()
-        elif args.install_mode == "antigravity":
-            install_antigravity()
-        else:
+        frontend = FRONTENDS_BY_NAME.get(args.install_mode or "")
+        if frontend is None or frontend.installer is None:
             _build_parser().parse_args(["install", "--help"])
+        else:
+            argument = frontend.installer.argument
+            target = getattr(args, argument.name) if argument is not None else None
+            frontend.install(target)
         sys.exit(0)
-
-    if args.command == "antigravity":
-        raw_data = input()
-        event_name = args.event or "PreToolUse"
-        if not args.event:
-            try:
-                data = json.loads(raw_data)
-                if "toolCall" in data:
-                    event_name = "PreToolUse"
-                elif "executionNum" in data or "terminationReason" in data:
-                    event_name = "Stop"
-                elif "stepIdx" in data:
-                    event_name = "PostToolUse"
-            except Exception:
-                pass
-        set_protocol(AntigravityProtocol(event_name))
-        hook = parse_antigravity_data(raw_data, event_override=event_name)
-        handler = HOOK_HANDLERS.get(hook.hookName)
-        if handler is not None:
-            handler(hook)
-        allow()
 
     if args.command == "plugins":
         _list_plugins()
         sys.exit(0)
 
     if args.command == "retro-count":
-        from cline_hooks.state import retrospective  # noqa: PLC0415
+        from cline_hooks.state import retrospective  # ruff: ignore[import-outside-top-level]
 
         if args.reset:
             retrospective.reset()
         else:
-            print(retrospective.get_count())  # noqa: T201
+            print(retrospective.get_count())  # ruff: ignore[print]
         sys.exit(0)
 
     _run_hook()

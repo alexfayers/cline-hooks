@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from cline_hooks.handlers.context_nudge import context_note
-from cline_hooks.state.agents import record_agent_use
-from cline_hooks.state.context import (
+from cline_hooks.plugins.context_usage import (
     _BAND_SIZE,
     CONTEXT_DEGRADED_THRESHOLD,
     CONTEXT_REDUCED_THRESHOLD,
+    context_note,
 )
+from cline_hooks.state.agents import record_agent_use
 
 _BELOW_REDUCED = CONTEXT_REDUCED_THRESHOLD // 2
 _JUST_ABOVE_REDUCED = CONTEXT_REDUCED_THRESHOLD + _BAND_SIZE
@@ -63,9 +63,9 @@ class TestContextNote:
         record_agent_use("task-1", "Agent")
         note = context_note("task-1", _JUST_ABOVE_REDUCED)
         assert note is not None
-        assert "TaskStop" in note
+        assert "stop the team" in note
 
     def test_no_team_clause_when_no_agent(self) -> None:
         note = context_note("task-1", _JUST_ABOVE_REDUCED)
         assert note is not None
-        assert "TaskStop" not in note
+        assert "stop the team" not in note

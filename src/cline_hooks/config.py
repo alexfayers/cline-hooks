@@ -5,6 +5,15 @@ from __future__ import annotations
 import os
 
 
+def agent_teams_enabled() -> bool:
+    """Return whether agent teams are enabled for this session.
+
+    Read from CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS, which the harness gates on
+    presence rather than value, so any non-empty value counts as enabled.
+    """
+    return bool(os.environ.get("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS", ""))
+
+
 def get_push_block_markers() -> tuple[str, ...]:
     """Return directory/file names marking a workspace where `git push` is blocked.
 

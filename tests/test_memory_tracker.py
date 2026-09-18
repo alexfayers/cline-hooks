@@ -26,17 +26,12 @@ class TestIsMemoryWrite:
     def test_bare_delete_entity(self) -> None:
         assert is_memory_write("delete_entity")
 
-    def test_prefixed_claude_code_format(self) -> None:
-        assert is_memory_write("mcp__memory__create_entities")
-
-    def test_prefixed_add_observations(self) -> None:
-        assert is_memory_write("mcp__memory__add_observations")
-
     def test_read_graph_is_not_write(self) -> None:
         assert not is_memory_write("read_graph")
 
-    def test_prefixed_read_graph_is_not_write(self) -> None:
-        assert not is_memory_write("mcp__memory__read_graph")
+    def test_frontend_prefixed_name_is_not_matched_raw(self) -> None:
+        """Each frontend resolves its own MCP naming before the tracker sees it."""
+        assert not is_memory_write("mcp__memory__create_entities")
 
     def test_search_nodes_is_not_write(self) -> None:
         assert not is_memory_write("search_nodes")

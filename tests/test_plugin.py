@@ -1,5 +1,17 @@
 from __future__ import annotations
 
+import importlib
+import importlib.metadata
+import logging
+import sys
+from typing import TYPE_CHECKING
+
+import pytest
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from pathlib import Path
+
 from cline_hooks.core.plugin import (
     HookResult,
     HooksPlugin,
@@ -14,7 +26,8 @@ from cline_hooks.handlers.commands import (
     get_all_build_commands,
     get_all_command_rules,
 )
-from cline_hooks.plugins.default import DefaultPlugin
+import cline_hooks.plugins as plugins_pkg
+from cline_hooks.plugins.command_rules import CommandRulesPlugin
 
 
 class TestHooksPluginDefaults:
@@ -36,7 +49,7 @@ class TestHooksPluginDefaults:
 
     def test_on_hook_returns_none(self) -> None:
         plugin = HooksPlugin()
-        assert plugin.on_hook("AnyHook") is None
+        assert plugin.on_hook("AnyHook", logger=logging.getLogger("test")) is None
 
     def test_get_tooling_note_returns_none(self) -> None:
         plugin = HooksPlugin()
@@ -76,6 +89,26 @@ class TestCollectHookResults:
         result = collect_hook_results([], "TestHook")
         assert result.notes == []
         assert result.block is None
+
+    def test_logs_under_the_plugin_and_hook_when_it_produces_a_result(self, caplog: pytest.LogCaptureFixture) -> None:
+        class PluginA(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+                return HookResult(notes=["a"])
+
+        with caplog.at_level(logging.INFO, logger="hooks"):
+            collect_hook_results([PluginA()], "TestHook")
+
+        assert any(r.name == "hooks.PluginA.TestHook" for r in caplog.records)
+
+    def test_does_not_log_when_a_plugin_returns_nothing(self, caplog: pytest.LogCaptureFixture) -> None:
+        class PluginA(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+                return None
+
+        with caplog.at_level(logging.INFO, logger="hooks"):
+            collect_hook_results([PluginA()], "TestHook")
+
+        assert caplog.records == []
 
     def test_merges_notes(self) -> None:
         class PluginA(HooksPlugin):
@@ -130,24 +163,38 @@ class TestCollectHookResults:
         received: dict[str, object] = {}
 
         class PluginA(HooksPlugin):
-            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+            def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
                 received.update(kwargs)
                 return None
 
         collect_hook_results([PluginA()], "TestHook", task_id="t1", tool_name="test")
         assert received == {"task_id": "t1", "tool_name": "test"}
 
+    def test_skips_blank_and_whitespace_only_notes(self) -> None:
+        class PluginA(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+                return HookResult(notes=["", "  ", "real"])
+
+        result = collect_hook_results([PluginA()], "TestHook")
+        assert result.notes == ["real"]
+
 
 class TestLoadPlugins:
+    @pytest.fixture(autouse=True)
+    def _reset_plugin_cache(self) -> Iterator[None]:
+        _plugin_cache._loaded = None
+        yield
+        _plugin_cache._loaded = None
+
     def test_returns_list(self) -> None:
         _plugin_cache._loaded = None
         plugins = load_plugins()
         assert isinstance(plugins, list)
 
-    def test_includes_default_plugin(self) -> None:
+    def test_includes_command_rules_plugin(self) -> None:
         _plugin_cache._loaded = None
         plugins = load_plugins()
-        assert any(isinstance(p, DefaultPlugin) for p in plugins)
+        assert any(isinstance(p, CommandRulesPlugin) for p in plugins)
 
     def test_result_is_cached(self) -> None:
         _plugin_cache._loaded = None
@@ -160,63 +207,33 @@ class TestLoadPlugins:
         plugins = load_plugins()
         assert plugins is not None
 
+    def test_subclass_visible_in_two_bundled_modules_loaded_once(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        origin_name = "cline_hooks.plugins.temp_origin_plugin"
+        reexport_name = "cline_hooks.plugins.temp_reexport_plugin"
+        (tmp_path / "temp_origin_plugin.py").write_text(
+            "from cline_hooks.core.plugin import HooksPlugin\n\n\nclass FakePlugin(HooksPlugin):\n    pass\n"
+        )
+        (tmp_path / "temp_reexport_plugin.py").write_text(
+            'from cline_hooks.plugins.temp_origin_plugin import FakePlugin\n\n__all__ = ["FakePlugin"]\n'
+        )
 
-class TestDefaultPluginBuildCommands:
-    def test_contains_just(self) -> None:
-        plugin = DefaultPlugin()
-        assert "just" in plugin.get_build_commands()
+        def fake_entry_points(
+            **_kwargs: object,
+        ) -> tuple[importlib.metadata.EntryPoint, ...]:
+            return ()
 
-    def test_contains_pytest(self) -> None:
-        plugin = DefaultPlugin()
-        assert "pytest" in plugin.get_build_commands()
+        monkeypatch.setattr(plugins_pkg, "__path__", [*plugins_pkg.__path__, str(tmp_path)])
+        monkeypatch.setattr(importlib.metadata, "entry_points", fake_entry_points)
 
-    def test_contains_flutter(self) -> None:
-        plugin = DefaultPlugin()
-        assert "flutter" in plugin.get_build_commands()
-
-    def test_contains_dart(self) -> None:
-        plugin = DefaultPlugin()
-        assert "dart" in plugin.get_build_commands()
-
-    def test_does_not_contain_brazil_build(self) -> None:
-        plugin = DefaultPlugin()
-        assert "brazil-build" not in plugin.get_build_commands()
-
-    def test_does_not_contain_eda(self) -> None:
-        plugin = DefaultPlugin()
-        assert "eda" not in plugin.get_build_commands()
-
-    def test_does_not_contain_bb(self) -> None:
-        plugin = DefaultPlugin()
-        assert "bb" not in plugin.get_build_commands()
-
-
-class TestDefaultPluginCommandRules:
-    def test_returns_command_rules(self) -> None:
-        plugin = DefaultPlugin()
-        rules = plugin.get_command_rules()
-        assert all(isinstance(r, CommandRule) for r in rules)
-
-    def test_includes_rm_rule(self) -> None:
-        plugin = DefaultPlugin()
-        commands = [r.command for r in plugin.get_command_rules()]
-        assert "rm" in commands
-
-    def test_includes_git_rule(self) -> None:
-        plugin = DefaultPlugin()
-        commands = [r.command for r in plugin.get_command_rules()]
-        assert "git" in commands
-
-    def test_includes_grep_rule(self) -> None:
-        plugin = DefaultPlugin()
-        commands = [r.command for r in plugin.get_command_rules()]
-        assert "grep" in commands
-
-
-class TestDefaultPluginWorkspaceContext:
-    def test_on_hook_returns_none(self) -> None:
-        plugin = DefaultPlugin()
-        assert plugin.on_hook("TaskStart", workspace_roots=[]) is None
+        try:
+            plugins = load_plugins()
+            origin_module = importlib.import_module(origin_name)
+            assert sum(isinstance(p, origin_module.FakePlugin) for p in plugins) == 1
+        finally:
+            sys.modules.pop(origin_name, None)
+            sys.modules.pop(reexport_name, None)
 
 
 class TestGetAllBuildCommands:

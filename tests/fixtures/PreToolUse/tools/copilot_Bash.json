@@ -1,0 +1,9 @@
+{
+  "hook_event_name": "PreToolUse",
+  "cwd": "/home/user/project",
+  "session_id": "fixture-session-id",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "ls -la"
+  }
+}

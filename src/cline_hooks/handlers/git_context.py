@@ -12,7 +12,7 @@ import git.exc
 if TYPE_CHECKING:
     from cline_hooks.core.plugin import HooksPlugin
 
-logger = logging.getLogger("hooks")
+logger = logging.getLogger("hooks.git_context")
 
 
 def get_git_context(workspace_roots: list[str]) -> str | None:
@@ -51,6 +51,24 @@ def get_git_context(workspace_roots: list[str]) -> str | None:
         ]
         return "\n".join(lines)
 
+    return None
+
+
+def get_dirty_count(workspace_roots: list[str]) -> int | None:
+    """Return the number of dirty files in the first valid git repo found.
+
+    Args:
+        workspace_roots: List of workspace root paths to search.
+
+    Returns:
+        Dirty file count, or None if no valid repo found.
+    """
+    for root in workspace_roots:
+        try:
+            repo = git.Repo(root)
+            return len(repo.index.diff(None)) + len(repo.untracked_files)
+        except (git.exc.InvalidGitRepositoryError, git.exc.NoSuchPathError):
+            continue
     return None
 
 

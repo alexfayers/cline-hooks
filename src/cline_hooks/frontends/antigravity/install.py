@@ -2,81 +2,53 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
-from cline_hooks.core.install import resolve_binary
+from cline_hooks.core.install import JsonHookInstaller
+
+if TYPE_CHECKING:
+    from cline_hooks.core.protocol import HookRegistration
 
 
-def _build_antigravity_hooks(binary: Path) -> dict[str, Any]:
-    """Build the cline-hooks event configurations for Antigravity hooks.json.
+class AntigravityInstaller(JsonHookInstaller):
+    """Installs cline-hooks into Antigravity's user hooks file.
 
-    Args:
-        binary: Path to the cline-hook binary.
-
-    Returns:
-        A dict of event names to handler configurations matching Antigravity spec.
+    Antigravity's hooks.json maps a hook's name to its event configuration, so
+    everything cline-hooks installs lives under its own name. A tool event's
+    entries are hook groups behind a matcher; every other event's are handlers
+    listed directly under the event key.
     """
-    binary_str = str(binary)
-    return {
-        "PreToolUse": [
-            {
-                "matcher": "*",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": f"{binary_str} antigravity --event PreToolUse",
-                        "timeout": 30,
-                    }
-                ],
-            }
-        ],
-        "PostToolUse": [
-            {
-                "matcher": "*",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": f"{binary_str} antigravity --event PostToolUse",
-                        "timeout": 30,
-                    }
-                ],
-            }
-        ],
-        "Stop": [
-            {
-                "type": "command",
-                "command": f"{binary_str} antigravity --event Stop",
-                "timeout": 30,
-            }
-        ],
-    }
 
+    help: ClassVar[str] = "Install Antigravity hooks into ~/.gemini/config/hooks.json"
+    root_key: ClassVar[str] = "cline-hooks"
 
-def install_antigravity(config_dir: Path | None = None) -> Path:
-    """Patch ~/.gemini/config/hooks.json with cline-hooks entries.
+    def config_path(self, target: str | None) -> Path:
+        """Return Antigravity's user hooks file.
 
-    Args:
-        config_dir: Optional override for the config directory. Defaults to ~/.gemini/config.
+        Returns:
+            Path to ~/.gemini/config/hooks.json.
+        """
+        return Path.home() / ".gemini" / "config" / "hooks.json"
 
-    Returns:
-        The path to the patched hooks.json file.
-    """
-    binary = resolve_binary()
-    target_dir = config_dir or (Path.home() / ".gemini" / "config")
-    hooks_path = target_dir / "hooks.json"
+    def build_entry(self, binary: Path, registration: HookRegistration) -> dict[str, Any]:
+        """Build one Antigravity hook entry in the event's own structure.
 
-    hooks_path.parent.mkdir(parents=True, exist_ok=True)
-    if not hooks_path.exists() or hooks_path.stat().st_size == 0:
-        config: dict[str, Any] = {}
-    else:
-        try:
-            config = json.loads(hooks_path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, ValueError):
-            config = {}
+        Returns:
+            A hook group carrying the matcher where the event matches on tool
+            name, otherwise a bare handler.
+        """
+        handler = {"type": "command", "command": str(binary)}
+        if registration.matcher is None:
+            return handler
+        return {"matcher": registration.matcher, "hooks": [handler]}
 
-    config["cline-hooks"] = _build_antigravity_hooks(binary)
-    hooks_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
-    print(f"Patched {hooks_path} with cline-hooks configuration.")
-    return hooks_path
+    def entry_commands(self, entry: dict[str, Any]) -> set[str]:
+        """Return the commands an entry of either structure already runs.
+
+        Returns:
+            The commands in the entry's hook group, or the entry's own command.
+        """
+        if "hooks" in entry:
+            return super().entry_commands(entry)
+        return {str(entry.get("command", ""))}

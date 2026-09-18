@@ -1,0 +1,6 @@
+{
+  "hook_event_name": "agentSpawn",
+  "cwd": "/home/user/project",
+  "session_id": "fixture-session-id",
+  "source": "startup"
+}

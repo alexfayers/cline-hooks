@@ -1,128 +1,269 @@
 from __future__ import annotations
 
-import os
+import json
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
-from cline_hooks.frontends.cline import install_cline as install
-from cline_hooks.frontends.cline.install import _HOOKS
+import pytest
+
+from cline_hooks.core.frontend import FrontendSpec
+from cline_hooks.core.frontends import FRONTENDS, FRONTENDS_BY_NAME
+from cline_hooks.core.install import JsonHookInstaller, resolve_binary
 
 if TYPE_CHECKING:
-    import pytest
+    from collections.abc import Iterator
+
+_FAKE_PYTHON = str(Path("/fake/bin/python"))
+_EXPECTED_BINARY = str(Path(_FAKE_PYTHON).parent / "cline-hook")
+
+_JSON_FRONTENDS = [spec for spec in FRONTENDS if isinstance(spec.installer, JsonHookInstaller)]
 
 
-class TestInstall:
-    _FAKE_PYTHON = str(Path("C:/fake/bin/python.exe"))
+def _installer(spec: FrontendSpec) -> JsonHookInstaller:
+    """Return a spec's installer, narrowed to a JSON installer.
 
-    @classmethod
-    def _expected_binary(cls) -> str:
-        return str(Path(cls._FAKE_PYTHON).parent / "cline-hook")
+    Returns:
+        The frontend's JsonHookInstaller.
+    """
+    assert isinstance(spec.installer, JsonHookInstaller)
+    return spec.installer
 
-    @staticmethod
-    def _normalize_link_target(path: str) -> str:
-        path = path.removeprefix("\\\\?\\")
-        return os.path.normcase(os.path.normpath(path))
 
-    def test_prefers_existing_windows_binary(self, tmp_path: Path) -> None:
+def _target_for(spec: FrontendSpec, home: Path) -> str | None:
+    """Return the install target for a frontend, where it takes one.
+
+    Returns:
+        A path inside `home`, or None where the install takes no argument.
+    """
+    installer = _installer(spec)
+    if installer.argument is None:
+        return None
+    return str(home / f"{spec.name}-agent.json")
+
+
+@pytest.fixture
+def home(tmp_path: Path) -> Iterator[Path]:
+    """Point Path.home() and the resolved binary at a throwaway directory.
+
+    Yields:
+        The fake home directory.
+    """
+    with (
+        patch("cline_hooks.core.install.sys.executable", _FAKE_PYTHON),
+        patch.object(Path, "home", return_value=tmp_path),
+    ):
+        yield tmp_path
+
+
+def _seed(spec: FrontendSpec, home: Path, config: dict[str, Any] | None = None) -> Path:
+    """Write a starting config where the frontend requires an existing file.
+
+    Args:
+        spec: The frontend being installed.
+        home: The fake home directory.
+        config: Starting config content, defaulting to an empty object.
+
+    Returns:
+        The config path the installer will patch.
+    """
+    installer = _installer(spec)
+    config_path = installer.config_path(_target_for(spec, home))
+    if installer.must_exist or config is not None:
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text(json.dumps(config or {}), encoding="utf-8")
+    return config_path
+
+
+def _install(spec: FrontendSpec, home: Path) -> dict[str, Any]:
+    """Run a frontend's installer and read back the config it wrote.
+
+    Returns:
+        The parsed config file.
+    """
+    spec.install(_target_for(spec, home))
+    config_path = _installer(spec).config_path(_target_for(spec, home))
+    return dict(json.loads(config_path.read_text(encoding="utf-8")))
+
+
+def _commands(spec: FrontendSpec, config: dict[str, Any], event: str) -> list[str]:
+    """Return every command registered under one hook event.
+
+    Returns:
+        The commands in config order, as the installer itself reads them.
+    """
+    installer = _installer(spec)
+    return [
+        command for entry in config[installer.root_key][event] for command in sorted(installer.entry_commands(entry))
+    ]
+
+
+def _first_event(spec: FrontendSpec) -> str:
+    """Return the first hook event a frontend registers.
+
+    Returns:
+        The native event name.
+    """
+    return next(iter(spec.protocol.supported_hooks.values())).native_name
+
+
+@pytest.mark.parametrize("spec", _JSON_FRONTENDS, ids=lambda spec: spec.name)
+class TestJsonHookInstallers:
+    """Invariants every JSON-configured frontend's installer must hold."""
+
+    def test_installs_an_entry_for_every_registered_hook(self, spec: FrontendSpec, home: Path) -> None:
+        _seed(spec, home)
+        config = _install(spec, home)
+        assert set(config[_installer(spec).root_key]) == {
+            registration.native_name for registration in spec.protocol.supported_hooks.values()
+        }
+
+    def test_every_entry_runs_the_resolved_binary(self, spec: FrontendSpec, home: Path) -> None:
+        _seed(spec, home)
+        config = _install(spec, home)
+        for event in config[_installer(spec).root_key]:
+            assert _EXPECTED_BINARY in _commands(spec, config, event)
+
+    def test_preserves_unrelated_config_keys(self, spec: FrontendSpec, home: Path) -> None:
+        _seed(spec, home, {"other": "value"})
+        config = _install(spec, home)
+        assert config["other"] == "value"
+        assert _installer(spec).root_key in config
+
+    def test_preserves_entries_from_other_sources(self, spec: FrontendSpec, home: Path) -> None:
+        installer = _installer(spec)
+        event = _first_event(spec)
+        registration = next(iter(spec.protocol.supported_hooks.values()))
+        foreign = installer.build_entry(Path("/other/tool"), registration)
+        _seed(spec, home, {installer.root_key: {event: [foreign]}})
+
+        config = _install(spec, home)
+        commands = _commands(spec, config, event)
+        assert "/other/tool" in commands
+        assert _EXPECTED_BINARY in commands
+
+    def test_idempotent_when_already_installed(self, spec: FrontendSpec, home: Path) -> None:
+        _seed(spec, home)
+        target = _target_for(spec, home)
+        spec.install(target)
+        config = _install(spec, home)
+        event = _first_event(spec)
+        assert _commands(spec, config, event).count(_EXPECTED_BINARY) == 1
+
+
+class TestNestedEntryFrontends:
+    """Claude Code and Codex share the nested "hook group" config shape."""
+
+    @pytest.mark.parametrize("name", ["claude-code", "codex"])
+    def test_tool_hooks_carry_their_matcher(self, name: str, home: Path) -> None:
+        spec = FRONTENDS_BY_NAME[name]
+        config = _install(spec, home)
+        assert config["hooks"]["PreToolUse"][0]["matcher"] == ""
+        assert config["hooks"]["PostToolUse"][0]["matcher"] == ""
+        assert "matcher" not in config["hooks"]["SessionStart"][0]
+
+    @pytest.mark.parametrize(
+        ("name", "expected"),
+        [
+            ("claude-code", (".claude", "settings.json")),
+            ("codex", (".codex", "hooks.json")),
+            ("copilot", (".copilot", "hooks", "cline-hooks.json")),
+        ],
+    )
+    def test_config_path(self, name: str, expected: tuple[str, ...], home: Path) -> None:
+        spec = FRONTENDS_BY_NAME[name]
+        assert _installer(spec).config_path(None) == home.joinpath(*expected)
+
+
+class TestKiroInstaller:
+    def test_entries_are_flat_and_described(self, home: Path) -> None:
+        spec = FRONTENDS_BY_NAME["kiro"]
+        _seed(spec, home, {"name": "test-agent", "tools": ["*"]})
+        config = _install(spec, home)
+        entry = config["hooks"]["preToolUse"][0]
+        assert entry["command"] == _EXPECTED_BINARY
+        assert entry["description"] == "cline-hooks preToolUse"
+        assert entry["matcher"] == "*"
+        assert "matcher" not in config["hooks"]["agentSpawn"][0]
+
+    def test_preserves_the_rest_of_the_agent(self, home: Path) -> None:
+        spec = FRONTENDS_BY_NAME["kiro"]
+        _seed(spec, home, {"name": "my-agent", "description": "test", "tools": ["x"]})
+        config = _install(spec, home)
+        assert config["name"] == "my-agent"
+        assert config["description"] == "test"
+        assert config["tools"] == ["x"]
+
+    def test_missing_agent_config_exits(self, home: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        spec = FRONTENDS_BY_NAME["kiro"]
+        with pytest.raises(SystemExit) as excinfo:
+            spec.install(str(home / "nope.json"))
+        assert excinfo.value.code == 1
+        assert "does not exist" in capsys.readouterr().err
+
+
+class TestAntigravityInstaller:
+    def test_entries_live_under_the_cline_hooks_hook_name(self, home: Path) -> None:
+        spec = FRONTENDS_BY_NAME["antigravity"]
+        _seed(spec, home, {"other-tool": {"PreToolUse": []}})
+        config = _install(spec, home)
+        assert set(config) == {"other-tool", "cline-hooks"}
+        assert set(config["cline-hooks"]) == {"PreToolUse", "PostToolUse", "Stop"}
+
+    def test_tool_events_are_hook_groups_behind_a_matcher(self, home: Path) -> None:
+        spec = FRONTENDS_BY_NAME["antigravity"]
+        config = _install(spec, home)
+        for event in ("PreToolUse", "PostToolUse"):
+            assert config["cline-hooks"][event] == [
+                {
+                    "matcher": "*",
+                    "hooks": [{"type": "command", "command": _EXPECTED_BINARY}],
+                }
+            ]
+
+    def test_stop_entries_are_handlers_directly_under_the_event(self, home: Path) -> None:
+        spec = FRONTENDS_BY_NAME["antigravity"]
+        config = _install(spec, home)
+        assert config["cline-hooks"]["Stop"] == [{"type": "command", "command": _EXPECTED_BINARY}]
+
+    def test_reinstalling_leaves_the_flat_stop_entry_alone(self, home: Path) -> None:
+        spec = FRONTENDS_BY_NAME["antigravity"]
+        spec.install(None)
+        config = _install(spec, home)
+        assert config["cline-hooks"]["Stop"] == [{"type": "command", "command": _EXPECTED_BINARY}]
+
+
+class TestCopilotInstaller:
+    def test_entries_are_flat_command_objects(self, home: Path) -> None:
+        spec = FRONTENDS_BY_NAME["copilot"]
+        config = _install(spec, home)
+        for entry in config["hooks"].values():
+            assert entry[0] == {"type": "command", "command": _EXPECTED_BINARY}
+
+
+class TestResolveBinary:
+    def test_prefers_an_existing_windows_executable(self, tmp_path: Path) -> None:
         scripts_dir = tmp_path / "Scripts"
         scripts_dir.mkdir()
         exe = scripts_dir / "cline-hook.exe"
         exe.write_text("", encoding="utf-8")
+        with patch("cline_hooks.core.install.sys.executable", str(scripts_dir / "python.exe")):
+            assert resolve_binary() == exe
 
-        with (
-            patch("cline_hooks.core.install.sys.executable", str(scripts_dir / "python.exe")),
-            patch("cline_hooks.frontends.cline.install._is_windows", return_value=True),
-        ):
-            install(str(tmp_path / "hooks"))
+    def test_falls_back_to_the_unsuffixed_name(self, tmp_path: Path) -> None:
+        with patch("cline_hooks.core.install.sys.executable", str(tmp_path / "python")):
+            assert resolve_binary() == tmp_path / "cline-hook"
 
-        content = (tmp_path / "hooks" / f"{_HOOKS[0]}.ps1").read_text(encoding="utf-8")
-        assert str(exe) in content
 
-    def test_creates_target_directory(self, tmp_path: Path) -> None:
-        target = tmp_path / "hooks"
-        with (
-            patch("cline_hooks.core.install.sys.executable", self._FAKE_PYTHON),
-            patch("cline_hooks.frontends.cline.install._is_windows", return_value=False),
-        ):
-            install(str(target))
-        assert target.is_dir()
+class TestEveryFrontendIsInstallable:
+    def test_each_frontend_declares_an_installer(self) -> None:
+        assert [spec.name for spec in FRONTENDS if spec.installer is None] == []
 
-    def test_creates_symlinks_for_all_hooks(self, tmp_path: Path) -> None:
-        with (
-            patch("cline_hooks.core.install.sys.executable", self._FAKE_PYTHON),
-            patch("cline_hooks.frontends.cline.install._is_windows", return_value=False),
-        ):
-            install(str(tmp_path))
-        for hook in _HOOKS:
-            assert (tmp_path / hook).is_symlink()
-
-    def test_symlinks_point_to_binary(self, tmp_path: Path) -> None:
-        with (
-            patch("cline_hooks.core.install.sys.executable", self._FAKE_PYTHON),
-            patch("cline_hooks.frontends.cline.install._is_windows", return_value=False),
-        ):
-            install(str(tmp_path))
-        binary = self._expected_binary()
-        for hook in _HOOKS:
-            assert self._normalize_link_target(str((tmp_path / hook).readlink())) == self._normalize_link_target(binary)
-
-    def test_skips_already_correct_symlinks(self, tmp_path: Path) -> None:
-        binary = self._expected_binary()
-        (tmp_path / _HOOKS[0]).symlink_to(binary)
-        with (
-            patch("cline_hooks.core.install.sys.executable", self._FAKE_PYTHON),
-            patch("cline_hooks.frontends.cline.install._is_windows", return_value=False),
-        ):
-            install(str(tmp_path))
-        assert self._normalize_link_target(str((tmp_path / _HOOKS[0]).readlink())) == self._normalize_link_target(
-            binary
+    def test_install_without_an_installer_is_refused(self) -> None:
+        spec = FrontendSpec(
+            name="no-install",
+            display_name="No Install",
+            protocol=FRONTENDS[0].protocol,
         )
-
-    def test_skips_non_symlink_files(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-        (tmp_path / _HOOKS[0]).write_text("existing file")
-        with (
-            patch("cline_hooks.core.install.sys.executable", self._FAKE_PYTHON),
-            patch("cline_hooks.frontends.cline.install._is_windows", return_value=False),
-        ):
-            install(str(tmp_path))
-        assert not (tmp_path / _HOOKS[0]).is_symlink()
-        assert "skipping" in capsys.readouterr().err
-
-    def test_replaces_stale_symlinks(self, tmp_path: Path) -> None:
-        (tmp_path / _HOOKS[0]).symlink_to("stale-cline-hook")
-        with (
-            patch("cline_hooks.core.install.sys.executable", self._FAKE_PYTHON),
-            patch("cline_hooks.frontends.cline.install._is_windows", return_value=False),
-        ):
-            install(str(tmp_path))
-        binary = self._expected_binary()
-        assert self._normalize_link_target(str((tmp_path / _HOOKS[0]).readlink())) == self._normalize_link_target(
-            binary
-        )
-
-    def test_windows_writes_ps1_files_for_all_hooks(self, tmp_path: Path) -> None:
-        with (
-            patch("cline_hooks.core.install.sys.executable", "C:/fake/Scripts/python.exe"),
-            patch("cline_hooks.frontends.cline.install._is_windows", return_value=True),
-        ):
-            install(str(tmp_path))
-
-        for hook in _HOOKS:
-            script = tmp_path / f"{hook}.ps1"
-            assert script.is_file()
-            content = script.read_text(encoding="utf-8")
-            assert "$inputData = [Console]::In.ReadToEnd()" in content
-
-    def test_windows_skips_user_managed_script(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-        script = tmp_path / f"{_HOOKS[0]}.ps1"
-        script.write_text("Write-Host 'custom'\n", encoding="utf-8")
-
-        with (
-            patch("cline_hooks.core.install.sys.executable", "C:/fake/Scripts/python.exe"),
-            patch("cline_hooks.frontends.cline.install._is_windows", return_value=True),
-        ):
-            install(str(tmp_path))
-
-        assert script.read_text(encoding="utf-8") == "Write-Host 'custom'\n"
-        assert "was not generated by cline-hook" in capsys.readouterr().err
+        with pytest.raises(RuntimeError, match="no install step"):
+            spec.install()

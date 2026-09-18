@@ -1,0 +1,16 @@
+{
+  "hook_event_name": "PostToolUse",
+  "cwd": "/home/user/project",
+  "session_id": "fixture-session-id",
+  "transcript_path": "/home/user/.claude/projects/fixture/transcript.jsonl",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "ls -la",
+    "description": "List files"
+  },
+  "tool_response": {
+    "stdout": "file1\nfile2",
+    "stderr": "",
+    "interrupted": false
+  }
+}

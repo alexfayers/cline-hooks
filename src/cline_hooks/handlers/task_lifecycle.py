@@ -3,25 +3,16 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-import git
-import git.exc
-
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
-from cline_hooks.handlers.git_context import get_git_context, resolve_tooling_notes
+from cline_hooks.core.vocabulary import NO_RESET_TASK_START_SOURCES, CanonicalHook
+from cline_hooks.handlers.git_context import resolve_tooling_notes
 from cline_hooks.state.agents import reset as _reset_agents
-from cline_hooks.state.context import reset as _reset_context
 from cline_hooks.state.memory import reset as _reset_memory
-from cline_hooks.state.plan import reset as _reset_plan
-from cline_hooks.state.research import reset as _reset_research
-from cline_hooks.state.skills import (
-    _SKILL_REQUIREMENTS,
-    reset as _reset_skills,
-)
+from cline_hooks.state.skills import reset as _reset_skills
 from cline_hooks.state.store import TaskStateStore
-from cline_hooks.state.turns import reset as _reset_turns
 from cline_hooks.state.workspace import (
     record_workspace,
     reset as reset_workspace,
@@ -36,29 +27,9 @@ if TYPE_CHECKING:
     )
     from cline_hooks.state.store import TaskBlockEvent
 
-logger = logging.getLogger("hooks")
+logger = logging.getLogger("hooks.task_lifecycle")
 
 _store = TaskStateStore()
-
-_NO_RESET_SOURCES = frozenset({"resume", "compact"})
-
-
-def _get_dirty_count(workspace_roots: list[str]) -> int | None:
-    """Return the number of dirty files in the first valid git repo found.
-
-    Args:
-        workspace_roots: List of workspace root paths to search.
-
-    Returns:
-        Dirty file count, or None if no valid repo found.
-    """
-    for root in workspace_roots:
-        try:
-            repo = git.Repo(root)
-            return len(repo.index.diff(None)) + len(repo.untracked_files)
-        except (git.exc.InvalidGitRepositoryError, git.exc.NoSuchPathError):
-            continue
-    return None
 
 
 def _format_block_history(blocks: list[TaskBlockEvent]) -> str:
@@ -75,7 +46,7 @@ def _format_block_history(blocks: list[TaskBlockEvent]) -> str:
     return "\n".join(lines)
 
 
-@hook_handler("TaskStart")
+@hook_handler(CanonicalHook.TASK_START)
 def handle_task_start(hook: HookInputTaskStart) -> None:
     """Handle TaskStart hook events.
 
@@ -83,19 +54,11 @@ def handle_task_start(hook: HookInputTaskStart) -> None:
         hook: The hook input data.
     """
     source = hook.taskStart.source if hook.taskStart else ""
-    if source not in _NO_RESET_SOURCES:
+    if source not in NO_RESET_TASK_START_SOURCES:
         _reset_skills(hook.taskId)
         _reset_memory(hook.taskId)
-        _reset_turns(hook.taskId)
         _reset_agents(hook.taskId)
-        _reset_context(hook.taskId)
-        _reset_research(hook.taskId)
-        _reset_plan(hook.taskId)
     parts: list[str] = []
-
-    git_context = get_git_context(hook.workspaceRoots)
-    if git_context:
-        parts.append(git_context)
 
     plugins = load_plugins()
 
@@ -119,7 +82,7 @@ def handle_task_start(hook: HookInputTaskStart) -> None:
     allow("\n\n".join(parts) or None, prefix="", system_message=system_message)
 
 
-@hook_handler("TaskResume")
+@hook_handler(CanonicalHook.TASK_RESUME)
 def handle_task_resume(hook: HookInputTaskResume) -> None:
     """Handle TaskResume hook events.
 
@@ -128,17 +91,9 @@ def handle_task_resume(hook: HookInputTaskResume) -> None:
     """
     parts: list[str] = []
 
-    git_context = get_git_context(hook.workspaceRoots)
-    if git_context:
-        parts.append(git_context)
-
     blocks = _store.get_blocks(hook.taskId)
     if blocks:
         parts.append(_format_block_history(blocks))
-        pending_skills = {skill for block in blocks for skill in _SKILL_REQUIREMENTS.values() if skill in block.reason}
-        if pending_skills:
-            skills_list = ", ".join(f"`{s}`" for s in sorted(pending_skills))
-            parts.append(f"REQUIRED: use the {skills_list} skill(s) before retrying the blocked command.")
 
     plugins = load_plugins()
 
@@ -150,13 +105,15 @@ def handle_task_resume(hook: HookInputTaskResume) -> None:
         "TaskResume",
         task_id=hook.taskId,
         workspace_roots=hook.workspaceRoots,
+        agent_type=hook.agentType,
+        block_reasons=[block.reason for block in blocks],
     )
     parts.extend(result.notes)
 
     allow("\n\n".join(parts), prefix="")
 
 
-@hook_handler("TaskCancel")
+@hook_handler(CanonicalHook.TASK_CANCEL)
 def handle_task_cancel(hook: HookInputTaskCancel) -> None:
     """Handle TaskCancel hook events.
 
@@ -175,7 +132,7 @@ def handle_task_cancel(hook: HookInputTaskCancel) -> None:
     allow("\n\n".join(parts), prefix="")
 
 
-@hook_handler("TaskComplete")
+@hook_handler(CanonicalHook.TASK_COMPLETE)
 def handle_task_complete(hook: HookInputTaskComplete) -> None:
     """Handle TaskComplete hook events.
 
@@ -184,11 +141,7 @@ def handle_task_complete(hook: HookInputTaskComplete) -> None:
     """
     _store.clear_blocks(hook.taskId)
     _reset_memory(hook.taskId)
-    _reset_turns(hook.taskId)
     _reset_agents(hook.taskId)
-    _reset_context(hook.taskId)
-    _reset_research(hook.taskId)
-    _reset_plan(hook.taskId)
     reset_workspace(hook.taskId)
     collect_hook_results(load_plugins(), "TaskComplete", task_id=hook.taskId)
     allow()
