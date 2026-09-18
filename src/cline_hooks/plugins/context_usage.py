@@ -60,12 +60,14 @@ def should_nudge_context(task_id: str, token_count: int) -> bool:
         True if the token count has entered a band not yet nudged this session.
     """
     band = _band_for(token_count)
-    state = _store.get(task_id)
-    if state.band is not None and band <= state.band:
-        return False
-    state.band = band
-    _store.set(task_id, state)
-    return True
+
+    def decide(state: _ContextState) -> bool:
+        if state.band is not None and band <= state.band:
+            return False
+        state.band = band
+        return True
+
+    return _store.update(task_id, decide)
 
 
 def crossed_boundary(task_id: str, token_count: int) -> int | None:
@@ -81,14 +83,16 @@ def crossed_boundary(task_id: str, token_count: int) -> int | None:
     Returns:
         The boundary just crossed, or None if no new boundary was reached.
     """
-    state = _store.get(task_id)
-    newly_crossed = [b for b in _BOUNDARIES if token_count >= b > state.boundary]
-    if not newly_crossed:
-        return None
-    boundary = max(newly_crossed)
-    state.boundary = boundary
-    _store.set(task_id, state)
-    return boundary
+
+    def decide(state: _ContextState) -> int | None:
+        newly_crossed = [b for b in _BOUNDARIES if token_count >= b > state.boundary]
+        if not newly_crossed:
+            return None
+        boundary = max(newly_crossed)
+        state.boundary = boundary
+        return boundary
+
+    return _store.update(task_id, decide)
 
 
 def reset(task_id: str) -> None:

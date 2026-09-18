@@ -48,9 +48,11 @@ def record_plan_exit(task_id: str) -> None:
     Args:
         task_id: The session or task identifier.
     """
-    state = _store.get(task_id)
-    state.pending_nudge = True
-    _store.set(task_id, state)
+
+    def mark(state: _PlanState) -> None:
+        state.pending_nudge = True
+
+    _store.update(task_id, mark)
 
 
 def consume_plan_nudge(task_id: str) -> bool:
@@ -65,12 +67,14 @@ def consume_plan_nudge(task_id: str) -> bool:
     Returns:
         True if a plan-handoff nudge is pending for this session.
     """
-    state = _store.get(task_id)
-    if not state.pending_nudge:
-        return False
-    state.pending_nudge = False
-    _store.set(task_id, state)
-    return True
+
+    def decide(state: _PlanState) -> bool:
+        if not state.pending_nudge:
+            return False
+        state.pending_nudge = False
+        return True
+
+    return _store.update(task_id, decide)
 
 
 def reset(task_id: str) -> None:

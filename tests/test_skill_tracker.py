@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import threading
+
 import cline_hooks.state.skills as module
 from cline_hooks.state.skills import (
     is_session_end_skill,
@@ -47,6 +49,23 @@ class TestRecordAndCheck:
         record_skill(_TASK, "git-usage")
         assert is_skill_called(_TASK, "git-usage")
         assert is_skill_called(_TASK, "git-usage")
+
+    def test_concurrent_records_do_not_lose_updates(self) -> None:
+        thread_count = 32
+        barrier = threading.Barrier(thread_count)
+
+        def record(index: int) -> None:
+            barrier.wait()
+            record_skill(_TASK, f"skill-{index}")
+
+        threads = [threading.Thread(target=record, args=(i,)) for i in range(thread_count)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        for i in range(thread_count):
+            assert is_skill_called(_TASK, f"skill-{i}")
 
 
 class TestIsSessionEndSkill:

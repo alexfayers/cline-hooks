@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import threading
+
 from cline_hooks.state import workspace
 
 
@@ -46,6 +48,27 @@ class TestShouldNoteWorkspaceChange:
         workspace.should_note_workspace_change("b", ["/y"])
         assert workspace.should_note_workspace_change("a", ["/z"]) is True
         assert workspace.should_note_workspace_change("b", ["/y"]) is False
+
+    def test_concurrent_calls_fire_exactly_once(self) -> None:
+        workspace.should_note_workspace_change("t", ["/a"])
+        thread_count = 16
+        barrier = threading.Barrier(thread_count)
+        results: list[bool] = []
+        lock = threading.Lock()
+
+        def check() -> None:
+            barrier.wait()
+            result = workspace.should_note_workspace_change("t", ["/b"])
+            with lock:
+                results.append(result)
+
+        threads = [threading.Thread(target=check) for _ in range(thread_count)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        assert results.count(True) == 1
 
 
 class TestRecordWorkspace:

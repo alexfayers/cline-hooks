@@ -2,26 +2,15 @@
 
 from __future__ import annotations
 
-import json
 import logging
+from typing import cast
 
+from cline_hooks.state.jsonfile import discard_key, updated_json
 from cline_hooks.state.paths import get_data_dir
 
 logger = logging.getLogger("hooks.state.workspace")
 
 _STATE_PATH = get_data_dir() / "workspace-state.json"
-
-
-def _read() -> dict[str, list[str]]:
-    try:
-        return dict(json.loads(_STATE_PATH.read_text()))
-    except (FileNotFoundError, json.JSONDecodeError, TypeError, ValueError):
-        return {}
-
-
-def _write(data: dict[str, list[str]]) -> None:
-    _STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    _STATE_PATH.write_text(json.dumps(data))
 
 
 def record_workspace(task_id: str, workspace_roots: list[str]) -> None:
@@ -33,9 +22,8 @@ def record_workspace(task_id: str, workspace_roots: list[str]) -> None:
     """
     if not workspace_roots:
         return
-    data = _read()
-    data[task_id] = list(workspace_roots)
-    _write(data)
+    with updated_json(_STATE_PATH, cast("dict[str, list[str]]", {})) as data:
+        data[task_id] = list(workspace_roots)
 
 
 def should_note_workspace_change(task_id: str, workspace_roots: list[str]) -> bool:
@@ -54,12 +42,11 @@ def should_note_workspace_change(task_id: str, workspace_roots: list[str]) -> bo
     """
     if not workspace_roots:
         return False
-    data = _read()
-    previous = data.get(task_id)
-    if previous == list(workspace_roots):
-        return False
-    data[task_id] = list(workspace_roots)
-    _write(data)
+    with updated_json(_STATE_PATH, cast("dict[str, list[str]]", {})) as data:
+        previous = data.get(task_id)
+        if previous == list(workspace_roots):
+            return False
+        data[task_id] = list(workspace_roots)
     return previous is not None
 
 
@@ -69,7 +56,4 @@ def reset(task_id: str) -> None:
     Args:
         task_id: The session or task identifier.
     """
-    data = _read()
-    if task_id in data:
-        del data[task_id]
-        _write(data)
+    discard_key(_STATE_PATH, task_id)
