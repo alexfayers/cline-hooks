@@ -6,9 +6,6 @@ from pathlib import Path
 import shutil
 from typing import TYPE_CHECKING
 
-import git
-import git.exc
-
 if TYPE_CHECKING:
     from cline_hooks.core.plugin import HooksPlugin
 
@@ -25,6 +22,9 @@ def get_git_context(workspace_roots: list[str]) -> str | None:
         Formatted string with branch, dirty file count, recent commits, and
         TODO.md status; or None if no valid git repo found.
     """
+    import git
+    import git.exc
+
     for root in workspace_roots:
         try:
             repo = git.Repo(root)
@@ -63,6 +63,9 @@ def get_dirty_count(workspace_roots: list[str]) -> int | None:
     Returns:
         Dirty file count, or None if no valid repo found.
     """
+    import git
+    import git.exc
+
     for root in workspace_roots:
         try:
             repo = git.Repo(root)
