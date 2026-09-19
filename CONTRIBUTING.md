@@ -11,12 +11,13 @@ uv sync
 ```bash
 just          # lint, type-check, test (the default recipe)
 just lint     # ruff check --fix + ruff format
+just lint-check  # ruff check only, no fixes (what CI runs)
 just type-check  # mypy src/ tests/ (strict)
 just test     # pytest
 just test-cov # pytest with coverage report
 ```
 
-Run these before opening a PR - there is no CI pipeline, so this is the only gate.
+Run these before opening a PR - CI runs lint, type-check, and test on every push and PR.
 
 ## Commit messages
 

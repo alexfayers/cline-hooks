@@ -8,8 +8,6 @@
 
 ## Testing
 
-- [ ] `just` passes
-
 <!-- How this was tested. -->
 
 ## Checks

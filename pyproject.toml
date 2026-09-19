@@ -32,6 +32,7 @@ addopts = ["--color=yes"]
 [tool.coverage.run]
 branch = true
 source = ["src"]
+relative_files = true
 
 [tool.coverage.paths]
 source = [
