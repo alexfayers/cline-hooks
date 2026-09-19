@@ -7,6 +7,9 @@ lint: _uv
     uv run ruff check --fix --show-fixes src/ tests/
     uv run ruff format src/ tests/
 
+lint-check: _uv
+    uv run ruff check src/ tests/
+
 type-check: _uv
     uv run mypy src/ tests/
 
