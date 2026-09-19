@@ -115,14 +115,14 @@ class TestGetDirtyCount:
         mock_repo = MagicMock()
         mock_repo.index.diff.return_value = [1, 2]
         mock_repo.untracked_files = ["file.txt"]
-        with patch("cline_hooks.handlers.git_context.git.Repo", return_value=mock_repo):
+        with patch("git.Repo", return_value=mock_repo):
             assert get_dirty_count([str(tmp_path)]) == 3
 
     def test_returns_none_for_invalid_repo(self, tmp_path: Path) -> None:
         import git.exc
 
         with patch(
-            "cline_hooks.handlers.git_context.git.Repo",
+            "git.Repo",
             side_effect=git.exc.InvalidGitRepositoryError,
         ):
             assert get_dirty_count([str(tmp_path)]) is None
