@@ -79,9 +79,11 @@ def record_research(task_id: str, tool: str, detail: str) -> None:
         tool: The research tool that was called.
         detail: A short identifier for the lookup (e.g. a URL or query).
     """
-    state = _store.get(task_id)
-    state.records.append({"tool": tool, "detail": detail})
-    _store.set(task_id, state)
+
+    def append(state: _ResearchState) -> None:
+        state.records.append({"tool": tool, "detail": detail})
+
+    _store.update(task_id, append)
 
 
 def get_research(task_id: str) -> list[dict[str, str]]:

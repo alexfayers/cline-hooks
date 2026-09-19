@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-import json
 import logging
+from typing import cast
 
+from cline_hooks.state.jsonfile import discard_key, read_json, updated_json
 from cline_hooks.state.paths import get_data_dir
 
 logger = logging.getLogger("hooks.state.memory")
@@ -20,18 +21,6 @@ _MEMORY_WRITE_TOOLS: frozenset[str] = frozenset({
     "delete_observations",
     "delete_relation",
 })
-
-
-def _read() -> dict[str, list[str]]:
-    try:
-        return dict(json.loads(_STATE_PATH.read_text()))
-    except (FileNotFoundError, json.JSONDecodeError, TypeError, ValueError):
-        return {}
-
-
-def _write(data: dict[str, list[str]]) -> None:
-    _STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    _STATE_PATH.write_text(json.dumps(data))
 
 
 def is_memory_write(tool_name: str) -> bool:
@@ -53,11 +42,10 @@ def record_memory_write(task_id: str, tool_name: str) -> None:
         task_id: The session or task identifier.
         tool_name: The memory-write tool that was called.
     """
-    data = _read()
-    writes = set(data.get(task_id, []))
-    writes.add(tool_name)
-    data[task_id] = sorted(writes)
-    _write(data)
+    with updated_json(_STATE_PATH, cast("dict[str, list[str]]", {})) as data:
+        writes = set(data.get(task_id, []))
+        writes.add(tool_name)
+        data[task_id] = sorted(writes)
 
 
 def has_memory_writes(task_id: str) -> bool:
@@ -69,7 +57,8 @@ def has_memory_writes(task_id: str) -> bool:
     Returns:
         True if at least one memory-write tool was called.
     """
-    return bool(_read().get(task_id))
+    data: dict[str, list[str]] = read_json(_STATE_PATH, {})
+    return bool(data.get(task_id))
 
 
 def reset(task_id: str) -> None:
@@ -78,7 +67,4 @@ def reset(task_id: str) -> None:
     Args:
         task_id: The session or task identifier.
     """
-    data = _read()
-    if task_id in data:
-        del data[task_id]
-        _write(data)
+    discard_key(_STATE_PATH, task_id)

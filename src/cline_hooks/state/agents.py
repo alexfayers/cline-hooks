@@ -2,27 +2,15 @@
 
 from __future__ import annotations
 
-import json
 import logging
 
 from cline_hooks.core.vocabulary import AGENT_SPAWN_TOOLS
+from cline_hooks.state.jsonfile import discard_key, read_json, updated_json
 from cline_hooks.state.paths import get_data_dir
 
 logger = logging.getLogger("hooks.state.agents")
 
 _STATE_PATH = get_data_dir() / "agents-state.json"
-
-
-def _read() -> dict[str, list[str]]:
-    try:
-        return dict(json.loads(_STATE_PATH.read_text()))
-    except (FileNotFoundError, json.JSONDecodeError, TypeError, ValueError):
-        return {}
-
-
-def _write(data: dict[str, list[str]]) -> None:
-    _STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    _STATE_PATH.write_text(json.dumps(data))
 
 
 def is_agent_tool(tool_name: str) -> bool:
@@ -47,9 +35,9 @@ def record_agent_use(task_id: str, tool_name: str) -> None:
         task_id: The session or task identifier.
         tool_name: The agent tool that was called.
     """
-    data = _read()
-    data[task_id] = [*data.get(task_id, []), tool_name]
-    _write(data)
+    empty: dict[str, list[str]] = {}
+    with updated_json(_STATE_PATH, empty) as data:
+        data[task_id] = [*data.get(task_id, []), tool_name]
 
 
 def has_agent_use(task_id: str) -> bool:
@@ -61,7 +49,8 @@ def has_agent_use(task_id: str) -> bool:
     Returns:
         True if at least one agent tool was called.
     """
-    return bool(_read().get(task_id))
+    data: dict[str, list[str]] = read_json(_STATE_PATH, {})
+    return bool(data.get(task_id))
 
 
 def agent_use_count(task_id: str) -> int:
@@ -73,7 +62,8 @@ def agent_use_count(task_id: str) -> int:
     Returns:
         The total number of agent tool invocations recorded.
     """
-    return len(_read().get(task_id, []))
+    data: dict[str, list[str]] = read_json(_STATE_PATH, {})
+    return len(data.get(task_id, []))
 
 
 def reset(task_id: str) -> None:
@@ -82,7 +72,4 @@ def reset(task_id: str) -> None:
     Args:
         task_id: The session or task identifier.
     """
-    data = _read()
-    if task_id in data:
-        del data[task_id]
-        _write(data)
+    discard_key(_STATE_PATH, task_id)
