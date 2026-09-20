@@ -1,0 +1,17 @@
+rules:
+- changed-files:
+  - any-glob-to-any-file: 'src/cline_hooks/prompts/*/rules/**'
+
+tooling:
+- all:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'src/**/*.py'
+      - pyproject.toml
+      - justfile
+      - '.github/**'
+    - all-globs-to-all-files: '!src/cline_hooks/prompts/**'
+
+tests:
+- changed-files:
+  - any-glob-to-any-file: 'tests/**'
