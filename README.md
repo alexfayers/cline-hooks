@@ -50,7 +50,7 @@
 | src/cline\_hooks/frontends/kiro/models.py               |       16 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/frontends/kiro/protocol.py             |       35 |        0 |        4 |        0 |    100% |           |
 | src/cline\_hooks/handlers/\_\_init\_\_.py               |        3 |        0 |        0 |        0 |    100% |           |
-| src/cline\_hooks/handlers/commands.py                   |      122 |        7 |       68 |       10 |     90% |84, 111, 115, 119, 125-\>124, 151, 158-159, 160-\>156, 162-\>156, 163-\>162 |
+| src/cline\_hooks/handlers/commands.py                   |      122 |        6 |       68 |       10 |     92% |84, 111, 115, 119, 125-\>124, 151, 159, 160-\>156, 162-\>156, 163-\>162 |
 | src/cline\_hooks/handlers/context\_nudge.py             |        7 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/handlers/git\_context.py               |       72 |       14 |       22 |        1 |     84% |     29-52 |
 | src/cline\_hooks/handlers/post\_tool\_use.py            |       63 |        2 |       20 |        2 |     95% |  111, 181 |
@@ -129,7 +129,7 @@
 | tests/test\_state\_jsonfile.py                          |       51 |        0 |        6 |        0 |    100% |           |
 | tests/test\_turns.py                                    |       91 |        1 |       12 |        1 |     98% |       145 |
 | tests/test\_workspace.py                                |       76 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **8031** |  **191** |  **934** |   **89** | **97%** |           |
+| **TOTAL**                                               | **8031** |  **190** |  **934** |   **89** | **97%** |           |
 
 
 ## Setup coverage badge
