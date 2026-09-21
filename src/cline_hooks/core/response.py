@@ -1,12 +1,28 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 import logging
 from typing import NoReturn
 
 from cline_hooks.core.outcome import Disposition, Outcome
-from cline_hooks.core.protocol import get_protocol
+from cline_hooks.core.protocol import Protocol, get_protocol
 
 logger = logging.getLogger("hooks.response")
+
+
+@dataclass(frozen=True, slots=True)
+class Response:
+    """A rendered hook decision, ready for a transport to deliver.
+
+    Attributes:
+        exit_code: Process exit code for the command-path transport.
+        stdout: Text for the command-path transport's stdout.
+        stderr: Text for the command-path transport's stderr.
+    """
+
+    exit_code: int = 0
+    stdout: str = ""
+    stderr: str = ""
 
 
 def allow(
@@ -30,19 +46,13 @@ def allow(
     get_protocol().allow(message, system_message=system_message)
 
 
-def block(message: str, *, task_id: str | None = None, tool_name: str | None = None) -> NoReturn:
+def block(message: str) -> NoReturn:
     """Cancel the tool call with an error message.
 
     Args:
         message: Reason for blocking.
-        task_id: Optional task ID for recording the block event.
-        tool_name: Optional tool name for recording the block event.
     """
     logger.warning("Blocking: %s", message)
-    if task_id is not None and tool_name is not None:
-        from cline_hooks.state.store import TaskStateStore  # ruff: ignore[import-outside-top-level]
-
-        TaskStateStore().record_block(task_id, tool_name, message)
     get_protocol().block(message)
 
 
@@ -52,19 +62,23 @@ def feedback(message: str) -> NoReturn:
     get_protocol().feedback(message)
 
 
-def emit(outcome: Outcome) -> NoReturn:
-    """Resolve a hook handler's merged Outcome via the matching response function.
+def render(outcome: Outcome, protocol: Protocol) -> Response:
+    """Render a merged Outcome into a transport-agnostic Response.
 
     Args:
-        outcome: The merged Outcome to emit.
+        outcome: The merged Outcome to render.
+        protocol: The protocol to render for.
+
+    Returns:
+        The rendered Response.
     """
     if outcome.disposition is Disposition.BLOCK:
-        block(outcome.message or "")
+        logger.warning("Blocking: %s", outcome.message)
     elif outcome.disposition is Disposition.FEEDBACK:
-        feedback(outcome.message or "")
+        logger.warning("Feedback: %s", outcome.message)
     else:
-        allow(
-            outcome.message,
-            prefix=outcome.label,
-            system_message=outcome.user_message or None,
-        )
+        message = outcome.message
+        if message is not None and outcome.label:
+            message = f"{outcome.label}: {message}"
+            logger.warning("Reminding: %s", message)
+    return protocol.render(outcome)

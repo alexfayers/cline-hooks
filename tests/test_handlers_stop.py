@@ -8,7 +8,8 @@ import pytest
 
 from cline_hooks.core.models import HookInputStop, HookInputSubagentStop, StopFields
 from cline_hooks.core.plugin import HookResult, HooksPlugin
-from cline_hooks.core.protocol import set_protocol
+from cline_hooks.core.protocol import get_protocol, set_protocol
+from cline_hooks.core.response import render
 from cline_hooks.frontends.claude_code import ClaudeCodeProtocol
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.frontends.kiro import KiroProtocol
@@ -56,47 +57,34 @@ def _subagent_stop(*, agent_id: str = "agent-7", stop_hook_active: bool = False)
 
 
 def _run(hook: HookInputStop) -> dict[str, object]:
-    output: list[str] = []
-    with (
-        patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
-        pytest.raises(SystemExit),
-    ):
-        handle_stop(hook)
-    return cast("dict[str, object]", json.loads(output[0]))
+    outcome = handle_stop(hook)
+    assert outcome is not None
+    response = render(outcome, get_protocol())
+    return cast("dict[str, object]", json.loads(response.stdout))
 
 
 def _run_subagent(hook: HookInputSubagentStop) -> dict[str, object]:
-    output: list[str] = []
-    with (
-        patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
-        pytest.raises(SystemExit),
-    ):
-        handle_subagent_stop(hook)
-    return cast("dict[str, object]", json.loads(output[0]))
+    outcome = handle_subagent_stop(hook)
+    assert outcome is not None
+    response = render(outcome, get_protocol())
+    return cast("dict[str, object]", json.loads(response.stdout))
 
 
 def _run_raw(hook: HookInputStop) -> str:
-    output: list[str] = []
-    with (
-        patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
-        pytest.raises(SystemExit),
-    ):
-        handle_stop(hook)
-    return output[0]
+    outcome = handle_stop(hook)
+    assert outcome is not None
+    return render(outcome, get_protocol()).stdout
 
 
 def _run_cc(hook: HookInputStop) -> dict[str, object]:
-    output: list[str] = []
     set_protocol(ClaudeCodeProtocol())
     try:
-        with (
-            patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
-            pytest.raises(SystemExit),
-        ):
-            handle_stop(hook)
+        outcome = handle_stop(hook)
+        assert outcome is not None
+        response = render(outcome, get_protocol())
     finally:
         set_protocol(ClineProtocol())
-    return cast("dict[str, object]", json.loads(output[0]))
+    return cast("dict[str, object]", json.loads(response.stdout))
 
 
 def _seed_state(key: str) -> None:
@@ -241,17 +229,14 @@ class TestHandleStop:
 class TestHandleStopKiro:
     def test_trace_uses_kiro_header(self) -> None:
         record_research("task-1", "WebFetch", "https://example.com/docs")
-        output: list[str] = []
         set_protocol(KiroProtocol())
         try:
-            with (
-                patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
-                pytest.raises(SystemExit),
-            ):
-                handle_stop(_stop())
+            outcome = handle_stop(_stop())
+            assert outcome is not None
+            response = render(outcome, get_protocol())
         finally:
             set_protocol(ClineProtocol())
-        result = cast("dict[str, str]", json.loads(output[0]))
+        result = cast("dict[str, str]", json.loads(response.stdout))
         assert "Sources: " in result["reason"]
         assert "No narration" in result["reason"]
 
@@ -289,32 +274,26 @@ class TestHandleStopClaudeCode:
         assert get_research("task-1") == []
 
     def test_no_research_allows_empty_stdout(self) -> None:
-        output: list[str] = []
         set_protocol(ClaudeCodeProtocol())
         try:
-            with (
-                patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
-                pytest.raises(SystemExit) as exc,
-            ):
-                handle_stop(_stop())
+            outcome = handle_stop(_stop())
+            assert outcome is not None
+            response = render(outcome, get_protocol())
         finally:
             set_protocol(ClineProtocol())
-        assert exc.value.code == 0
-        assert output == []
+        assert response.exit_code == 0
+        assert response.stdout == ""
 
     def test_stop_hook_active_allows_without_reset(self) -> None:
         record_research("task-1", "WebFetch", "https://example.com/docs")
-        output: list[str] = []
         set_protocol(ClaudeCodeProtocol())
         try:
-            with (
-                patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
-                pytest.raises(SystemExit) as exc,
-            ):
-                handle_stop(_stop(stop_hook_active=True))
+            outcome = handle_stop(_stop(stop_hook_active=True))
+            assert outcome is not None
+            response = render(outcome, get_protocol())
         finally:
             set_protocol(ClineProtocol())
-        assert exc.value.code == 0
+        assert response.exit_code == 0
         assert get_research("task-1") != []
 
 
@@ -326,25 +305,18 @@ class TestHandleSubagentStop:
             captured.append(kwargs)
             return HookResult()
 
-        with (
-            patch("cline_hooks.handlers.stop.collect_hook_results", side_effect=_fake_collect),
-            patch("builtins.print"),
-            pytest.raises(SystemExit),
-        ):
+        with patch("cline_hooks.handlers.stop.collect_hook_results", side_effect=_fake_collect):
             handle_subagent_stop(_subagent_stop())
         assert captured
         assert captured[0].get("task_id") == "task-1:agent-7"
         assert captured[0].get("agent_id") == "agent-7"
 
     def test_stop_hook_active_allows_without_dispatch(self) -> None:
-        with (
-            patch("cline_hooks.handlers.stop.collect_hook_results") as mock_collect,
-            patch("builtins.print"),
-            pytest.raises(SystemExit) as exc,
-        ):
-            handle_subagent_stop(_subagent_stop(stop_hook_active=True))
+        with patch("cline_hooks.handlers.stop.collect_hook_results") as mock_collect:
+            outcome = handle_subagent_stop(_subagent_stop(stop_hook_active=True))
         mock_collect.assert_not_called()
-        assert exc.value.code == 0
+        assert outcome is not None
+        assert render(outcome, get_protocol()).exit_code == 0
 
     def test_research_recorded_for_the_subagent_is_not_traced_and_is_kept(self) -> None:
         record_research("task-1:agent-7", "WebFetch", "https://example.com/subagent-docs")
@@ -398,18 +370,15 @@ class TestHandleSubagentStop:
 class TestHandleSubagentStopClaudeCode:
     def test_research_recorded_for_that_agent_allows_empty_stdout(self) -> None:
         record_research("task-1:agent-7", "WebFetch", "https://example.com/subagent-docs")
-        output: list[str] = []
         set_protocol(ClaudeCodeProtocol("SubagentStop"))
         try:
-            with (
-                patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
-                pytest.raises(SystemExit) as exc,
-            ):
-                handle_subagent_stop(_subagent_stop())
+            outcome = handle_subagent_stop(_subagent_stop())
+            assert outcome is not None
+            response = render(outcome, get_protocol())
         finally:
             set_protocol(ClineProtocol())
-        assert exc.value.code == 0
-        assert output == []
+        assert response.exit_code == 0
+        assert response.stdout == ""
 
 
 class TestHandleStopPluginDispatch:
@@ -462,11 +431,7 @@ class TestHandleStopPluginDispatch:
 
         hook = _stop()
         hook.agentId = "agent-7"
-        with (
-            patch("cline_hooks.handlers.stop.collect_hook_results", side_effect=_fake_collect),
-            patch("builtins.print"),
-            pytest.raises(SystemExit),
-        ):
+        with patch("cline_hooks.handlers.stop.collect_hook_results", side_effect=_fake_collect):
             handle_stop(hook)
         assert captured
         assert captured[0].get("task_id") == "task-1:agent-7"
