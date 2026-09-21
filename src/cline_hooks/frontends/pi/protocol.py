@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, ClassVar, NoReturn
+from typing import TYPE_CHECKING, ClassVar
 
 from cline_hooks.core.frontend import EXACT_MATCH, frontend
+from cline_hooks.core.outcome import Disposition
 from cline_hooks.core.payload import PayloadEnvelope, StandardPayloadProtocol, ToolParams
-from cline_hooks.core.protocol import HookRegistration, exit_allow, exit_block
+from cline_hooks.core.protocol import HookRegistration, with_guard
+from cline_hooks.core.response import Response
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
 from cline_hooks.frontends.copilot.models import CopilotPreCompact
 from cline_hooks.frontends.pi.install import PiInstaller, agent_dir
@@ -28,6 +30,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from cline_hooks.core.models import HookFields
+    from cline_hooks.core.outcome import Outcome
     from cline_hooks.core.protocol import RawPayload
     from cline_hooks.core.transcript import TranscriptReader
 
@@ -61,7 +64,7 @@ class PiProtocol(StandardPayloadProtocol):
     `mcp__<server>_<tool>`, so a name without `__` splits at its first `_`.
     """
 
-    supported_hooks: ClassVar[Mapping[CanonicalHook, HookRegistration]] = {
+    supported_hooks: ClassVar[Mapping[CanonicalHook, HookRegistration]] = with_guard({
         CanonicalHook.PRE_TOOL_USE: HookRegistration("tool_call"),
         CanonicalHook.POST_TOOL_USE: HookRegistration("tool_result"),
         CanonicalHook.TASK_START: HookRegistration("session_start"),
@@ -69,7 +72,7 @@ class PiProtocol(StandardPayloadProtocol):
         CanonicalHook.PRE_COMPACT: HookRegistration("session_before_compact"),
         CanonicalHook.STOP: HookRegistration("agent_end"),
         CanonicalHook.SUBAGENT_STOP: HookRegistration("session_shutdown"),
-    }
+    })
     tool_map: ClassVar[Mapping[str, CanonicalTool]] = {
         "delegate_agent": CanonicalTool.SPAWN_AGENT,
         "continue_agent": CanonicalTool.SPAWN_AGENT,
@@ -114,21 +117,17 @@ class PiProtocol(StandardPayloadProtocol):
             return False
         return data.get(cls.hook_event_key) in cls.native_hook_names()
 
-    def allow(self, message: str | None = None, *, system_message: str | None = None) -> NoReturn:
-        """Allow via exit 0, context on stdout."""
-        exit_allow(message)
+    def supports_updated_input(self) -> bool:
+        """Return True, as the bridge extension copies `updated_input` into the tool input."""
+        return True
 
-    def allow_with_input(
-        self,
-        updated_input: Mapping[str, Any],
-        message: str | None = None,
-        *,
-        fallback_message: str | None = None,
-        system_message: str | None = None,
-    ) -> NoReturn:
-        """Allow via exit 0, JSON on stdout that the bridge extension copies into the tool input."""
-        exit_allow(json.dumps({"updated_input": dict(updated_input), "message": message}))
+    def render(self, outcome: Outcome) -> Response:
+        """Render the outcome via the plain exit-code contract, carrying any input update as JSON.
 
-    def block(self, message: str) -> NoReturn:
-        """Block via exit 2, error on stderr."""
-        exit_block(message)
+        Returns:
+            The rendered Response.
+        """
+        if outcome.disposition is Disposition.ALLOW and outcome.updated_input is not None:
+            body = {"updated_input": dict(outcome.updated_input), "message": outcome.labelled_message}
+            return Response(stdout=json.dumps(body))
+        return super().render(outcome)

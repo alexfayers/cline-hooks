@@ -8,6 +8,9 @@ from typing import Any
 
 import pytest
 
+from cline_hooks.frontends.pi import PiProtocol
+from cline_hooks.frontends.pi.install import _BINARIES_PLACEHOLDER
+
 HARNESS = Path(__file__).parent / "pi_extension_harness.mjs"
 TEMPLATE = Path(__file__).parents[1] / "src" / "cline_hooks" / "frontends" / "pi" / "extension.ts"
 
@@ -23,7 +26,10 @@ def _run_extension(tmp_path: Path, hook_stdout: str, tool_input: dict[str, Any])
     )
     binary.chmod(0o755)
     script = tmp_path / "cline-hooks.ts"
-    script.write_text(TEMPLATE.read_text(encoding="utf-8").replace("__CLINE_HOOK_BINARY__", str(binary)))
+    binaries = json.dumps({
+        registration.native_name: str(binary) for registration in PiProtocol.supported_hooks.values()
+    })
+    script.write_text(TEMPLATE.read_text(encoding="utf-8").replace(_BINARIES_PLACEHOLDER, binaries))
     input_file = tmp_path / "input.json"
     input_file.write_text(json.dumps(tool_input), encoding="utf-8")
     completed = subprocess.run(

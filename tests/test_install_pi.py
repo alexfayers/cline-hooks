@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import re
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
@@ -13,7 +14,14 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 _FAKE_PYTHON = str(Path("/fake/bin/python"))
-_EXPECTED_BINARY = str(Path(_FAKE_PYTHON).parent / "cline-hook")
+_BIN_DIR = Path(_FAKE_PYTHON).parent
+_GUARDED_EVENTS = ("before_agent_start", "tool_call", "tool_result", "agent_end")
+_EXPECTED_BINARIES = {
+    registration.native_name: str(
+        _BIN_DIR / ("cline-hook-guard" if registration.native_name in _GUARDED_EVENTS else "cline-hook")
+    )
+    for registration in PiProtocol.supported_hooks.values()
+}
 
 
 @pytest.fixture
@@ -42,11 +50,22 @@ def _install(*, force: bool = False) -> str:
     return installer.extension_path().read_text(encoding="utf-8")
 
 
+def _embedded_binaries(content: str) -> dict[str, str]:
+    """Read the event-to-binary map embedded in an installed extension.
+
+    Returns:
+        The map, keyed by native event name.
+    """
+    match = re.search(r"const BINARIES: Record<string, string> = (\{.*\});", content)
+    assert match
+    return dict(json.loads(match.group(1)))
+
+
 def _seed_embedded_binary(binary: Path) -> None:
-    """Install the extension, then repoint its embedded binary at `binary`."""
+    """Install the extension, then repoint its embedded `cline-hook` binary at `binary`."""
     content = _install()
     PiInstaller().extension_path().write_text(
-        content.replace(json.dumps(_EXPECTED_BINARY), json.dumps(str(binary))), encoding="utf-8"
+        content.replace(json.dumps(str(_BIN_DIR / "cline-hook")), json.dumps(str(binary))), encoding="utf-8"
     )
 
 
@@ -60,9 +79,9 @@ class TestPiInstaller:
         _install()
         assert (home / "custom" / "extensions" / "cline-hooks.ts").is_file()
 
-    def test_embeds_the_resolved_binary_as_a_string_literal(self, home: Path) -> None:
+    def test_embeds_the_guard_for_relayed_events_and_cline_hook_for_the_rest(self, home: Path) -> None:
         content = _install()
-        assert f"const BINARY: string = {json.dumps(_EXPECTED_BINARY)};" in content
+        assert _embedded_binaries(content) == _EXPECTED_BINARIES
         assert "__CLINE_HOOK_BINARY__" not in content
 
     def test_relays_every_registered_hook(self, home: Path) -> None:
@@ -96,8 +115,8 @@ class TestPiInstaller:
         working.parent.mkdir()
         working.write_text("", encoding="utf-8")
         _seed_embedded_binary(working)
-        assert f"const BINARY: string = {json.dumps(_EXPECTED_BINARY)};" in _install()
+        assert _embedded_binaries(_install()) == _EXPECTED_BINARIES
 
     def test_replaces_an_embedded_binary_that_is_gone(self, home: Path) -> None:
         _seed_embedded_binary(home / "gone" / "cline-hook")
-        assert f"const BINARY: string = {json.dumps(_EXPECTED_BINARY)};" in _install()
+        assert _embedded_binaries(_install()) == _EXPECTED_BINARIES

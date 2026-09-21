@@ -1,0 +1,9 @@
+{
+  "hook_event_name": "Stop",
+  "cwd": "/home/user/project",
+  "session_id": "fixture-session-id",
+  "turn_id": "fixture-turn-id",
+  "transcript_path": "/home/user/.claude/projects/fixture/transcript.jsonl",
+  "stop_hook_active": false,
+  "model": "gpt-5-codex"
+}

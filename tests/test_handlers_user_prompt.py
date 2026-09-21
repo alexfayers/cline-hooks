@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import contextlib
 from datetime import UTC, datetime
 import json
 from typing import TYPE_CHECKING, cast
@@ -10,6 +9,7 @@ import pytest
 
 from cline_hooks.core.plugin import HooksPlugin, load_plugins
 from cline_hooks.core.protocol import RawPayload, get_protocol
+from cline_hooks.core.response import render
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.frontends.pi import PiProtocol
 from cline_hooks.handlers.user_prompt import (
@@ -33,6 +33,7 @@ from tests.conftest import StubTranscript
 
 if TYPE_CHECKING:
     from cline_hooks.core.models import HookInput, HookInputUserPromptSubmit
+    from cline_hooks.core.outcome import Outcome
 
 
 def parse_data(raw: str) -> HookInput:
@@ -74,17 +75,17 @@ def _make_hook(user_message: str = "") -> HookInputUserPromptSubmit:
     )
 
 
+def _rendered(outcome: Outcome | None) -> dict[str, object] | None:
+    """Render an Outcome and return its body, or None if no context was surfaced."""
+    if outcome is None:
+        return None
+    result = cast("dict[str, object]", json.loads(render(outcome, get_protocol()).stdout))
+    return result if "contextModification" in result else None
+
+
 def _run(user_message: str = "") -> dict[str, object] | None:
     hook = _make_hook(user_message)
-    output: list[str] = []
-    try:
-        with patch("builtins.print", side_effect=lambda s, **kw: output.append(s)):
-            handle_user_prompt_submit(hook)
-    except SystemExit:
-        pass
-    if not output:
-        return None
-    return cast("dict[str, object]", json.loads(output[0]))
+    return _rendered(handle_user_prompt_submit(hook))
 
 
 def _run_n_turns(n: int) -> dict[str, object] | None:
@@ -115,27 +116,17 @@ def _run_with_transcript(token_count: int | None) -> dict[str, object] | None:
             })
         ),
     )
-    output: list[str] = []
-    try:
-        with (
-            patch(
-                "builtins.print",
-                side_effect=lambda s, _out=output, **kw: _out.append(s),
-            ),
-            patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
-            patch.object(
-                type(get_protocol()),
-                "transcript",
-                StubTranscript(tokens=token_count),
-            ),
-            patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(12)),
-        ):
-            handle_user_prompt_submit(hook)
-    except SystemExit:
-        pass
-    if not output:
-        return None
-    return cast("dict[str, object]", json.loads(output[0]))
+    with (
+        patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
+        patch.object(
+            type(get_protocol()),
+            "transcript",
+            StubTranscript(tokens=token_count),
+        ),
+        patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(12)),
+    ):
+        outcome = handle_user_prompt_submit(hook)
+    return _rendered(outcome)
 
 
 class TestContainsCorrectionSignal:
@@ -265,14 +256,9 @@ class TestHandleUserPromptSubmit:
     def test_subagent_skips_correction_reminder(self) -> None:
         hook = _make_hook("You should always run lint first")
         hook.agentId = "agent-7"
-        output: list[str] = []
-        with (
-            patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
-            patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
-            contextlib.suppress(SystemExit),
-        ):
-            handle_user_prompt_submit(hook)
-        assert "correction" not in "".join(output).lower()
+        with patch("cline_hooks.plugins.nudges.random.random", return_value=1.0):
+            result = _rendered(handle_user_prompt_submit(hook))
+        assert "correction" not in cast("str", (result or {}).get("contextModification", "")).lower()
 
     def test_correction_takes_priority_over_info(self) -> None:
         with patch("cline_hooks.plugins.nudges.random.random", return_value=1.0):
@@ -427,17 +413,12 @@ class TestHandleUserPromptSubmit:
             "HookInputUserPromptSubmit",
             parse_data(json.dumps({**_BASE})),
         )
-        output: list[str] = []
-        try:
-            with (
-                patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
-                patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
-                patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(12)),
-            ):
-                handle_user_prompt_submit(hook)
-        except SystemExit:
-            pass
-        assert output == []
+        with (
+            patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
+            patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(12)),
+        ):
+            outcome = handle_user_prompt_submit(hook)
+        assert _rendered(outcome) is None
 
 
 class TestTimeNote:
@@ -565,13 +546,9 @@ class TestContextNudgeWindow:
             "context_tokens": 210_000,
         }
         hook = PiProtocol().parse(RawPayload.from_stdin(json.dumps(payload)))
-        output: list[str] = []
-        with (
-            patch("builtins.print", side_effect=lambda s, _out=output, **kw: _out.append(s)),
-            contextlib.suppress(SystemExit),
-        ):
-            handle_user_prompt_submit(cast("HookInputUserPromptSubmit", hook))
-        assert "210,000 / 1,000,000 tokens (21.0%)" in cast("str", json.loads(output[0])["contextModification"])
+        result = _rendered(handle_user_prompt_submit(cast("HookInputUserPromptSubmit", hook)))
+        assert result is not None
+        assert "210,000 / 1,000,000 tokens (21.0%)" in cast("str", result["contextModification"])
 
 
 class TestPlanHandoffNudge:
@@ -730,8 +707,6 @@ class TestPluginMessageForwarding:
                 return_value=[_CapturingPlugin()],
             ),
             patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
-            patch("builtins.print"),
-            contextlib.suppress(SystemExit),
         ):
             handle_user_prompt_submit(hook)
         assert captured.get("task_id") == "task-1:agent-7"

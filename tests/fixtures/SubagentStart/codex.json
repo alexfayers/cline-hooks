@@ -1,0 +1,10 @@
+{
+  "hook_event_name": "SubagentStart",
+  "cwd": "/home/user/project",
+  "session_id": "fixture-session-id",
+  "turn_id": "fixture-turn-id",
+  "transcript_path": "/home/user/.claude/projects/fixture/transcript.jsonl",
+  "agent_id": "fixture-agent-id",
+  "agent_type": "general-purpose",
+  "model": "gpt-5-codex"
+}

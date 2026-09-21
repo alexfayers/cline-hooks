@@ -1,22 +1,23 @@
-# ruff: file-ignore[print]
 """Cline JSON stdout protocol."""
 
 from __future__ import annotations
 
 import json
 import logging
-import sys
-from typing import TYPE_CHECKING, Any, ClassVar, NoReturn
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from cline_hooks.core.frontend import EXACT_MATCH, frontend
 from cline_hooks.core.models import HOOK_INPUTS, HookInput
+from cline_hooks.core.outcome import Disposition
 from cline_hooks.core.protocol import HookRegistration, Protocol
+from cline_hooks.core.response import Response
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
 from cline_hooks.frontends.cline.install import ClineInstaller
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from cline_hooks.core.outcome import Outcome
     from cline_hooks.core.protocol import RawPayload
 
 _TOOL_HOOK_KEYS = ("preToolUse", "postToolUse")
@@ -78,16 +79,17 @@ class ClineProtocol(Protocol):
         """Also stream hook logs to stderr, since Cline surfaces no other channel for them."""
         logging.getLogger("hooks").addHandler(logging.StreamHandler())
 
-    def allow(self, message: str | None = None, *, system_message: str | None = None) -> NoReturn:
-        """Allow via JSON stdout."""
-        res: dict[str, object] = {"cancel": False}
+    def render(self, outcome: Outcome) -> Response:
+        """Render the outcome as Cline's JSON stdout contract.
+
+        Returns:
+            The rendered Response.
+        """
+        if outcome.disposition in {Disposition.BLOCK, Disposition.FEEDBACK}:
+            res: dict[str, object] = {"cancel": True, "errorMessage": outcome.message or ""}
+            return Response(stdout=json.dumps(res))
+        message = outcome.labelled_message
+        res = {"cancel": False}
         if message is not None:
             res["contextModification"] = message
-        print(json.dumps(res), end="")
-        sys.exit(0)
-
-    def block(self, message: str) -> NoReturn:
-        """Block via JSON stdout."""
-        res: dict[str, object] = {"cancel": True, "errorMessage": message}
-        print(json.dumps(res), end="")
-        sys.exit(0)
+        return Response(stdout=json.dumps(res))

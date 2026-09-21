@@ -1,23 +1,27 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from contextvars import ContextVar
+from dataclasses import dataclass, replace
 from functools import cache
 import json
 import os
-import sys
-from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Self
 
+from cline_hooks.core.outcome import Disposition
+from cline_hooks.core.response import Response
 from cline_hooks.core.transcript import NULL_TRANSCRIPT, TranscriptReader
+from cline_hooks.core.vocabulary import CanonicalHook
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from cline_hooks.core.frontend import FrontendSpec
     from cline_hooks.core.models import HookInput
-    from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
+    from cline_hooks.core.outcome import Outcome
+    from cline_hooks.core.vocabulary import CanonicalTool
 
-_active_protocol: Protocol | None = None
+_active_protocol: ContextVar[Protocol | None] = ContextVar("_active_protocol", default=None)
 
 
 @dataclass(frozen=True)
@@ -53,6 +57,25 @@ class HookRegistration:
 
     native_name: str
     matcher: str | None = None
+    binary_name: str | None = None
+
+
+GUARD_BINARY = "cline-hook-guard"
+
+GUARD_HOOKS = frozenset({
+    CanonicalHook.USER_PROMPT_SUBMIT,
+    CanonicalHook.PRE_TOOL_USE,
+    CanonicalHook.POST_TOOL_USE,
+    CanonicalHook.STOP,
+})
+
+
+def with_guard(registrations: Mapping[CanonicalHook, HookRegistration]) -> dict[CanonicalHook, HookRegistration]:
+    """Return `registrations` with the relayed hooks routed through the guard binary."""
+    return {
+        hook: replace(registration, binary_name=GUARD_BINARY) if hook in GUARD_HOOKS else registration
+        for hook, registration in registrations.items()
+    }
 
 
 class Protocol(ABC):
@@ -73,6 +96,11 @@ class Protocol(ABC):
             frontend registers no hook under it.
         """
         return _native_to_canonical(cls).get(native_name, native_name)
+
+    @classmethod
+    def uses_guard(cls) -> bool:
+        """Return True if any of this frontend's hooks run through the guard binary."""
+        return any(registration.binary_name for registration in cls.supported_hooks.values())
 
     @classmethod
     def fires(cls, canonical_hook: str) -> bool:
@@ -138,32 +166,6 @@ class Protocol(ABC):
     def configure_logging(self) -> None:  # ruff: ignore[empty-method-without-abstract-decorator]
         """Adjust logging for this frontend. Defaults to a no-op."""
 
-    @abstractmethod
-    def allow(self, message: str | None = None, *, system_message: str | None = None) -> NoReturn:
-        """Allow the operation, optionally injecting context."""
-
-    def allow_with_input(
-        self,
-        updated_input: Mapping[str, Any],
-        message: str | None = None,
-        *,
-        fallback_message: str | None = None,
-        system_message: str | None = None,
-    ) -> NoReturn:
-        """Allow the operation with a changed input, optionally injecting context.
-
-        This default cannot change a call's input, so it drops `updated_input`
-        and shows `fallback_message` alongside `message` instead.
-
-        Args:
-            updated_input: The tool's complete input, as it should run.
-            message: Context shown on every frontend.
-            fallback_message: Context shown only where `updated_input` cannot be applied.
-            system_message: Message surfaced directly to the user, where supported.
-        """
-        context = "\n\n".join(part for part in (message, fallback_message) if part)
-        self.allow(context or None, system_message=system_message)
-
     def supports_user_message(self) -> bool:
         """Whether this protocol can surface a message directly to the user.
 
@@ -172,13 +174,23 @@ class Protocol(ABC):
         """
         return False
 
-    @abstractmethod
-    def block(self, message: str) -> NoReturn:
-        """Block the operation with an error message."""
+    def supports_updated_input(self) -> bool:
+        """Whether this protocol can change a tool call's input.
 
-    def feedback(self, message: str) -> NoReturn:
-        """Continue the conversation with non-error feedback. Defaults to block()."""
-        self.block(message)
+        Returns:
+            False by default; overridden by protocols that apply `Outcome.updated_input`.
+        """
+        return False
+
+    def render(self, outcome: Outcome) -> Response:
+        """Render an Outcome into a transport-agnostic Response, via the plain exit-code contract.
+
+        Returns:
+            Exit 2 with the message on stderr to block or give feedback, otherwise the message on stdout.
+        """
+        if outcome.disposition in {Disposition.BLOCK, Disposition.FEEDBACK}:
+            return Response(exit_code=2, stderr=outcome.message or "")
+        return Response(stdout=outcome.labelled_message or "")
 
 
 @cache
@@ -191,23 +203,9 @@ def _native_to_canonical(protocol_cls: type[Protocol]) -> Mapping[str, Canonical
     return {registration.native_name: canonical for canonical, registration in protocol_cls.supported_hooks.items()}
 
 
-def exit_allow(message: str | None = None) -> NoReturn:
-    """Allow via exit 0, context on stdout."""
-    if message is not None:
-        print(message, end="")  # ruff: ignore[print]
-    sys.exit(0)
-
-
-def exit_block(message: str) -> NoReturn:
-    """Block via exit 2, error on stderr."""
-    print(message, end="", file=sys.stderr)  # ruff: ignore[print]
-    sys.exit(2)
-
-
 def set_protocol(protocol: Protocol) -> None:
-    """Set the active output protocol for this process."""
-    global _active_protocol  # ruff: ignore[global-statement]
-    _active_protocol = protocol
+    """Set the active output protocol for this invocation."""
+    _active_protocol.set(protocol)
 
 
 def get_protocol() -> Protocol:
@@ -216,7 +214,8 @@ def get_protocol() -> Protocol:
     Raises:
         RuntimeError: If no protocol has been set.
     """
-    if _active_protocol is None:
+    protocol = _active_protocol.get()
+    if protocol is None:
         msg = "No protocol set. Call set_protocol() before processing hooks."
         raise RuntimeError(msg)
-    return _active_protocol
+    return protocol

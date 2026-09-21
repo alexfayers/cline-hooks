@@ -30,7 +30,13 @@ _SHAPE_SOURCE: dict[str, str] = {"codex": "claude-code", "copilot": "claude-code
 
 # A borrowed-shape frontend is handled by the frontend it borrows from, except
 # for an event only it can have fired.
-_ROUTE_EXCEPTIONS: dict[tuple[str, str], str] = {("copilot", "PreCompact"): "copilot"}
+_ROUTE_EXCEPTIONS: dict[tuple[str, str], str] = {
+    ("copilot", "PreCompact"): "copilot",
+    **{
+        ("codex", hook): "codex"
+        for hook in ("UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop", "SubagentStart", "SubagentStop")
+    },
+}
 
 
 def _fixture_hooks(name: str) -> list[str]:
@@ -162,7 +168,7 @@ class TestBorrowedShapeFrontends:
     """Frontends whose payloads are shaped exactly like another frontend's.
 
     Detection falls through to the frontend they borrow from, which parses
-    them the same way - except for an event only they can have fired.
+    them the same way - except for an event or field only they send.
     """
 
     @pytest.mark.parametrize(("name", "canonical_hook"), _ALL_FIXTURE_PAIRS)

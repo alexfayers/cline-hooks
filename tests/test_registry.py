@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import pytest
 
@@ -14,19 +14,22 @@ from cline_hooks.core.registry import (
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
 import cline_hooks.handlers  # ruff: ignore[unused-import]
 
+if TYPE_CHECKING:
+    from cline_hooks.core.models import HookInput
+
 
 class TestHookHandler:
     def test_registers_handler(self) -> None:
         test_hook = cast("CanonicalHook", "TestHookXYZ")
 
         @hook_handler(test_hook)
-        def my_handler() -> None:
+        def my_handler(hook: HookInput) -> None:
             pass
 
         assert HOOK_HANDLERS[test_hook] is my_handler
 
     def test_returns_original_function(self) -> None:
-        def my_handler() -> None:
+        def my_handler(hook: HookInput) -> None:
             pass
 
         result = hook_handler(cast("CanonicalHook", "TestHookABC"))(my_handler)
@@ -36,11 +39,11 @@ class TestHookHandler:
         test_hook = cast("CanonicalHook", "TestHookDEF")
 
         @hook_handler(test_hook)
-        def first() -> None:
+        def first(hook: HookInput) -> None:
             pass
 
         @hook_handler(test_hook)
-        def second() -> None:
+        def second(hook: HookInput) -> None:
             pass
 
         assert HOOK_HANDLERS[test_hook] is second

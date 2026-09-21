@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar, NoReturn
+from typing import TYPE_CHECKING, ClassVar
 
 from cline_hooks.core.frontend import EXACT_MATCH, frontend
-from cline_hooks.core.protocol import HookRegistration, exit_allow, exit_block
+from cline_hooks.core.protocol import HookRegistration, with_guard
 from cline_hooks.core.vocabulary import CanonicalHook
 from cline_hooks.frontends.claude_code.protocol import ClaudeCodeHookSpec
 from cline_hooks.frontends.copilot.install import CopilotInstaller
@@ -41,14 +41,14 @@ class CopilotProtocol(ClaudeCodeHookSpec):
     not inherited.
     """
 
-    supported_hooks: ClassVar[Mapping[CanonicalHook, HookRegistration]] = {
+    supported_hooks: ClassVar[Mapping[CanonicalHook, HookRegistration]] = with_guard({
         **{
             hook: registration
             for hook, registration in ClaudeCodeHookSpec.supported_hooks.items()
             if hook is not CanonicalHook.SUBAGENT_START
         },
         CanonicalHook.PRE_COMPACT: HookRegistration("PreCompact"),
-    }
+    })
     hook_models: ClassVar[Mapping[CanonicalHook, type[HookFields]]] = {
         **ClaudeCodeHookSpec.hook_models,
         CanonicalHook.PRE_COMPACT: CopilotPreCompact,
@@ -80,11 +80,3 @@ class CopilotProtocol(ClaudeCodeHookSpec):
         if data is None:
             return False
         return data.get(cls.hook_event_key) in cls.own_hook_names()
-
-    def allow(self, message: str | None = None, *, system_message: str | None = None) -> NoReturn:
-        """Allow via exit 0, context on stdout (see class docstring)."""
-        exit_allow(message)
-
-    def block(self, message: str) -> NoReturn:
-        """Block via exit 2, error on stderr (see class docstring)."""
-        exit_block(message)

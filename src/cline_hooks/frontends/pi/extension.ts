@@ -2,7 +2,7 @@
 import { spawn } from "node:child_process";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
-const BINARY: string = "__CLINE_HOOK_BINARY__";
+const BINARIES: Record<string, string> = { __CLINE_HOOK_EVENT__: "__CLINE_HOOK_BINARY__" };
 const CUSTOM_TYPE = "cline-hooks";
 const BLOCK_EXIT_CODE = 2;
 
@@ -25,7 +25,7 @@ function runHook(ctx: ExtensionContext, payload: Record<string, unknown>): Promi
     ...payload,
   });
   return new Promise((resolve) => {
-    const child = spawn(BINARY, [], { stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn(BINARIES[String(payload.hook_event_name)], [], { stdio: ["pipe", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk) => (stdout += chunk));

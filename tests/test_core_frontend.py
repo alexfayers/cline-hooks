@@ -27,12 +27,6 @@ class _Bare(Protocol):
     def parse(self, payload: RawPayload) -> NoReturn:
         raise NotImplementedError
 
-    def allow(self, message: str | None = None, *, system_message: str | None = None) -> NoReturn:
-        raise NotImplementedError
-
-    def block(self, message: str) -> NoReturn:
-        raise NotImplementedError
-
 
 class TestFrontendDecorator:
     def test_registers_the_decorated_protocol(self) -> None:

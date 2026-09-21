@@ -1,24 +1,27 @@
 from __future__ import annotations
 
-import contextlib
-from unittest.mock import patch
+from typing import TYPE_CHECKING
 
 from cline_hooks.core.models import HookInputPreCompact, PreCompactFields
+from cline_hooks.core.outcome import Disposition
 from cline_hooks.core.plugin import HookResult
 from cline_hooks.handlers.pre_compact import handle_pre_compact
 
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
-def _pre_compact() -> HookInputPreCompact:
+
+def _pre_compact(*, conversation_length: int = 10, estimated_tokens: int = 100) -> HookInputPreCompact:
     return HookInputPreCompact(
         taskId="task-1",
-        workspaceRoots=[],
+        workspaceRoots=["/workspace"],
         hookName="PreCompact",
-        preCompact=PreCompactFields(conversationLength=10, estimatedTokens=1000),
+        preCompact=PreCompactFields(conversationLength=conversation_length, estimatedTokens=estimated_tokens),
     )
 
 
 class TestForwardsStateKey:
-    def test_subagent_task_id_is_the_per_agent_state_key(self) -> None:
+    def test_subagent_task_id_is_the_per_agent_state_key(self, mocker: MockerFixture) -> None:
         captured: dict[str, object] = {}
 
         def _fake_collect(_plugins: object, _hook_name: str, **kwargs: object) -> HookResult:
@@ -27,10 +30,22 @@ class TestForwardsStateKey:
 
         hook = _pre_compact()
         hook.agentId = "agent-7"
-        with (
-            patch("cline_hooks.handlers.pre_compact.collect_hook_results", side_effect=_fake_collect),
-            patch("builtins.print"),
-            contextlib.suppress(SystemExit),
-        ):
-            handle_pre_compact(hook)
+        mocker.patch("cline_hooks.handlers.pre_compact.collect_hook_results", side_effect=_fake_collect)
+        handle_pre_compact(hook)
         assert captured.get("task_id") == "task-1:agent-7"
+
+
+class TestHandlePreCompact:
+    def test_no_pre_compact_fields_allows_with_no_message(self) -> None:
+        hook = HookInputPreCompact(taskId="task-1", workspaceRoots=["/workspace"], hookName="PreCompact")
+        outcome = handle_pre_compact(hook)
+        assert outcome is not None
+        assert outcome.disposition is Disposition.ALLOW
+        assert outcome.message is None
+
+    def test_reports_conversation_length_and_estimated_tokens(self) -> None:
+        outcome = handle_pre_compact(_pre_compact(conversation_length=42, estimated_tokens=12345))
+        assert outcome is not None
+        assert outcome.message is not None
+        assert "42" in outcome.message
+        assert "12345" in outcome.message

@@ -9,15 +9,19 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from importlib.metadata import distribution
+from importlib.metadata import PackageNotFoundError, distribution, version
 import json
 from pathlib import Path
 import shutil
 import sys
 from typing import TYPE_CHECKING, Any, ClassVar
 
+from cline_hooks.daemon.client import retire_daemon
+
 if TYPE_CHECKING:
     from cline_hooks.core.protocol import HookRegistration, Protocol
+
+_DISTRIBUTION_NAME = "cline-hooks"
 
 
 @dataclass(frozen=True)
@@ -50,31 +54,51 @@ class Installer(ABC):
         """
 
 
-def binary_names() -> tuple[str, ...]:
-    """Return the platform variants of this distribution's console script name.
+def package_version() -> str:
+    """Return the installed cline-hooks distribution version.
+
+    Returns:
+        The version string, or "0" if the package isn't installed as a
+        distribution.
+    """
+    try:
+        return version(_DISTRIBUTION_NAME)
+    except PackageNotFoundError:
+        return "0"
+
+
+def binary_names(script: str | None = None) -> tuple[str, ...]:
+    """Return the platform variants of a console script name.
+
+    Args:
+        script: The script's base name, defaulting to this distribution's first console script.
 
     Returns:
         The bare, `.exe` and `.cmd` file names.
     """
-    base = next(
+    base = script or next(
         entry_point.name
-        for entry_point in distribution("cline-hooks").entry_points
+        for entry_point in distribution(_DISTRIBUTION_NAME).entry_points
         if entry_point.group == "console_scripts"
     )
     return (base, f"{base}.exe", f"{base}.cmd")
 
 
-def resolve_binary() -> Path:
-    """Resolve the path to the cline-hook binary.
+def resolve_binary(name: str | None = None) -> Path:
+    """Resolve the path to a console-script binary installed alongside this interpreter.
+
+    Args:
+        name: The script's base name, e.g. "cline-hook-guard"; defaults to the main cline-hook script.
 
     Returns:
         Path to the binary, preferring the PATH link to the running binary, then
         existing files.
     """
     scripts_dir = Path(sys.executable).parent
-    candidates = tuple(scripts_dir / name for name in binary_names())
+    variants = binary_names(name)
+    candidates = tuple(scripts_dir / variant for variant in variants)
     own = next((candidate for candidate in candidates if candidate.exists()), candidates[0])
-    linked = shutil.which(binary_names()[0])
+    linked = shutil.which(variants[0])
     if linked and Path(linked).resolve() == own.resolve():
         return Path(linked)
     return own
@@ -84,8 +108,8 @@ class JsonHookInstaller(Installer):
     """Installer for frontends configured by a JSON file of hook events.
 
     Merges an entry per registered hook into the object under `root_key`,
-    preserving entries from other sources and pointing existing cline-hook entries
-    whose binary is missing, or all of them when forced, at the resolved binary.
+    preserving entries from other sources and repointing cline-hook entries that run
+    from this install, whose binary is missing, or all of them when forced.
 
     Attributes:
         must_exist: Whether the config file must already exist, rather than
@@ -135,6 +159,29 @@ class JsonHookInstaller(Installer):
         """
         return [hook for hook in entry.get("hooks", []) if isinstance(hook, dict)]
 
+    def entry_commands(self, entry: dict[str, Any]) -> set[str]:
+        """Return the commands an existing config entry already runs, skipping handlers with no "command"."""
+        return {str(handler["command"]) for handler in self.entry_handlers(entry) if "command" in handler}
+
+    def known_binary_names(self, protocol_cls: type[Protocol], binary: Path) -> frozenset[str]:
+        """Return every binary basename this installer may legitimately have written."""
+        return frozenset(
+            {binary.name}
+            | {
+                resolve_binary(registration.binary_name).name
+                for registration in protocol_cls.supported_hooks.values()
+                if registration.binary_name
+            }
+        )
+
+    def owns_entry(self, entry: dict[str, Any], binary_names: frozenset[str]) -> bool:
+        """Return True if an existing config entry runs one of cline-hooks' own binaries, by exact basename."""
+        return any(Path(cmd).name in binary_names for cmd in self.entry_commands(entry))
+
+    def _runs_from(self, entry: dict[str, Any], scripts_dir: Path) -> bool:
+        """Return True if an existing config entry runs a command located in `scripts_dir`."""
+        return any(Path(cmd).parent == scripts_dir for cmd in self.entry_commands(entry))
+
     def _read_config(self, config_path: Path) -> dict[str, Any]:
         """Read the frontend's JSON config, creating its directory if allowed.
 
@@ -153,6 +200,73 @@ class JsonHookInstaller(Installer):
         config_path.parent.mkdir(parents=True, exist_ok=True)
         return {}
 
+    def _should_repoint(
+        self, entry: dict[str, Any], binary: Path, binary_names: frozenset[str], *, force: bool
+    ) -> bool:
+        """Whether an owned entry may be pointed at this install's binaries.
+
+        Args:
+            entry: An owned entry from the config's hook event list.
+            binary: Path to the resolved default `cline-hook` binary.
+            binary_names: Basenames from `known_binary_names()`.
+            force: Whether to repoint even where the entry's binary exists elsewhere.
+
+        Returns:
+            True when forced, when the entry runs from this install, or when
+            one of its cline-hook commands no longer exists.
+        """
+        if force or self._runs_from(entry, binary.parent) or self._runs_from(entry, Path(sys.executable).parent):
+            return True
+        return any(
+            not Path(command).exists() for command in self.entry_commands(entry) if Path(command).name in binary_names
+        )
+
+    def _reconcile_registration(
+        self,
+        current: list[dict[str, Any]],
+        registration: HookRegistration,
+        binary: Path,
+        binary_names: frozenset[str],
+        *,
+        force: bool,
+    ) -> str:
+        """Reconcile one hook registration's entries in-place against the desired state.
+
+        Repoints the first owned entry's cline-hook commands, keeping its other
+        fields, and drops any further owned entries.
+
+        Returns:
+            One of "added", "migrated", "unchanged".
+        """
+        entry_binary = resolve_binary(registration.binary_name)
+        owned_indices = [
+            index
+            for index, entry in enumerate(current)
+            if isinstance(entry, dict) and self.owns_entry(entry, binary_names)
+        ]
+        if not owned_indices:
+            current.append(self.build_entry(entry_binary, registration))
+            return "added"
+
+        first = current[owned_indices[0]]
+        if not self._should_repoint(first, binary, binary_names, force=force):
+            return "unchanged"
+        status = "unchanged"
+        for handler in self.entry_handlers(first):
+            if Path(str(handler.get("command", ""))).name in binary_names and handler["command"] != str(entry_binary):
+                handler["command"] = str(entry_binary)
+                status = "migrated"
+        for index in reversed(owned_indices[1:]):
+            del current[index]
+        return status
+
+    def _report_install_result(self, config_path: Path, counts: dict[str, int]) -> None:
+        if not counts["added"] and not counts["migrated"]:
+            print(f"{config_path} already has all cline-hooks entries.")
+            return
+        parts = [f"{counts[status]} {status}" for status in ("added", "migrated", "unchanged") if counts[status]]
+        print(f"Patched {config_path}: {', '.join(parts)}.")
+
     def install(self, protocol_cls: type[Protocol], target: str | None, *, force: bool = False) -> None:
         """Patch the frontend's JSON config with an entry per registered hook.
 
@@ -162,36 +276,20 @@ class JsonHookInstaller(Installer):
             force: Whether to repoint existing entries even where their binary exists.
         """
         binary = resolve_binary()
-        names = binary_names()
+        binary_names = self.known_binary_names(protocol_cls, binary)
         config_path = self.config_path(target)
         config = self._read_config(config_path)
 
         existing: dict[str, list[dict[str, Any]]] = config.get(self.root_key, {})
-        added = 0
-        rewritten = 0
+        counts = {"added": 0, "migrated": 0, "unchanged": 0}
         for registration in protocol_cls.supported_hooks.values():
             current = existing.get(registration.native_name, [])
-            installed = False
-            for entry in current:
-                if not isinstance(entry, dict):
-                    continue
-                for handler in self.entry_handlers(entry):
-                    if Path(str(handler.get("command", ""))).name not in names:
-                        continue
-                    installed = True
-                    if force or not Path(handler["command"]).exists():
-                        handler["command"] = str(binary)
-                        rewritten += 1
-            if not installed:
-                current.append(self.build_entry(binary, registration))
-                added += 1
+            status = self._reconcile_registration(current, registration, binary, binary_names, force=force)
+            counts[status] += 1
             existing[registration.native_name] = current
 
         config[self.root_key] = existing
         config_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
-        if added:
-            print(f"Patched {config_path} with {added} hook event(s).")
-        if rewritten:
-            print(f"Updated the cline-hook path in {rewritten} hook(s) in {config_path}.")
-        if not added and not rewritten:
-            print(f"{config_path} already has all cline-hooks entries.")
+        self._report_install_result(config_path, counts)
+        if protocol_cls.uses_guard():
+            retire_daemon()
