@@ -174,14 +174,15 @@ def handle_task_start(hook: HookInputTaskStart) -> Outcome:
     Returns:
         The merged Outcome for this task start.
     """
-    try:
-        _repair_claude_code_install()
-    except Exception:
-        logger.exception("Failed to check/repair the claude-code hook install")
-    try:
-        daemon_lifecycle.ensure()
-    except Exception:
-        logger.exception("Failed to ensure the loopback hook daemon is running")
+    if isinstance(get_protocol(), ClaudeCodeProtocol):
+        try:
+            _repair_claude_code_install()
+        except Exception:
+            logger.exception("Failed to check/repair the claude-code hook install")
+        try:
+            daemon_lifecycle.ensure()
+        except Exception:
+            logger.exception("Failed to ensure the loopback hook daemon is running")
 
     source = hook.taskStart.source if hook.taskStart else ""
     if source not in NO_RESET_TASK_START_SOURCES:

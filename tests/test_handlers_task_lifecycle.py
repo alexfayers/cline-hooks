@@ -405,6 +405,14 @@ class TestHandleTaskStart:
 
 
 class TestSessionStartDaemonWiring:
+    @pytest.fixture(autouse=True)
+    def _claude_code_protocol(self) -> Iterator[None]:
+        set_protocol(ClaudeCodeProtocol("SessionStart"))
+        try:
+            yield
+        finally:
+            set_protocol(ClineProtocol())
+
     def test_repair_and_ensure_are_both_called(self, tmp_path: Path) -> None:
         with (
             patch("cline_hooks.plugins.session_context.get_git_context", return_value=None),
