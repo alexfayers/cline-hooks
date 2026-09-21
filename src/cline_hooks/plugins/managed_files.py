@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 from pathlib import Path
+import threading
 from typing import TYPE_CHECKING, Any, cast
 
 from cline_hooks.core.parameters import FileEditParameters
@@ -16,22 +17,36 @@ try:
         get_managed_files as _get_managed_files_impl,
         get_source_for_managed_file as _get_source_impl,
     )
+    from llm_prompts.manifest import MANIFEST_PATH as _MANIFEST_PATH
 except ImportError:
     _get_managed_files_impl = None
     _get_source_impl = None
+    _MANIFEST_PATH = None
 
 _managed_files: set[str] | None = None
+_managed_files_mtime: float | None = None
+_managed_files_lock = threading.Lock()
+
+
+def _manifest_mtime() -> float | None:
+    """Return the manifest's current mtime, or None if it can't be stat'd."""
+    if _MANIFEST_PATH is None:
+        return None
+    try:
+        return cast("float", _MANIFEST_PATH.stat().st_mtime)
+    except OSError:
+        return None
 
 
 def _get_managed_files() -> set[str]:
-    """Return cached set of managed file paths from the manifest."""
-    global _managed_files  # ruff: ignore[global-statement]
-    if _managed_files is None:
-        if _get_managed_files_impl is not None:
-            _managed_files = _get_managed_files_impl()
-        else:
-            _managed_files = set()
-    return _managed_files
+    """Return the manifest's managed file paths, re-reading if the manifest's mtime changed."""
+    global _managed_files, _managed_files_mtime  # ruff: ignore[global-statement]
+    with _managed_files_lock:
+        current_mtime = _manifest_mtime()
+        if _managed_files is None or current_mtime != _managed_files_mtime:
+            _managed_files = _get_managed_files_impl() if _get_managed_files_impl is not None else set()
+            _managed_files_mtime = current_mtime
+        return _managed_files
 
 
 def _is_managed_path(path: str) -> bool:

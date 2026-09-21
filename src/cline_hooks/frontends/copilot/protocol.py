@@ -5,7 +5,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, ClassVar, NoReturn
 
 from cline_hooks.core.frontend import EXACT_MATCH, frontend
+from cline_hooks.core.outcome import Disposition
 from cline_hooks.core.protocol import HookRegistration, exit_allow, exit_block
+from cline_hooks.core.response import Response
 from cline_hooks.core.vocabulary import CanonicalHook
 from cline_hooks.frontends.claude_code.protocol import ClaudeCodeHookSpec
 from cline_hooks.frontends.copilot.install import CopilotInstaller
@@ -15,6 +17,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from cline_hooks.core.models import HookFields
+    from cline_hooks.core.outcome import Outcome
     from cline_hooks.core.protocol import RawPayload
 
 
@@ -82,3 +85,16 @@ class CopilotProtocol(ClaudeCodeHookSpec):
     def block(self, message: str) -> NoReturn:
         """Block via exit 2, error on stderr (see class docstring)."""
         exit_block(message)
+
+    def render(self, outcome: Outcome) -> Response:
+        """Render the outcome via the plain exit-code contract (see class docstring).
+
+        Returns:
+            The rendered Response.
+        """
+        if outcome.disposition in {Disposition.BLOCK, Disposition.FEEDBACK}:
+            return Response(exit_code=2, stderr=outcome.message or "")
+        message = outcome.message
+        if message is not None and outcome.label:
+            message = f"{outcome.label}: {message}"
+        return Response(stdout=message or "")

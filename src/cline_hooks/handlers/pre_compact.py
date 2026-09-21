@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from cline_hooks.core.outcome import Outcome
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.registry import hook_handler
-from cline_hooks.core.response import allow
 from cline_hooks.core.vocabulary import CanonicalHook
 
 if TYPE_CHECKING:
@@ -12,14 +12,17 @@ if TYPE_CHECKING:
 
 
 @hook_handler(CanonicalHook.PRE_COMPACT)
-def handle_pre_compact(hook: HookInputPreCompact) -> None:
+def handle_pre_compact(hook: HookInputPreCompact) -> Outcome:
     """Handle PreCompact hook events.
 
     Args:
         hook: The hook input data.
+
+    Returns:
+        The merged Outcome for this compaction event.
     """
     if hook.preCompact is None:
-        return
+        return Outcome()
 
     parts: list[str] = [
         (
@@ -37,4 +40,4 @@ def handle_pre_compact(hook: HookInputPreCompact) -> None:
     )
     parts.extend(result.notes)
 
-    allow(" ".join(parts))
+    return Outcome.allow(" ".join(parts), label="REMINDER")

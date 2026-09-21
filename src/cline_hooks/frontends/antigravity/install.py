@@ -31,8 +31,10 @@ class AntigravityInstaller(JsonHookInstaller):
         """
         return Path.home() / ".gemini" / "config" / "hooks.json"
 
-    def build_entry(self, binary: Path, registration: HookRegistration) -> dict[str, Any]:
+    def build_entry(self, binary: Path, registration: HookRegistration, *, http: bool = False) -> dict[str, Any]:
         """Build one Antigravity hook entry in the event's own structure.
+
+        Antigravity has no http-transport registrations, so `http` is unused.
 
         Returns:
             A hook group carrying the matcher where the event matches on tool

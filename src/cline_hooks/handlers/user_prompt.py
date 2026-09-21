@@ -3,9 +3,9 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
+from cline_hooks.core.outcome import Outcome
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.registry import hook_handler
-from cline_hooks.core.response import allow
 from cline_hooks.core.timing import TIME_FORMAT, local_now
 from cline_hooks.core.vocabulary import CanonicalHook
 
@@ -26,15 +26,18 @@ def _is_agent_message(message: str) -> bool:
 
 
 @hook_handler(CanonicalHook.USER_PROMPT_SUBMIT)
-def handle_user_prompt_submit(hook: HookInputUserPromptSubmit) -> None:
+def handle_user_prompt_submit(hook: HookInputUserPromptSubmit) -> Outcome:
     """Handle UserPromptSubmit hook events.
 
     Args:
         hook: The hook input data.
+
+    Returns:
+        The merged Outcome for this user prompt.
     """
     message = hook.userPromptSubmit.userMessage if hook.userPromptSubmit else ""
     if not message or _is_agent_message(message):
-        return
+        return Outcome()
 
     notes: list[str] = [f"TIME: {local_now().strftime(TIME_FORMAT)}."]
 
@@ -50,4 +53,5 @@ def handle_user_prompt_submit(hook: HookInputUserPromptSubmit) -> None:
     notes.extend(result.notes)
 
     if notes:
-        allow("\n\n".join(notes), prefix="")
+        return Outcome.allow("\n\n".join(notes))
+    return Outcome()

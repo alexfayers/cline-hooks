@@ -1,20 +1,27 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, TypeVar, cast
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from cline_hooks.core.models import HookInput
     from cline_hooks.core.outcome import Outcome
     from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
 
-HOOK_HANDLERS: dict[str, Callable[..., Any]] = {}
+_HookInputT = TypeVar("_HookInputT", bound="HookInput")
+
+HOOK_HANDLERS: dict[str, Callable[[HookInput], Outcome | None]] = {}
 
 
 def hook_handler(
     hook_name: CanonicalHook,
-) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+) -> Callable[[Callable[[_HookInputT], Outcome | None]], Callable[[_HookInputT], Outcome | None]]:
     """Register a handler for the given hook name.
+
+    Each handler narrows its parameter to the specific HookInput subclass its
+    hook always parses to; storage keeps the base-class signature since
+    dispatch always looks a handler up by the matching hook name.
 
     Args:
         hook_name: The hook name to register the handler for.
@@ -23,8 +30,8 @@ def hook_handler(
         A decorator that registers the decorated function as the handler.
     """
 
-    def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
-        HOOK_HANDLERS[hook_name] = fn
+    def decorator(fn: Callable[[_HookInputT], Outcome | None]) -> Callable[[_HookInputT], Outcome | None]:
+        HOOK_HANDLERS[hook_name] = cast("Callable[[HookInput], Outcome | None]", fn)
         return fn
 
     return decorator

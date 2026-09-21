@@ -8,8 +8,10 @@ import sys
 from typing import TYPE_CHECKING, ClassVar, NoReturn
 
 from cline_hooks.core.frontend import EXACT_MATCH, frontend
+from cline_hooks.core.outcome import Disposition
 from cline_hooks.core.payload import StandardPayloadProtocol, ToolParams
 from cline_hooks.core.protocol import HookRegistration
+from cline_hooks.core.response import Response
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
 from cline_hooks.frontends.kiro.install import KiroInstaller
 from cline_hooks.frontends.kiro.models import (
@@ -24,6 +26,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from cline_hooks.core.models import HookFields
+    from cline_hooks.core.outcome import Outcome
     from cline_hooks.core.protocol import RawPayload
 
 
@@ -99,3 +102,23 @@ class KiroProtocol(StandardPayloadProtocol):
         """
         print(json.dumps({"decision": "block", "reason": message}), end="")
         sys.exit(0)
+
+    def render(self, outcome: Outcome) -> Response:
+        """Render the outcome via Kiro's exit-code and Stop-decision contracts.
+
+        Kiro's `Stop` hook only surfaces feedback through the decision-JSON
+        channel (see kiro.dev/docs/cli/hooks/#stop); it isn't attached to a
+        tool call, so a plain exit-2 block would be a no-op there.
+
+        Returns:
+            The rendered Response.
+        """
+        if outcome.disposition is Disposition.BLOCK:
+            return Response(exit_code=2, stderr=outcome.message or "")
+        if outcome.disposition is Disposition.FEEDBACK:
+            payload = json.dumps({"decision": "block", "reason": outcome.message or ""})
+            return Response(stdout=payload)
+        message = outcome.message
+        if message is not None and outcome.label:
+            message = f"{outcome.label}: {message}"
+        return Response(stdout=message or "")

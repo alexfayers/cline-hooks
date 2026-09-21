@@ -118,12 +118,14 @@ class ClineInstaller(Installer):
         name="target_dir", help="Directory to install hook entry points into"
     )
 
-    def install(self, protocol_cls: type[Protocol], target: str | None) -> None:
+    def install(self, protocol_cls: type[Protocol], target: str | None, *, http: bool | None = None) -> None:
         """Create an entry point per registered hook in the target directory.
 
         Args:
             protocol_cls: The Cline protocol, whose hook names become file names.
             target: Directory in which to create hook entry points.
+            http: Unused - Cline dispatches by file name, not a JSON config,
+                and has no http-transport registrations.
         """
         hooks = tuple(registration.native_name for registration in protocol_cls.supported_hooks.values())
         binary = resolve_binary()

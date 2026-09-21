@@ -3,17 +3,20 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import sys
 from typing import TYPE_CHECKING, ClassVar, NoReturn, Self
 
 from cline_hooks.core.frontend import SHAPE_SNIFF, frontend
+from cline_hooks.core.outcome import Disposition
 from cline_hooks.core.payload import (
     PayloadEnvelope,
     StandardPayloadProtocol,
     ToolParams,
 )
 from cline_hooks.core.protocol import HookRegistration, exit_block
+from cline_hooks.core.response import Response
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
 from cline_hooks.frontends.claude_code.install import ClaudeCodeInstaller
 from cline_hooks.frontends.claude_code.models import (
@@ -31,6 +34,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from cline_hooks.core.models import HookFields
+    from cline_hooks.core.outcome import Outcome
     from cline_hooks.core.protocol import RawPayload
     from cline_hooks.core.transcript import TranscriptReader
 
@@ -95,6 +99,18 @@ class ClaudeCodeProtocol(ClaudeCodeHookSpec):
     - every other event needs additionalContext to actually reach the model.
     """
 
+    supported_hooks: ClassVar[Mapping[CanonicalHook, HookRegistration]] = {
+        **ClaudeCodeHookSpec.supported_hooks,
+        **{
+            hook: dataclasses.replace(ClaudeCodeHookSpec.supported_hooks[hook], binary_name="cline-hook-guard")
+            for hook in (
+                CanonicalHook.USER_PROMPT_SUBMIT,
+                CanonicalHook.PRE_TOOL_USE,
+                CanonicalHook.POST_TOOL_USE,
+                CanonicalHook.STOP,
+            )
+        },
+    }
     transcript: ClassVar[TranscriptReader] = ClaudeCodeTranscriptReader()
 
     def __init__(self, hook_event_name: str = "Stop") -> None:
@@ -182,3 +198,32 @@ class ClaudeCodeProtocol(ClaudeCodeHookSpec):
         """Continue via exit 0, non-error context in hookSpecificOutput."""
         self._print_additional_context(message)
         sys.exit(0)
+
+    def render(self, outcome: Outcome) -> Response:
+        """Render the outcome via Claude Code's hookSpecificOutput/systemMessage contract.
+
+        Returns:
+            The rendered Response.
+        """
+        if outcome.disposition is Disposition.BLOCK:
+            return Response(exit_code=2, stderr=outcome.message or "")
+        if outcome.disposition is Disposition.FEEDBACK:
+            payload: dict[str, object] = {
+                "hookSpecificOutput": {
+                    "hookEventName": self._hook_event_name,
+                    "additionalContext": outcome.message or "",
+                },
+            }
+            return Response(stdout=json.dumps(payload))
+        message = outcome.message
+        if message is not None and outcome.label:
+            message = f"{outcome.label}: {message}"
+        payload = {}
+        if outcome.user_message:
+            payload["systemMessage"] = outcome.user_message
+        if message is not None:
+            payload["hookSpecificOutput"] = {
+                "hookEventName": self._hook_event_name,
+                "additionalContext": message,
+            }
+        return Response(stdout=json.dumps(payload) if payload else "")

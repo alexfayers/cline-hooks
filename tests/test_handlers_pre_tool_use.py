@@ -9,8 +9,8 @@ import git
 import pytest
 
 from cline_hooks.core.plugin import HookResult, HooksPlugin
-from cline_hooks.core.protocol import RawPayload
-from cline_hooks.core.response import emit
+from cline_hooks.core.protocol import RawPayload, get_protocol
+from cline_hooks.core.response import render
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.handlers.pre_tool_use import handle_pre_tool_use
 from cline_hooks.plugins.managed_files import _is_managed_path
@@ -64,17 +64,13 @@ def _run(
     workspace_roots: list[str] | None = None,
 ) -> dict[str, object] | None:
     hook = _make_hook(tool_name, parameters, workspace_roots)
-    output: list[str] = []
-    try:
-        with patch("builtins.print", side_effect=lambda s, **kw: output.append(s)):
-            outcome = handle_pre_tool_use(hook)
-            if outcome is not None and outcome.message is not None:
-                emit(outcome)
-    except SystemExit:
-        pass
-    if not output:
+    outcome = handle_pre_tool_use(hook)
+    if outcome is None or outcome.message is None:
         return None
-    return cast("dict[str, object]", json.loads(output[0]))
+    response = render(outcome, get_protocol())
+    if not response.stdout:
+        return None
+    return cast("dict[str, object]", json.loads(response.stdout))
 
 
 def _init_clean_repo(path: Path) -> None:

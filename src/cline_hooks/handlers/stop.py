@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from cline_hooks.core.outcome import Outcome
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.registry import hook_handler
-from cline_hooks.core.response import allow, feedback
 from cline_hooks.core.vocabulary import CanonicalHook
 
 if TYPE_CHECKING:
@@ -12,14 +12,17 @@ if TYPE_CHECKING:
 
 
 @hook_handler(CanonicalHook.STOP)
-def handle_stop(hook: HookInputStop) -> None:
+def handle_stop(hook: HookInputStop) -> Outcome:
     """Handle Stop hook events by dispatching to plugins.
 
     Args:
         hook: The hook input data.
+
+    Returns:
+        The merged Outcome for this stop event.
     """
     if hook.stop and hook.stop.stopHookActive:
-        allow()
+        return Outcome.allow()
 
     result = collect_hook_results(
         load_plugins(),
@@ -34,6 +37,6 @@ def handle_stop(hook: HookInputStop) -> None:
         notes.append(result.block)
 
     if not notes:
-        allow()
+        return Outcome.allow()
 
-    feedback("\n\n".join(notes))
+    return Outcome.feedback("\n\n".join(notes))

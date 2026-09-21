@@ -28,8 +28,10 @@ class CopilotInstaller(JsonHookInstaller):
         """
         return Path.home() / ".copilot" / "hooks" / "cline-hooks.json"
 
-    def build_entry(self, binary: Path, registration: HookRegistration) -> dict[str, Any]:
+    def build_entry(self, binary: Path, registration: HookRegistration, *, http: bool = False) -> dict[str, Any]:
         """Build one flat Copilot hook entry.
+
+        Copilot has no http-transport registrations, so `http` is unused.
 
         Returns:
             A command entry; Copilot's format carries no matcher.

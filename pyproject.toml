@@ -16,6 +16,7 @@ dependencies = [
 
 [project.scripts]
 cline-hook = "cline_hooks._main:main"
+cline-hook-guard = "cline_hooks.thin_client:main"
 
 [project.entry-points."llm_prompts"]
 hooks = "cline_hooks"
@@ -54,6 +55,9 @@ extend-ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
+"src/cline_hooks/__init__.py" = [
+    "undefined-export", # `main` is resolved lazily by __getattr__, not defined at module scope
+]
 "src/cline_hooks/core/payload.py" = [
     "mixed-case-variable-in-class-scope", # camelCase fields mirror the external JSON payload keys
     "any-type",                           # pydantic "before" validators receive raw, untyped JSON
@@ -71,8 +75,10 @@ extend-ignore = [
     "fallible-context-manager", # deliberate: a failed mutation must not persist a partial write
 ]
 "tests/**" = [
-    "pytest-fixture-autouse", # autouse fixtures are the standard way to isolate test state here
-    "hardcoded-temp-file",    # /tmp paths in tests are fixture data, never actually written to
+    "pytest-fixture-autouse",       # autouse fixtures are the standard way to isolate test state here
+    "hardcoded-temp-file",          # /tmp paths in tests are fixture data, never actually written to
+    "hardcoded-password-func-arg",  # daemon auth token fixtures, not real secrets
+    "hardcoded-password-string",    # same
 ]
 
 [tool.mypy]

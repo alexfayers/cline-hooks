@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -15,7 +15,8 @@ from cline_hooks.core.models import (
     TaskStartFields,
 )
 from cline_hooks.core.plugin import HookResult, HooksPlugin, ToolingNote, UserFacingNote
-from cline_hooks.core.protocol import set_protocol
+from cline_hooks.core.protocol import get_protocol, set_protocol
+from cline_hooks.core.response import render
 from cline_hooks.frontends.claude_code import ClaudeCodeProtocol
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.frontends.kiro import KiroProtocol
@@ -26,6 +27,7 @@ from cline_hooks.handlers.git_context import (
 )
 from cline_hooks.handlers.task_lifecycle import (
     _format_block_history,
+    _repair_claude_code_install,
     handle_task_cancel,
     handle_task_complete,
     handle_task_resume,
@@ -39,6 +41,9 @@ from cline_hooks.state.memory import has_memory_writes, record_memory_write
 from cline_hooks.state.skills import is_skill_called, record_skill
 from cline_hooks.state.store import TaskBlockEvent, TaskStateStore
 from cline_hooks.state.workspace import record_workspace, should_note_workspace_change
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 BASE = {
     "clineVersion": "1.0",
@@ -82,16 +87,6 @@ def _task_complete(roots: list[str] | None = None) -> HookInputTaskComplete:
         workspaceRoots=roots or ["/workspace"],
         hookName="TaskComplete",
     )
-
-
-def _capture_output(hook_fn, hook_input):
-    """Run a handler and capture its stdout JSON output."""
-    captured: list[str] = []
-    with patch("sys.stdout") as mock_stdout:
-        mock_stdout.write = captured.append
-        with pytest.raises(SystemExit):
-            hook_fn(hook_input)
-    return captured
 
 
 class TestFormatBlockHistory:
@@ -193,14 +188,23 @@ class TestResolveToolingNotes:
 
 
 class TestHandleTaskStart:
-    def _run(self, hook: HookInputTaskStart) -> dict[str, object]:
-        output: list[str] = []
+    @pytest.fixture(autouse=True)
+    def _no_daemon_side_effects(self) -> Iterator[None]:
+        """Keep the daemon-lifecycle wiring out of every unrelated SessionStart test.
+
+        Covered directly by TestSessionStartDaemonWiring and TestRepairClaudeCodeInstall.
+        """
         with (
-            patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
-            pytest.raises(SystemExit),
+            patch("cline_hooks.handlers.task_lifecycle._repair_claude_code_install"),
+            patch("cline_hooks.handlers.task_lifecycle.daemon_lifecycle.ensure"),
         ):
-            handle_task_start(hook)
-        return cast("dict[str, object]", json.loads(output[0]))
+            yield
+
+    def _run(self, hook: HookInputTaskStart) -> dict[str, object]:
+        outcome = handle_task_start(hook)
+        assert outcome is not None
+        response = render(outcome, get_protocol())
+        return cast("dict[str, object]", json.loads(response.stdout))
 
     def test_git_context_included_when_present(self, tmp_path: Path) -> None:
         with patch(
@@ -357,13 +361,9 @@ class TestHandleTaskStart:
         assert captured.get("agent_type") == "Explore"
 
     def _run_raw(self, hook: HookInputTaskStart) -> str:
-        output: list[str] = []
-        with (
-            patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
-            pytest.raises(SystemExit),
-        ):
-            handle_task_start(hook)
-        return output[0] if output else ""
+        outcome = handle_task_start(hook)
+        assert outcome is not None
+        return render(outcome, get_protocol()).stdout
 
     def test_user_note_goes_to_system_message_on_claude_code(self, tmp_path: Path) -> None:
         set_protocol(ClaudeCodeProtocol("SessionStart"))
@@ -404,19 +404,118 @@ class TestHandleTaskStart:
         assert "systemMessage" not in raw
 
 
+class TestSessionStartDaemonWiring:
+    def test_repair_and_ensure_are_both_called(self, tmp_path: Path) -> None:
+        with (
+            patch("cline_hooks.plugins.session_context.get_git_context", return_value=None),
+            patch("cline_hooks.handlers.task_lifecycle._repair_claude_code_install") as repair,
+            patch("cline_hooks.handlers.task_lifecycle.daemon_lifecycle.ensure") as ensure,
+        ):
+            handle_task_start(_task_start([str(tmp_path)]))
+        repair.assert_called_once()
+        ensure.assert_called_once()
+
+    def test_a_repair_failure_is_logged_and_swallowed(self, tmp_path: Path) -> None:
+        with (
+            patch("cline_hooks.plugins.session_context.get_git_context", return_value=None),
+            patch(
+                "cline_hooks.handlers.task_lifecycle._repair_claude_code_install",
+                side_effect=RuntimeError("boom"),
+            ),
+            patch("cline_hooks.handlers.task_lifecycle.daemon_lifecycle.ensure") as ensure,
+        ):
+            outcome = handle_task_start(_task_start([str(tmp_path)]))
+        assert outcome is not None
+        ensure.assert_called_once()
+
+    def test_an_ensure_failure_is_logged_and_swallowed(self, tmp_path: Path) -> None:
+        with (
+            patch("cline_hooks.plugins.session_context.get_git_context", return_value=None),
+            patch("cline_hooks.handlers.task_lifecycle._repair_claude_code_install") as repair,
+            patch(
+                "cline_hooks.handlers.task_lifecycle.daemon_lifecycle.ensure",
+                side_effect=RuntimeError("boom"),
+            ),
+        ):
+            outcome = handle_task_start(_task_start([str(tmp_path)]))
+        assert outcome is not None
+        repair.assert_called_once()
+
+
+class TestRepairClaudeCodeInstall:
+    @pytest.fixture(autouse=True)
+    def _isolate(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+        monkeypatch.delenv("CLINE_HOOKS_DAEMON_PORT", raising=False)
+        with (
+            patch.object(Path, "home", return_value=tmp_path),
+            patch("cline_hooks.core.install.sys.executable", str(tmp_path / "bin" / "python")),
+            patch("cline_hooks.core.daemon_config._DAEMON_CONFIG_PATH", tmp_path / "daemon.json"),
+            patch("cline_hooks.frontends.claude_code.install.post_retire"),
+            patch("cline_hooks.handlers.task_lifecycle._INSTALL_STAMP_PATH", tmp_path / "install-check.json"),
+            patch("cline_hooks.handlers.task_lifecycle.package_version", return_value="1.2.3"),
+        ):
+            yield
+
+    def _settings_path(self, tmp_path: Path) -> Path:
+        return tmp_path / ".claude" / "settings.json"
+
+    def test_installs_claude_code_hooks_when_settings_json_is_missing(self, tmp_path: Path) -> None:
+        _repair_claude_code_install()
+        settings = json.loads(self._settings_path(tmp_path).read_text())
+        assert "PostToolUse" in settings["hooks"]
+
+    def test_writes_a_version_stamped_hash_after_checking(self, tmp_path: Path) -> None:
+        _repair_claude_code_install()
+        stamp = json.loads((tmp_path / "install-check.json").read_text())
+        assert stamp["version"] == "1.2.3"
+        assert stamp["hash"]
+
+    def test_second_call_at_the_same_version_skips_the_settings_json_check(self) -> None:
+        _repair_claude_code_install()
+        with patch("cline_hooks.handlers.task_lifecycle._claude_code_hooks_drifted") as drifted:
+            _repair_claude_code_install()
+        drifted.assert_not_called()
+
+    def test_a_version_bump_re_runs_the_check(self) -> None:
+        _repair_claude_code_install()
+        with (
+            patch("cline_hooks.handlers.task_lifecycle.package_version", return_value="9.9.9"),
+            patch(
+                "cline_hooks.handlers.task_lifecycle._claude_code_hooks_drifted",
+                return_value=False,
+            ) as drifted,
+        ):
+            _repair_claude_code_install()
+        drifted.assert_called_once()
+
+    def test_reinstalls_when_an_entry_is_missing_while_preserving_other_keys(self, tmp_path: Path) -> None:
+        settings_path = self._settings_path(tmp_path)
+        settings_path.parent.mkdir(parents=True)
+        settings_path.write_text(json.dumps({"other": "value"}))
+        _repair_claude_code_install()
+        settings = json.loads(settings_path.read_text())
+        assert settings["other"] == "value"
+        assert "PostToolUse" in settings["hooks"]
+
+    def test_leaves_an_already_correct_install_unrewritten(self, tmp_path: Path) -> None:
+        _repair_claude_code_install()
+        settings_path = self._settings_path(tmp_path)
+        before = settings_path.read_text()
+        (tmp_path / "install-check.json").unlink()
+        _repair_claude_code_install()
+        assert settings_path.read_text() == before
+
+
 class TestHandleTaskResume:
     def _run(self, hook: HookInputTaskResume, store: TaskStateStore | None = None) -> dict[str, object]:
-        output: list[str] = []
-        with (
-            patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
-            patch(
-                "cline_hooks.handlers.task_lifecycle._store",
-                store or TaskStateStore(Path("/nonexistent")),
-            ),
-            pytest.raises(SystemExit),
+        with patch(
+            "cline_hooks.handlers.task_lifecycle._store",
+            store or TaskStateStore(Path("/nonexistent")),
         ):
-            handle_task_resume(hook)
-        return cast("dict[str, object]", json.loads(output[0]))
+            outcome = handle_task_resume(hook)
+        assert outcome is not None
+        response = render(outcome, get_protocol())
+        return cast("dict[str, object]", json.loads(response.stdout))
 
     def test_block_history_included_when_present(self, tmp_path: Path) -> None:
         store = TaskStateStore(tmp_path / "state.json")
@@ -428,7 +527,7 @@ class TestHandleTaskResume:
     def test_no_block_history_when_none(self, tmp_path: Path) -> None:
         with patch("cline_hooks.plugins.session_context.get_git_context", return_value=None):
             result = self._run(_task_resume([str(tmp_path)]))
-        assert "interrupted" not in cast("str", result["contextModification"])
+        assert "interrupted" not in cast("str", result.get("contextModification", ""))
 
     def test_skills_preserved_on_resume(self, tmp_path: Path) -> None:
         record_skill("task-1", "git-usage")
@@ -523,17 +622,14 @@ class TestHandleTaskResume:
 
 class TestHandleTaskCancel:
     def _run(self, hook: HookInputTaskCancel, store: TaskStateStore | None = None) -> dict[str, object]:
-        output: list[str] = []
-        with (
-            patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
-            patch(
-                "cline_hooks.handlers.task_lifecycle._store",
-                store or TaskStateStore(Path("/nonexistent")),
-            ),
-            pytest.raises(SystemExit),
+        with patch(
+            "cline_hooks.handlers.task_lifecycle._store",
+            store or TaskStateStore(Path("/nonexistent")),
         ):
-            handle_task_cancel(hook)
-        return cast("dict[str, object]", json.loads(output[0]))
+            outcome = handle_task_cancel(hook)
+        assert outcome is not None
+        response = render(outcome, get_protocol())
+        return cast("dict[str, object]", json.loads(response.stdout))
 
     def test_no_output_when_no_blocks(self, tmp_path: Path) -> None:
         result = self._run(_task_cancel([str(tmp_path)]))
@@ -542,17 +638,14 @@ class TestHandleTaskCancel:
 
 class TestHandleTaskComplete:
     def _run(self, hook: HookInputTaskComplete, store: TaskStateStore | None = None) -> dict[str, object]:
-        output: list[str] = []
-        with (
-            patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
-            patch(
-                "cline_hooks.handlers.task_lifecycle._store",
-                store or TaskStateStore(Path("/nonexistent")),
-            ),
-            pytest.raises(SystemExit),
+        with patch(
+            "cline_hooks.handlers.task_lifecycle._store",
+            store or TaskStateStore(Path("/nonexistent")),
         ):
-            handle_task_complete(hook)
-        return cast("dict[str, object]", json.loads(output[0]))
+            outcome = handle_task_complete(hook)
+        assert outcome is not None
+        response = render(outcome, get_protocol())
+        return cast("dict[str, object]", json.loads(response.stdout))
 
     def test_clears_blocks_on_complete(self, tmp_path: Path) -> None:
         store = TaskStateStore(tmp_path / "state.json")

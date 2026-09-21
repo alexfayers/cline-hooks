@@ -32,8 +32,10 @@ class KiroInstaller(JsonHookInstaller):
         """
         return Path(target or "")
 
-    def build_entry(self, binary: Path, registration: HookRegistration) -> dict[str, Any]:
+    def build_entry(self, binary: Path, registration: HookRegistration, *, http: bool = False) -> dict[str, Any]:
         """Build one flat Kiro hook entry.
+
+        Kiro has no http-transport registrations, so `http` is unused.
 
         Returns:
             A command entry, described so it is recognisable in the agent config.
