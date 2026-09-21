@@ -1,70 +1,46 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 import logging
-from typing import NoReturn
+from typing import TYPE_CHECKING
 
 from cline_hooks.core.outcome import Disposition, Outcome
-from cline_hooks.core.protocol import get_protocol
+
+if TYPE_CHECKING:
+    from cline_hooks.core.protocol import Protocol
 
 logger = logging.getLogger("hooks.response")
 
 
-def allow(
-    message: str | None = None,
-    *,
-    prefix: str = "REMINDER",
-    system_message: str | None = None,
-) -> NoReturn:
-    """Allow the tool call to proceed, optionally injecting a reminder.
+@dataclass(frozen=True, slots=True)
+class Response:
+    """A rendered hook decision, ready for a transport to deliver.
 
-    Args:
-        message: Optional reminder text. Defaults to None.
-        prefix: Label prepended to the message. Defaults to "REMINDER".
-        system_message: Optional message surfaced directly to the user on
-            frontends that support a user channel.
+    Attributes:
+        exit_code: Process exit code for the command-path transport.
+        stdout: Text for the command-path transport's stdout.
+        stderr: Text for the command-path transport's stderr.
     """
-    if message is not None:
-        message = f"{prefix}: {message}" if prefix else message
-        logger.warning("Reminding: %s", message)
 
-    get_protocol().allow(message, system_message=system_message)
-
-
-def block(message: str, *, task_id: str | None = None, tool_name: str | None = None) -> NoReturn:
-    """Cancel the tool call with an error message.
-
-    Args:
-        message: Reason for blocking.
-        task_id: Optional task ID for recording the block event.
-        tool_name: Optional tool name for recording the block event.
-    """
-    logger.warning("Blocking: %s", message)
-    if task_id is not None and tool_name is not None:
-        from cline_hooks.state.store import TaskStateStore  # ruff: ignore[import-outside-top-level]
-
-        TaskStateStore().record_block(task_id, tool_name, message)
-    get_protocol().block(message)
+    exit_code: int = 0
+    stdout: str = ""
+    stderr: str = ""
 
 
-def feedback(message: str) -> NoReturn:
-    """Continue the conversation with non-error feedback."""
-    logger.warning("Feedback: %s", message)
-    get_protocol().feedback(message)
-
-
-def emit(outcome: Outcome) -> NoReturn:
-    """Resolve a hook handler's merged Outcome via the matching response function.
+def render(outcome: Outcome, protocol: Protocol) -> Response:
+    """Render a merged Outcome into a transport-agnostic Response.
 
     Args:
-        outcome: The merged Outcome to emit.
+        outcome: The merged Outcome to render.
+        protocol: The protocol to render for.
+
+    Returns:
+        The rendered Response.
     """
     if outcome.disposition is Disposition.BLOCK:
-        block(outcome.message or "")
+        logger.warning("Blocking: %s", outcome.message)
     elif outcome.disposition is Disposition.FEEDBACK:
-        feedback(outcome.message or "")
-    else:
-        allow(
-            outcome.message,
-            prefix=outcome.label,
-            system_message=outcome.user_message or None,
-        )
+        logger.warning("Feedback: %s", outcome.message)
+    elif outcome.message is not None and outcome.label:
+        logger.warning("Reminding: %s", outcome.labelled_message)
+    return protocol.render(outcome)

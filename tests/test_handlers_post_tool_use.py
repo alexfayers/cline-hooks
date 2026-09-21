@@ -6,8 +6,8 @@ from unittest.mock import patch
 
 from cline_hooks.core.models import HookInput, HookInputPostToolUse
 from cline_hooks.core.plugin import HookResult, HooksPlugin, hookimpl
-from cline_hooks.core.protocol import RawPayload, set_protocol
-from cline_hooks.core.response import emit
+from cline_hooks.core.protocol import RawPayload, get_protocol, set_protocol
+from cline_hooks.core.response import render
 from cline_hooks.frontends.claude_code import ClaudeCodeProtocol
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.handlers.post_tool_use import handle_post_tool_use
@@ -71,17 +71,13 @@ def _make_hook(  # ruff: ignore[too-many-arguments, too-many-positional-argument
 
 
 def _run(hook: HookInputPostToolUse) -> dict[str, object] | None:
-    output: list[str] = []
-    try:
-        with patch("builtins.print", side_effect=lambda s, **kw: output.append(s)):
-            outcome = handle_post_tool_use(hook)
-            if outcome is not None and outcome.message is not None:
-                emit(outcome)
-    except SystemExit:
-        pass
-    if not output:
+    outcome = handle_post_tool_use(hook)
+    if outcome is None or outcome.message is None:
         return None
-    return cast("dict[str, object]", json.loads(output[0]))
+    response = render(outcome, get_protocol())
+    if not response.stdout:
+        return None
+    return cast("dict[str, object]", json.loads(response.stdout))
 
 
 class TestHandlePostToolUse:

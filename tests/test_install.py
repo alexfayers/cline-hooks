@@ -3,11 +3,14 @@ from __future__ import annotations
 from contextlib import contextmanager
 import json
 from pathlib import Path
+import tomllib
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+import cline_hooks.core.daemon_config as daemon_config_module
+from cline_hooks.core.daemon_config import load_or_create
 from cline_hooks.core.frontend import FrontendSpec
 from cline_hooks.core.frontends import FRONTENDS, FRONTENDS_BY_NAME
 from cline_hooks.core.install import JsonHookInstaller, resolve_binary
@@ -15,8 +18,11 @@ from cline_hooks.core.install import JsonHookInstaller, resolve_binary
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+    from pytest_mock import MockerFixture
+
 _FAKE_PYTHON = str(Path("/fake/bin/python"))
 _EXPECTED_BINARY = str(Path(_FAKE_PYTHON).parent / "cline-hook")
+_EXPECTED_GUARD_BINARY = str(Path(_FAKE_PYTHON).parent / "cline-hook-guard")
 
 
 def _distribution_with_script(name: str) -> MagicMock:
@@ -44,6 +50,24 @@ def _patch_script_name(name: str) -> Iterator[None]:
 _JSON_FRONTENDS = [spec for spec in FRONTENDS if isinstance(spec.installer, JsonHookInstaller)]
 
 
+def _declared_console_script(target: str) -> str:
+    """Return the script name pyproject.toml's [project.scripts] declares for a target.
+
+    Args:
+        target: The `module:function` string as it appears in pyproject.toml.
+
+    Returns:
+        The script name.
+    """
+    pyproject_path = Path(__file__).resolve().parent.parent / "pyproject.toml"
+    scripts = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))["project"]["scripts"]
+    for name, declared_target in scripts.items():
+        if declared_target == target:
+            return str(name)
+    msg = f"No [project.scripts] entry points at {target!r}"
+    raise AssertionError(msg)
+
+
 def _installer(spec: FrontendSpec) -> JsonHookInstaller:
     """Return a spec's installer, narrowed to a JSON installer.
 
@@ -67,15 +91,18 @@ def _target_for(spec: FrontendSpec, home: Path) -> str | None:
 
 
 @pytest.fixture
-def home(tmp_path: Path) -> Iterator[Path]:
-    """Point Path.home() and the resolved binary at a throwaway directory.
+def home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
+    """Point Path.home(), the resolved binary, and the daemon config at a throwaway directory.
 
     Yields:
         The fake home directory.
     """
+    monkeypatch.delenv("CLINE_HOOKS_DAEMON_PORT", raising=False)
     with (
         patch("cline_hooks.core.install.sys.executable", _FAKE_PYTHON),
         patch.object(Path, "home", return_value=tmp_path),
+        patch.object(daemon_config_module, "_DAEMON_CONFIG_PATH", tmp_path / "daemon.json"),
+        patch("cline_hooks.daemon.client.post_retire"),
     ):
         yield tmp_path
 
@@ -145,8 +172,14 @@ class TestJsonHookInstallers:
     def test_every_entry_runs_the_resolved_binary(self, spec: FrontendSpec, home: Path) -> None:
         _seed(spec, home)
         config = _install(spec, home)
-        for event in config[_installer(spec).root_key]:
-            assert _EXPECTED_BINARY in _commands(spec, config, event)
+        installer = _installer(spec)
+        for entries in config[installer.root_key].values():
+            for entry in entries:
+                hooks = entry.get("hooks")
+                candidates = hooks if isinstance(hooks, list) else [entry]
+                for hook in candidates:
+                    assert isinstance(hook, dict)
+                    assert hook.get("command") in {_EXPECTED_BINARY, _EXPECTED_GUARD_BINARY}
 
     def test_preserves_unrelated_config_keys(self, spec: FrontendSpec, home: Path) -> None:
         _seed(spec, home, {"other": "value"})
@@ -207,6 +240,41 @@ class TestNestedEntryFrontends:
     def test_config_path(self, name: str, expected: tuple[str, ...], home: Path) -> None:
         spec = FRONTENDS_BY_NAME[name]
         assert _installer(spec).config_path(None) == home.joinpath(*expected)
+
+
+class TestClaudeCodeThinClientHooks:
+    """The four relayed hooks stay command entries, but must invoke the thin client, not the full dispatch."""
+
+    _THIN_CLIENT_EVENTS = ("PreToolUse", "UserPromptSubmit", "PostToolUse", "Stop")
+
+    @pytest.mark.parametrize(
+        ("event", "target"),
+        [
+            *((event, "cline_hooks.thin_client:main") for event in _THIN_CLIENT_EVENTS),
+            ("SessionStart", "cline_hooks._main:main"),
+        ],
+    )
+    def test_command_matches_the_declared_console_script(self, event: str, target: str, home: Path) -> None:
+        config = _install(FRONTENDS_BY_NAME["claude-code"], home)
+        command = config["hooks"][event][0]["hooks"][0]["command"]
+        assert Path(command).name == _declared_console_script(target)
+
+    @pytest.mark.parametrize("seeded_command", [_EXPECTED_BINARY, _EXPECTED_GUARD_BINARY])
+    @pytest.mark.parametrize("event", _THIN_CLIENT_EVENTS)
+    def test_an_existing_entry_ends_as_one_thin_client_entry(self, event: str, seeded_command: str, home: Path) -> None:
+        spec = FRONTENDS_BY_NAME["claude-code"]
+        old_entry = {"hooks": [{"type": "command", "command": seeded_command}]}
+        _seed(spec, home, {_installer(spec).root_key: {event: [old_entry]}})
+        config = _install(spec, home)
+        assert [entry["hooks"][0]["command"] for entry in config["hooks"][event]] == [_EXPECTED_GUARD_BINARY]
+
+
+class TestClaudeCodeRetiresTheDaemonAfterInstall:
+    def test_posts_retire_to_the_local_daemon(self, home: Path, mocker: MockerFixture) -> None:
+        retire = mocker.patch("cline_hooks.daemon.client.post_retire")
+        _install(FRONTENDS_BY_NAME["claude-code"], home)
+        daemon_config = load_or_create()
+        retire.assert_called_once_with(daemon_config.port, daemon_config.token)
 
 
 class TestKiroInstaller:

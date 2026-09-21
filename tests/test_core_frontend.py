@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import NoReturn
+from typing import TYPE_CHECKING, NoReturn
 
 import pytest
 
@@ -13,8 +13,12 @@ from cline_hooks.core.frontend import (
 )
 from cline_hooks.core.frontends import FRONTENDS, FRONTENDS_BY_NAME
 from cline_hooks.core.protocol import Protocol, RawPayload
+from cline_hooks.core.response import Response
 from cline_hooks.core.transcript import NULL_TRANSCRIPT, NullTranscriptReader
 from cline_hooks.core.vocabulary import CanonicalTool
+
+if TYPE_CHECKING:
+    from cline_hooks.core.outcome import Outcome
 
 
 class _Bare(Protocol):
@@ -32,6 +36,9 @@ class _Bare(Protocol):
 
     def block(self, message: str) -> NoReturn:
         raise NotImplementedError
+
+    def render(self, outcome: Outcome) -> Response:
+        return Response()
 
 
 class TestFrontendDecorator:

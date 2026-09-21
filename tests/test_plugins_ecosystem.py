@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-import contextlib
 import json
 from typing import TYPE_CHECKING, cast
 from unittest.mock import patch
-
-import pytest
 
 from cline_hooks.core.models import (
     HookInputPostToolUse,
@@ -14,8 +11,8 @@ from cline_hooks.core.models import (
     TaskStartFields,
 )
 from cline_hooks.core.plugin import HookResult, HooksPlugin, hookimpl
-from cline_hooks.core.protocol import RawPayload
-from cline_hooks.core.response import emit
+from cline_hooks.core.protocol import RawPayload, get_protocol
+from cline_hooks.core.response import render
 from cline_hooks.core.vocabulary import CanonicalHook
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.handlers.post_tool_use import handle_post_tool_use
@@ -26,6 +23,8 @@ from cline_hooks.state.workspace import record_workspace
 if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
+
+    from cline_hooks.core.outcome import Outcome
 
 _UV_NOTE = "This is a Python project (pyproject.toml). SHOULD use `uv run`/`uv add`, not pip/python directly."
 _NO_UV_NOTE = "This is a Python project (pyproject.toml)."
@@ -54,26 +53,22 @@ def _python_project(tmp_path: Path) -> list[str]:
     return [str(tmp_path)]
 
 
-def _context(output: list[str]) -> str:
-    return cast("str", json.loads(output[0]).get("contextModification", "")) if output else ""
+def _context(outcome: Outcome | None) -> str:
+    assert outcome is not None
+    stdout = render(outcome, get_protocol()).stdout
+    return cast("str", json.loads(stdout).get("contextModification", "")) if stdout else ""
 
 
 def _run_task_start(roots: list[str]) -> str:
     hook = HookInputTaskStart(
         taskId="task-1", workspaceRoots=roots, hookName="TaskStart", taskStart=TaskStartFields(source="")
     )
-    output: list[str] = []
-    with patch("builtins.print", side_effect=lambda s, **kw: output.append(s)), pytest.raises(SystemExit):
-        handle_task_start(hook)
-    return _context(output)
+    return _context(handle_task_start(hook))
 
 
 def _run_task_resume(roots: list[str]) -> str:
     hook = HookInputTaskResume(taskId="task-1", workspaceRoots=roots, hookName="TaskResume")
-    output: list[str] = []
-    with patch("builtins.print", side_effect=lambda s, **kw: output.append(s)), pytest.raises(SystemExit):
-        handle_task_resume(hook)
-    return _context(output)
+    return _context(handle_task_resume(hook))
 
 
 def _run_post_tool_use(roots: list[str]) -> str:
@@ -94,12 +89,7 @@ def _run_post_tool_use(roots: list[str]) -> str:
     }
     hook = ClineProtocol().parse(RawPayload.from_stdin(json.dumps(payload)))
     assert isinstance(hook, HookInputPostToolUse)
-    output: list[str] = []
-    with patch("builtins.print", side_effect=lambda s, **kw: output.append(s)), contextlib.suppress(SystemExit):
-        outcome = handle_post_tool_use(hook)
-        if outcome.message is not None:
-            emit(outcome)
-    return _context(output)
+    return _context(handle_post_tool_use(hook))
 
 
 class TestTaskStartToolingNote:

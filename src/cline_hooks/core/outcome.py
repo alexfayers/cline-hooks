@@ -36,6 +36,12 @@ class Outcome:
         """The notes joined for display, or None if there are none."""
         return "\n\n".join(self.notes) or None
 
+    @property
+    def labelled_message(self) -> str | None:
+        """The joined notes prefixed with `label`, or None if there are none."""
+        message = self.message
+        return f"{self.label}: {message}" if message is not None and self.label else message
+
     @classmethod
     def allow(cls, *notes: str, label: str = "", user_message: str = "") -> Outcome:
         """Build an ALLOW outcome, dropping any empty/blank notes.
