@@ -49,8 +49,12 @@
 | src/cline\_hooks/frontends/kiro/install.py              |       17 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/frontends/kiro/models.py               |       16 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/frontends/kiro/protocol.py             |       35 |        0 |        4 |        0 |    100% |           |
+| src/cline\_hooks/frontends/pi/\_\_init\_\_.py           |        3 |        0 |        0 |        0 |    100% |           |
+| src/cline\_hooks/frontends/pi/install.py                |       25 |        0 |        2 |        0 |    100% |           |
+| src/cline\_hooks/frontends/pi/models.py                 |       45 |        1 |        4 |        1 |     96% |        96 |
+| src/cline\_hooks/frontends/pi/protocol.py               |       27 |        3 |        2 |        1 |     86% |82, 87, 91 |
 | src/cline\_hooks/handlers/\_\_init\_\_.py               |        3 |        0 |        0 |        0 |    100% |           |
-| src/cline\_hooks/handlers/commands.py                   |      122 |        6 |       68 |       10 |     92% |84, 111, 115, 119, 125-\>124, 151, 159, 160-\>156, 162-\>156, 163-\>162 |
+| src/cline\_hooks/handlers/commands.py                   |      122 |        7 |       68 |       10 |     90% |84, 111, 115, 119, 125-\>124, 151, 158-159, 160-\>156, 162-\>156, 163-\>162 |
 | src/cline\_hooks/handlers/context\_nudge.py             |        7 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/handlers/git\_context.py               |       72 |       14 |       22 |        1 |     84% |     29-52 |
 | src/cline\_hooks/handlers/post\_tool\_use.py            |       63 |        2 |       20 |        2 |     95% |  111, 181 |
@@ -97,7 +101,7 @@
 | tests/test\_frontend\_antigravity.py                    |       96 |        0 |        0 |        0 |    100% |           |
 | tests/test\_frontend\_claude\_code\_transcript.py       |       82 |        0 |        0 |        0 |    100% |           |
 | tests/test\_frontend\_conformance.py                    |      114 |        2 |       18 |        2 |     97% |  105, 145 |
-| tests/test\_frontend\_normalisation.py                  |      228 |        0 |        4 |        0 |    100% |           |
+| tests/test\_frontend\_normalisation.py                  |      267 |        0 |        4 |        0 |    100% |           |
 | tests/test\_handlers\_commands.py                       |       60 |        0 |        0 |        0 |    100% |           |
 | tests/test\_handlers\_context\_nudge.py                 |       54 |        0 |        0 |        0 |    100% |           |
 | tests/test\_handlers\_post\_tool\_use.py                |      523 |        9 |       24 |        6 |     97% |298, 306, 519-520, 526-527, 560-561, 963 |
@@ -109,6 +113,7 @@
 | tests/test\_hook\_kwargs.py                             |       62 |        0 |        0 |        0 |    100% |           |
 | tests/test\_install.py                                  |      153 |        0 |       10 |        0 |    100% |           |
 | tests/test\_install\_cline.py                           |       76 |        0 |        6 |        0 |    100% |           |
+| tests/test\_install\_pi.py                              |       40 |        0 |        2 |        0 |    100% |           |
 | tests/test\_kiro\_integration.py                        |       55 |        0 |        0 |        0 |    100% |           |
 | tests/test\_main.py                                     |      104 |        1 |        2 |        0 |     99% |       172 |
 | tests/test\_memory\_tracker.py                          |       62 |        0 |        4 |        0 |    100% |           |
@@ -129,7 +134,7 @@
 | tests/test\_state\_jsonfile.py                          |       51 |        0 |        6 |        0 |    100% |           |
 | tests/test\_turns.py                                    |       91 |        1 |       12 |        1 |     98% |       145 |
 | tests/test\_workspace.py                                |       76 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **8031** |  **190** |  **934** |   **89** | **97%** |           |
+| **TOTAL**                                               | **8210** |  **195** |  **944** |   **91** | **97%** |           |
 
 
 ## Setup coverage badge
