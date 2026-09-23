@@ -1,0 +1,7 @@
+{
+  "hook_event_name": "session_before_compact",
+  "cwd": "/home/user/project",
+  "session_id": "fixture-session-id",
+  "transcript_path": "/home/user/.pi/agent/sessions/fixture/session.jsonl",
+  "estimated_tokens": 1000
+}

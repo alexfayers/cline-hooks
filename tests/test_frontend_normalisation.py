@@ -19,6 +19,7 @@ from cline_hooks.frontends.cline.protocol import ClineProtocol
 from cline_hooks.frontends.codex.protocol import CodexProtocol
 from cline_hooks.frontends.copilot.protocol import CopilotProtocol
 from cline_hooks.frontends.kiro.protocol import KiroProtocol
+from cline_hooks.frontends.pi.protocol import PiProtocol
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -56,6 +57,12 @@ _ANTIGRAVITY_ENVELOPE: dict[str, Any] = {
         "/home/user/.gemini/antigravity/brain/fixture-session-id/.system_generated/logs/transcript.jsonl"
     ),
     "agentType": "gemini-3.6-flash-medium",
+}
+_PI_ENVELOPE: dict[str, Any] = {
+    "taskId": "fixture-session-id",
+    "workspaceRoots": ["/home/user/project"],
+    "transcriptPath": "/home/user/.pi/agent/sessions/fixture/session.jsonl",
+    "agentType": "",
 }
 
 
@@ -628,6 +635,137 @@ class TestAntigravityNormalisation:
             "preToolUse": {
                 "toolName": "replace_in_file",
                 "parameters": {"path": "/home/user/project/src/app.py"},
+            },
+        }
+
+
+class TestPiNormalisation:
+    def test_pre_tool_use(self) -> None:
+        hook = _parse("pi", "PreToolUse", PiProtocol)
+        assert hook.model_dump() == {
+            **_PI_ENVELOPE,
+            "hookName": "PreToolUse",
+            "preToolUse": {
+                "toolName": "execute_command",
+                "parameters": {"command": "ls -la"},
+            },
+        }
+
+    def test_post_tool_use(self) -> None:
+        hook = _parse("pi", "PostToolUse", PiProtocol)
+        assert hook.model_dump() == {
+            **_PI_ENVELOPE,
+            "hookName": "PostToolUse",
+            "postToolUse": {
+                "toolName": "execute_command",
+                "parameters": {"command": "ls -la"},
+                "success": True,
+                "executionTimeMs": 0,
+                "result": "file1\nfile2",
+            },
+        }
+
+    @pytest.mark.parametrize(
+        ("reason", "source"),
+        [("startup", "startup"), ("new", "new"), ("resume", "resume"), ("reload", "resume"), ("fork", "resume")],
+    )
+    def test_task_start_maps_session_start_reason(self, reason: str, source: str) -> None:
+        hook = _parse("pi", "TaskStart", PiProtocol, overrides={"source": reason})
+        assert hook.model_dump() == {
+            **_PI_ENVELOPE,
+            "hookName": "TaskStart",
+            "taskStart": {"task": "", "source": source},
+        }
+
+    def test_user_prompt_submit(self) -> None:
+        hook = _parse("pi", "UserPromptSubmit", PiProtocol)
+        assert hook.model_dump() == {
+            **_PI_ENVELOPE,
+            "hookName": "UserPromptSubmit",
+            "userPromptSubmit": {"userMessage": "Add a new test for the parser."},
+        }
+
+    def test_pre_compact(self) -> None:
+        hook = _parse("pi", "PreCompact", PiProtocol)
+        assert hook.model_dump() == {
+            **_PI_ENVELOPE,
+            "hookName": "PreCompact",
+            "preCompact": {"conversationLength": 0, "estimatedTokens": 1000},
+        }
+
+    def test_stop(self) -> None:
+        hook = _parse("pi", "Stop", PiProtocol)
+        assert hook.model_dump() == {
+            **_PI_ENVELOPE,
+            "hookName": "Stop",
+            "stop": {"stopHookActive": False},
+        }
+
+    def test_tools_read_converts_offset_and_limit_to_a_line_range(self) -> None:
+        hook = _parse("pi", "tools/Read", PiProtocol)
+        assert hook.model_dump() == {
+            **_PI_ENVELOPE,
+            "hookName": "PreToolUse",
+            "preToolUse": {
+                "toolName": "read_file",
+                "parameters": {"path": "/home/user/project/README.md", "start_line": 10, "end_line": 59},
+            },
+        }
+
+    def test_tools_read_without_a_limit_is_unbounded(self) -> None:
+        hook = _parse(
+            "pi",
+            "tools/Read",
+            PiProtocol,
+            overrides={"tool_input": {"path": "/home/user/project/README.md"}},
+        )
+        assert isinstance(hook, HookInputPreToolUse)
+        assert hook.preToolUse is not None
+        assert hook.preToolUse.parameters == {"path": "/home/user/project/README.md"}
+
+    def test_tools_edit_renders_every_replacement(self) -> None:
+        hook = _parse("pi", "tools/Edit", PiProtocol)
+        assert hook.model_dump() == {
+            **_PI_ENVELOPE,
+            "hookName": "PreToolUse",
+            "preToolUse": {
+                "toolName": "replace_in_file",
+                "parameters": {
+                    "path": "/home/user/project/src/app.py",
+                    "diff": (
+                        "------- SEARCH\nold one\n=======\nnew one\n+++++++ REPLACE\n"
+                        "------- SEARCH\nold two\n=======\nnew two\n+++++++ REPLACE"
+                    ),
+                },
+            },
+        }
+
+    def test_tools_write(self) -> None:
+        hook = _parse("pi", "tools/Write", PiProtocol)
+        assert hook.model_dump() == {
+            **_PI_ENVELOPE,
+            "hookName": "PreToolUse",
+            "preToolUse": {
+                "toolName": "write_to_file",
+                "parameters": {
+                    "path": "/home/user/project/src/app.py",
+                    "diff": "------- SEARCH\n=======\nnew file\n+++++++ REPLACE",
+                },
+            },
+        }
+
+    def test_tools_mcp_splits_adapter_direct_tool_name(self) -> None:
+        hook = _parse("pi", "tools/Mcp", PiProtocol)
+        assert hook.model_dump() == {
+            **_PI_ENVELOPE,
+            "hookName": "PreToolUse",
+            "preToolUse": {
+                "toolName": "use_mcp_tool",
+                "parameters": {
+                    "server_name": "memory",
+                    "tool_name": "create_entities",
+                    "arguments": json.dumps({"project": "demo", "entities": [{"name": "e1"}]}),
+                },
             },
         }
 

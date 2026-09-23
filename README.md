@@ -1,7 +1,7 @@
 # cline-hooks
 
 Lifecycle hooks framework for AI coding assistants. Supports Cline, Antigravity,
-Claude Code, Codex, GitHub Copilot, and Kiro.
+Claude Code, Codex, GitHub Copilot, Kiro, and Pi.
 
 ## Installation
 
@@ -30,7 +30,12 @@ cline-hook install claude-code
 cline-hook install codex
 cline-hook install copilot
 cline-hook install kiro ~/.kiro/agents/my-agent.json
+cline-hook install pi
 ```
+
+Pi has no command hooks, so `cline-hook install pi` writes a bridge extension
+(`~/.pi/agent/extensions/cline-hooks.ts`, or under `$PI_CODING_AGENT_DIR`) that
+relays pi's extension events to `cline-hook`.
 
 ### List installed plugins
 
@@ -45,17 +50,17 @@ Generated from `Protocol.supported_hooks`; `tests/test_readme_matrix.py` fails
 the build if it drifts.
 
 <!-- HOOK_MATRIX_START -->
-| Canonical hook | Antigravity | Claude Code | Cline | Codex | GitHub Copilot | Kiro |
-|---|---|---|---|---|---|---|
-| PreToolUse | `PreToolUse` | `PreToolUse` | `PreToolUse` | `PreToolUse` | `PreToolUse` | `preToolUse` |
-| PostToolUse | `PostToolUse` | `PostToolUse` | `PostToolUse` | `PostToolUse` | `PostToolUse` | `postToolUse` |
-| TaskStart | - | `SessionStart` | `TaskStart` | `SessionStart` | `SessionStart` | `agentSpawn` |
-| TaskResume | - | - | `TaskResume` | - | - | - |
-| TaskCancel | - | - | `TaskCancel` | - | - | - |
-| TaskComplete | - | - | `TaskComplete` | - | - | - |
-| UserPromptSubmit | - | `UserPromptSubmit` | `UserPromptSubmit` | `UserPromptSubmit` | `UserPromptSubmit` | `userPromptSubmit` |
-| PreCompact | - | - | `PreCompact` | - | `PreCompact` | - |
-| Stop | `Stop` | `Stop` | `Stop` | `Stop` | `Stop` | `stop` |
+| Canonical hook | Antigravity | Claude Code | Cline | Codex | GitHub Copilot | Kiro | Pi |
+|---|---|---|---|---|---|---|---|
+| PreToolUse | `PreToolUse` | `PreToolUse` | `PreToolUse` | `PreToolUse` | `PreToolUse` | `preToolUse` | `tool_call` |
+| PostToolUse | `PostToolUse` | `PostToolUse` | `PostToolUse` | `PostToolUse` | `PostToolUse` | `postToolUse` | `tool_result` |
+| TaskStart | - | `SessionStart` | `TaskStart` | `SessionStart` | `SessionStart` | `agentSpawn` | `session_start` |
+| TaskResume | - | - | `TaskResume` | - | - | - | - |
+| TaskCancel | - | - | `TaskCancel` | - | - | - | - |
+| TaskComplete | - | - | `TaskComplete` | - | - | - | - |
+| UserPromptSubmit | - | `UserPromptSubmit` | `UserPromptSubmit` | `UserPromptSubmit` | `UserPromptSubmit` | `userPromptSubmit` | `before_agent_start` |
+| PreCompact | - | - | `PreCompact` | - | `PreCompact` | - | `session_before_compact` |
+| Stop | `Stop` | `Stop` | `Stop` | `Stop` | `Stop` | `stop` | `agent_end` |
 <!-- HOOK_MATRIX_END -->
 
 ## Adding a frontend
@@ -93,6 +98,7 @@ The package holds, at most:
 | `models.py` | Models for payload fields whose raw shape differs from canonical |
 | `install.py` | An `Installer`, usually a few lines on `JsonHookInstaller` |
 | `transcript.py` | A `TranscriptReader`, if the frontend writes a readable transcript |
+| `extension.ts` | A bridge extension, where the frontend runs extensions rather than hook commands |
 
 A frontend speaking another's payload shape subclasses that frontend's spec
 class and overrides only what differs - all Codex and Copilot are.

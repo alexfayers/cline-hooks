@@ -1,0 +1,11 @@
+{
+  "hook_event_name": "tool_call",
+  "cwd": "/home/user/project",
+  "session_id": "fixture-session-id",
+  "transcript_path": "/home/user/.pi/agent/sessions/fixture/session.jsonl",
+  "tool_name": "mcp__memory_create_entities",
+  "tool_input": {
+    "project": "demo",
+    "entities": [{"name": "e1"}]
+  }
+}

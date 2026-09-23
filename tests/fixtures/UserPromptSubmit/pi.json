@@ -1,0 +1,7 @@
+{
+  "hook_event_name": "before_agent_start",
+  "cwd": "/home/user/project",
+  "session_id": "fixture-session-id",
+  "transcript_path": "/home/user/.pi/agent/sessions/fixture/session.jsonl",
+  "prompt": "Add a new test for the parser."
+}
