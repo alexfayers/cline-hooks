@@ -1,0 +1,14 @@
+{
+  "hook_event_name": "tool_call",
+  "cwd": "/home/user/project",
+  "session_id": "fixture-session-id",
+  "transcript_path": "/home/user/.pi/agent/sessions/fixture/session.jsonl",
+  "tool_name": "edit",
+  "tool_input": {
+    "path": "/home/user/project/src/app.py",
+    "edits": [
+      {"oldText": "old one", "newText": "new one"},
+      {"oldText": "old two", "newText": "new two"}
+    ]
+  }
+}
