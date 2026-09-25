@@ -110,8 +110,7 @@ _DELEGATION_NUDGE = (
     "DELEGATION CHECK: An agent team is enabled and this session is about to do work "
     "inline with no subagent spawned yet. MUST delegate the first unit of work - "
     "research, design, edits, verification - to a teammate and keep this session on "
-    "orchestration. MAY proceed inline where this is genuinely a one-line change or a "
-    "check that costs less than the delegation - this is a default, not a block."
+    "orchestration."
 )
 
 
