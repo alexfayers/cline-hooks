@@ -68,6 +68,11 @@ class TestRecordAndCheck:
         reset(_TASK)
         assert has_memory_writes("other-task")
 
+    def test_reset_clears_per_agent_entries_for_the_task(self) -> None:
+        record_memory_write(f"{_TASK}:agent-a", "create_entities")
+        reset(_TASK)
+        assert not has_memory_writes(f"{_TASK}:agent-a")
+
     def test_writes_isolated_per_task(self) -> None:
         record_memory_write(_TASK, "create_entities")
         assert not has_memory_writes("other-task")

@@ -154,3 +154,13 @@ class TestParseData:
         result = parse_data(_make_json(hookName="TaskStart"))
         assert result.taskId == "task-1"
         assert result.workspaceRoots == ["/workspace"]
+
+
+class TestStateKey:
+    def test_state_key_is_task_id_when_agent_id_absent(self) -> None:
+        result = parse_data(_make_json(hookName="TaskStart"))
+        assert result.stateKey == "task-1"
+
+    def test_state_key_combines_task_id_and_agent_id(self) -> None:
+        result = parse_data(_make_json(hookName="TaskStart", agentId="agent-7"))
+        assert result.stateKey == "task-1:agent-7"

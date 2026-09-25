@@ -41,6 +41,11 @@ class TestRecordAndCheck:
         reset(_TASK)
         assert is_skill_called("other-task", "git-usage")
 
+    def test_reset_clears_per_agent_entries_for_the_task(self) -> None:
+        record_skill(f"{_TASK}:agent-a", "git-usage")
+        reset(_TASK)
+        assert not is_skill_called(f"{_TASK}:agent-a", "git-usage")
+
     def test_skills_isolated_per_task(self) -> None:
         record_skill(_TASK, "git-usage")
         assert not is_skill_called("other-task", "git-usage")

@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 import cline_hooks.plugins as _plugins_pkg
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Mapping
     from typing import Any
 
     from cline_hooks.handlers.commands import CommandRule
@@ -59,6 +59,21 @@ class ToolingNote:
 
     note: str
     replaces_generic: bool = True
+
+
+def is_subagent(kwargs: Mapping[str, object]) -> bool:
+    """Return True if a hook call is running inside a spawned subagent.
+
+    A subagent carries a non-empty agent_id; the main agent loop has none.
+
+    Args:
+        kwargs: The raw keyword arguments passed to on_hook.
+
+    Returns:
+        True if agent_id is a non-empty string, False otherwise.
+    """
+    agent_id = kwargs.get("agent_id")
+    return isinstance(agent_id, str) and bool(agent_id)
 
 
 def collect_hook_results(plugins: list[HooksPlugin], hook_name: str, **kwargs: object) -> HookResult:

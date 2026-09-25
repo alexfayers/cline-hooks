@@ -86,7 +86,7 @@ def _workspace_change_outcome(hook: HookInputPostToolUse, plugins: list[HooksPlu
         An ALLOW Outcome with the tooling note, or an empty Outcome if the
         working directory hasn't changed or there's no note to show.
     """
-    if not should_note_workspace_change(hook.taskId, hook.workspaceRoots):
+    if not should_note_workspace_change(hook.stateKey, hook.workspaceRoots):
         return Outcome()
     notes = resolve_tooling_notes(plugins, hook.workspaceRoots)
     if not notes:
@@ -122,11 +122,12 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> Outcome:
         failure_result = collect_hook_results(
             plugins,
             PluginScope.TOOL_FAILED,
-            task_id=hook.taskId,
+            task_id=hook.stateKey,
             tool_name=tool_name,
             parameters=parameters,
             workspace_roots=hook.workspaceRoots,
             agent_type=hook.agentType,
+            agent_id=hook.agentId,
         )
         return Outcome.allow("\n\n".join(failure_result.notes))
 
@@ -135,7 +136,7 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> Outcome:
     extractors = get_all_research_detail_extractors(plugins)
 
     is_state_write, mcp_tool_name = _record_tool_use(
-        hook.taskId,
+        hook.stateKey,
         tool_name,
         parameters,
         state_write_names,
@@ -146,19 +147,20 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> Outcome:
     track_result = collect_hook_results(
         plugins,
         PluginScope.TRACK_TOOL_USE,
-        task_id=hook.taskId,
+        task_id=hook.stateKey,
         tool_name=tool_name,
         parameters=parameters,
         is_state_write=is_state_write,
         mcp_tool_name=mcp_tool_name,
         workspace_roots=hook.workspaceRoots,
         agent_type=hook.agentType,
+        agent_id=hook.agentId,
     )
 
     result = collect_hook_results(
         plugins,
         CanonicalHook.POST_TOOL_USE,
-        task_id=hook.taskId,
+        task_id=hook.stateKey,
         tool_name=tool_name,
         parameters=hook.postToolUse.parameters,
         is_state_write=is_state_write,
@@ -168,6 +170,7 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> Outcome:
         transcript_path=hook.transcriptPath,
         success=hook.postToolUse.success,
         tool_result=hook.postToolUse.result,
+        agent_id=hook.agentId,
     )
 
     outcome = Outcome()

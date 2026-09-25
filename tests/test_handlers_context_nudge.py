@@ -69,3 +69,23 @@ class TestContextNote:
         note = context_note("task-1", _JUST_ABOVE_REDUCED)
         assert note is not None
         assert "stop the team" not in note
+
+
+class TestContextNoteSubagent:
+    def test_reduced_note_instructs_reporting_to_caller(self) -> None:
+        note = context_note("task-1:sub-1", _JUST_ABOVE_REDUCED, is_subagent=True)
+        assert note is not None
+        assert "report your state to your caller/lead" in note
+        assert "MUST ask the user" not in note
+
+    def test_severe_note_instructs_reporting_to_caller(self) -> None:
+        note = context_note("task-1:sub-1", _JUST_ABOVE_SEVERE, is_subagent=True)
+        assert note is not None
+        assert "report your state to your caller/lead" in note
+        assert "hand off to a fresh session" not in note
+
+    def test_no_team_clause_even_when_agent_used(self) -> None:
+        record_agent_use("task-1:sub-1", "Agent")
+        note = context_note("task-1:sub-1", _JUST_ABOVE_REDUCED, is_subagent=True)
+        assert note is not None
+        assert "stop the team" not in note

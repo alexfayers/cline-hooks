@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 import git
 import git.exc
 
-from cline_hooks.core.plugin import HookResult, HooksPlugin
+from cline_hooks.core.plugin import HookResult, HooksPlugin, is_subagent
 from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.state import PluginStateStore
 from cline_hooks.core.timing import local_now
@@ -327,14 +327,15 @@ class NudgesPlugin(HooksPlugin):
         if not isinstance(tool_name, str) or not isinstance(task_id, str):
             return None
         notes: list[str] = []
-        if tool_name in FILE_EDIT_TOOLS and isinstance(workspace_roots, list):
-            diff_lines = _get_diff_line_count(workspace_roots)
-            if diff_lines > _COMMIT_LINE_THRESHOLD:
-                notes.append(f"{_COMMIT_REMINDER} ({diff_lines} lines changed)")
-        if isinstance(parameters, dict) and is_wrap_up_skill(tool_name, parameters):
-            count = record_session(task_id)
-            if count is not None and count >= _RETRO_THRESHOLD:
-                notes.append(_RETRO_REMINDER.format(count=count))
+        if not is_subagent(kwargs):
+            if tool_name in FILE_EDIT_TOOLS and isinstance(workspace_roots, list):
+                diff_lines = _get_diff_line_count(workspace_roots)
+                if diff_lines > _COMMIT_LINE_THRESHOLD:
+                    notes.append(f"{_COMMIT_REMINDER} ({diff_lines} lines changed)")
+            if isinstance(parameters, dict) and is_wrap_up_skill(tool_name, parameters):
+                count = record_session(task_id)
+                if count is not None and count >= _RETRO_THRESHOLD:
+                    notes.append(_RETRO_REMINDER.format(count=count))
         if notes:
             logger.debug("Fired post-tool-use reminder(s)")
         return HookResult(notes=notes) if notes else None

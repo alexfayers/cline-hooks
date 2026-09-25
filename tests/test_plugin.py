@@ -19,6 +19,7 @@ from cline_hooks.core.plugin import (
     UserFacingNote,
     _plugin_cache,
     collect_hook_results,
+    is_subagent,
     load_plugins,
 )
 from cline_hooks.handlers.commands import (
@@ -177,6 +178,23 @@ class TestCollectHookResults:
 
         result = collect_hook_results([PluginA()], "TestHook")
         assert result.notes == ["real"]
+
+
+class TestIsSubagent:
+    def test_true_for_non_empty_agent_id(self) -> None:
+        assert is_subagent({"agent_id": "sub-1"}) is True
+
+    def test_false_for_missing_agent_id(self) -> None:
+        assert is_subagent({}) is False
+
+    def test_false_for_none_agent_id(self) -> None:
+        assert is_subagent({"agent_id": None}) is False
+
+    def test_false_for_empty_string_agent_id(self) -> None:
+        assert is_subagent({"agent_id": ""}) is False
+
+    def test_false_for_non_string_agent_id(self) -> None:
+        assert is_subagent({"agent_id": 5}) is False
 
 
 class TestLoadPlugins:

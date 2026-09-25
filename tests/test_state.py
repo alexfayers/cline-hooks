@@ -42,6 +42,22 @@ class TestTaskStateStore:
     def test_clear_nonexistent_task_is_noop(self, store: TaskStateStore) -> None:
         store.clear_blocks("task-999")
 
+    def test_clear_removes_per_agent_blocks_for_the_task(self, store: TaskStateStore) -> None:
+        store.record_block("task-1", "tool", "reason")
+        store.record_block("task-1:agent-a", "tool", "reason")
+        store.record_block("task-2", "tool", "reason")
+        store.clear_blocks("task-1")
+        assert store.get_blocks("task-1") == []
+        assert store.get_blocks("task-1:agent-a") == []
+        assert len(store.get_blocks("task-2")) == 1
+
+    def test_clear_blocks_discard_children_false_keeps_per_agent_blocks(self, store: TaskStateStore) -> None:
+        store.record_block("task-1", "tool", "reason")
+        store.record_block("task-1:agent-a", "tool", "reason")
+        store.clear_blocks("task-1", discard_children=False)
+        assert store.get_blocks("task-1") == []
+        assert len(store.get_blocks("task-1:agent-a")) == 1
+
     def test_get_empty_when_no_state_file(self, tmp_path: Path) -> None:
         store = TaskStateStore(tmp_path / "nonexistent.json")
         assert store.get_blocks("task-1") == []

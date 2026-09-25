@@ -269,6 +269,53 @@ class TestClearBlocksOnPass:
         _run("execute_command", {"command": "ls -la"})
         assert store.get_blocks("task-1") == []
 
+    def test_subagent_pass_does_not_clear_mains_blocks(self) -> None:
+        store = TaskStateStore()
+        store.record_block("task-1", "execute_command", "main's block")
+        hook = cast(
+            "HookInputPreToolUse",
+            parse_data(
+                json.dumps({
+                    **_BASE,
+                    "agentId": "agent-7",
+                    "preToolUse": {"toolName": "execute_command", "parameters": {"command": "ls -la"}},
+                })
+            ),
+        )
+        with patch("builtins.print"), contextlib.suppress(SystemExit):
+            handle_pre_tool_use(hook)
+        assert len(store.get_blocks("task-1")) == 1
+
+    def test_mains_pass_does_not_clear_a_running_subagents_blocks(self) -> None:
+        store = TaskStateStore()
+        store.record_block("task-1:agent-7", "execute_command", "subagent's block")
+        _run("execute_command", {"command": "ls -la"})
+        assert len(store.get_blocks("task-1:agent-7")) == 1
+
+    def test_subagent_block_recorded_under_its_own_state_key(self) -> None:
+        store = TaskStateStore()
+        hook = cast(
+            "HookInputPreToolUse",
+            parse_data(
+                json.dumps({
+                    **_BASE,
+                    "agentId": "agent-7",
+                    "preToolUse": {"toolName": "execute_command", "parameters": {"command": "ls -la"}},
+                })
+            ),
+        )
+        with (
+            patch(
+                "cline_hooks.handlers.pre_tool_use.collect_hook_results",
+                return_value=HookResult(block="blocked"),
+            ),
+            patch("builtins.print"),
+            contextlib.suppress(SystemExit),
+        ):
+            handle_pre_tool_use(hook)
+        assert len(store.get_blocks("task-1:agent-7")) == 1
+        assert store.get_blocks("task-1") == []
+
 
 class TestForwardsAgentType:
     def _run_capturing_kwargs(self, agent_type: str) -> list[dict[str, object]]:

@@ -57,6 +57,24 @@ class TestPluginStateStore:
         store.reset("task-1")
         assert store.get("task-2") == _SampleState(count=2)
 
+    def test_reset_clears_per_agent_entries_for_the_task(self, tmp_path: Path) -> None:
+        store = PluginStateStore("sample.json", _SampleState, tmp_path / "sample.json")
+        store.update("task-1", _setter(1))
+        store.update("task-1:agent-a", _setter(2))
+        store.update("task-2", _setter(3))
+        store.reset("task-1")
+        assert store.get("task-1") == _SampleState()
+        assert store.get("task-1:agent-a") == _SampleState()
+        assert store.get("task-2") == _SampleState(count=3)
+
+    def test_reset_discard_children_false_keeps_per_agent_entries(self, tmp_path: Path) -> None:
+        store = PluginStateStore("sample.json", _SampleState, tmp_path / "sample.json")
+        store.update("task-1", _setter(1))
+        store.update("task-1:agent-a", _setter(2))
+        store.reset("task-1", discard_children=False)
+        assert store.get("task-1") == _SampleState()
+        assert store.get("task-1:agent-a") == _SampleState(count=2)
+
     def test_corrupt_state_file_returns_default(self, tmp_path: Path) -> None:
         path = tmp_path / "sample.json"
         path.write_text("not json")

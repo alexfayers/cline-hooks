@@ -6,13 +6,13 @@ from unittest.mock import patch
 
 import pytest
 
-from cline_hooks.core.models import HookInputStop, StopFields
+from cline_hooks.core.models import HookInputStop, HookInputSubagentStop, StopFields
 from cline_hooks.core.plugin import HookResult, HooksPlugin
 from cline_hooks.core.protocol import set_protocol
 from cline_hooks.frontends.claude_code import ClaudeCodeProtocol
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.frontends.kiro import KiroProtocol
-from cline_hooks.handlers.stop import handle_stop
+from cline_hooks.handlers.stop import handle_stop, handle_subagent_stop
 from cline_hooks.plugins.nudges import _contains_dismissal_signal
 from cline_hooks.plugins.research import (
     RESEARCH_TRACE_CAP,
@@ -40,6 +40,16 @@ def _stop(*, stop_hook_active: bool = False, transcript_path: str = "") -> HookI
     )
 
 
+def _subagent_stop(*, agent_id: str = "agent-7", stop_hook_active: bool = False) -> HookInputSubagentStop:
+    return HookInputSubagentStop(
+        taskId="task-1",
+        workspaceRoots=["/workspace"],
+        hookName="SubagentStop",
+        agentId=agent_id,
+        subagentStop=StopFields(stopHookActive=stop_hook_active),
+    )
+
+
 def _run(hook: HookInputStop) -> dict[str, object]:
     output: list[str] = []
     with (
@@ -47,6 +57,16 @@ def _run(hook: HookInputStop) -> dict[str, object]:
         pytest.raises(SystemExit),
     ):
         handle_stop(hook)
+    return cast("dict[str, object]", json.loads(output[0]))
+
+
+def _run_subagent(hook: HookInputSubagentStop) -> dict[str, object]:
+    output: list[str] = []
+    with (
+        patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
+        pytest.raises(SystemExit),
+    ):
+        handle_subagent_stop(hook)
     return cast("dict[str, object]", json.loads(output[0]))
 
 
@@ -194,6 +214,12 @@ class TestHandleStop:
         result = _run(_stop())
         assert result["cancel"] is False
 
+    def test_main_stop_does_not_wipe_a_still_running_subagents_trace(self) -> None:
+        record_research("task-1:agent-7", "WebFetch", "https://example.com/subagent-docs")
+        result = _run(_stop())
+        assert result["cancel"] is False
+        assert get_research("task-1:agent-7") == [{"tool": "WebFetch", "detail": "https://example.com/subagent-docs"}]
+
 
 class TestHandleStopKiro:
     def test_trace_uses_kiro_header(self) -> None:
@@ -275,6 +301,89 @@ class TestHandleStopClaudeCode:
         assert get_research("task-1") != []
 
 
+class TestHandleSubagentStop:
+    def test_dispatches_with_the_subagent_state_key(self) -> None:
+        captured: list[dict[str, object]] = []
+
+        def _fake_collect(_plugins: object, _hook_name: str, **kwargs: object) -> HookResult:
+            captured.append(kwargs)
+            return HookResult()
+
+        with (
+            patch("cline_hooks.handlers.stop.collect_hook_results", side_effect=_fake_collect),
+            patch("builtins.print"),
+            pytest.raises(SystemExit),
+        ):
+            handle_subagent_stop(_subagent_stop())
+        assert captured
+        assert captured[0].get("task_id") == "task-1:agent-7"
+        assert captured[0].get("agent_id") == "agent-7"
+
+    def test_stop_hook_active_allows_without_dispatch(self) -> None:
+        with (
+            patch("cline_hooks.handlers.stop.collect_hook_results") as mock_collect,
+            patch("builtins.print"),
+            pytest.raises(SystemExit) as exc,
+        ):
+            handle_subagent_stop(_subagent_stop(stop_hook_active=True))
+        mock_collect.assert_not_called()
+        assert exc.value.code == 0
+
+    def test_research_recorded_for_the_subagent_emits_its_own_trace(self) -> None:
+        record_research("task-1:agent-7", "WebFetch", "https://example.com/subagent-docs")
+        output: list[str] = []
+        with (
+            patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
+            pytest.raises(SystemExit),
+        ):
+            handle_subagent_stop(_subagent_stop())
+        assert "https://example.com/subagent-docs" in output[0]
+
+    def test_research_reset_after_the_subagent_trace_is_emitted(self) -> None:
+        record_research("task-1:agent-7", "WebFetch", "https://example.com/subagent-docs")
+        with (
+            patch("builtins.print"),
+            pytest.raises(SystemExit),
+        ):
+            handle_subagent_stop(_subagent_stop())
+        assert get_research("task-1:agent-7") == []
+
+    def test_no_research_for_an_internal_agent_with_empty_agent_type_allows(self) -> None:
+        hook = _subagent_stop(agent_id="internal-agent-1")
+        hook.agentType = ""
+        result = _run_subagent(hook)
+        assert result == {"cancel": False}
+
+    def test_subagent_research_does_not_leak_into_a_later_main_stop_trace(self) -> None:
+        record_research("task-1:agent-7", "WebFetch", "https://example.com/subagent-docs")
+        with (
+            patch("builtins.print"),
+            pytest.raises(SystemExit),
+        ):
+            handle_subagent_stop(_subagent_stop())
+        result = _run(_stop())
+        assert result["cancel"] is False
+
+
+class TestHandleSubagentStopClaudeCode:
+    def test_research_recorded_emits_additional_context_for_that_agent(self) -> None:
+        record_research("task-1:agent-7", "WebFetch", "https://example.com/subagent-docs")
+        output: list[str] = []
+        set_protocol(ClaudeCodeProtocol("SubagentStop"))
+        try:
+            with (
+                patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
+                pytest.raises(SystemExit),
+            ):
+                handle_subagent_stop(_subagent_stop())
+        finally:
+            set_protocol(ClineProtocol())
+        result = cast("dict[str, object]", json.loads(output[0]))
+        hook_output = cast("dict[str, str]", result["hookSpecificOutput"])
+        assert hook_output["hookEventName"] == "SubagentStop"
+        assert "https://example.com/subagent-docs" in hook_output["additionalContext"]
+
+
 class TestHandleStopPluginDispatch:
     def test_plugin_note_appears_when_handler_has_no_notes_of_its_own(self) -> None:
         class _NotingPlugin(HooksPlugin):
@@ -315,3 +424,22 @@ class TestHandleStopPluginDispatch:
         ):
             with_plugin = _run_raw(_stop())
         assert with_plugin == baseline
+
+    def test_subagent_task_id_is_the_per_agent_state_key(self) -> None:
+        captured: list[dict[str, object]] = []
+
+        def _fake_collect(_plugins: object, _hook_name: str, **kwargs: object) -> HookResult:
+            captured.append(kwargs)
+            return HookResult()
+
+        hook = _stop()
+        hook.agentId = "agent-7"
+        with (
+            patch("cline_hooks.handlers.stop.collect_hook_results", side_effect=_fake_collect),
+            patch("builtins.print"),
+            pytest.raises(SystemExit),
+        ):
+            handle_stop(hook)
+        assert captured
+        assert captured[0].get("task_id") == "task-1:agent-7"
+        assert captured[0].get("agent_id") == "agent-7"

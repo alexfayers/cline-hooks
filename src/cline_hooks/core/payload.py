@@ -143,6 +143,7 @@ class PayloadEnvelope(BaseModel):
     )
     transcriptPath: str = Field(default="", validation_alias="transcript_path")
     agentType: str = Field(default="", validation_alias="agent_type")
+    agentId: str | None = Field(default=None, validation_alias="agent_id")
 
     @model_validator(mode="before")
     @classmethod

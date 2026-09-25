@@ -35,6 +35,23 @@ class TranscriptReader(ABC):
             This turn's assistant text, or "" if it cannot be read.
         """
 
+    def subagent_context_tokens(self, transcript_path: str, agent_id: str) -> int | None:
+        """Return the context-token count from a subagent's own transcript.
+
+        Only meaningful for a frontend that gives each subagent its own
+        transcript file; a frontend without one leaves this at the default.
+
+        Args:
+            transcript_path: Path to the main session's transcript, as named
+                by the payload.
+            agent_id: The subagent's own agent id.
+
+        Returns:
+            The token count, or None if this frontend has no subagent
+            transcript, or it cannot be determined.
+        """
+        return None
+
 
 class NullTranscriptReader(TranscriptReader):
     """Reader for frontends that expose no transcript in a format we can read."""

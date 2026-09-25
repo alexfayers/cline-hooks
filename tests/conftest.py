@@ -35,6 +35,7 @@ class StubTranscript(TranscriptReader):
 
     tokens: int | None = None
     text: str = ""
+    subagent_tokens: int | None = None
 
     def context_tokens(self, transcript_path: str) -> int | None:
         """Return the scripted token count.
@@ -52,6 +53,15 @@ class StubTranscript(TranscriptReader):
         """
         return self.text if transcript_path else ""
 
+    def subagent_context_tokens(self, transcript_path: str, agent_id: str) -> int | None:
+        """Return the scripted subagent token count.
+
+        Returns:
+            The scripted count when a transcript and agent id are named,
+            otherwise None.
+        """
+        return self.subagent_tokens if transcript_path and agent_id else None
+
 
 @pytest.fixture
 def stub_transcript(
@@ -60,11 +70,12 @@ def stub_transcript(
     """Swap the active protocol's transcript reader for a scripted stub.
 
     Returns:
-        A callable taking `tokens` and/or `text` that installs the stub.
+        A callable taking `tokens`, `text` and/or `subagent_tokens` that
+        installs the stub.
     """
 
-    def install(*, tokens: int | None = None, text: str = "") -> StubTranscript:
-        stub = StubTranscript(tokens=tokens, text=text)
+    def install(*, tokens: int | None = None, text: str = "", subagent_tokens: int | None = None) -> StubTranscript:
+        stub = StubTranscript(tokens=tokens, text=text, subagent_tokens=subagent_tokens)
         mocker.patch.object(type(get_protocol()), "transcript", stub)
         return stub
 

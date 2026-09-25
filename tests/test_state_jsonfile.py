@@ -6,7 +6,7 @@ import subprocess
 import sys
 import threading
 
-from cline_hooks.state.jsonfile import read_json, updated_json
+from cline_hooks.state.jsonfile import discard_prefix, read_json, updated_json
 
 
 class TestReadJson:
@@ -75,3 +75,21 @@ class TestUpdatedJson:
             assert process.wait() == 0
 
         assert read_json(path, {"count": -1}) == {"count": process_count}
+
+
+class TestDiscardPrefix:
+    def test_removes_every_key_with_the_prefix(self, tmp_path: Path) -> None:
+        path = tmp_path / "state.json"
+        path.write_text(json.dumps({"task-1:agent-a": 1, "task-1:agent-b": 2, "task-2": 3}))
+        discard_prefix(path, "task-1:")
+        assert read_json(path, {}) == {"task-2": 3}
+
+    def test_leaves_the_bare_key_untouched(self, tmp_path: Path) -> None:
+        path = tmp_path / "state.json"
+        path.write_text(json.dumps({"task-1": 1, "task-1:agent-a": 2}))
+        discard_prefix(path, "task-1:")
+        assert read_json(path, {}) == {"task-1": 1}
+
+    def test_missing_file_is_a_no_op(self, tmp_path: Path) -> None:
+        discard_prefix(tmp_path / "missing.json", "task-1:")
+        assert not (tmp_path / "missing.json").exists()

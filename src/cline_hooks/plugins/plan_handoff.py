@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from cline_hooks.core.hook_kwargs import TrackToolUseKwargs
-from cline_hooks.core.plugin import HookResult, HooksPlugin
+from cline_hooks.core.plugin import HookResult, HooksPlugin, is_subagent
 from cline_hooks.core.state import PluginStateStore
 from cline_hooks.core.vocabulary import (
     NO_RESET_TASK_START_SOURCES,
@@ -131,7 +131,7 @@ class PlanHandoffPlugin(HooksPlugin):
             result = _consumed_nudge(kw.task_id)
             if result is not None:
                 logger.debug("Fired plan-handoff nudge")
-            if is_plan_exit_tool(kw.tool_name):
+            if is_plan_exit_tool(kw.tool_name) and not is_subagent(kwargs):
                 record_plan_exit(kw.task_id)
             return result
         if hook_name == CanonicalHook.USER_PROMPT_SUBMIT:

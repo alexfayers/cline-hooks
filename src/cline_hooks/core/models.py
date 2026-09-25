@@ -38,6 +38,16 @@ class HookInput(BaseModel):
     workspaceRoots: list[str] = Field(default_factory=list)
     transcriptPath: str = ""
     agentType: str = ""
+    agentId: str | None = None
+
+    @property
+    def stateKey(self) -> str:  # ruff: ignore[invalid-function-name]
+        """The per-agent state key: `taskId`, or `taskId:agentId` for a subagent.
+
+        Returns:
+            `taskId` alone for the main agent, else `taskId:agentId`.
+        """
+        return f"{self.taskId}:{self.agentId}" if self.agentId else self.taskId
 
     @classmethod
     def build(cls, data: Mapping[str, Any]) -> Self:
@@ -227,3 +237,11 @@ class HookInputStop(HookInput):
 
     stop: StopFields | None = None
     hookName: str = "Stop"
+
+
+@hook_input(CanonicalHook.SUBAGENT_STOP)
+class HookInputSubagentStop(HookInput):
+    """Hook input for SubagentStop events: a subagent's or teammate's own Stop."""
+
+    subagentStop: StopFields | None = None
+    hookName: str = "SubagentStop"

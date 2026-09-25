@@ -92,6 +92,10 @@ class TestInvocationContextFilter:
         _run({**_TASK_START_PAYLOAD, "agentType": "general-purpose"})
         assert _invocation_filter.agent == "general-purpose"
 
+    def test_prefers_agent_id_over_agent_type(self) -> None:
+        _run({**_TASK_START_PAYLOAD, "agentType": "general-purpose", "agentId": "agent-7"})
+        assert _invocation_filter.agent == "agent-7"
+
     def test_uses_the_detected_frontends_name(self) -> None:
         _run(_TASK_START_PAYLOAD)
         assert _invocation_filter.frontend == "cline"

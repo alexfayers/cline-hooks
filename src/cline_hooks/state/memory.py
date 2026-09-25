@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import cast
 
-from cline_hooks.state.jsonfile import discard_key, read_json, updated_json
+from cline_hooks.state.jsonfile import discard_key, discard_prefix, read_json, updated_json
 from cline_hooks.state.paths import get_data_dir
 
 logger = logging.getLogger("hooks.state.memory")
@@ -62,9 +62,10 @@ def has_memory_writes(task_id: str) -> bool:
 
 
 def reset(task_id: str) -> None:
-    """Clear recorded memory writes for a session.
+    """Clear recorded memory writes for a session, and every per-agent entry under it.
 
     Args:
         task_id: The session or task identifier.
     """
     discard_key(_STATE_PATH, task_id)
+    discard_prefix(_STATE_PATH, f"{task_id}:")

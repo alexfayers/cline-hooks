@@ -8,6 +8,7 @@ from cline_hooks.frontends.claude_code.transcript import ClaudeCodeTranscriptRea
 _reader = ClaudeCodeTranscriptReader()
 get_context_tokens = _reader.context_tokens
 get_turn_assistant_text = _reader.turn_assistant_text
+get_subagent_context_tokens = _reader.subagent_context_tokens
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -217,6 +218,26 @@ class TestGetContextTokens:
             [{"type": "user", "message": {"role": "user"}}],
         )
         assert get_context_tokens(path) is None
+
+
+class TestGetSubagentContextTokens:
+    def test_reads_last_usage_from_the_subagent_transcript_file(self, tmp_path: Path) -> None:
+        session_dir = tmp_path / "session"
+        subagents_dir = session_dir / "subagents"
+        subagents_dir.mkdir(parents=True)
+        _write_jsonl(
+            subagents_dir / "agent-sub1.jsonl",
+            [
+                _assistant(cache_read=50, sidechain=True),
+                _assistant(input_tokens=5, cache_read=120, sidechain=True),
+            ],
+        )
+        transcript_path = str(session_dir) + ".jsonl"
+        assert get_subagent_context_tokens(transcript_path, "sub1") == 125
+
+    def test_missing_subagent_file_returns_none(self, tmp_path: Path) -> None:
+        transcript_path = str(tmp_path / "session.jsonl")
+        assert get_subagent_context_tokens(transcript_path, "sub1") is None
 
 
 class TestGetTurnAssistantText:

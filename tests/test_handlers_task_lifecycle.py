@@ -221,6 +221,16 @@ class TestHandleTaskStart:
             self._run(_task_start([str(tmp_path)]))
         assert not has_agent_use("task-1")
 
+    def test_per_agent_entries_reset_on_start(self, tmp_path: Path) -> None:
+        record_agent_use("task-1:agent-a", "Agent")
+        record_skill("task-1:agent-a", "git-usage")
+        record_memory_write("task-1:agent-a", "create_entities")
+        with patch("cline_hooks.plugins.session_context.get_git_context", return_value=None):
+            self._run(_task_start([str(tmp_path)]))
+        assert not has_agent_use("task-1:agent-a")
+        assert not is_skill_called("task-1:agent-a", "git-usage")
+        assert not has_memory_writes("task-1:agent-a")
+
     def test_context_band_reset_on_start(self, tmp_path: Path) -> None:
         should_nudge_context("task-1", 210_000)
         with patch("cline_hooks.plugins.session_context.get_git_context", return_value=None):
@@ -355,6 +365,27 @@ class TestHandleTaskStart:
         ):
             self._run(_task_start([str(tmp_path)], agent_type="Explore"))
         assert captured.get("agent_type") == "Explore"
+
+    def test_subagent_task_id_is_the_per_agent_state_key(self, tmp_path: Path) -> None:
+        captured: dict[str, object] = {}
+
+        class _CapturingPlugin(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> None:
+                if hook_name == "TaskStart":
+                    captured.update(kwargs)
+
+        hook = _task_start([str(tmp_path)])
+        hook.agentId = "agent-7"
+        with (
+            patch("cline_hooks.plugins.session_context.get_git_context", return_value=None),
+            patch(
+                "cline_hooks.handlers.task_lifecycle.load_plugins",
+                return_value=[_CapturingPlugin()],
+            ),
+        ):
+            self._run(hook)
+        assert captured.get("task_id") == "task-1:agent-7"
+        assert captured.get("agent_id") == "agent-7"
 
     def _run_raw(self, hook: HookInputTaskStart) -> str:
         output: list[str] = []

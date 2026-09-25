@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 
 from cline_hooks.core.vocabulary import AGENT_SPAWN_TOOLS
-from cline_hooks.state.jsonfile import discard_key, read_json, updated_json
+from cline_hooks.state.jsonfile import discard_key, discard_prefix, read_json, updated_json
 from cline_hooks.state.paths import get_data_dir
 
 logger = logging.getLogger("hooks.state.agents")
@@ -67,9 +67,10 @@ def agent_use_count(task_id: str) -> int:
 
 
 def reset(task_id: str) -> None:
-    """Clear recorded agent use for a session.
+    """Clear recorded agent use for a session, and every per-agent entry under it.
 
     Args:
         task_id: The session or task identifier.
     """
     discard_key(_STATE_PATH, task_id)
+    discard_prefix(_STATE_PATH, f"{task_id}:")

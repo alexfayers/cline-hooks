@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import cast
 
-from cline_hooks.state.jsonfile import discard_key, updated_json
+from cline_hooks.state.jsonfile import discard_key, discard_prefix, updated_json
 from cline_hooks.state.paths import get_data_dir
 
 logger = logging.getLogger("hooks.state.workspace")
@@ -51,9 +51,10 @@ def should_note_workspace_change(task_id: str, workspace_roots: list[str]) -> bo
 
 
 def reset(task_id: str) -> None:
-    """Clear the recorded workspace roots for a session.
+    """Clear the recorded workspace roots for a session, and every per-agent entry under it.
 
     Args:
         task_id: The session or task identifier.
     """
     discard_key(_STATE_PATH, task_id)
+    discard_prefix(_STATE_PATH, f"{task_id}:")

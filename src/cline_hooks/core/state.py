@@ -6,7 +6,7 @@ import dataclasses
 import logging
 from typing import TYPE_CHECKING, Any, cast
 
-from cline_hooks.state.jsonfile import discard_key, read_json, updated_json
+from cline_hooks.state.jsonfile import discard_key, discard_prefix, read_json, updated_json
 from cline_hooks.state.paths import get_data_dir
 
 if TYPE_CHECKING:
@@ -83,10 +83,15 @@ class PluginStateStore[StateT: "DataclassInstance"]:
             data[task_id] = dataclasses.asdict(state)
         return result
 
-    def reset(self, task_id: str) -> None:
+    def reset(self, task_id: str, *, discard_children: bool = True) -> None:
         """Clear the state entry for a task.
 
         Args:
             task_id: The session or task identifier.
+            discard_children: Also clear every per-agent entry nested under
+                this task id. Set False for a per-turn reset that must not
+                disturb another agent's still-running state.
         """
         discard_key(self._path, task_id)
+        if discard_children:
+            discard_prefix(self._path, f"{task_id}:")

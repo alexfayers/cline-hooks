@@ -31,24 +31,28 @@ _CLAUDE_CODE_ENVELOPE: dict[str, Any] = {
     "workspaceRoots": ["/home/user/project"],
     "transcriptPath": "/home/user/.claude/projects/fixture/transcript.jsonl",
     "agentType": "",
+    "agentId": None,
 }
 _KIRO_ENVELOPE: dict[str, Any] = {
     "taskId": "fixture-session-id",
     "workspaceRoots": ["/home/user/project"],
     "transcriptPath": "",
     "agentType": "",
+    "agentId": None,
 }
 _COPILOT_ENVELOPE: dict[str, Any] = {
     "taskId": "fixture-session-id",
     "workspaceRoots": ["/home/user/project"],
     "transcriptPath": "",
     "agentType": "",
+    "agentId": None,
 }
 _CLINE_ENVELOPE: dict[str, Any] = {
     "taskId": "fixture-task-1",
     "workspaceRoots": ["/home/user/project"],
     "transcriptPath": "",
     "agentType": "",
+    "agentId": None,
 }
 _ANTIGRAVITY_ENVELOPE: dict[str, Any] = {
     "taskId": "fixture-session-id",
@@ -57,12 +61,14 @@ _ANTIGRAVITY_ENVELOPE: dict[str, Any] = {
         "/home/user/.gemini/antigravity/brain/fixture-session-id/.system_generated/logs/transcript.jsonl"
     ),
     "agentType": "gemini-3.6-flash-medium",
+    "agentId": None,
 }
 _PI_ENVELOPE: dict[str, Any] = {
     "taskId": "fixture-session-id",
     "workspaceRoots": ["/home/user/project"],
     "transcriptPath": "/home/user/.pi/agent/sessions/fixture/session.jsonl",
     "agentType": "",
+    "agentId": None,
 }
 
 
@@ -195,6 +201,17 @@ class TestClaudeCodeNormalisation:
                     "diff": "------- SEARCH\n=======\nhello\nworld\n+++++++ REPLACE",
                 },
             },
+        }
+
+    def test_subagent_stop(self) -> None:
+        hook = _parse("claude-code", "SubagentStop", ClaudeCodeProtocol)
+        assert hook.model_dump() == {
+            **_CLAUDE_CODE_ENVELOPE,
+            "transcriptPath": "",
+            "agentType": "general-purpose",
+            "agentId": "fixture-agent-id",
+            "hookName": "SubagentStop",
+            "subagentStop": {"stopHookActive": False},
         }
 
     def test_tools_mcp(self) -> None:

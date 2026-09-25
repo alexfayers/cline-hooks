@@ -99,3 +99,8 @@ class TestReset:
         workspace.should_note_workspace_change("b", ["/y"])
         workspace.reset("a")
         assert workspace.should_note_workspace_change("b", ["/y"]) is False
+
+    def test_reset_clears_per_agent_entries_for_the_task(self) -> None:
+        workspace.record_workspace("a:agent-x", ["/x"])
+        workspace.reset("a")
+        assert workspace.should_note_workspace_change("a:agent-x", ["/y"]) is False
