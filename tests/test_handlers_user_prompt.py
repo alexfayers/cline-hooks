@@ -9,6 +9,7 @@ import pytest
 
 from cline_hooks.core.plugin import HooksPlugin
 from cline_hooks.core.protocol import RawPayload, get_protocol
+from cline_hooks.core.response import render
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.handlers.user_prompt import (
     _is_agent_message,
@@ -31,6 +32,7 @@ from tests.conftest import StubTranscript
 
 if TYPE_CHECKING:
     from cline_hooks.core.models import HookInput, HookInputUserPromptSubmit
+    from cline_hooks.core.outcome import Outcome
 
 
 def parse_data(raw: str) -> HookInput:
@@ -72,17 +74,17 @@ def _make_hook(user_message: str = "") -> HookInputUserPromptSubmit:
     )
 
 
+def _rendered(outcome: Outcome | None) -> dict[str, object] | None:
+    """Render an Outcome and return its body, or None if no context was surfaced."""
+    if outcome is None:
+        return None
+    result = cast("dict[str, object]", json.loads(render(outcome, get_protocol()).stdout))
+    return result if "contextModification" in result else None
+
+
 def _run(user_message: str = "") -> dict[str, object] | None:
     hook = _make_hook(user_message)
-    output: list[str] = []
-    try:
-        with patch("builtins.print", side_effect=lambda s, **kw: output.append(s)):
-            handle_user_prompt_submit(hook)
-    except SystemExit:
-        pass
-    if not output:
-        return None
-    return cast("dict[str, object]", json.loads(output[0]))
+    return _rendered(handle_user_prompt_submit(hook))
 
 
 def _run_n_turns(n: int) -> dict[str, object] | None:
@@ -113,27 +115,17 @@ def _run_with_transcript(token_count: int | None) -> dict[str, object] | None:
             })
         ),
     )
-    output: list[str] = []
-    try:
-        with (
-            patch(
-                "builtins.print",
-                side_effect=lambda s, _out=output, **kw: _out.append(s),
-            ),
-            patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
-            patch.object(
-                type(get_protocol()),
-                "transcript",
-                StubTranscript(tokens=token_count),
-            ),
-            patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(12)),
-        ):
-            handle_user_prompt_submit(hook)
-    except SystemExit:
-        pass
-    if not output:
-        return None
-    return cast("dict[str, object]", json.loads(output[0]))
+    with (
+        patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
+        patch.object(
+            type(get_protocol()),
+            "transcript",
+            StubTranscript(tokens=token_count),
+        ),
+        patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(12)),
+    ):
+        outcome = handle_user_prompt_submit(hook)
+    return _rendered(outcome)
 
 
 class TestContainsCorrectionSignal:
@@ -404,17 +396,12 @@ class TestHandleUserPromptSubmit:
             "HookInputUserPromptSubmit",
             parse_data(json.dumps({**_BASE})),
         )
-        output: list[str] = []
-        try:
-            with (
-                patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
-                patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
-                patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(12)),
-            ):
-                handle_user_prompt_submit(hook)
-        except SystemExit:
-            pass
-        assert output == []
+        with (
+            patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
+            patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(12)),
+        ):
+            outcome = handle_user_prompt_submit(hook)
+        assert _rendered(outcome) is None
 
 
 class TestTimeNote:

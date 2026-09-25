@@ -19,11 +19,13 @@ from cline_hooks.core.payload import (
     map_tool_name,
     mcp_parameters,
 )
+from cline_hooks.core.response import Response
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from cline_hooks.core.outcome import Outcome
     from cline_hooks.core.protocol import RawPayload
 
 
@@ -52,6 +54,9 @@ class _ConcreteProtocol(StandardPayloadProtocol):
 
     def block(self, message: str) -> NoReturn:
         sys.exit(2)
+
+    def render(self, outcome: Outcome) -> Response:
+        return Response()
 
 
 class _BaseSpec(_ConcreteProtocol):

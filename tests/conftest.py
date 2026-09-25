@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import cline_hooks.config as config_module
 from cline_hooks.core.frontends import DEFAULT_PROTOCOL
 from cline_hooks.core.protocol import get_protocol, set_protocol
 from cline_hooks.core.transcript import TranscriptReader
@@ -100,5 +101,6 @@ def isolate_state_files(mocker: MockerFixture, tmp_path: Path) -> None:
     mocker.patch.object(research_module._store, "_path", tmp_path / "research-state.json")
     mocker.patch.object(workspace_module, "_STATE_PATH", tmp_path / "workspace-state.json")
     mocker.patch.object(delegation_module._store, "_path", tmp_path / "delegation-state.json")
+    mocker.patch.object(config_module, "_CONFIG_PATH", tmp_path / "config.json")
     mocker.patch.dict(os.environ, {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": ""})
     set_protocol(DEFAULT_PROTOCOL())

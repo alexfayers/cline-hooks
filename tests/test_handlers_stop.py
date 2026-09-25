@@ -4,11 +4,10 @@ import json
 from typing import TYPE_CHECKING, cast
 from unittest.mock import patch
 
-import pytest
-
 from cline_hooks.core.models import HookInputStop, StopFields
 from cline_hooks.core.plugin import HookResult, HooksPlugin
-from cline_hooks.core.protocol import set_protocol
+from cline_hooks.core.protocol import get_protocol, set_protocol
+from cline_hooks.core.response import render
 from cline_hooks.frontends.claude_code import ClaudeCodeProtocol
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.frontends.kiro import KiroProtocol
@@ -41,37 +40,27 @@ def _stop(*, stop_hook_active: bool = False, transcript_path: str = "") -> HookI
 
 
 def _run(hook: HookInputStop) -> dict[str, object]:
-    output: list[str] = []
-    with (
-        patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
-        pytest.raises(SystemExit),
-    ):
-        handle_stop(hook)
-    return cast("dict[str, object]", json.loads(output[0]))
+    outcome = handle_stop(hook)
+    assert outcome is not None
+    response = render(outcome, get_protocol())
+    return cast("dict[str, object]", json.loads(response.stdout))
 
 
 def _run_raw(hook: HookInputStop) -> str:
-    output: list[str] = []
-    with (
-        patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
-        pytest.raises(SystemExit),
-    ):
-        handle_stop(hook)
-    return output[0]
+    outcome = handle_stop(hook)
+    assert outcome is not None
+    return render(outcome, get_protocol()).stdout
 
 
 def _run_cc(hook: HookInputStop) -> dict[str, object]:
-    output: list[str] = []
     set_protocol(ClaudeCodeProtocol())
     try:
-        with (
-            patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
-            pytest.raises(SystemExit),
-        ):
-            handle_stop(hook)
+        outcome = handle_stop(hook)
+        assert outcome is not None
+        response = render(outcome, get_protocol())
     finally:
         set_protocol(ClineProtocol())
-    return cast("dict[str, object]", json.loads(output[0]))
+    return cast("dict[str, object]", json.loads(response.stdout))
 
 
 class TestFormatResearchTrace:
@@ -198,17 +187,14 @@ class TestHandleStop:
 class TestHandleStopKiro:
     def test_trace_uses_kiro_header(self) -> None:
         record_research("task-1", "WebFetch", "https://example.com/docs")
-        output: list[str] = []
         set_protocol(KiroProtocol())
         try:
-            with (
-                patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
-                pytest.raises(SystemExit),
-            ):
-                handle_stop(_stop())
+            outcome = handle_stop(_stop())
+            assert outcome is not None
+            response = render(outcome, get_protocol())
         finally:
             set_protocol(ClineProtocol())
-        result = cast("dict[str, str]", json.loads(output[0]))
+        result = cast("dict[str, str]", json.loads(response.stdout))
         assert "Sources: " in result["reason"]
         assert "No narration" in result["reason"]
 
@@ -246,32 +232,26 @@ class TestHandleStopClaudeCode:
         assert get_research("task-1") == []
 
     def test_no_research_allows_empty_stdout(self) -> None:
-        output: list[str] = []
         set_protocol(ClaudeCodeProtocol())
         try:
-            with (
-                patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
-                pytest.raises(SystemExit) as exc,
-            ):
-                handle_stop(_stop())
+            outcome = handle_stop(_stop())
+            assert outcome is not None
+            response = render(outcome, get_protocol())
         finally:
             set_protocol(ClineProtocol())
-        assert exc.value.code == 0
-        assert output == []
+        assert response.exit_code == 0
+        assert response.stdout == ""
 
     def test_stop_hook_active_allows_without_reset(self) -> None:
         record_research("task-1", "WebFetch", "https://example.com/docs")
-        output: list[str] = []
         set_protocol(ClaudeCodeProtocol())
         try:
-            with (
-                patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
-                pytest.raises(SystemExit) as exc,
-            ):
-                handle_stop(_stop(stop_hook_active=True))
+            outcome = handle_stop(_stop(stop_hook_active=True))
+            assert outcome is not None
+            response = render(outcome, get_protocol())
         finally:
             set_protocol(ClineProtocol())
-        assert exc.value.code == 0
+        assert response.exit_code == 0
         assert get_research("task-1") != []
 
 

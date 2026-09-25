@@ -7,7 +7,8 @@ from unittest.mock import patch
 
 import pytest
 
-from cline_hooks.core.protocol import RawPayload
+from cline_hooks.core.protocol import RawPayload, get_protocol
+from cline_hooks.core.response import render
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.handlers.user_prompt import handle_user_prompt_submit
 from cline_hooks.plugins.nudges import (
@@ -120,29 +121,22 @@ class TestIntegration:
                     })
                 ),
             )
-            output: list[str] = []
-            try:
-                with (
-                    patch(
-                        "builtins.print",
-                        side_effect=lambda s, _out=output, **kw: _out.append(s),
-                    ),
-                    patch(
-                        "cline_hooks.plugins.nudges.random.random",
-                        return_value=1.0,
-                    ),
-                    patch(
-                        "cline_hooks.plugins.nudges.local_now",
-                        return_value=datetime(2026, 1, 1, 12, 0, tzinfo=UTC),
-                    ),
-                ):
-                    handle_user_prompt_submit(hook)
-            except SystemExit:
-                pass
-            if output:
-                last_output = cast("dict[str, object]", json.loads(output[0]))
-            else:
+            with (
+                patch(
+                    "cline_hooks.plugins.nudges.random.random",
+                    return_value=1.0,
+                ),
+                patch(
+                    "cline_hooks.plugins.nudges.local_now",
+                    return_value=datetime(2026, 1, 1, 12, 0, tzinfo=UTC),
+                ),
+            ):
+                outcome = handle_user_prompt_submit(hook)
+            if outcome is None:
                 last_output = None
+                continue
+            result = cast("dict[str, object]", json.loads(render(outcome, get_protocol()).stdout))
+            last_output = result if "contextModification" in result else None
         return last_output
 
     def test_no_reminder_before_threshold(self) -> None:

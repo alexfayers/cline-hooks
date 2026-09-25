@@ -7,7 +7,8 @@ from unittest.mock import patch
 
 import pytest
 
-from cline_hooks.core.response import allow, block, feedback
+from cline_hooks.core.outcome import Outcome
+from cline_hooks.core.response import allow, block, feedback, render
 from cline_hooks.frontends.claude_code import ClaudeCodeProtocol
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.frontends.kiro import KiroProtocol
@@ -21,10 +22,10 @@ def _capture_allow(message: str | None = None, *, prefix: str = "REMINDER") -> d
     return cast("dict[str, object]", json.loads(buf.getvalue()))
 
 
-def _capture_block(message: str, *, task_id: str | None = None, tool_name: str | None = None) -> dict[str, object]:
+def _capture_block(message: str) -> dict[str, object]:
     buf = StringIO()
     with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
-        block(message, task_id=task_id, tool_name=tool_name)
+        block(message)
     assert exc.value.code == 0
     return cast("dict[str, object]", json.loads(buf.getvalue()))
 
@@ -239,23 +240,39 @@ class TestBlock:
         result = _capture_block("bad command")
         assert result["errorMessage"] == "bad command"
 
-    def test_records_block_event_when_task_and_tool_given(self) -> None:
-        with patch("cline_hooks.state.store.TaskStateStore.record_block") as mock_record:
-            _capture_block("reason", task_id="task-1", tool_name="execute_command")
-        mock_record.assert_called_once_with("task-1", "execute_command", "reason")
 
-    def test_no_state_store_call_without_task_id(self) -> None:
-        with patch("cline_hooks.state.store.TaskStateStore.record_block") as mock_record:
-            _capture_block("reason")
-        mock_record.assert_not_called()
+class TestRender:
+    """`render` never exits; its Response must match the protocol's own writers."""
 
+    def test_never_exits(self) -> None:
+        render(Outcome.block("bad"), ClineProtocol())
 
-class TestFeedback:
-    def test_continues_with_block_shaped_output_under_default_protocol(self) -> None:
-        result = _capture_feedback("trace text")
-        assert result == {"cancel": True, "errorMessage": "trace text"}
+    def test_allow_outcome_against_cline(self) -> None:
+        response = render(Outcome.allow("ctx"), ClineProtocol())
+        assert response.exit_code == 0
+        assert json.loads(response.stdout)["contextModification"] == "ctx"
 
-    def test_never_records_block_event(self) -> None:
-        with patch("cline_hooks.state.store.TaskStateStore.record_block") as mock_record:
-            _capture_feedback("trace text")
-        mock_record.assert_not_called()
+    def test_allow_outcome_with_label_prefixes_message(self) -> None:
+        response = render(Outcome.allow("do something", label="MEMORY REMINDER"), ClineProtocol())
+        assert json.loads(response.stdout)["contextModification"] == "MEMORY REMINDER: do something"
+
+    def test_allow_outcome_without_label_has_no_prefix(self) -> None:
+        response = render(Outcome.allow("do something"), ClineProtocol())
+        assert json.loads(response.stdout)["contextModification"] == "do something"
+
+    def test_block_outcome_against_kiro(self) -> None:
+        response = render(Outcome.block("bad command"), KiroProtocol())
+        assert response.exit_code == 2
+        assert response.stderr == "bad command"
+
+    def test_feedback_outcome_against_claude_code(self) -> None:
+        response = render(Outcome.feedback("trace text"), ClaudeCodeProtocol())
+        assert response.exit_code == 0
+        assert json.loads(response.stdout) == {
+            "hookSpecificOutput": {"hookEventName": "Stop", "additionalContext": "trace text"},
+        }
+
+    def test_allow_outcome_carries_user_message_for_claude_code(self) -> None:
+        response = render(Outcome.allow(user_message="user text"), ClaudeCodeProtocol("SessionStart"))
+        assert response.exit_code == 0
+        assert json.loads(response.stdout) == {"systemMessage": "user text"}

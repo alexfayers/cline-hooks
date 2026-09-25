@@ -49,7 +49,7 @@ class TestDispatch:
         })
         hook = _dispatch(data)
         assert isinstance(hook, HookInputTaskStart)
-        assert isinstance(protocol_module._active_protocol, KiroProtocol)
+        assert isinstance(protocol_module.get_protocol(), KiroProtocol)
 
     def test_cline_sets_cline_protocol(self) -> None:
         data = json.dumps({
@@ -60,24 +60,24 @@ class TestDispatch:
         })
         hook = _dispatch(data)
         assert isinstance(hook, HookInputPreToolUse)
-        assert isinstance(protocol_module._active_protocol, ClineProtocol)
+        assert isinstance(protocol_module.get_protocol(), ClineProtocol)
 
     def test_claude_code_stop_sets_claude_code_protocol(self) -> None:
         data = json.dumps({"hook_event_name": "Stop", "cwd": "/project"})
         _dispatch(data)
-        assert isinstance(protocol_module._active_protocol, ClaudeCodeProtocol)
+        assert isinstance(protocol_module.get_protocol(), ClaudeCodeProtocol)
 
     def test_kiro_stop_sets_kiro_protocol(self) -> None:
         data = json.dumps({"hook_event_name": "stop", "cwd": "/project"})
         _dispatch(data)
-        assert isinstance(protocol_module._active_protocol, KiroProtocol)
-        assert not isinstance(protocol_module._active_protocol, ClaudeCodeProtocol)
+        assert isinstance(protocol_module.get_protocol(), KiroProtocol)
+        assert not isinstance(protocol_module.get_protocol(), ClaudeCodeProtocol)
 
     def test_claude_code_session_start_maps_to_taskstart(self) -> None:
         data = json.dumps({"hook_event_name": "SessionStart", "cwd": "/project"})
         hook = _dispatch(data)
         assert isinstance(hook, HookInputTaskStart)
-        assert isinstance(protocol_module._active_protocol, ClaudeCodeProtocol)
+        assert isinstance(protocol_module.get_protocol(), ClaudeCodeProtocol)
 
 
 class TestEndToEndKiro:

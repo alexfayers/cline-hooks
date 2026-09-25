@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from contextvars import ContextVar
 from dataclasses import dataclass
 from functools import cache
 import json
@@ -15,9 +16,11 @@ if TYPE_CHECKING:
 
     from cline_hooks.core.frontend import FrontendSpec
     from cline_hooks.core.models import HookInput
+    from cline_hooks.core.outcome import Outcome
+    from cline_hooks.core.response import Response
     from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
 
-_active_protocol: Protocol | None = None
+_active_protocol: ContextVar[Protocol | None] = ContextVar("_active_protocol", default=None)
 
 
 @dataclass(frozen=True)
@@ -53,6 +56,7 @@ class HookRegistration:
 
     native_name: str
     matcher: str | None = None
+    binary_name: str | None = None
 
 
 class Protocol(ABC):
@@ -158,6 +162,10 @@ class Protocol(ABC):
         """Continue the conversation with non-error feedback. Defaults to block()."""
         self.block(message)
 
+    @abstractmethod
+    def render(self, outcome: Outcome) -> Response:
+        """Render an Outcome into a transport-agnostic Response, without exiting."""
+
 
 @cache
 def _native_to_canonical(protocol_cls: type[Protocol]) -> Mapping[str, CanonicalHook]:
@@ -183,9 +191,8 @@ def exit_block(message: str) -> NoReturn:
 
 
 def set_protocol(protocol: Protocol) -> None:
-    """Set the active output protocol for this process."""
-    global _active_protocol  # ruff: ignore[global-statement]
-    _active_protocol = protocol
+    """Set the active output protocol for this invocation."""
+    _active_protocol.set(protocol)
 
 
 def get_protocol() -> Protocol:
@@ -194,7 +201,8 @@ def get_protocol() -> Protocol:
     Raises:
         RuntimeError: If no protocol has been set.
     """
-    if _active_protocol is None:
+    protocol = _active_protocol.get()
+    if protocol is None:
         msg = "No protocol set. Call set_protocol() before processing hooks."
         raise RuntimeError(msg)
-    return _active_protocol
+    return protocol
