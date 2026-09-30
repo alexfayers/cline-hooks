@@ -196,6 +196,12 @@ class TestIsSubagent:
     def test_false_for_non_string_agent_id(self) -> None:
         assert is_subagent({"agent_id": 5}) is False
 
+    def test_true_for_teammate(self) -> None:
+        assert is_subagent({"is_teammate": True}) is True
+
+    def test_false_for_non_teammate(self) -> None:
+        assert is_subagent({"is_teammate": False}) is False
+
 
 class TestLoadPlugins:
     @pytest.fixture(autouse=True)

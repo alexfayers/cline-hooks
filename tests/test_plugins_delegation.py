@@ -80,6 +80,16 @@ class TestFileEditTools:
         )
         assert result is None
 
+    def test_silent_for_teammate(self, mocker: MockerFixture) -> None:
+        _enable(mocker)
+        result = DelegationPlugin().on_hook(
+            CanonicalHook.PRE_TOOL_USE,
+            logger=logging.getLogger("test"),
+            is_teammate=True,
+            **_pre_tool_use("replace_in_file"),
+        )
+        assert result is None
+
     def test_fires_for_top_level_main_agent(self, mocker: MockerFixture) -> None:
         _enable(mocker)
         result = DelegationPlugin().on_hook(

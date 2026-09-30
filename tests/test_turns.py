@@ -2,18 +2,21 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 import json
+import logging
 from typing import TYPE_CHECKING, cast
 from unittest.mock import patch
 
 import pytest
 
 from cline_hooks.core.protocol import RawPayload
+from cline_hooks.core.vocabulary import CanonicalHook
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.handlers.user_prompt import handle_user_prompt_submit
 from cline_hooks.plugins.nudges import (
     _AGENT_NUDGE_THRESHOLD,
     _REMINDER_INTERVAL,
     _SCOPE_CHECK_THRESHOLD,
+    NudgesPlugin,
     increment,
     reset,
     should_nudge_agents,
@@ -104,6 +107,22 @@ class TestReset:
 
     def test_reset_nonexistent_is_noop(self) -> None:
         reset("nonexistent")
+
+
+class TestSubagentStopReset:
+    def test_resets_subagent_scope_and_keeps_parent(self) -> None:
+        increment("t")
+        increment("t:a")
+        NudgesPlugin().on_hook(
+            CanonicalHook.SUBAGENT_STOP, logger=logging.getLogger("test"), agent_id="a", task_id="t:a"
+        )
+        assert increment("t:a") == 1
+        assert increment("t") == 2
+
+    def test_without_agent_id_is_noop(self) -> None:
+        increment("t:a")
+        NudgesPlugin().on_hook(CanonicalHook.SUBAGENT_STOP, logger=logging.getLogger("test"), task_id="t:a")
+        assert increment("t:a") == 2
 
 
 class TestIntegration:

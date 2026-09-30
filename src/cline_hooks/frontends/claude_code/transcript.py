@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from itertools import islice
 import json
 import logging
 from pathlib import Path
@@ -10,6 +11,8 @@ from typing import Any
 from cline_hooks.core.transcript import TranscriptReader
 
 logger = logging.getLogger("hooks")
+
+_TEAMMATE_PROBE_LINES = 50
 
 
 class ClaudeCodeTranscriptReader(TranscriptReader):
@@ -56,6 +59,26 @@ class ClaudeCodeTranscriptReader(TranscriptReader):
         if latest_usage is None:
             return None
         return _sum_context_fields(latest_usage)
+
+    def is_teammate(self, transcript_path: str) -> bool:
+        """Return True if the transcript's first message entry carries a team and agent name.
+
+        Args:
+            transcript_path: Path to the transcript JSONL file.
+
+        Returns:
+            True for a teammate transcript, False if the file is unreadable or
+            no message entry within the first lines names a team and agent.
+        """
+        try:
+            with Path(transcript_path).open(encoding="utf-8") as handle:
+                for line in islice(handle, _TEAMMATE_PROBE_LINES):
+                    entry = _parse_entry(line)
+                    if entry is not None and entry.get("type") in {"user", "assistant"}:
+                        return bool(entry.get("teamName") and entry.get("agentName"))
+        except OSError:
+            return False
+        return False
 
     def turn_assistant_text(self, transcript_path: str) -> str:
         """Return this turn's main-thread assistant text from a transcript.

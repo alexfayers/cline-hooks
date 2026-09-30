@@ -153,4 +153,9 @@ class PlanHandoffPlugin(HooksPlugin):
             if isinstance(task_id, str):
                 reset(task_id)
             return None
+        if hook_name == CanonicalHook.SUBAGENT_STOP:
+            task_id = kwargs.get("task_id")
+            if is_subagent(kwargs) and isinstance(task_id, str):
+                reset(task_id)
+            return None
         return None

@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import logging
+
+from cline_hooks.core.vocabulary import CanonicalHook
 from cline_hooks.plugins.plan_handoff import (
+    PlanHandoffPlugin,
     consume_plan_nudge,
     is_plan_exit_tool,
     record_plan_exit,
@@ -49,3 +53,19 @@ class TestReset:
 
     def test_reset_nonexistent_is_noop(self) -> None:
         reset("nonexistent")
+
+
+class TestSubagentStop:
+    def test_subagent_stop_resets_only_subagent_state(self) -> None:
+        record_plan_exit("task-1:a")
+        record_plan_exit(_TASK)
+        PlanHandoffPlugin().on_hook(
+            CanonicalHook.SUBAGENT_STOP, logger=logging.getLogger("test"), task_id="task-1:a", agent_id="a"
+        )
+        assert consume_plan_nudge("task-1:a") is False
+        assert consume_plan_nudge(_TASK) is True
+
+    def test_subagent_stop_without_agent_id_is_noop(self) -> None:
+        record_plan_exit("task-1:a")
+        PlanHandoffPlugin().on_hook(CanonicalHook.SUBAGENT_STOP, logger=logging.getLogger("test"), task_id="task-1:a")
+        assert consume_plan_nudge("task-1:a") is True

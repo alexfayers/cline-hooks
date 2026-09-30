@@ -52,6 +52,17 @@ class TranscriptReader(ABC):
         """
         return None
 
+    def is_teammate(self, transcript_path: str) -> bool:
+        """Return True if the transcript belongs to an agent-team teammate running as its own session.
+
+        Args:
+            transcript_path: Path to the transcript, as named by the payload.
+
+        Returns:
+            True for a teammate transcript, False otherwise or if it cannot be determined.
+        """
+        return False
+
 
 class NullTranscriptReader(TranscriptReader):
     """Reader for frontends that expose no transcript in a format we can read."""

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any
 
-from cline_hooks.frontends.claude_code.transcript import ClaudeCodeTranscriptReader
+from cline_hooks.frontends.claude_code.transcript import _TEAMMATE_PROBE_LINES, ClaudeCodeTranscriptReader
 
 _reader = ClaudeCodeTranscriptReader()
 get_context_tokens = _reader.context_tokens
@@ -238,6 +238,41 @@ class TestGetSubagentContextTokens:
     def test_missing_subagent_file_returns_none(self, tmp_path: Path) -> None:
         transcript_path = str(tmp_path / "session.jsonl")
         assert get_subagent_context_tokens(transcript_path, "sub1") is None
+
+
+class TestIsTeammate:
+    def test_true_when_first_message_entry_names_team_and_agent(self, tmp_path: Path) -> None:
+        path = _write_jsonl(
+            tmp_path / "t.jsonl",
+            [
+                {**_user(), "teamName": "session-team01", "agentName": "probe"},
+                _assistant_text("hi"),
+            ],
+        )
+        assert _reader.is_teammate(path) is True
+
+    def test_true_when_non_message_and_malformed_lines_precede_the_entry(self, tmp_path: Path) -> None:
+        path = tmp_path / "t.jsonl"
+        path.write_text(
+            '{"type": "summary"}\nnot json\n'
+            + json.dumps({**_user(), "teamName": "session-team01", "agentName": "probe"}),
+            encoding="utf-8",
+        )
+        assert _reader.is_teammate(str(path)) is True
+
+    def test_false_for_lead_style_transcript(self, tmp_path: Path) -> None:
+        path = _write_jsonl(tmp_path / "t.jsonl", [_user(), _assistant_text("hi")])
+        assert _reader.is_teammate(path) is False
+
+    def test_false_for_missing_file(self, tmp_path: Path) -> None:
+        assert _reader.is_teammate(str(tmp_path / "missing.jsonl")) is False
+
+    def test_false_when_fields_appear_only_beyond_the_probe_cap(self, tmp_path: Path) -> None:
+        filler = [{"type": "summary"}] * _TEAMMATE_PROBE_LINES
+        path = _write_jsonl(
+            tmp_path / "t.jsonl", [*filler, {**_user(), "teamName": "session-team01", "agentName": "probe"}]
+        )
+        assert _reader.is_teammate(path) is False
 
 
 class TestGetTurnAssistantText:

@@ -101,6 +101,7 @@ def _pre_shell(hook: HookInputPreToolUse, fields: PreToolUseFields, plugins: lis
         workspace_roots=hook.workspaceRoots,
         agent_type=hook.agentType,
         agent_id=hook.agentId,
+        is_teammate=hook.isTeammate,
     )
 
 
@@ -126,6 +127,7 @@ def _pre_mcp(hook: HookInputPreToolUse, fields: PreToolUseFields, plugins: list[
         mcp_arguments=tool.arguments,
         agent_type=hook.agentType,
         agent_id=hook.agentId,
+        is_teammate=hook.isTeammate,
     )
 
 
@@ -150,6 +152,7 @@ def _pre_attempt_completion(hook: HookInputPreToolUse, fields: PreToolUseFields,
         workspace_roots=hook.workspaceRoots,
         task_progress=task_progress,
         agent_id=hook.agentId,
+        is_teammate=hook.isTeammate,
     )
     if result.block:
         return Outcome.block(result.block)
@@ -191,6 +194,7 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> Outcome:
         workspace_roots=hook.workspaceRoots,
         agent_type=hook.agentType,
         agent_id=hook.agentId,
+        is_teammate=hook.isTeammate,
     )
 
     handler = TOOL_HANDLERS.get((CanonicalHook.PRE_TOOL_USE, tool_name))

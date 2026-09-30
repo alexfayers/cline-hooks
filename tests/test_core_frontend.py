@@ -106,6 +106,7 @@ class TestProtocolDefaults:
         assert isinstance(_Bare.transcript, NullTranscriptReader)
         assert _Bare.transcript.context_tokens("/some/path") is None
         assert _Bare.transcript.turn_assistant_text("/some/path") == ""
+        assert _Bare.transcript.is_teammate("/some/path") is False
 
     def test_an_undeclared_frontend_carries_no_spec(self) -> None:
         assert _Bare.frontend_spec is None

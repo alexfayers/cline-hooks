@@ -128,6 +128,7 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> Outcome:
             workspace_roots=hook.workspaceRoots,
             agent_type=hook.agentType,
             agent_id=hook.agentId,
+            is_teammate=hook.isTeammate,
         )
         return Outcome.allow("\n\n".join(failure_result.notes))
 
@@ -155,6 +156,7 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> Outcome:
         workspace_roots=hook.workspaceRoots,
         agent_type=hook.agentType,
         agent_id=hook.agentId,
+        is_teammate=hook.isTeammate,
     )
 
     result = collect_hook_results(
@@ -171,6 +173,7 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> Outcome:
         success=hook.postToolUse.success,
         tool_result=hook.postToolUse.result,
         agent_id=hook.agentId,
+        is_teammate=hook.isTeammate,
     )
 
     outcome = Outcome()

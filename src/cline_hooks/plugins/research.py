@@ -98,16 +98,25 @@ def get_research(task_id: str) -> list[dict[str, str]]:
     return _store.get(task_id).records
 
 
-def reset(task_id: str, *, discard_children: bool = True) -> None:
+def reset(task_id: str) -> None:
     """Clear recorded research for a session.
 
     Args:
         task_id: The session or task identifier.
-        discard_children: Also clear every per-agent entry nested under this
-            task id. Set False for a per-turn reset that must not disturb
-            another agent's still-running trace.
     """
-    _store.reset(task_id, discard_children=discard_children)
+    _store.reset(task_id)
+
+
+def drain_research(task_id: str) -> list[dict[str, str]]:
+    """Remove and return the research lookups recorded for a session and its subagents.
+
+    Args:
+        task_id: The session or task identifier.
+
+    Returns:
+        A list of {"tool": ..., "detail": ...} records, the session's own first.
+    """
+    return [record for state in _store.drain(task_id) for record in state.records]
 
 
 def get_all_research_tool_names(plugins: list[HooksPlugin]) -> frozenset[str]:
@@ -297,13 +306,12 @@ class ResearchPlugin(HooksPlugin):
             if isinstance(task_id, str):
                 reset(task_id)
             return None
-        if hook_name not in {CanonicalHook.STOP, CanonicalHook.SUBAGENT_STOP}:
+        if hook_name != CanonicalHook.STOP:
             return None
         task_id = kwargs.get("task_id")
         if not isinstance(task_id, str):
             return None
-        trace = format_research_trace(get_research(task_id), research_trace_header())
-        reset(task_id, discard_children=False)
+        trace = format_research_trace(drain_research(task_id), research_trace_header())
         if not trace:
             return None
         return HookResult(notes=[trace])

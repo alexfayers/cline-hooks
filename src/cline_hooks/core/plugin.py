@@ -64,16 +64,17 @@ class ToolingNote:
 def is_subagent(kwargs: Mapping[str, object]) -> bool:
     """Return True if a hook call is running inside a spawned subagent.
 
-    A subagent carries a non-empty agent_id; the main agent loop has none.
+    A subagent carries a non-empty agent_id, and a split-pane agent-team teammate
+    carries is_teammate; the main agent loop has neither.
 
     Args:
         kwargs: The raw keyword arguments passed to on_hook.
 
     Returns:
-        True if agent_id is a non-empty string, False otherwise.
+        True for a subagent or teammate, False otherwise.
     """
     agent_id = kwargs.get("agent_id")
-    return isinstance(agent_id, str) and bool(agent_id)
+    return (isinstance(agent_id, str) and bool(agent_id)) or kwargs.get("is_teammate") is True
 
 
 def collect_hook_results(plugins: list[HooksPlugin], hook_name: str, **kwargs: object) -> HookResult:

@@ -73,6 +73,7 @@ def handle_task_start(hook: HookInputTaskStart) -> None:
         source=source,
         agent_type=hook.agentType,
         agent_id=hook.agentId,
+        is_teammate=hook.isTeammate,
     )
     parts.extend(result.notes)
 
@@ -109,6 +110,7 @@ def handle_task_resume(hook: HookInputTaskResume) -> None:
         agent_type=hook.agentType,
         block_reasons=[block.reason for block in blocks],
         agent_id=hook.agentId,
+        is_teammate=hook.isTeammate,
     )
     parts.extend(result.notes)
 
@@ -133,6 +135,7 @@ def handle_task_cancel(hook: HookInputTaskCancel) -> None:
         "TaskCancel",
         task_id=hook.stateKey,
         agent_id=hook.agentId,
+        is_teammate=hook.isTeammate,
     )
     parts.extend(result.notes)
 
@@ -155,5 +158,6 @@ def handle_task_complete(hook: HookInputTaskComplete) -> None:
         "TaskComplete",
         task_id=hook.stateKey,
         agent_id=hook.agentId,
+        is_teammate=hook.isTeammate,
     )
     allow()

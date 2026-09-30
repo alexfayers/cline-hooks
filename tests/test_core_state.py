@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 import threading
 from typing import TYPE_CHECKING
 
@@ -67,13 +68,29 @@ class TestPluginStateStore:
         assert store.get("task-1:agent-a") == _SampleState()
         assert store.get("task-2") == _SampleState(count=3)
 
-    def test_reset_discard_children_false_keeps_per_agent_entries(self, tmp_path: Path) -> None:
+    def test_drain_returns_task_then_children_and_removes_them(self, tmp_path: Path) -> None:
+        path = tmp_path / "sample.json"
+        store = PluginStateStore("sample.json", _SampleState, path)
+        store.update("task-1:agent-a", _setter(2))
+        store.update("task-1", _setter(1))
+        store.update("task-1:agent-b", _setter(3))
+        assert store.drain("task-1") == [_SampleState(count=1), _SampleState(count=2), _SampleState(count=3)]
+        assert json.loads(path.read_text()) == {}
+
+    def test_drain_absent_key_returns_empty_and_creates_no_file(self, tmp_path: Path) -> None:
+        path = tmp_path / "sample.json"
+        store = PluginStateStore("sample.json", _SampleState, path)
+        assert store.drain("task-1") == []
+        assert not path.exists()
+
+    def test_drain_leaves_unrelated_keys(self, tmp_path: Path) -> None:
         store = PluginStateStore("sample.json", _SampleState, tmp_path / "sample.json")
         store.update("task-1", _setter(1))
-        store.update("task-1:agent-a", _setter(2))
-        store.reset("task-1", discard_children=False)
-        assert store.get("task-1") == _SampleState()
-        assert store.get("task-1:agent-a") == _SampleState(count=2)
+        store.update("task-10", _setter(2))
+        store.update("other", _setter(3))
+        store.drain("task-1")
+        assert store.get("task-10") == _SampleState(count=2)
+        assert store.get("other") == _SampleState(count=3)
 
     def test_corrupt_state_file_returns_default(self, tmp_path: Path) -> None:
         path = tmp_path / "sample.json"

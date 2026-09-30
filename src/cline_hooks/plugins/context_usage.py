@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from cline_hooks.core.plugin import HookResult, HooksPlugin
+from cline_hooks.core.plugin import HookResult, HooksPlugin, is_subagent
 from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.state import PluginStateStore
 from cline_hooks.core.vocabulary import NO_RESET_TASK_START_SOURCES, CanonicalHook
@@ -183,9 +183,9 @@ class ContextUsagePlugin(HooksPlugin):
             if isinstance(task_id, str) and source not in NO_RESET_TASK_START_SOURCES:
                 reset(task_id)
             return None
-        if hook_name == CanonicalHook.TASK_COMPLETE:
+        if hook_name in {CanonicalHook.TASK_COMPLETE, CanonicalHook.SUBAGENT_STOP}:
             task_id = kwargs.get("task_id")
-            if isinstance(task_id, str):
+            if isinstance(task_id, str) and (hook_name == CanonicalHook.TASK_COMPLETE or is_subagent(kwargs)):
                 reset(task_id)
             return None
         if hook_name not in {
@@ -202,13 +202,11 @@ class ContextUsagePlugin(HooksPlugin):
         agent_id = kwargs.get("agent_id")
         if isinstance(agent_id, str) and agent_id:
             token_count = get_protocol().transcript.subagent_context_tokens(transcript_path, agent_id)
-            is_subagent = True
         else:
             token_count = get_protocol().transcript.context_tokens(transcript_path)
-            is_subagent = False
         if token_count is None:
             return None
-        note = context_note(task_id, token_count, is_subagent=is_subagent)
+        note = context_note(task_id, token_count, is_subagent=is_subagent(kwargs))
         if note is None:
             return None
         logger.debug("Emitted context-usage note")

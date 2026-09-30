@@ -47,6 +47,7 @@ def handle_user_prompt_submit(hook: HookInputUserPromptSubmit) -> None:
         agent_type=hook.agentType,
         transcript_path=hook.transcriptPath,
         agent_id=hook.agentId,
+        is_teammate=hook.isTeammate,
     )
     notes.extend(result.notes)
 

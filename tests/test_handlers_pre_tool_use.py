@@ -9,8 +9,9 @@ import git
 import pytest
 
 from cline_hooks.core.plugin import HookResult, HooksPlugin
-from cline_hooks.core.protocol import RawPayload
+from cline_hooks.core.protocol import RawPayload, set_protocol
 from cline_hooks.core.response import emit
+from cline_hooks.frontends.claude_code.protocol import ClaudeCodeProtocol
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.handlers.pre_tool_use import handle_pre_tool_use
 from cline_hooks.plugins.managed_files import _is_managed_path
@@ -315,6 +316,28 @@ class TestClearBlocksOnPass:
             handle_pre_tool_use(hook)
         assert len(store.get_blocks("task-1:agent-7")) == 1
         assert store.get_blocks("task-1") == []
+
+
+class TestTeammateDelegationNudge:
+    def _edit_output(self, transcript_entry: dict[str, object], tmp_path: Path, mocker: MockerFixture) -> list[str]:
+        transcript = tmp_path / "transcript.jsonl"
+        transcript.write_text(json.dumps(transcript_entry) + "\n", encoding="utf-8")
+        mocker.patch.dict("os.environ", {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"})
+        set_protocol(ClaudeCodeProtocol())
+        hook = _make_hook("replace_in_file", {"path": "/x.py"}).model_copy(update={"transcriptPath": str(transcript)})
+        output: list[str] = []
+        with patch("builtins.print", side_effect=lambda s, **kw: output.append(s)), contextlib.suppress(SystemExit):
+            outcome = handle_pre_tool_use(hook)
+            if outcome is not None and outcome.message is not None:
+                emit(outcome)
+        return output
+
+    def test_teammate_gets_no_delegation_nudge(self, tmp_path: Path, mocker: MockerFixture) -> None:
+        entry: dict[str, object] = {"type": "user", "teamName": "session-team01", "agentName": "probe"}
+        assert self._edit_output(entry, tmp_path, mocker) == []
+
+    def test_lead_gets_delegation_nudge(self, tmp_path: Path, mocker: MockerFixture) -> None:
+        assert self._edit_output({"type": "user"}, tmp_path, mocker)
 
 
 class TestForwardsAgentType:

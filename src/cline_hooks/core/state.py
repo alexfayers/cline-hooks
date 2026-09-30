@@ -83,15 +83,31 @@ class PluginStateStore[StateT: "DataclassInstance"]:
             data[task_id] = dataclasses.asdict(state)
         return result
 
-    def reset(self, task_id: str, *, discard_children: bool = True) -> None:
-        """Clear the state entry for a task.
+    def reset(self, task_id: str) -> None:
+        """Clear the state entry for a task and every per-agent entry nested under it.
 
         Args:
             task_id: The session or task identifier.
-            discard_children: Also clear every per-agent entry nested under
-                this task id. Set False for a per-turn reset that must not
-                disturb another agent's still-running state.
         """
         discard_key(self._path, task_id)
-        if discard_children:
-            discard_prefix(self._path, f"{task_id}:")
+        discard_prefix(self._path, f"{task_id}:")
+
+    def drain(self, task_id: str) -> list[StateT]:
+        """Remove and return a task's state entry and every per-agent entry nested under it.
+
+        The presence check runs before the lock, so draining an absent task creates no
+        file and takes no lock.
+
+        Args:
+            task_id: The session or task identifier.
+
+        Returns:
+            The task's own state first, then its per-agent states in file order.
+        """
+        prefix = f"{task_id}:"
+        if not any(key == task_id or key.startswith(prefix) for key in self._read_all()):
+            return []
+        with updated_json(self._path, cast("dict[str, dict[str, Any]]", {})) as data:
+            keys = [task_id] if task_id in data else []
+            keys += [key for key in data if key.startswith(prefix)]
+            return [self._parse(data.pop(key)) for key in keys]
