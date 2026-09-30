@@ -123,9 +123,9 @@ def _file_edit_comment_guard(logger: logging.Logger, parameters: dict[str, Any])
                     notes.add("SHOULD NOT use type ignore comments; where necessary, MUST use a specific ignore.")
                 else:
                     notes.add(
-                        "MUST NOT write comments explaining the reasoning for a specific change. "
-                        "Comments SHOULD only be used to explain complex code. If comments are "
-                        "required, consider a different approach."
+                        "MUST NOT add a comment that refers to the change you are making, explains why, "
+                        "or names other code that uses, reuses or inherits it. "
+                        "Comments describe the code, only where genuinely complex."
                     )
 
     if not notes:
