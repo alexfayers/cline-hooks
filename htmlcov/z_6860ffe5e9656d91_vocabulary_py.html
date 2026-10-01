@@ -5,7 +5,7 @@
     <title>Coverage for src/cline_hooks/core/vocabulary.py: 100%</title>
     <link rel="icon" sizes="32x32" href="favicon_32_cb_c827f16f.png">
     <link rel="stylesheet" href="style_cb_4667309f.css" type="text/css">
-    <script src="coverage_html_cb_dd2e7eb5.js" defer></script>
+    <script src="coverage_html_cb_15cffcd0.js" defer></script>
 </head>
 <body class="pyfile">
 <header>
@@ -55,8 +55,8 @@
             </div>
         </aside>
         <h2>
-            <span class="text">44 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">44<span class="text"> run</span></button>
+            <span class="text">45 statements &nbsp;</span>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">45<span class="text"> run</span></button>
             <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">0<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
             <button type="button" class="par run show_par button_toggle_par" value="par" data-shortcut="p" title="Toggle lines partially run">0<span class="text"> partial</span></button>
@@ -66,8 +66,8 @@
             <a id="indexLink" class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
             <a id="nextFileLink" class="nav" href="z_be9c4269f25476fe___init___py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io/en/7.15.4">coverage.py v7.15.4</a>,
-            created at 2026-09-23 20:55 +0000
+            <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
+            created at 2026-10-01 09:18 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -118,36 +118,37 @@
     <p class="run"><span class="n"><a id="t34" href="#t34">34</a></span><span class="t">    <span class="nam">USER_PROMPT_SUBMIT</span> <span class="op">=</span> <span class="str">&quot;UserPromptSubmit&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t35" href="#t35">35</a></span><span class="t">    <span class="nam">PRE_COMPACT</span> <span class="op">=</span> <span class="str">&quot;PreCompact&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t36" href="#t36">36</a></span><span class="t">    <span class="nam">STOP</span> <span class="op">=</span> <span class="str">&quot;Stop&quot;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t37" href="#t37">37</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t37" href="#t37">37</a></span><span class="t">    <span class="nam">SUBAGENT_STOP</span> <span class="op">=</span> <span class="str">&quot;SubagentStop&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t38" href="#t38">38</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t39" href="#t39">39</a></span><span class="t"><span class="key">class</span> <span class="nam">PluginScope</span><span class="op">(</span><span class="nam">StrEnum</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t40" href="#t40">40</a></span><span class="t">    <span class="str">&quot;&quot;&quot;Plugin-dispatch scope name that is not a lifecycle hook event.&quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t41" href="#t41">41</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t42" href="#t42">42</a></span><span class="t">    <span class="nam">PRE_MCP_TOOL_USE</span> <span class="op">=</span> <span class="str">&quot;PreMcpToolUse&quot;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t43" href="#t43">43</a></span><span class="t">    <span class="nam">ATTEMPT_COMPLETION</span> <span class="op">=</span> <span class="str">&quot;AttemptCompletion&quot;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t44" href="#t44">44</a></span><span class="t">    <span class="nam">PRE_SHELL</span> <span class="op">=</span> <span class="str">&quot;PreShell&quot;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t45" href="#t45">45</a></span><span class="t">    <span class="nam">TRACK_TOOL_USE</span> <span class="op">=</span> <span class="str">&quot;TrackToolUse&quot;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t46" href="#t46">46</a></span><span class="t">    <span class="nam">TOOL_FAILED</span> <span class="op">=</span> <span class="str">&quot;ToolFailed&quot;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t47" href="#t47">47</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t39" href="#t39">39</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t40" href="#t40">40</a></span><span class="t"><span class="key">class</span> <span class="nam">PluginScope</span><span class="op">(</span><span class="nam">StrEnum</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t41" href="#t41">41</a></span><span class="t">    <span class="str">&quot;&quot;&quot;Plugin-dispatch scope name that is not a lifecycle hook event.&quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t42" href="#t42">42</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t43" href="#t43">43</a></span><span class="t">    <span class="nam">PRE_MCP_TOOL_USE</span> <span class="op">=</span> <span class="str">&quot;PreMcpToolUse&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t44" href="#t44">44</a></span><span class="t">    <span class="nam">ATTEMPT_COMPLETION</span> <span class="op">=</span> <span class="str">&quot;AttemptCompletion&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t45" href="#t45">45</a></span><span class="t">    <span class="nam">PRE_SHELL</span> <span class="op">=</span> <span class="str">&quot;PreShell&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t46" href="#t46">46</a></span><span class="t">    <span class="nam">TRACK_TOOL_USE</span> <span class="op">=</span> <span class="str">&quot;TrackToolUse&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t47" href="#t47">47</a></span><span class="t">    <span class="nam">TOOL_FAILED</span> <span class="op">=</span> <span class="str">&quot;ToolFailed&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t48" href="#t48">48</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t49" href="#t49">49</a></span><span class="t"><span class="key">class</span> <span class="nam">TaskSource</span><span class="op">(</span><span class="nam">StrEnum</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t50" href="#t50">50</a></span><span class="t">    <span class="str">&quot;&quot;&quot;Frontend-agnostic reason a task/session started or resumed.&quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t51" href="#t51">51</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t52" href="#t52">52</a></span><span class="t">    <span class="nam">STARTUP</span> <span class="op">=</span> <span class="str">&quot;startup&quot;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t53" href="#t53">53</a></span><span class="t">    <span class="nam">RESUME</span> <span class="op">=</span> <span class="str">&quot;resume&quot;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t54" href="#t54">54</a></span><span class="t">    <span class="nam">COMPACT</span> <span class="op">=</span> <span class="str">&quot;compact&quot;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t55" href="#t55">55</a></span><span class="t">    <span class="nam">CLEAR</span> <span class="op">=</span> <span class="str">&quot;clear&quot;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t56" href="#t56">56</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t49" href="#t49">49</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t50" href="#t50">50</a></span><span class="t"><span class="key">class</span> <span class="nam">TaskSource</span><span class="op">(</span><span class="nam">StrEnum</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t51" href="#t51">51</a></span><span class="t">    <span class="str">&quot;&quot;&quot;Frontend-agnostic reason a task/session started or resumed.&quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t52" href="#t52">52</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t53" href="#t53">53</a></span><span class="t">    <span class="nam">STARTUP</span> <span class="op">=</span> <span class="str">&quot;startup&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t54" href="#t54">54</a></span><span class="t">    <span class="nam">RESUME</span> <span class="op">=</span> <span class="str">&quot;resume&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t55" href="#t55">55</a></span><span class="t">    <span class="nam">COMPACT</span> <span class="op">=</span> <span class="str">&quot;compact&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t56" href="#t56">56</a></span><span class="t">    <span class="nam">CLEAR</span> <span class="op">=</span> <span class="str">&quot;clear&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t57" href="#t57">57</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t58" href="#t58">58</a></span><span class="t"><span class="nam">SHELL_TOOLS</span> <span class="op">=</span> <span class="nam">frozenset</span><span class="op">(</span><span class="op">{</span><span class="nam">CanonicalTool</span><span class="op">.</span><span class="nam">SHELL</span><span class="op">}</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t59" href="#t59">59</a></span><span class="t"><span class="nam">FILE_EDIT_TOOLS</span> <span class="op">=</span> <span class="nam">frozenset</span><span class="op">(</span><span class="op">{</span><span class="nam">CanonicalTool</span><span class="op">.</span><span class="nam">EDIT</span><span class="op">,</span> <span class="nam">CanonicalTool</span><span class="op">.</span><span class="nam">WRITE</span><span class="op">}</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t60" href="#t60">60</a></span><span class="t"><span class="nam">FILE_READ_TOOLS</span> <span class="op">=</span> <span class="nam">frozenset</span><span class="op">(</span><span class="op">{</span><span class="nam">CanonicalTool</span><span class="op">.</span><span class="nam">READ</span><span class="op">}</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t61" href="#t61">61</a></span><span class="t"><span class="nam">SKILL_TOOLS</span> <span class="op">=</span> <span class="nam">frozenset</span><span class="op">(</span><span class="op">{</span><span class="nam">CanonicalTool</span><span class="op">.</span><span class="nam">SKILL</span><span class="op">}</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t62" href="#t62">62</a></span><span class="t"><span class="nam">AGENT_SPAWN_TOOLS</span> <span class="op">=</span> <span class="nam">frozenset</span><span class="op">(</span><span class="op">{</span><span class="nam">CanonicalTool</span><span class="op">.</span><span class="nam">SPAWN_AGENT</span><span class="op">}</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t63" href="#t63">63</a></span><span class="t"><span class="nam">PLAN_EXIT_TOOLS</span> <span class="op">=</span> <span class="nam">frozenset</span><span class="op">(</span><span class="op">{</span><span class="nam">CanonicalTool</span><span class="op">.</span><span class="nam">PLAN_EXIT</span><span class="op">,</span> <span class="nam">CanonicalTool</span><span class="op">.</span><span class="nam">PLAN_MODE_RESPOND</span><span class="op">}</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t64" href="#t64">64</a></span><span class="t"><span class="nam">KNOWN_TOOLS</span> <span class="op">=</span> <span class="nam">frozenset</span><span class="op">(</span><span class="nam">CanonicalTool</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t65" href="#t65">65</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t66" href="#t66">66</a></span><span class="t"><span class="nam">NO_RESET_TASK_START_SOURCES</span> <span class="op">=</span> <span class="nam">frozenset</span><span class="op">(</span><span class="op">{</span><span class="nam">TaskSource</span><span class="op">.</span><span class="nam">RESUME</span><span class="op">,</span> <span class="nam">TaskSource</span><span class="op">.</span><span class="nam">COMPACT</span><span class="op">}</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t58" href="#t58">58</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t59" href="#t59">59</a></span><span class="t"><span class="nam">SHELL_TOOLS</span> <span class="op">=</span> <span class="nam">frozenset</span><span class="op">(</span><span class="op">{</span><span class="nam">CanonicalTool</span><span class="op">.</span><span class="nam">SHELL</span><span class="op">}</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t60" href="#t60">60</a></span><span class="t"><span class="nam">FILE_EDIT_TOOLS</span> <span class="op">=</span> <span class="nam">frozenset</span><span class="op">(</span><span class="op">{</span><span class="nam">CanonicalTool</span><span class="op">.</span><span class="nam">EDIT</span><span class="op">,</span> <span class="nam">CanonicalTool</span><span class="op">.</span><span class="nam">WRITE</span><span class="op">}</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t61" href="#t61">61</a></span><span class="t"><span class="nam">FILE_READ_TOOLS</span> <span class="op">=</span> <span class="nam">frozenset</span><span class="op">(</span><span class="op">{</span><span class="nam">CanonicalTool</span><span class="op">.</span><span class="nam">READ</span><span class="op">}</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t62" href="#t62">62</a></span><span class="t"><span class="nam">SKILL_TOOLS</span> <span class="op">=</span> <span class="nam">frozenset</span><span class="op">(</span><span class="op">{</span><span class="nam">CanonicalTool</span><span class="op">.</span><span class="nam">SKILL</span><span class="op">}</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t63" href="#t63">63</a></span><span class="t"><span class="nam">AGENT_SPAWN_TOOLS</span> <span class="op">=</span> <span class="nam">frozenset</span><span class="op">(</span><span class="op">{</span><span class="nam">CanonicalTool</span><span class="op">.</span><span class="nam">SPAWN_AGENT</span><span class="op">}</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t64" href="#t64">64</a></span><span class="t"><span class="nam">PLAN_EXIT_TOOLS</span> <span class="op">=</span> <span class="nam">frozenset</span><span class="op">(</span><span class="op">{</span><span class="nam">CanonicalTool</span><span class="op">.</span><span class="nam">PLAN_EXIT</span><span class="op">,</span> <span class="nam">CanonicalTool</span><span class="op">.</span><span class="nam">PLAN_MODE_RESPOND</span><span class="op">}</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t65" href="#t65">65</a></span><span class="t"><span class="nam">KNOWN_TOOLS</span> <span class="op">=</span> <span class="nam">frozenset</span><span class="op">(</span><span class="nam">CanonicalTool</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t66" href="#t66">66</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t67" href="#t67">67</a></span><span class="t"><span class="nam">NO_RESET_TASK_START_SOURCES</span> <span class="op">=</span> <span class="nam">frozenset</span><span class="op">(</span><span class="op">{</span><span class="nam">TaskSource</span><span class="op">.</span><span class="nam">RESUME</span><span class="op">,</span> <span class="nam">TaskSource</span><span class="op">.</span><span class="nam">COMPACT</span><span class="op">}</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
 </main>
 <footer>
     <div class="content">
@@ -156,8 +157,8 @@
             <a class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
             <a class="nav" href="z_be9c4269f25476fe___init___py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io/en/7.15.4">coverage.py v7.15.4</a>,
-            created at 2026-09-23 20:55 +0000
+            <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
+            created at 2026-10-01 09:18 +0000
         </p>
     </div>
 </footer>
