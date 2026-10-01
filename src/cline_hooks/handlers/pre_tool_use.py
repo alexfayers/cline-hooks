@@ -95,11 +95,13 @@ def _pre_shell(hook: HookInputPreToolUse, fields: PreToolUseFields, plugins: lis
     return _hook_result_outcome(
         PluginScope.PRE_SHELL,
         plugins,
-        hook.taskId,
+        hook.stateKey,
         fields.toolName,
         command=command,
         workspace_roots=hook.workspaceRoots,
         agent_type=hook.agentType,
+        agent_id=hook.agentId,
+        is_teammate=hook.isTeammate,
     )
 
 
@@ -119,11 +121,13 @@ def _pre_mcp(hook: HookInputPreToolUse, fields: PreToolUseFields, plugins: list[
     return _hook_result_outcome(
         PluginScope.PRE_MCP_TOOL_USE,
         plugins,
-        hook.taskId,
+        hook.stateKey,
         fields.toolName,
         mcp_tool_name=tool.tool_name,
         mcp_arguments=tool.arguments,
         agent_type=hook.agentType,
+        agent_id=hook.agentId,
+        is_teammate=hook.isTeammate,
     )
 
 
@@ -144,9 +148,11 @@ def _pre_attempt_completion(hook: HookInputPreToolUse, fields: PreToolUseFields,
     result = collect_hook_results(
         plugins,
         PluginScope.ATTEMPT_COMPLETION,
-        task_id=hook.taskId,
+        task_id=hook.stateKey,
         workspace_roots=hook.workspaceRoots,
         task_progress=task_progress,
+        agent_id=hook.agentId,
+        is_teammate=hook.isTeammate,
     )
     if result.block:
         return Outcome.block(result.block)
@@ -176,17 +182,19 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> Outcome:
 
     logger.info("Called %s", tool_name)
 
-    TaskStateStore().clear_blocks(hook.taskId)
+    TaskStateStore().clear_blocks(hook.stateKey, discard_children=False)
 
     plugins = load_plugins()
     outcome = _hook_result_outcome(
         CanonicalHook.PRE_TOOL_USE,
         plugins,
-        hook.taskId,
+        hook.stateKey,
         tool_name,
         parameters=hook.preToolUse.parameters,
         workspace_roots=hook.workspaceRoots,
         agent_type=hook.agentType,
+        agent_id=hook.agentId,
+        is_teammate=hook.isTeammate,
     )
 
     handler = TOOL_HANDLERS.get((CanonicalHook.PRE_TOOL_USE, tool_name))
@@ -194,6 +202,6 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> Outcome:
         outcome = outcome.merge(handler(hook, hook.preToolUse, plugins))
 
     if outcome.disposition is Disposition.BLOCK:
-        TaskStateStore().record_block(hook.taskId, tool_name, outcome.message or "")
+        TaskStateStore().record_block(hook.stateKey, tool_name, outcome.message or "")
 
     return outcome

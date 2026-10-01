@@ -42,10 +42,12 @@ def handle_user_prompt_submit(hook: HookInputUserPromptSubmit) -> None:
         load_plugins(),
         "UserPromptSubmit",
         message=message,
-        task_id=hook.taskId,
+        task_id=hook.stateKey,
         workspace_roots=hook.workspaceRoots,
         agent_type=hook.agentType,
         transcript_path=hook.transcriptPath,
+        agent_id=hook.agentId,
+        is_teammate=hook.isTeammate,
     )
     notes.extend(result.notes)
 

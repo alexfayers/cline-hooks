@@ -1,10 +1,22 @@
 from __future__ import annotations
 
+import logging
+from typing import TYPE_CHECKING
+
+from cline_hooks.core.plugin import HookResult
+from cline_hooks.core.vocabulary import CanonicalHook
 from cline_hooks.plugins.context_usage import (
     _BAND_SIZE,
+    CONTEXT_REDUCED_THRESHOLD,
+    ContextUsagePlugin,
     reset,
     should_nudge_context,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from tests.conftest import StubTranscript
 
 
 class TestShouldNudgeContext:
@@ -55,3 +67,36 @@ class TestReset:
         should_nudge_context("b", _BAND_SIZE)
         reset("a")
         assert should_nudge_context("b", _BAND_SIZE) is False
+
+
+class TestTeammateWording:
+    def test_teammate_gets_subagent_wording_from_main_token_source(
+        self, stub_transcript: Callable[..., StubTranscript]
+    ) -> None:
+        stub_transcript(tokens=CONTEXT_REDUCED_THRESHOLD, subagent_tokens=0)
+        result = ContextUsagePlugin().on_hook(
+            CanonicalHook.POST_TOOL_USE,
+            logger=logging.getLogger("test"),
+            task_id="t",
+            transcript_path="/tmp/transcript.jsonl",
+            is_teammate=True,
+        )
+        assert isinstance(result, HookResult)
+        assert f"{CONTEXT_REDUCED_THRESHOLD:,} tokens" in result.notes[0]
+        assert "caller/lead" in result.notes[0]
+
+
+class TestSubagentStopReset:
+    def test_resets_subagent_scope_and_keeps_parent(self) -> None:
+        should_nudge_context("t", _BAND_SIZE)
+        should_nudge_context("t:a", _BAND_SIZE)
+        ContextUsagePlugin().on_hook(
+            CanonicalHook.SUBAGENT_STOP, logger=logging.getLogger("test"), agent_id="a", task_id="t:a"
+        )
+        assert should_nudge_context("t:a", _BAND_SIZE) is True
+        assert should_nudge_context("t", _BAND_SIZE) is False
+
+    def test_without_agent_id_is_noop(self) -> None:
+        should_nudge_context("t:a", _BAND_SIZE)
+        ContextUsagePlugin().on_hook(CanonicalHook.SUBAGENT_STOP, logger=logging.getLogger("test"), task_id="t:a")
+        assert should_nudge_context("t:a", _BAND_SIZE) is False

@@ -68,10 +68,12 @@ def handle_task_start(hook: HookInputTaskStart) -> None:
     result = collect_hook_results(
         plugins,
         "TaskStart",
-        task_id=hook.taskId,
+        task_id=hook.stateKey,
         workspace_roots=hook.workspaceRoots,
         source=source,
         agent_type=hook.agentType,
+        agent_id=hook.agentId,
+        is_teammate=hook.isTeammate,
     )
     parts.extend(result.notes)
 
@@ -103,10 +105,12 @@ def handle_task_resume(hook: HookInputTaskResume) -> None:
     result = collect_hook_results(
         plugins,
         "TaskResume",
-        task_id=hook.taskId,
+        task_id=hook.stateKey,
         workspace_roots=hook.workspaceRoots,
         agent_type=hook.agentType,
         block_reasons=[block.reason for block in blocks],
+        agent_id=hook.agentId,
+        is_teammate=hook.isTeammate,
     )
     parts.extend(result.notes)
 
@@ -126,7 +130,13 @@ def handle_task_cancel(hook: HookInputTaskCancel) -> None:
     if blocks:
         parts.append(_format_block_history(blocks))
 
-    result = collect_hook_results(load_plugins(), "TaskCancel", task_id=hook.taskId)
+    result = collect_hook_results(
+        load_plugins(),
+        "TaskCancel",
+        task_id=hook.stateKey,
+        agent_id=hook.agentId,
+        is_teammate=hook.isTeammate,
+    )
     parts.extend(result.notes)
 
     allow("\n\n".join(parts), prefix="")
@@ -143,5 +153,11 @@ def handle_task_complete(hook: HookInputTaskComplete) -> None:
     _reset_memory(hook.taskId)
     _reset_agents(hook.taskId)
     reset_workspace(hook.taskId)
-    collect_hook_results(load_plugins(), "TaskComplete", task_id=hook.taskId)
+    collect_hook_results(
+        load_plugins(),
+        "TaskComplete",
+        task_id=hook.stateKey,
+        agent_id=hook.agentId,
+        is_teammate=hook.isTeammate,
+    )
     allow()

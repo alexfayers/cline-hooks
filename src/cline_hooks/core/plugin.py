@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 import cline_hooks.plugins as _plugins_pkg
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Mapping
     from typing import Any
 
     from cline_hooks.handlers.commands import CommandRule
@@ -59,6 +59,22 @@ class ToolingNote:
 
     note: str
     replaces_generic: bool = True
+
+
+def is_subagent(kwargs: Mapping[str, object]) -> bool:
+    """Return True if a hook call is running inside a spawned subagent.
+
+    A subagent carries a non-empty agent_id, and a split-pane agent-team teammate
+    carries is_teammate; the main agent loop has neither.
+
+    Args:
+        kwargs: The raw keyword arguments passed to on_hook.
+
+    Returns:
+        True for a subagent or teammate, False otherwise.
+    """
+    agent_id = kwargs.get("agent_id")
+    return (isinstance(agent_id, str) and bool(agent_id)) or kwargs.get("is_teammate") is True
 
 
 def collect_hook_results(plugins: list[HooksPlugin], hook_name: str, **kwargs: object) -> HookResult:

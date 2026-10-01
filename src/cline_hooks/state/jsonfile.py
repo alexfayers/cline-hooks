@@ -68,3 +68,21 @@ def discard_key(path: Path, key: str) -> None:
         return
     with updated_json(path, cast("dict[str, object]", {})) as data:
         data.pop(key, None)
+
+
+def discard_prefix(path: Path, prefix: str) -> None:
+    """Remove every top-level key starting with a prefix, leaving no match untouched.
+
+    The presence check runs before the lock, so clearing an absent prefix creates no
+    file and takes no lock. The removal itself still happens under the lock, so a
+    concurrent update cannot be lost.
+
+    Args:
+        path: The state file path.
+        prefix: The top-level key prefix to remove.
+    """
+    if not any(key.startswith(prefix) for key in read_json(path, cast("dict[str, object]", {}))):
+        return
+    with updated_json(path, cast("dict[str, object]", {})) as data:
+        for key in [key for key in data if key.startswith(prefix)]:
+            data.pop(key, None)

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from cline_hooks.core.plugin import HookResult, HooksPlugin
+from cline_hooks.core.plugin import HookResult, HooksPlugin, is_subagent
 from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.state import PluginStateStore
 from cline_hooks.core.vocabulary import NO_RESET_TASK_START_SOURCES, CanonicalHook
@@ -118,17 +118,33 @@ _CONTEXT_NUDGE_SEVERE = (
     "and hand off to a fresh session unless told to continue."
 )
 
+_CONTEXT_NUDGE_REDUCED_SUBAGENT = (
+    f"{_CONTEXT_STATUS} Accuracy degrading past {CONTEXT_REDUCED_THRESHOLD // 1000}k. MUST report your state to "
+    "your caller/lead before starting new planning or implementation. To continue, MUST record current state in "
+    "memory."
+)
 
-def context_note(task_id: str, token_count: int) -> str | None:
+_CONTEXT_NUDGE_SEVERE_SUBAGENT = (
+    f"{_CONTEXT_STATUS} Accuracy badly degraded. MUST push back on new work - report your state to your "
+    "caller/lead and ask to be replaced."
+)
+
+
+def context_note(task_id: str, token_count: int, *, is_subagent: bool = False) -> str | None:
     """Return the context-usage nudge for the current token count, or None.
 
     Fires at most once per 10k-token band, from whichever call site reaches
     that band first. The longer per-tier text is appended only on the note
-    that first crosses into that tier; later same-tier notes stay short.
+    that first crosses into that tier; later same-tier notes stay short. A
+    subagent or teammate cannot address the human user directly, so its tier
+    text points it at its caller/lead instead, and skips the team-stop clause
+    that only makes sense from the main agent.
 
     Args:
-        task_id: The session or task identifier.
+        task_id: The per-agent state key.
         token_count: The current context token count.
+        is_subagent: Whether this hook fired for a subagent/teammate rather
+            than the main agent.
 
     Returns:
         The nudge text, or None when nothing should fire this check.
@@ -137,8 +153,12 @@ def context_note(task_id: str, token_count: int) -> str | None:
         return None
     boundary = crossed_boundary(task_id, token_count)
     if boundary == CONTEXT_DEGRADED_THRESHOLD:
+        if is_subagent:
+            return _CONTEXT_NUDGE_SEVERE_SUBAGENT.format(tokens=token_count)
         return with_team_clause(_CONTEXT_NUDGE_SEVERE.format(tokens=token_count), task_id)
     if boundary == CONTEXT_REDUCED_THRESHOLD:
+        if is_subagent:
+            return _CONTEXT_NUDGE_REDUCED_SUBAGENT.format(tokens=token_count)
         return with_team_clause(_CONTEXT_NUDGE_REDUCED.format(tokens=token_count), task_id)
     return _CONTEXT_NUDGE_INFO.format(tokens=token_count)
 
@@ -163,9 +183,9 @@ class ContextUsagePlugin(HooksPlugin):
             if isinstance(task_id, str) and source not in NO_RESET_TASK_START_SOURCES:
                 reset(task_id)
             return None
-        if hook_name == CanonicalHook.TASK_COMPLETE:
+        if hook_name in {CanonicalHook.TASK_COMPLETE, CanonicalHook.SUBAGENT_STOP}:
             task_id = kwargs.get("task_id")
-            if isinstance(task_id, str):
+            if isinstance(task_id, str) and (hook_name == CanonicalHook.TASK_COMPLETE or is_subagent(kwargs)):
                 reset(task_id)
             return None
         if hook_name not in {
@@ -179,10 +199,14 @@ class ContextUsagePlugin(HooksPlugin):
             return None
         if not transcript_path:
             return None
-        token_count = get_protocol().transcript.context_tokens(transcript_path)
+        agent_id = kwargs.get("agent_id")
+        if isinstance(agent_id, str) and agent_id:
+            token_count = get_protocol().transcript.subagent_context_tokens(transcript_path, agent_id)
+        else:
+            token_count = get_protocol().transcript.context_tokens(transcript_path)
         if token_count is None:
             return None
-        note = context_note(task_id, token_count)
+        note = context_note(task_id, token_count, is_subagent=is_subagent(kwargs))
         if note is None:
             return None
         logger.debug("Emitted context-usage note")

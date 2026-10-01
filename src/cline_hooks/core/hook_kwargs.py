@@ -46,6 +46,7 @@ class PreToolUseKwargs(HookKwargs):
     parameters: dict[str, JsonValue] = Field(default_factory=dict)
     workspace_roots: list[str] = Field(default_factory=list)
     agent_type: str = ""
+    agent_id: str | None = None
 
 
 class PreShellKwargs(HookKwargs):
@@ -56,6 +57,7 @@ class PreShellKwargs(HookKwargs):
     command: str = ""
     workspace_roots: list[str] = Field(default_factory=list)
     agent_type: str = ""
+    agent_id: str | None = None
 
 
 class TrackToolUseKwargs(HookKwargs):
@@ -68,6 +70,7 @@ class TrackToolUseKwargs(HookKwargs):
     mcp_tool_name: str | None = None
     workspace_roots: list[str] = Field(default_factory=list)
     agent_type: str = ""
+    agent_id: str | None = None
 
 
 class ToolFailedKwargs(HookKwargs):
@@ -78,3 +81,4 @@ class ToolFailedKwargs(HookKwargs):
     parameters: dict[str, JsonValue] = Field(default_factory=dict)
     workspace_roots: list[str] = Field(default_factory=list)
     agent_type: str = ""
+    agent_id: str | None = None

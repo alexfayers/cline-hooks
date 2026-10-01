@@ -25,23 +25,25 @@ def _disable(mocker: MockerFixture) -> None:
     mocker.patch.dict("os.environ", {}, clear=True)
 
 
-def _pre_tool_use(tool_name: str, *, agent_type: str = "") -> dict[str, object]:
+def _pre_tool_use(tool_name: str, *, agent_type: str = "", agent_id: str | None = None) -> dict[str, object]:
     return {
         "task_id": _TASK,
         "tool_name": tool_name,
         "parameters": {},
         "workspace_roots": [],
         "agent_type": agent_type,
+        "agent_id": agent_id,
     }
 
 
-def _pre_shell(command: str, *, agent_type: str = "") -> dict[str, object]:
+def _pre_shell(command: str, *, agent_type: str = "", agent_id: str | None = None) -> dict[str, object]:
     return {
         "task_id": _TASK,
         "tool_name": "execute_command",
         "command": command,
         "workspace_roots": [],
         "agent_type": agent_type,
+        "agent_id": agent_id,
     }
 
 
@@ -74,9 +76,29 @@ class TestFileEditTools:
         result = DelegationPlugin().on_hook(
             CanonicalHook.PRE_TOOL_USE,
             logger=logging.getLogger("test"),
-            **_pre_tool_use("replace_in_file", agent_type="Explore"),
+            **_pre_tool_use("replace_in_file", agent_type="Explore", agent_id="sub-1"),
         )
         assert result is None
+
+    def test_silent_for_teammate(self, mocker: MockerFixture) -> None:
+        _enable(mocker)
+        result = DelegationPlugin().on_hook(
+            CanonicalHook.PRE_TOOL_USE,
+            logger=logging.getLogger("test"),
+            is_teammate=True,
+            **_pre_tool_use("replace_in_file"),
+        )
+        assert result is None
+
+    def test_fires_for_top_level_main_agent(self, mocker: MockerFixture) -> None:
+        _enable(mocker)
+        result = DelegationPlugin().on_hook(
+            CanonicalHook.PRE_TOOL_USE,
+            logger=logging.getLogger("test"),
+            **_pre_tool_use("replace_in_file", agent_type="main"),
+        )
+        assert isinstance(result, HookResult)
+        assert result.notes
 
     def test_silent_after_agent_recorded(self, mocker: MockerFixture) -> None:
         _enable(mocker)

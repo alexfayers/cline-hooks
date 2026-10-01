@@ -22,12 +22,14 @@ class TestPreShellKwargs:
             "command": "ls -la",
             "workspace_roots": ["/repo"],
             "agent_type": "Explore",
+            "agent_id": "agent-7",
         })
         assert built.task_id == "t1"
         assert built.tool_name == "execute_command"
         assert built.command == "ls -la"
         assert built.workspace_roots == ["/repo"]
         assert built.agent_type == "Explore"
+        assert built.agent_id == "agent-7"
 
     def test_missing_fields_default_empty(self) -> None:
         built = PreShellKwargs.build({})
@@ -48,12 +50,14 @@ class TestPreToolUseKwargs:
             "parameters": {"path": "/x.py"},
             "workspace_roots": ["/repo"],
             "agent_type": "Explore",
+            "agent_id": "agent-7",
         })
         assert built.task_id == "t1"
         assert built.tool_name == "replace_in_file"
         assert built.parameters == {"path": "/x.py"}
         assert built.workspace_roots == ["/repo"]
         assert built.agent_type == "Explore"
+        assert built.agent_id == "agent-7"
 
     def test_missing_fields_default_empty(self) -> None:
         built = PreToolUseKwargs.build({})
@@ -76,12 +80,14 @@ class TestTrackToolUseKwargs:
             "mcp_tool_name": "SomeTool",
             "workspace_roots": ["/repo"],
             "agent_type": "Explore",
+            "agent_id": "agent-7",
         })
         assert built.parameters == {"k": "v"}
         assert built.is_state_write is True
         assert built.mcp_tool_name == "SomeTool"
         assert built.workspace_roots == ["/repo"]
         assert built.agent_type == "Explore"
+        assert built.agent_id == "agent-7"
 
     def test_missing_fields_default(self) -> None:
         built = TrackToolUseKwargs.build({})
@@ -98,11 +104,13 @@ class TestToolFailedKwargs:
             "parameters": {"command": "boom"},
             "workspace_roots": ["/repo"],
             "agent_type": "Explore",
+            "agent_id": "agent-7",
         })
         assert built.tool_name == "execute_command"
         assert built.parameters == {"command": "boom"}
         assert built.workspace_roots == ["/repo"]
         assert built.agent_type == "Explore"
+        assert built.agent_id == "agent-7"
 
 
 class TestFailOpen:

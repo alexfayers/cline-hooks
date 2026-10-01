@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from cline_hooks.core.plugin import HookResult, HooksPlugin
+from cline_hooks.core.plugin import HookResult, HooksPlugin, is_subagent
 from cline_hooks.core.vocabulary import CanonicalHook, PluginScope
 from cline_hooks.state.memory import has_memory_writes
 from cline_hooks.state.skills import is_session_end_skill
@@ -37,6 +37,8 @@ class PersistencePlugin(HooksPlugin):
             A HookResult carrying the relevant nudge, or None.
         """
         if hook_name == PluginScope.TOOL_FAILED:
+            if is_subagent(kwargs):
+                return None
             logger.debug("Fired persist-to-memory nudge after tool failure")
             return HookResult(notes=[_FAILURE_PERSIST_NOTE])
         if hook_name == CanonicalHook.POST_TOOL_USE:

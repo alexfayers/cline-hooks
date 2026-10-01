@@ -92,7 +92,7 @@ def _parse_hook(payload: RawPayload) -> tuple[Protocol, HookInput]:
     proto.configure_logging()
     hook = proto.parse(payload)
     _invocation_filter.frontend = proto.frontend_spec.name if proto.frontend_spec else "-"
-    _invocation_filter.agent = hook.agentType or "main"
+    _invocation_filter.agent = hook.agentId or hook.agentType or "main"
     return proto, hook
 
 

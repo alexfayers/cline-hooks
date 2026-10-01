@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 from datetime import UTC, datetime
 import json
 from typing import TYPE_CHECKING, cast
@@ -604,3 +605,26 @@ class TestPluginMessageForwarding:
         ):
             _run(message)
         assert captured.get("message") == message
+
+    def test_subagent_task_id_is_the_per_agent_state_key(self) -> None:
+        captured: dict[str, object] = {}
+
+        class _CapturingPlugin(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> None:
+                if hook_name == "UserPromptSubmit":
+                    captured.update(kwargs)
+
+        hook = _make_hook("Can you implement this feature?")
+        hook.agentId = "agent-7"
+        with (
+            patch(
+                "cline_hooks.handlers.user_prompt.load_plugins",
+                return_value=[_CapturingPlugin()],
+            ),
+            patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
+            patch("builtins.print"),
+            contextlib.suppress(SystemExit),
+        ):
+            handle_user_prompt_submit(hook)
+        assert captured.get("task_id") == "task-1:agent-7"
+        assert captured.get("agent_id") == "agent-7"

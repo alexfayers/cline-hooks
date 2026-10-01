@@ -98,3 +98,8 @@ class TestReset:
 
     def test_reset_nonexistent_is_noop(self) -> None:
         reset("nonexistent")
+
+    def test_reset_clears_per_agent_entries_for_the_task(self) -> None:
+        record_agent_use(f"{_TASK}:agent-a", "Agent")
+        reset(_TASK)
+        assert not has_agent_use(f"{_TASK}:agent-a")

@@ -107,6 +107,13 @@ class TestHandlePostToolUse:
         context = cast("str", result.get("contextModification", ""))
         assert "FAILED" in context
 
+    def test_failed_tool_for_subagent_does_not_fire_persist_reminder(self) -> None:
+        hook = _make_hook("replace_in_file", success=False)
+        hook.agentId = "agent-7"
+        result = _run(hook)
+        context = str((result or {}).get("contextModification", ""))
+        assert "persist" not in context.lower()
+
 
 class TestPostToolUseContextNudge:
     def test_info_note_fires_on_tool_use(self, stub_transcript: StubTranscriptT) -> None:
@@ -137,6 +144,47 @@ class TestPostToolUseContextNudge:
         assert result is None
 
 
+class TestPostToolUseContextNudgeSubagent:
+    def test_subagent_crossing_tier_band_gets_subagent_wording(self, stub_transcript: StubTranscriptT) -> None:
+        stub_transcript(subagent_tokens=310_000)
+        hook = _make_hook("Read", transcript_path="session.jsonl")
+        hook.agentId = "sub-1"
+        result = _run(hook)
+        assert result is not None
+        context = cast("str", result.get("contextModification", ""))
+        assert "report your state to your caller/lead" in context
+        assert "MUST ask the user" not in context
+
+    def test_subagent_missing_transcript_produces_no_nudge(self, stub_transcript: StubTranscriptT) -> None:
+        stub_transcript(subagent_tokens=None)
+        hook = _make_hook("Read", transcript_path="session.jsonl")
+        hook.agentId = "sub-1"
+        result = _run(hook)
+        context = cast("str", (result or {}).get("contextModification", ""))
+        assert "CONTEXT STATUS" not in context
+
+    def test_main_session_nudge_unchanged(self, stub_transcript: StubTranscriptT) -> None:
+        stub_transcript(tokens=150_000)
+        hook = _make_hook("Read", transcript_path="session.jsonl")
+        result = _run(hook)
+        assert result is not None
+        context = cast("str", result.get("contextModification", ""))
+        assert "CONTEXT STATUS" in context
+        assert "150,000" in context
+
+    def test_subagent_band_scoped_separately_from_main(self, stub_transcript: StubTranscriptT) -> None:
+        stub_transcript(tokens=150_000, subagent_tokens=150_000)
+        subagent_hook = _make_hook("Read", transcript_path="session.jsonl")
+        subagent_hook.agentId = "sub-1"
+        _run(subagent_hook)
+        main_hook = _make_hook("Read", transcript_path="session.jsonl")
+        result = _run(main_hook)
+        assert result is not None
+        context = cast("str", result.get("contextModification", ""))
+        assert "CONTEXT STATUS" in context
+        assert "150,000" in context
+
+
 class TestForwardsAgentType:
     def test_agent_type_forwarded_to_plugins(self) -> None:
         captured: list[dict[str, object]] = []
@@ -159,6 +207,29 @@ class TestForwardsAgentType:
             handle_post_tool_use(hook)
         assert captured
         assert captured[0].get("agent_type") == "Explore"
+
+    def test_subagent_task_id_is_the_per_agent_state_key(self) -> None:
+        captured: list[dict[str, object]] = []
+
+        def _fake_collect(_plugins: object, _hook_name: str, **kwargs: object) -> object:
+            captured.append(kwargs)
+            from cline_hooks.core.plugin import HookResult
+
+            return HookResult()
+
+        hook = _make_hook("read_file", parameters={"path": "/x.py"})
+        hook.agentId = "agent-7"
+        with (
+            patch(
+                "cline_hooks.handlers.post_tool_use.collect_hook_results",
+                side_effect=_fake_collect,
+            ),
+            patch("builtins.print"),
+        ):
+            handle_post_tool_use(hook)
+        assert captured
+        assert all(kw.get("task_id") == "task-1:agent-7" for kw in captured)
+        assert all(kw.get("agent_id") == "agent-7" for kw in captured)
 
 
 class TestSkillDetectionViaRead:
@@ -284,6 +355,13 @@ class TestPlanExitRecording:
         _run(_make_hook("read_file", parameters={"path": "/x.py"}))
         assert consume_plan_nudge("task-1") is False
 
+    def test_subagent_exit_plan_mode_does_not_record_plan_exit(self) -> None:
+        hook = _make_hook("exit_plan_mode")
+        hook.agentId = "sub-1"
+        with patch("cline_hooks.plugins.plan_handoff.record_plan_exit") as mock_record:
+            _run(hook)
+        mock_record.assert_not_called()
+
 
 class TestPlanHandoffNudgeFromPostToolUse:
     def test_plan_nudge_fires_after_plan_exit(self) -> None:
@@ -395,6 +473,13 @@ class TestResearchRecording:
 
     def test_failed_research_tool_records_nothing(self) -> None:
         _run(_make_hook("web_fetch", success=False, parameters={"url": "https://example.com"}))
+        assert get_research("task-1") == []
+
+    def test_subagent_records_under_its_own_state_key(self) -> None:
+        hook = _make_hook("web_fetch", parameters={"url": "https://example.com/docs"})
+        hook.agentId = "agent-7"
+        _run(hook)
+        assert get_research("task-1:agent-7") == [{"tool": "web_fetch", "detail": "https://example.com/docs"}]
         assert get_research("task-1") == []
 
 
@@ -570,6 +655,38 @@ class TestRetrospectiveCounter:
         assert "since your last /retrospective" in context
 
 
+class TestSubagentExemptions:
+    def test_commit_reminder_fires_for_main_session(self) -> None:
+        hook = _make_hook("replace_in_file", parameters={"path": "/x.py"})
+        with (
+            patch("cline_hooks.handlers.post_tool_use.load_plugins", return_value=[NudgesPlugin()]),
+            patch("cline_hooks.plugins.nudges._get_diff_line_count", return_value=500),
+        ):
+            result = _run(hook)
+        assert result is not None
+        assert "COMMIT REMINDER" in cast("str", result.get("contextModification", ""))
+
+    def test_commit_reminder_skipped_for_subagent(self) -> None:
+        hook = _make_hook("replace_in_file", parameters={"path": "/x.py"})
+        hook.agentId = "sub-1"
+        with (
+            patch("cline_hooks.handlers.post_tool_use.load_plugins", return_value=[NudgesPlugin()]),
+            patch("cline_hooks.plugins.nudges._get_diff_line_count", return_value=500),
+        ):
+            result = _run(hook)
+        assert result is None or "COMMIT REMINDER" not in cast("str", result.get("contextModification", ""))
+
+    def test_session_end_increments_counter_for_main_session(self) -> None:
+        _run(_make_hook("use_skill", parameters={"skill": "session-end"}))
+        assert get_count() == 1
+
+    def test_session_end_does_not_increment_counter_for_subagent(self) -> None:
+        hook = _make_hook("use_skill", parameters={"skill": "session-end"})
+        hook.agentId = "sub-1"
+        _run(hook)
+        assert get_count() == 0
+
+
 class _ReplacingPlugin(HooksPlugin):
     def get_tooling_note(self, workspace_roots: list[str]) -> ToolingNote | None:
         return ToolingNote(note="PLUGIN NOTE", replaces_generic=True)
@@ -725,6 +842,30 @@ class TestWorkspaceChangeToolingNote:
         assert "TOOLING NOTE" in cast("str", to_b.get("contextModification", ""))
         assert back_to_a is not None
         assert "TOOLING NOTE" in cast("str", back_to_a.get("contextModification", ""))
+
+    def test_subagent_workspace_change_does_not_pollute_main_session(self, tmp_path: Path) -> None:
+        record_workspace("task-1", ["/old"])
+        subagent_hook = _make_hook(
+            "Read",
+            parameters={"file_path": "/x.py"},
+            workspace_roots=[str(tmp_path)],
+        )
+        subagent_hook.agentId = "agent-7"
+        with patch(
+            "cline_hooks.handlers.git_context.get_generic_tooling_note",
+            return_value="TOOLING NOTE",
+        ):
+            _run(subagent_hook)
+            main_result = _run(
+                _make_hook(
+                    "Read",
+                    parameters={"file_path": "/x.py"},
+                    workspace_roots=["/old"],
+                )
+            )
+        assert main_result is None or "Working directory changed" not in cast(
+            "str", main_result.get("contextModification", "")
+        )
 
     def test_no_note_when_new_dir_has_no_marker(self, tmp_path: Path) -> None:
         record_workspace("task-1", ["/old"])

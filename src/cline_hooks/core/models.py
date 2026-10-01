@@ -1,11 +1,13 @@
 # ruff: file-ignore[mixed-case-variable-in-class-scope]
 from __future__ import annotations
 
+from functools import cached_property
 import logging
 from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeVar, get_args
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.vocabulary import CanonicalHook
 
 if TYPE_CHECKING:
@@ -38,6 +40,25 @@ class HookInput(BaseModel):
     workspaceRoots: list[str] = Field(default_factory=list)
     transcriptPath: str = ""
     agentType: str = ""
+    agentId: str | None = None
+
+    @property
+    def stateKey(self) -> str:  # ruff: ignore[invalid-function-name]
+        """The per-agent state key: `taskId`, or `taskId:agentId` for a subagent.
+
+        Returns:
+            `taskId` alone for the main agent, else `taskId:agentId`.
+        """
+        return f"{self.taskId}:{self.agentId}" if self.agentId else self.taskId
+
+    @cached_property
+    def isTeammate(self) -> bool:  # ruff: ignore[invalid-function-name]
+        """True for a split-pane agent-team teammate, which runs as its own session with no agentId."""
+        return (
+            not self.agentId
+            and bool(self.transcriptPath)
+            and get_protocol().transcript.is_teammate(self.transcriptPath)
+        )
 
     @classmethod
     def build(cls, data: Mapping[str, Any]) -> Self:
@@ -227,3 +248,11 @@ class HookInputStop(HookInput):
 
     stop: StopFields | None = None
     hookName: str = "Stop"
+
+
+@hook_input(CanonicalHook.SUBAGENT_STOP)
+class HookInputSubagentStop(HookInput):
+    """Hook input for SubagentStop events: a subagent's or teammate's own Stop."""
+
+    subagentStop: StopFields | None = None
+    hookName: str = "SubagentStop"

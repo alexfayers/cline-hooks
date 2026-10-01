@@ -31,9 +31,11 @@ def handle_pre_compact(hook: HookInputPreCompact) -> None:
     result = collect_hook_results(
         load_plugins(),
         "PreCompact",
-        task_id=hook.taskId,
+        task_id=hook.stateKey,
         conversation_length=hook.preCompact.conversationLength,
         estimated_tokens=hook.preCompact.estimatedTokens,
+        agent_id=hook.agentId,
+        is_teammate=hook.isTeammate,
     )
     parts.extend(result.notes)
 

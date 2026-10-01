@@ -126,6 +126,14 @@ class TestPayloadEnvelope:
         result = PayloadEnvelope.model_validate({"cwd": ""}, context={"env": {}})
         assert result.workspaceRoots == []
 
+    def test_agent_id_is_mapped_from_agent_id_key(self) -> None:
+        result = PayloadEnvelope.model_validate({"agent_id": "agent-7"}, context={"env": {}})
+        assert result.agentId == "agent-7"
+
+    def test_agent_id_defaults_to_none(self) -> None:
+        result = PayloadEnvelope.model_validate({}, context={"env": {}})
+        assert result.agentId is None
+
 
 class TestFlag:
     def test_coerces_truthy_non_bool_value_to_true(self) -> None:

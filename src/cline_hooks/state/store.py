@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, cast
 
-from cline_hooks.state.jsonfile import discard_key, read_json, updated_json
+from cline_hooks.state.jsonfile import discard_key, discard_prefix, read_json, updated_json
 from cline_hooks.state.paths import get_data_dir
 
 if TYPE_CHECKING:
@@ -56,10 +56,15 @@ class TaskStateStore:
         data: dict[str, list[dict[str, str]]] = read_json(self._path, {})
         return [TaskBlockEvent(**e) for e in data.get(task_id, [])]
 
-    def clear_blocks(self, task_id: str) -> None:
-        """Clear block history for a completed task.
+    def clear_blocks(self, task_id: str, *, discard_children: bool = True) -> None:
+        """Clear block history for a task.
 
         Args:
             task_id: The session or task identifier.
+            discard_children: Also clear every per-agent history nested under
+                this task id. Set False for a per-turn reset that must not
+                disturb another agent's still-running block history.
         """
         discard_key(self._path, task_id)
+        if discard_children:
+            discard_prefix(self._path, f"{task_id}:")

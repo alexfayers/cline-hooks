@@ -107,6 +107,18 @@ def reset(task_id: str) -> None:
     _store.reset(task_id)
 
 
+def drain_research(task_id: str) -> list[dict[str, str]]:
+    """Remove and return the research lookups recorded for a session and its subagents.
+
+    Args:
+        task_id: The session or task identifier.
+
+    Returns:
+        A list of {"tool": ..., "detail": ...} records, the session's own first.
+    """
+    return [record for state in _store.drain(task_id) for record in state.records]
+
+
 def get_all_research_tool_names(plugins: list[HooksPlugin]) -> frozenset[str]:
     """Collect research lookup tool names from all plugins.
 
@@ -299,8 +311,7 @@ class ResearchPlugin(HooksPlugin):
         task_id = kwargs.get("task_id")
         if not isinstance(task_id, str):
             return None
-        trace = format_research_trace(get_research(task_id), research_trace_header())
-        reset(task_id)
+        trace = format_research_trace(drain_research(task_id), research_trace_header())
         if not trace:
             return None
         return HookResult(notes=[trace])

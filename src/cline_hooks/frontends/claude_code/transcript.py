@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from itertools import islice
 import json
 import logging
 from pathlib import Path
@@ -10,6 +11,8 @@ from typing import Any
 from cline_hooks.core.transcript import TranscriptReader
 
 logger = logging.getLogger("hooks")
+
+_TEAMMATE_PROBE_LINES = 50
 
 
 class ClaudeCodeTranscriptReader(TranscriptReader):
@@ -30,19 +33,52 @@ class ClaudeCodeTranscriptReader(TranscriptReader):
             The context-token count, or None if the file is unreadable or contains
             no main-thread assistant message with usage data.
         """
-        latest_usage: dict[str, Any] | None = None
-        try:
-            with Path(transcript_path).open(encoding="utf-8") as handle:
-                for line in handle:
-                    usage = _usage_from_line(line)
-                    if usage is not None:
-                        latest_usage = usage
-        except OSError:
-            return None
-
+        latest_usage = _latest_usage(transcript_path, main_thread_only=True)
         if latest_usage is None:
             return None
         return _sum_context_fields(latest_usage)
+
+    def subagent_context_tokens(self, transcript_path: str, agent_id: str) -> int | None:
+        """Return the context-token count from a subagent's own transcript file.
+
+        A subagent's transcript lives at `<transcript_path with .jsonl stripped>
+        /subagents/agent-<agent_id>.jsonl`. Every entry in it is a sidechain
+        entry, so unlike `context_tokens` this reads the last assistant usage
+        without excluding sidechain entries.
+
+        Args:
+            transcript_path: Path to the main session's transcript JSONL file.
+            agent_id: The subagent's own agent id.
+
+        Returns:
+            The token count, or None if the subagent's transcript file does
+            not exist or carries no assistant message with usage data.
+        """
+        subagent_path = Path(transcript_path).with_suffix("") / "subagents" / f"agent-{agent_id}.jsonl"
+        latest_usage = _latest_usage(str(subagent_path), main_thread_only=False)
+        if latest_usage is None:
+            return None
+        return _sum_context_fields(latest_usage)
+
+    def is_teammate(self, transcript_path: str) -> bool:
+        """Return True if the transcript's first message entry carries a team and agent name.
+
+        Args:
+            transcript_path: Path to the transcript JSONL file.
+
+        Returns:
+            True for a teammate transcript, False if the file is unreadable or
+            no message entry within the first lines names a team and agent.
+        """
+        try:
+            with Path(transcript_path).open(encoding="utf-8") as handle:
+                for line in islice(handle, _TEAMMATE_PROBE_LINES):
+                    entry = _parse_entry(line)
+                    if entry is not None and entry.get("type") in {"user", "assistant"}:
+                        return bool(entry.get("teamName") and entry.get("agentName"))
+        except OSError:
+            return False
+        return False
 
     def turn_assistant_text(self, transcript_path: str) -> str:
         """Return this turn's main-thread assistant text from a transcript.
@@ -149,11 +185,35 @@ def _is_user_prompt(entry: dict[str, Any]) -> bool:
     return False
 
 
-def _usage_from_line(line: str) -> dict[str, Any] | None:
-    """Extract usage data from a transcript line if it is a main-thread assistant message.
+def _latest_usage(transcript_path: str, *, main_thread_only: bool) -> dict[str, Any] | None:
+    """Scan a transcript file and return its last qualifying assistant usage.
+
+    Args:
+        transcript_path: Path to the transcript JSONL file.
+        main_thread_only: Whether to skip sidechain assistant entries.
+
+    Returns:
+        The last qualifying usage dict, or None if the file is unreadable or
+        contains no qualifying assistant message with usage data.
+    """
+    latest_usage: dict[str, Any] | None = None
+    try:
+        with Path(transcript_path).open(encoding="utf-8") as handle:
+            for line in handle:
+                usage = _usage_from_line(line, main_thread_only=main_thread_only)
+                if usage is not None:
+                    latest_usage = usage
+    except OSError:
+        return None
+    return latest_usage
+
+
+def _usage_from_line(line: str, *, main_thread_only: bool) -> dict[str, Any] | None:
+    """Extract usage data from a transcript line if it is a qualifying assistant message.
 
     Args:
         line: A single JSONL line from the transcript.
+        main_thread_only: Whether to skip a sidechain assistant entry.
 
     Returns:
         The usage dict, or None if the line is not a qualifying assistant message.
@@ -162,7 +222,9 @@ def _usage_from_line(line: str) -> dict[str, Any] | None:
         entry = json.loads(line)
     except (json.JSONDecodeError, ValueError):
         return None
-    if not isinstance(entry, dict) or entry.get("type") != "assistant" or entry.get("isSidechain"):
+    if not isinstance(entry, dict) or entry.get("type") != "assistant":
+        return None
+    if main_thread_only and entry.get("isSidechain"):
         return None
     message = entry.get("message")
     if not isinstance(message, dict):

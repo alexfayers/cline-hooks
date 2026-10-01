@@ -6,9 +6,63 @@ from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow, feedback
 from cline_hooks.core.vocabulary import CanonicalHook
+from cline_hooks.state.agents import reset as _reset_agents
+from cline_hooks.state.memory import reset as _reset_memory
+from cline_hooks.state.skills import reset as _reset_skills
+from cline_hooks.state.store import TaskStateStore
+from cline_hooks.state.workspace import reset as reset_workspace
 
 if TYPE_CHECKING:
-    from cline_hooks.core.models import HookInputStop
+    from cline_hooks.core.models import HookInput, HookInputStop, HookInputSubagentStop, StopFields
+
+
+def _discard_agent_state(state_key: str) -> None:
+    """Clear a finished subagent's own per-agent hook state.
+
+    Args:
+        state_key: The subagent's per-agent state key.
+    """
+    _reset_skills(state_key)
+    _reset_memory(state_key)
+    _reset_agents(state_key)
+    reset_workspace(state_key)
+    TaskStateStore().clear_blocks(state_key, discard_children=False)
+
+
+def _dispatch_stop(hook: HookInput, canonical_hook: CanonicalHook, stop_fields: StopFields | None) -> None:
+    """Dispatch a Stop-shaped hook (main or subagent) to plugins.
+
+    Args:
+        hook: The hook input data.
+        canonical_hook: The canonical hook to dispatch as.
+        stop_fields: The hook's own StopFields payload, if present.
+    """
+    discards_agent_state = canonical_hook is CanonicalHook.SUBAGENT_STOP and bool(hook.agentId)
+    if stop_fields and stop_fields.stopHookActive:
+        if discards_agent_state:
+            _discard_agent_state(hook.stateKey)
+        allow()
+
+    result = collect_hook_results(
+        load_plugins(),
+        canonical_hook,
+        task_id=hook.stateKey,
+        workspace_roots=hook.workspaceRoots,
+        agent_type=hook.agentType,
+        transcript_path=hook.transcriptPath,
+        agent_id=hook.agentId,
+        is_teammate=hook.isTeammate,
+    )
+    notes = list(result.notes)
+    if result.block:
+        notes.append(result.block)
+
+    if not notes:
+        if discards_agent_state:
+            _discard_agent_state(hook.stateKey)
+        allow()
+
+    feedback("\n\n".join(notes))
 
 
 @hook_handler(CanonicalHook.STOP)
@@ -18,22 +72,14 @@ def handle_stop(hook: HookInputStop) -> None:
     Args:
         hook: The hook input data.
     """
-    if hook.stop and hook.stop.stopHookActive:
-        allow()
+    _dispatch_stop(hook, CanonicalHook.STOP, hook.stop)
 
-    result = collect_hook_results(
-        load_plugins(),
-        CanonicalHook.STOP,
-        task_id=hook.taskId,
-        workspace_roots=hook.workspaceRoots,
-        agent_type=hook.agentType,
-        transcript_path=hook.transcriptPath,
-    )
-    notes = list(result.notes)
-    if result.block:
-        notes.append(result.block)
 
-    if not notes:
-        allow()
+@hook_handler(CanonicalHook.SUBAGENT_STOP)
+def handle_subagent_stop(hook: HookInputSubagentStop) -> None:
+    """Handle SubagentStop hook events by dispatching to plugins.
 
-    feedback("\n\n".join(notes))
+    Args:
+        hook: The hook input data.
+    """
+    _dispatch_stop(hook, CanonicalHook.SUBAGENT_STOP, hook.subagentStop)

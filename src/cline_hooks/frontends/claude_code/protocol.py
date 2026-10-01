@@ -49,6 +49,7 @@ class ClaudeCodeHookSpec(StandardPayloadProtocol):
         CanonicalHook.PRE_TOOL_USE: HookRegistration("PreToolUse", matcher=""),
         CanonicalHook.POST_TOOL_USE: HookRegistration("PostToolUse", matcher=""),
         CanonicalHook.STOP: HookRegistration("Stop"),
+        CanonicalHook.SUBAGENT_STOP: HookRegistration("SubagentStop"),
     }
     tool_map: ClassVar[Mapping[str, CanonicalTool]] = {
         "Bash": CanonicalTool.SHELL,
@@ -69,6 +70,7 @@ class ClaudeCodeHookSpec(StandardPayloadProtocol):
         CanonicalHook.TASK_START: ClaudeCodeTaskStart,
         CanonicalHook.USER_PROMPT_SUBMIT: ClaudeCodeUserPromptSubmit,
         CanonicalHook.STOP: ClaudeCodeStop,
+        CanonicalHook.SUBAGENT_STOP: ClaudeCodeStop,
     }
     tool_models: ClassVar[Mapping[CanonicalTool, type[ToolParams]]] = {
         CanonicalTool.READ: ClaudeCodeReadParams,

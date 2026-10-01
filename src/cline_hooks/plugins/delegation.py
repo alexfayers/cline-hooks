@@ -11,7 +11,7 @@ import bashlex.errors
 
 from cline_hooks.config import agent_teams_enabled
 from cline_hooks.core.hook_kwargs import PreShellKwargs, PreToolUseKwargs
-from cline_hooks.core.plugin import HookResult, HooksPlugin
+from cline_hooks.core.plugin import HookResult, HooksPlugin, is_subagent
 from cline_hooks.core.state import PluginStateStore
 from cline_hooks.core.vocabulary import (
     FILE_EDIT_TOOLS,
@@ -110,8 +110,7 @@ _DELEGATION_NUDGE = (
     "DELEGATION CHECK: An agent team is enabled and this session is about to do work "
     "inline with no subagent spawned yet. MUST delegate the first unit of work - "
     "research, design, edits, verification - to a teammate and keep this session on "
-    "orchestration. MAY proceed inline where this is genuinely a one-line change or a "
-    "check that costs less than the delegation - this is a default, not a block."
+    "orchestration."
 )
 
 
@@ -183,14 +182,14 @@ class DelegationPlugin(HooksPlugin):
 
         if hook_name == PluginScope.PRE_SHELL:
             shell_kwargs = PreShellKwargs.build(kwargs)
-            if shell_kwargs.agent_type or has_agent_use(shell_kwargs.task_id):
+            if is_subagent(kwargs) or has_agent_use(shell_kwargs.task_id):
                 return None
             if not shell_kwargs.command or _is_read_only_command(shell_kwargs.command):
                 return None
             task_id = shell_kwargs.task_id
         else:
             tool_kwargs = PreToolUseKwargs.build(kwargs)
-            if tool_kwargs.agent_type or has_agent_use(tool_kwargs.task_id):
+            if is_subagent(kwargs) or has_agent_use(tool_kwargs.task_id):
                 return None
             if tool_kwargs.tool_name not in FILE_EDIT_TOOLS:
                 return None

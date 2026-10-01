@@ -6,7 +6,7 @@ from typing import Any, cast
 
 from cline_hooks.core.parameters import ReadParameters, ShellParameters, SkillParameters
 from cline_hooks.core.vocabulary import SHELL_TOOLS, CanonicalTool
-from cline_hooks.state.jsonfile import discard_key, read_json, updated_json
+from cline_hooks.state.jsonfile import discard_key, discard_prefix, read_json, updated_json
 from cline_hooks.state.paths import get_data_dir
 
 logger = logging.getLogger("hooks.state.skills")
@@ -78,12 +78,13 @@ def skills_in_command(command: str) -> list[str]:
 
 
 def reset(task_id: str) -> None:
-    """Clear recorded skills for a task session.
+    """Clear recorded skills for a task session, and every per-agent entry under it.
 
     Args:
         task_id: The session or task identifier.
     """
     discard_key(_STATE_PATH, task_id)
+    discard_prefix(_STATE_PATH, f"{task_id}:")
 
 
 def _is_skill_invocation(tool_name: str, parameters: dict[str, Any], skill_names: frozenset[str]) -> bool:

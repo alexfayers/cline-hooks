@@ -61,6 +61,7 @@ the build if it drifts.
 | UserPromptSubmit | - | `UserPromptSubmit` | `UserPromptSubmit` | `UserPromptSubmit` | `UserPromptSubmit` | `userPromptSubmit` | `before_agent_start` |
 | PreCompact | - | - | `PreCompact` | - | `PreCompact` | - | `session_before_compact` |
 | Stop | `Stop` | `Stop` | `Stop` | `Stop` | `Stop` | `stop` | `agent_end` |
+| SubagentStop | - | `SubagentStop` | - | `SubagentStop` | `SubagentStop` | - | - |
 <!-- HOOK_MATRIX_END -->
 
 ## Adding a frontend

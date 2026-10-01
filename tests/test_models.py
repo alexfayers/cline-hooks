@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from typing import get_args
+from unittest.mock import patch
 
 from cline_hooks.core.models import (
     HOOK_INPUTS,
@@ -154,3 +155,27 @@ class TestParseData:
         result = parse_data(_make_json(hookName="TaskStart"))
         assert result.taskId == "task-1"
         assert result.workspaceRoots == ["/workspace"]
+
+
+class TestStateKey:
+    def test_state_key_is_task_id_when_agent_id_absent(self) -> None:
+        result = parse_data(_make_json(hookName="TaskStart"))
+        assert result.stateKey == "task-1"
+
+    def test_state_key_combines_task_id_and_agent_id(self) -> None:
+        result = parse_data(_make_json(hookName="TaskStart", agentId="agent-7"))
+        assert result.stateKey == "task-1:agent-7"
+
+
+class TestIsTeammate:
+    def test_false_without_consulting_the_reader_when_agent_id_is_set(self) -> None:
+        result = parse_data(_make_json(hookName="TaskStart", agentId="agent-7", transcriptPath="/some/t.jsonl"))
+        with patch("cline_hooks.core.models.get_protocol") as get_protocol:
+            assert result.isTeammate is False
+        get_protocol.return_value.transcript.is_teammate.assert_not_called()
+
+    def test_true_when_reader_reports_a_teammate(self) -> None:
+        result = parse_data(_make_json(hookName="TaskStart", transcriptPath="/some/t.jsonl"))
+        with patch("cline_hooks.core.models.get_protocol") as get_protocol:
+            get_protocol.return_value.transcript.is_teammate.return_value = True
+            assert result.isTeammate is True
