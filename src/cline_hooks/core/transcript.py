@@ -63,6 +63,22 @@ class TranscriptReader(ABC):
         """
         return False
 
+    def subagent_report(self, transcript_path: str, agent_id: str) -> str:
+        """Return the final report a subagent wrote in its own transcript.
+
+        Only meaningful for a frontend that gives each subagent its own
+        transcript file; a frontend without one leaves this at the default.
+
+        Args:
+            transcript_path: Path to the transcript, as named by the payload.
+            agent_id: The subagent's own agent id.
+
+        Returns:
+            The subagent's report, or "" if this frontend has no subagent
+            transcript, or none can be read.
+        """
+        return ""
+
 
 class NullTranscriptReader(TranscriptReader):
     """Reader for frontends that expose no transcript in a format we can read."""

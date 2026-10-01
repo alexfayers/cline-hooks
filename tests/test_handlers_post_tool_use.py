@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from cline_hooks.core.models import HookInput, HookInputPostToolUse
 from cline_hooks.core.plugin import HookResult, HooksPlugin, ToolingNote
-from cline_hooks.core.protocol import RawPayload
+from cline_hooks.core.protocol import RawPayload, set_protocol
 from cline_hooks.core.response import emit
 from cline_hooks.frontends.claude_code import ClaudeCodeProtocol
 from cline_hooks.frontends.cline import ClineProtocol
@@ -1113,3 +1113,42 @@ class TestToolFailedPluginScope:
         context = cast("str", result.get("contextModification", ""))
         assert "FAILURE PLUGIN NOTE" in context
         assert "persist" in context.lower()
+
+
+class TestPostToolUseHandbackRescue:
+    def test_withheld_agent_report_is_rescued_from_the_subagent_transcript(self, tmp_path: Path) -> None:
+        set_protocol(ClaudeCodeProtocol())
+        subagents_dir = tmp_path / "session" / "subagents"
+        subagents_dir.mkdir(parents=True)
+        handback = {
+            "type": "assistant",
+            "isSidechain": True,
+            "message": {
+                "role": "assistant",
+                "content": [{"type": "tool_use", "name": "SubagentHandback", "input": {"message": "the report"}}],
+            },
+        }
+        (subagents_dir / "agent-abc.jsonl").write_text(json.dumps(handback), encoding="utf-8")
+        payload = {
+            "hook_event_name": "PostToolUse",
+            "session_id": "session-1",
+            "cwd": "/workspace",
+            "transcript_path": str(tmp_path / "session.jsonl"),
+            "tool_name": "Agent",
+            "tool_input": {},
+            "tool_response": {
+                "agentId": "abc",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "The subagent ended without delivering a report through SubagentHandback.",
+                    }
+                ],
+            },
+        }
+        hook = ClaudeCodeProtocol().parse(RawPayload.from_stdin(json.dumps(payload)))
+        assert isinstance(hook, HookInputPostToolUse)
+        result = _run(hook)
+        assert result is not None
+        context = cast("dict[str, str]", result["hookSpecificOutput"])["additionalContext"]
+        assert "RESCUED SUBAGENT REPORT (handback withheld by harness, agentId=abc):\nthe report" in context

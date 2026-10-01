@@ -36,6 +36,7 @@ class StubTranscript(TranscriptReader):
     tokens: int | None = None
     text: str = ""
     subagent_tokens: int | None = None
+    subagent_report_text: str = ""
 
     def context_tokens(self, transcript_path: str) -> int | None:
         """Return the scripted token count.
@@ -62,6 +63,15 @@ class StubTranscript(TranscriptReader):
         """
         return self.subagent_tokens if transcript_path and agent_id else None
 
+    def subagent_report(self, transcript_path: str, agent_id: str) -> str:
+        """Return the scripted subagent report.
+
+        Returns:
+            The scripted report when a transcript and agent id are named,
+            otherwise "".
+        """
+        return self.subagent_report_text if transcript_path and agent_id else ""
+
 
 @pytest.fixture
 def stub_transcript(
@@ -70,12 +80,23 @@ def stub_transcript(
     """Swap the active protocol's transcript reader for a scripted stub.
 
     Returns:
-        A callable taking `tokens`, `text` and/or `subagent_tokens` that
-        installs the stub.
+        A callable taking `tokens`, `text`, `subagent_tokens` and/or
+        `subagent_report_text` that installs the stub.
     """
 
-    def install(*, tokens: int | None = None, text: str = "", subagent_tokens: int | None = None) -> StubTranscript:
-        stub = StubTranscript(tokens=tokens, text=text, subagent_tokens=subagent_tokens)
+    def install(
+        *,
+        tokens: int | None = None,
+        text: str = "",
+        subagent_tokens: int | None = None,
+        subagent_report_text: str = "",
+    ) -> StubTranscript:
+        stub = StubTranscript(
+            tokens=tokens,
+            text=text,
+            subagent_tokens=subagent_tokens,
+            subagent_report_text=subagent_report_text,
+        )
         mocker.patch.object(type(get_protocol()), "transcript", stub)
         return stub
 
