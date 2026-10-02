@@ -9,6 +9,7 @@ import sys
 from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, Self
 
 from cline_hooks.core.frontend import EXACT_MATCH, frontend
+from cline_hooks.core.outcome import Disposition
 from cline_hooks.core.payload import (
     PayloadEnvelope,
     StandardPayloadProtocol,
@@ -17,6 +18,7 @@ from cline_hooks.core.payload import (
     parse_standard_payload,
 )
 from cline_hooks.core.protocol import HookRegistration
+from cline_hooks.core.response import Response
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
 from cline_hooks.frontends.antigravity.install import AntigravityInstaller
 from cline_hooks.frontends.antigravity.models import (
@@ -34,6 +36,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from cline_hooks.core.models import HookFields, HookInput
+    from cline_hooks.core.outcome import Outcome
     from cline_hooks.core.protocol import RawPayload
     from cline_hooks.core.transcript import TranscriptReader
 
@@ -185,3 +188,25 @@ class AntigravityProtocol(StandardPayloadProtocol):
         if self._hook == CanonicalHook.STOP:
             self._respond({"decision": "continue", "reason": message})
         self._respond({"decision": "deny", "reason": message})
+
+    def render(self, outcome: Outcome) -> Response:
+        """Render the outcome as Antigravity's JSON stdout decision for this instance's hook.
+
+        Returns:
+            The rendered Response.
+        """
+        if self._hook == CanonicalHook.POST_TOOL_USE:
+            return Response(stdout=json.dumps({}))
+        if outcome.disposition in {Disposition.BLOCK, Disposition.FEEDBACK}:
+            if self._hook == CanonicalHook.STOP:
+                decision: dict[str, str] = {"decision": "continue", "reason": outcome.message or ""}
+            else:
+                decision = {"decision": "deny", "reason": outcome.message or ""}
+            return Response(stdout=json.dumps(decision))
+        message = outcome.message
+        if message is not None and outcome.label:
+            message = f"{outcome.label}: {message}"
+        allow_decision: dict[str, str] = {"decision": "allow"}
+        if message is not None:
+            allow_decision["reason"] = message
+        return Response(stdout=json.dumps(allow_decision))

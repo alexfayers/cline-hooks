@@ -63,7 +63,7 @@ class TestHookDispatchGating:
             "conversation_length": 10,
             "estimated_tokens": 1000,
         }
-        with patch("cline_hooks._main.select_protocol", return_value=claude_code) as select:
+        with patch("cline_hooks.core.dispatch.select_protocol", return_value=claude_code) as select:
             output = _run(payload)
         assert select.called
         assert output == []

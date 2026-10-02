@@ -10,13 +10,16 @@ from typing import TYPE_CHECKING, Any, ClassVar, NoReturn
 
 from cline_hooks.core.frontend import EXACT_MATCH, frontend
 from cline_hooks.core.models import HOOK_INPUTS, HookInput
+from cline_hooks.core.outcome import Disposition
 from cline_hooks.core.protocol import HookRegistration, Protocol
+from cline_hooks.core.response import Response
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
 from cline_hooks.frontends.cline.install import ClineInstaller
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from cline_hooks.core.outcome import Outcome
     from cline_hooks.core.protocol import RawPayload
 
 _TOOL_HOOK_KEYS = ("preToolUse", "postToolUse")
@@ -91,3 +94,20 @@ class ClineProtocol(Protocol):
         res: dict[str, object] = {"cancel": True, "errorMessage": message}
         print(json.dumps(res), end="")
         sys.exit(0)
+
+    def render(self, outcome: Outcome) -> Response:
+        """Render the outcome as Cline's JSON stdout contract.
+
+        Returns:
+            The rendered Response.
+        """
+        if outcome.disposition in {Disposition.BLOCK, Disposition.FEEDBACK}:
+            res: dict[str, object] = {"cancel": True, "errorMessage": outcome.message or ""}
+            return Response(stdout=json.dumps(res))
+        message = outcome.message
+        if message is not None and outcome.label:
+            message = f"{outcome.label}: {message}"
+        res = {"cancel": False}
+        if message is not None:
+            res["contextModification"] = message
+        return Response(stdout=json.dumps(res))

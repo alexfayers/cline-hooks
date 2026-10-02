@@ -5,11 +5,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, NoReturn
 
 from cline_hooks.core.frontend import frontend
+from cline_hooks.core.outcome import Disposition
 from cline_hooks.core.protocol import exit_allow, exit_block
+from cline_hooks.core.response import Response
 from cline_hooks.frontends.claude_code.protocol import ClaudeCodeHookSpec
 from cline_hooks.frontends.codex.install import CodexInstaller
 
 if TYPE_CHECKING:
+    from cline_hooks.core.outcome import Outcome
     from cline_hooks.core.protocol import RawPayload
 
 
@@ -41,3 +44,16 @@ class CodexProtocol(ClaudeCodeHookSpec):
     def block(self, message: str) -> NoReturn:
         """Block via exit 2, error on stderr."""
         exit_block(message)
+
+    def render(self, outcome: Outcome) -> Response:
+        """Render the outcome via the plain exit-code contract.
+
+        Returns:
+            The rendered Response.
+        """
+        if outcome.disposition in {Disposition.BLOCK, Disposition.FEEDBACK}:
+            return Response(exit_code=2, stderr=outcome.message or "")
+        message = outcome.message
+        if message is not None and outcome.label:
+            message = f"{outcome.label}: {message}"
+        return Response(stdout=message or "")
