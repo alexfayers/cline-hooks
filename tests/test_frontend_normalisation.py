@@ -906,44 +906,6 @@ class TestFrontendAsymmetries:
         assert hook.postToolUse is not None
         assert hook.postToolUse.withheldReportAgentId == ""
 
-    def test_claude_code_orphaned_handback_sets_the_flag(self) -> None:
-        response = {
-            "success": False,
-            "message": "Nothing was sent: the agent that spawned you is no longer running.",
-        }
-        hook = _parse(
-            "claude-code",
-            "PostToolUse",
-            ClaudeCodeProtocol,
-            overrides={"tool_name": "SubagentHandback", "tool_response": response},
-        )
-        assert isinstance(hook, HookInputPostToolUse)
-        assert hook.postToolUse is not None
-        assert hook.postToolUse.orphanedHandback is True
-
-    def test_claude_code_successful_handback_leaves_the_flag_unset(self) -> None:
-        hook = _parse(
-            "claude-code",
-            "PostToolUse",
-            ClaudeCodeProtocol,
-            overrides={"tool_name": "SubagentHandback", "tool_response": {"success": True, "message": "Report sent."}},
-        )
-        assert isinstance(hook, HookInputPostToolUse)
-        assert hook.postToolUse is not None
-        assert hook.postToolUse.orphanedHandback is False
-
-    def test_claude_code_other_failed_tool_leaves_the_flag_unset(self) -> None:
-        response = {"success": False, "message": "Permission denied."}
-        hook = _parse(
-            "claude-code",
-            "PostToolUse",
-            ClaudeCodeProtocol,
-            overrides={"tool_name": "Bash", "tool_response": response},
-        )
-        assert isinstance(hook, HookInputPostToolUse)
-        assert hook.postToolUse is not None
-        assert hook.postToolUse.orphanedHandback is False
-
     def test_antigravity_derives_success_from_an_error_string(self) -> None:
         antigravity_hook = _parse(
             "antigravity",

@@ -18,24 +18,14 @@ WITHHELD_REPORT_MARKER = "without delivering a report through SubagentHandback"
 ORPHANED_HANDBACK_MARKER = "the agent that spawned you is no longer running"
 
 
-def _tool_response(data: dict[str, Any]) -> dict[str, Any] | None:
-    """Read the `tool_response` of a payload where it is a dict.
-
-    Returns:
-        The tool response, or None where it is absent or not a dict.
-    """
-    response = data.get("tool_response")
-    return response if isinstance(response, dict) else None
-
-
 def _withheld_report_agent_id(data: dict[str, Any]) -> dict[str, Any]:
     """Set `withheldReportAgentId` where an Agent result says its report was withheld.
 
     Returns:
         The payload, with `withheldReportAgentId` added for a withheld report.
     """
-    response = _tool_response(data)
-    if response is None:
+    response = data.get("tool_response")
+    if not isinstance(response, dict):
         return data
     agent_id = response.get("agentId")
     content = response.get("content")
@@ -50,16 +40,15 @@ def _withheld_report_agent_id(data: dict[str, Any]) -> dict[str, Any]:
 
 
 def _orphaned_handback(data: dict[str, Any]) -> dict[str, Any]:
-    """Set `orphanedHandback` where a SubagentHandback failed because its spawner is gone.
+    """Set `orphanedHandback` where a SubagentHandback failed because its spawner has ended.
 
     Returns:
         The payload, with `orphanedHandback` added for an orphaned handback.
     """
-    response = _tool_response(data)
+    response = data.get("tool_response")
     if (
         data.get("tool_name") == "SubagentHandback"
-        and response is not None
-        and not response.get("success", True)
+        and isinstance(response, dict)
         and ORPHANED_HANDBACK_MARKER in str(response.get("message", ""))
     ):
         return {**data, "orphanedHandback": True}
@@ -71,7 +60,7 @@ class ClaudeCodePostToolUse(PostToolUseFields):
 
     `executionTimeMs` comes from `duration_ms`; `withheldReportAgentId` is set
     from an Agent result reporting its handback was withheld; `orphanedHandback`
-    from a SubagentHandback failing because its spawner is gone.
+    from a SubagentHandback failing because its spawner has ended.
     """
 
     executionTimeMs: int = Field(default=0, validation_alias="duration_ms")

@@ -14,7 +14,7 @@ This package bundles its behavior as plugins:
 - `research` - supplies web-research tool names; records lookups; emits the citation trace on Stop.
 - `plan_handoff` - records plan exits; emits the one-shot handoff nudge.
 - `context_usage` - context-token tier warnings.
-- `handback_rescue` - surfaces a subagent report the harness withheld from its spawner, read from the subagent's own transcript; tells a subagent whose spawner has ended to stop retrying SubagentHandback.
+- `handback_rescue` - surfaces a subagent report the harness withheld from its spawner, read from the subagent's own transcript.
 - `session_context` - session-start/resume git summary.
 - `persistence` - persist-to-memory nudge after a failed tool call; memory warning at session end.
 - `nudges` - commit-size, retrospective, dismissed-issue, session-length, fan-out, late-hour, correction, info, and side-request reminders (including `CORRECTION DETECTED`).
