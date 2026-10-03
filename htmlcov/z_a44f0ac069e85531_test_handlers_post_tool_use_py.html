@@ -55,8 +55,8 @@
             </div>
         </aside>
         <h2>
-            <span class="text">633 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">624<span class="text"> run</span></button>
+            <span class="text">642 statements &nbsp;</span>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">633<span class="text"> run</span></button>
             <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">9<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">6<span class="text"> excluded</span></button>
             <button type="button" class="par run show_par button_toggle_par" value="par" data-shortcut="p" title="Toggle lines partially run">6<span class="text"> partial</span></button>
@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_a44f0ac069e85531_test_handlers_pre_compact_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
-            created at 2026-10-03 00:05 +0000
+            created at 2026-10-03 22:52 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -1236,6 +1236,28 @@
     <p class="run"><span class="n"><a id="t1152" href="#t1152">1152</a></span><span class="t">        <span class="key">assert</span> <span class="nam">result</span> <span class="key">is</span> <span class="key">not</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t1153" href="#t1153">1153</a></span><span class="t">        <span class="nam">context</span> <span class="op">=</span> <span class="nam">cast</span><span class="op">(</span><span class="str">&quot;dict[str, str]&quot;</span><span class="op">,</span> <span class="nam">result</span><span class="op">[</span><span class="str">&quot;hookSpecificOutput&quot;</span><span class="op">]</span><span class="op">)</span><span class="op">[</span><span class="str">&quot;additionalContext&quot;</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t1154" href="#t1154">1154</a></span><span class="t">        <span class="key">assert</span> <span class="str">&quot;RESCUED SUBAGENT REPORT (handback withheld by harness, agentId=abc):\nthe report&quot;</span> <span class="key">in</span> <span class="nam">context</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t1155" href="#t1155">1155</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t1156" href="#t1156">1156</a></span><span class="t">    <span class="key">def</span> <span class="nam">test_orphaned_handback_tells_the_subagent_to_stop_retrying</span><span class="op">(</span><span class="nam">self</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t1157" href="#t1157">1157</a></span><span class="t">        <span class="nam">set_protocol</span><span class="op">(</span><span class="nam">ClaudeCodeProtocol</span><span class="op">(</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t1158" href="#t1158">1158</a></span><span class="t">        <span class="nam">payload</span> <span class="op">=</span> <span class="op">{</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t1159" href="#t1159">1159</a></span><span class="t">            <span class="str">&quot;hook_event_name&quot;</span><span class="op">:</span> <span class="str">&quot;PostToolUse&quot;</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t1160" href="#t1160">1160</a></span><span class="t">            <span class="str">&quot;session_id&quot;</span><span class="op">:</span> <span class="str">&quot;session-1&quot;</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t1161" href="#t1161">1161</a></span><span class="t">            <span class="str">&quot;cwd&quot;</span><span class="op">:</span> <span class="str">&quot;/workspace&quot;</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t1162" href="#t1162">1162</a></span><span class="t">            <span class="str">&quot;agent_id&quot;</span><span class="op">:</span> <span class="str">&quot;abc&quot;</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t1163" href="#t1163">1163</a></span><span class="t">            <span class="str">&quot;agent_type&quot;</span><span class="op">:</span> <span class="str">&quot;worker&quot;</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t1164" href="#t1164">1164</a></span><span class="t">            <span class="str">&quot;tool_name&quot;</span><span class="op">:</span> <span class="str">&quot;SubagentHandback&quot;</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t1165" href="#t1165">1165</a></span><span class="t">            <span class="str">&quot;tool_input&quot;</span><span class="op">:</span> <span class="op">{</span><span class="str">&quot;message&quot;</span><span class="op">:</span> <span class="str">&quot;the report&quot;</span><span class="op">}</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t1166" href="#t1166">1166</a></span><span class="t">            <span class="str">&quot;tool_response&quot;</span><span class="op">:</span> <span class="op">{</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t1167" href="#t1167">1167</a></span><span class="t">                <span class="str">&quot;success&quot;</span><span class="op">:</span> <span class="key">False</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t1168" href="#t1168">1168</a></span><span class="t">                <span class="str">&quot;message&quot;</span><span class="op">:</span> <span class="str">&quot;Nothing was sent: the agent that spawned you is no longer running.&quot;</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t1169" href="#t1169">1169</a></span><span class="t">            <span class="op">}</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t1170" href="#t1170">1170</a></span><span class="t">        <span class="op">}</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t1171" href="#t1171">1171</a></span><span class="t">        <span class="nam">hook</span> <span class="op">=</span> <span class="nam">ClaudeCodeProtocol</span><span class="op">(</span><span class="op">)</span><span class="op">.</span><span class="nam">parse</span><span class="op">(</span><span class="nam">RawPayload</span><span class="op">.</span><span class="nam">from_stdin</span><span class="op">(</span><span class="nam">json</span><span class="op">.</span><span class="nam">dumps</span><span class="op">(</span><span class="nam">payload</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t1172" href="#t1172">1172</a></span><span class="t">        <span class="key">assert</span> <span class="nam">isinstance</span><span class="op">(</span><span class="nam">hook</span><span class="op">,</span> <span class="nam">HookInputPostToolUse</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t1173" href="#t1173">1173</a></span><span class="t">        <span class="nam">result</span> <span class="op">=</span> <span class="nam">_run</span><span class="op">(</span><span class="nam">hook</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t1174" href="#t1174">1174</a></span><span class="t">        <span class="key">assert</span> <span class="nam">result</span> <span class="key">is</span> <span class="key">not</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t1175" href="#t1175">1175</a></span><span class="t">        <span class="nam">context</span> <span class="op">=</span> <span class="nam">cast</span><span class="op">(</span><span class="str">&quot;dict[str, str]&quot;</span><span class="op">,</span> <span class="nam">result</span><span class="op">[</span><span class="str">&quot;hookSpecificOutput&quot;</span><span class="op">]</span><span class="op">)</span><span class="op">[</span><span class="str">&quot;additionalContext&quot;</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t1176" href="#t1176">1176</a></span><span class="t">        <span class="key">assert</span> <span class="str">&quot;HANDBACK UNDELIVERABLE&quot;</span> <span class="key">in</span> <span class="nam">context</span>&nbsp;</span><span class="r"></span></p>
 </main>
 <footer>
     <div class="content">
@@ -1245,7 +1267,7 @@
             <a class="nav" href="z_a44f0ac069e85531_test_handlers_pre_compact_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
-            created at 2026-10-03 00:05 +0000
+            created at 2026-10-03 22:52 +0000
         </p>
     </div>
 </footer>

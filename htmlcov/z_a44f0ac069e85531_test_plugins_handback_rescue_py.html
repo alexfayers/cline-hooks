@@ -55,8 +55,8 @@
             </div>
         </aside>
         <h2>
-            <span class="text">25 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">25<span class="text"> run</span></button>
+            <span class="text">27 statements &nbsp;</span>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">27<span class="text"> run</span></button>
             <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">0<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">4<span class="text"> excluded</span></button>
             <button type="button" class="par run show_par button_toggle_par" value="par" data-shortcut="p" title="Toggle lines partially run">0<span class="text"> partial</span></button>
@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_a44f0ac069e85531_test_readme_matrix_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
-            created at 2026-10-03 00:05 +0000
+            created at 2026-10-03 22:52 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -125,6 +125,9 @@
     <p class="run"><span class="n"><a id="t41" href="#t41">41</a></span><span class="t">    <span class="key">def</span> <span class="nam">test_silent_for_other_hooks</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="nam">stub_transcript</span><span class="op">:</span> <span class="nam">StubTranscriptT</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t42" href="#t42">42</a></span><span class="t">        <span class="nam">stub_transcript</span><span class="op">(</span><span class="nam">subagent_report_text</span><span class="op">=</span><span class="str">&quot;the report&quot;</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t43" href="#t43">43</a></span><span class="t">        <span class="key">assert</span> <span class="nam">_on_hook</span><span class="op">(</span><span class="str">&quot;TaskStart&quot;</span><span class="op">,</span> <span class="nam">withheld_report_agent_id</span><span class="op">=</span><span class="str">&quot;agent-abc&quot;</span><span class="op">,</span> <span class="nam">transcript_path</span><span class="op">=</span><span class="str">&quot;session.jsonl&quot;</span><span class="op">)</span> <span class="key">is</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t44" href="#t44">44</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t45" href="#t45">45</a></span><span class="t">    <span class="key">def</span> <span class="nam">test_silent_for_a_failed_tool_that_is_not_an_orphaned_handback</span><span class="op">(</span><span class="nam">self</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t46" href="#t46">46</a></span><span class="t">        <span class="key">assert</span> <span class="nam">_on_hook</span><span class="op">(</span><span class="str">&quot;ToolFailed&quot;</span><span class="op">,</span> <span class="nam">orphaned_handback</span><span class="op">=</span><span class="key">False</span><span class="op">)</span> <span class="key">is</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
 </main>
 <footer>
     <div class="content">
@@ -134,7 +137,7 @@
             <a class="nav" href="z_a44f0ac069e85531_test_readme_matrix_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
-            created at 2026-10-03 00:05 +0000
+            created at 2026-10-03 22:52 +0000
         </p>
     </div>
 </footer>
