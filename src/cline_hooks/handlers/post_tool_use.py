@@ -129,7 +129,7 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> Outcome:
             agent_type=hook.agentType,
             agent_id=hook.agentId,
             is_teammate=hook.isTeammate,
-            orphaned_handback=hook.postToolUse.orphanedHandback,
+            **hook.postToolUse.frontend_kwargs(),
         )
         return Outcome.allow("\n\n".join(failure_result.notes))
 
@@ -175,7 +175,7 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> Outcome:
         tool_result=hook.postToolUse.result,
         agent_id=hook.agentId,
         is_teammate=hook.isTeammate,
-        withheld_report_agent_id=hook.postToolUse.withheldReportAgentId,
+        **hook.postToolUse.frontend_kwargs(),
     )
 
     outcome = Outcome()

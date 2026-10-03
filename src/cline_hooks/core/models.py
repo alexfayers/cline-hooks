@@ -23,6 +23,14 @@ class HookFields(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
+    def frontend_kwargs(self) -> dict[str, object]:
+        """Extra plugin dispatch kwargs a frontend derives from its own payload.
+
+        Returns:
+            The extra kwargs, empty by default.
+        """
+        return {}
+
 
 class HookInput(BaseModel):
     """Base class for all hook inputs.
@@ -95,8 +103,6 @@ class PostToolUseFields(HookFields):
     success: bool
     executionTimeMs: int = 0
     result: str | None = None
-    withheldReportAgentId: str = ""
-    orphanedHandback: bool = False
 
 
 class TaskStartFields(HookFields):

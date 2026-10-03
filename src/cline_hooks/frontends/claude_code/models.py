@@ -64,9 +64,22 @@ class ClaudeCodePostToolUse(PostToolUseFields):
     """
 
     executionTimeMs: int = Field(default=0, validation_alias="duration_ms")
+    withheldReportAgentId: str = ""
+    orphanedHandback: bool = False
 
     _withheld = model_validator(mode="before")(_withheld_report_agent_id)
     _orphaned = model_validator(mode="before")(_orphaned_handback)
+
+    def frontend_kwargs(self) -> dict[str, object]:
+        """Extra plugin dispatch kwargs a frontend derives from its own payload.
+
+        Returns:
+            The withheld-report agent id and orphaned-handback flag.
+        """
+        return {
+            "withheld_report_agent_id": self.withheldReportAgentId,
+            "orphaned_handback": self.orphanedHandback,
+        }
 
 
 class ClaudeCodeTaskStart(TaskStartFields):

@@ -147,8 +147,6 @@ class TestClaudeCodeNormalisation:
                 "success": True,
                 "executionTimeMs": 0,
                 "result": None,
-                "withheldReportAgentId": "",
-                "orphanedHandback": False,
             },
         }
 
@@ -265,8 +263,6 @@ class TestKiroNormalisation:
                 "success": True,
                 "executionTimeMs": 0,
                 "result": "file1\nfile2",
-                "withheldReportAgentId": "",
-                "orphanedHandback": False,
             },
         }
 
@@ -377,8 +373,6 @@ class TestClineNormalisation:
                 "success": True,
                 "executionTimeMs": 42,
                 "result": "file1\nfile2",
-                "withheldReportAgentId": "",
-                "orphanedHandback": False,
             },
         }
 
@@ -474,8 +468,6 @@ class TestCopilotNormalisation:
                 "success": True,
                 "executionTimeMs": 0,
                 "result": None,
-                "withheldReportAgentId": "",
-                "orphanedHandback": False,
             },
         }
 
@@ -589,8 +581,6 @@ class TestAntigravityNormalisation:
                 "success": True,
                 "executionTimeMs": 0,
                 "result": None,
-                "withheldReportAgentId": "",
-                "orphanedHandback": False,
             },
         }
 
@@ -610,8 +600,6 @@ class TestAntigravityNormalisation:
                 "success": False,
                 "executionTimeMs": 0,
                 "result": "exit status 1",
-                "withheldReportAgentId": "",
-                "orphanedHandback": False,
             },
         }
 
@@ -701,8 +689,6 @@ class TestPiNormalisation:
                 "success": True,
                 "executionTimeMs": 0,
                 "result": "file1\nfile2",
-                "withheldReportAgentId": "",
-                "orphanedHandback": False,
             },
         }
 
@@ -881,7 +867,7 @@ class TestFrontendAsymmetries:
         )
         assert isinstance(hook, HookInputPostToolUse)
         assert hook.postToolUse is not None
-        assert hook.postToolUse.withheldReportAgentId == "agent-abc"
+        assert hook.postToolUse.frontend_kwargs()["withheld_report_agent_id"] == "agent-abc"
 
     def test_claude_code_agent_delivered_report_leaves_the_agent_id_empty(self) -> None:
         hook = _parse(
@@ -892,7 +878,7 @@ class TestFrontendAsymmetries:
         )
         assert isinstance(hook, HookInputPostToolUse)
         assert hook.postToolUse is not None
-        assert hook.postToolUse.withheldReportAgentId == ""
+        assert hook.postToolUse.frontend_kwargs()["withheld_report_agent_id"] == ""
 
     def test_claude_code_withheld_text_without_agent_id_leaves_the_agent_id_empty(self) -> None:
         response = {"content": [{"type": "text", "text": _WITHHELD_REPORT_TEXT}]}
@@ -904,7 +890,13 @@ class TestFrontendAsymmetries:
         )
         assert isinstance(hook, HookInputPostToolUse)
         assert hook.postToolUse is not None
-        assert hook.postToolUse.withheldReportAgentId == ""
+        assert hook.postToolUse.frontend_kwargs()["withheld_report_agent_id"] == ""
+
+    def test_non_claude_code_frontend_adds_no_frontend_kwargs(self) -> None:
+        hook = _parse("kiro", "PostToolUse", KiroProtocol)
+        assert isinstance(hook, HookInputPostToolUse)
+        assert hook.postToolUse is not None
+        assert hook.postToolUse.frontend_kwargs() == {}
 
     def test_antigravity_derives_success_from_an_error_string(self) -> None:
         antigravity_hook = _parse(
