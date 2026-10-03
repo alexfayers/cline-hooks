@@ -129,6 +129,7 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> Outcome:
             agent_type=hook.agentType,
             agent_id=hook.agentId,
             is_teammate=hook.isTeammate,
+            orphaned_handback=hook.postToolUse.orphanedHandback,
         )
         return Outcome.allow("\n\n".join(failure_result.notes))
 

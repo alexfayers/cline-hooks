@@ -15,6 +15,17 @@ from cline_hooks.core.models import (
 from cline_hooks.core.payload import Flag, ToolParams, diff_envelope
 
 WITHHELD_REPORT_MARKER = "without delivering a report through SubagentHandback"
+ORPHANED_HANDBACK_MARKER = "the agent that spawned you is no longer running"
+
+
+def _tool_response(data: dict[str, Any]) -> dict[str, Any] | None:
+    """Read the `tool_response` of a payload where it is a dict.
+
+    Returns:
+        The tool response, or None where it is absent or not a dict.
+    """
+    response = data.get("tool_response")
+    return response if isinstance(response, dict) else None
 
 
 def _withheld_report_agent_id(data: dict[str, Any]) -> dict[str, Any]:
@@ -23,8 +34,8 @@ def _withheld_report_agent_id(data: dict[str, Any]) -> dict[str, Any]:
     Returns:
         The payload, with `withheldReportAgentId` added for a withheld report.
     """
-    response = data.get("tool_response")
-    if not isinstance(response, dict):
+    response = _tool_response(data)
+    if response is None:
         return data
     agent_id = response.get("agentId")
     content = response.get("content")
@@ -38,16 +49,35 @@ def _withheld_report_agent_id(data: dict[str, Any]) -> dict[str, Any]:
     return data
 
 
+def _orphaned_handback(data: dict[str, Any]) -> dict[str, Any]:
+    """Set `orphanedHandback` where a SubagentHandback failed because its spawner is gone.
+
+    Returns:
+        The payload, with `orphanedHandback` added for an orphaned handback.
+    """
+    response = _tool_response(data)
+    if (
+        data.get("tool_name") == "SubagentHandback"
+        and response is not None
+        and not response.get("success", True)
+        and ORPHANED_HANDBACK_MARKER in str(response.get("message", ""))
+    ):
+        return {**data, "orphanedHandback": True}
+    return data
+
+
 class ClaudeCodePostToolUse(PostToolUseFields):
     """Claude Code's PostToolUse fields.
 
     `executionTimeMs` comes from `duration_ms`; `withheldReportAgentId` is set
-    from an Agent result reporting its handback was withheld.
+    from an Agent result reporting its handback was withheld; `orphanedHandback`
+    from a SubagentHandback failing because its spawner is gone.
     """
 
     executionTimeMs: int = Field(default=0, validation_alias="duration_ms")
 
     _withheld = model_validator(mode="before")(_withheld_report_agent_id)
+    _orphaned = model_validator(mode="before")(_orphaned_handback)
 
 
 class ClaudeCodeTaskStart(TaskStartFields):

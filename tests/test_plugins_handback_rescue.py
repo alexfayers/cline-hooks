@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from cline_hooks.plugins.handback_rescue import HandbackRescuePlugin
+from cline_hooks.plugins.handback_rescue import _ORPHANED_NOTE, HandbackRescuePlugin
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -41,3 +41,12 @@ class TestHandbackRescuePlugin:
     def test_silent_for_other_hooks(self, stub_transcript: StubTranscriptT) -> None:
         stub_transcript(subagent_report_text="the report")
         assert _on_hook("TaskStart", withheld_report_agent_id="agent-abc", transcript_path="session.jsonl") is None
+
+    def test_tells_an_orphaned_subagent_to_stop_retrying(self) -> None:
+        assert _on_hook("ToolFailed", orphaned_handback=True) == [_ORPHANED_NOTE]
+
+    def test_silent_for_a_failed_tool_that_is_not_an_orphaned_handback(self) -> None:
+        assert _on_hook("ToolFailed", orphaned_handback=False) is None
+
+    def test_silent_on_post_tool_use_for_an_orphaned_handback(self) -> None:
+        assert _on_hook("PostToolUse", orphaned_handback=True) is None

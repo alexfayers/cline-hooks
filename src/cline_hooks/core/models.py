@@ -96,6 +96,7 @@ class PostToolUseFields(HookFields):
     executionTimeMs: int = 0
     result: str | None = None
     withheldReportAgentId: str = ""
+    orphanedHandback: bool = False
 
 
 class TaskStartFields(HookFields):
