@@ -174,6 +174,7 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> Outcome:
         tool_result=hook.postToolUse.result,
         agent_id=hook.agentId,
         is_teammate=hook.isTeammate,
+        withheld_report_agent_id=hook.postToolUse.withheldReportAgentId,
     )
 
     outcome = Outcome()

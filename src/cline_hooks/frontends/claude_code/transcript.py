@@ -14,6 +14,8 @@ logger = logging.getLogger("hooks")
 
 _TEAMMATE_PROBE_LINES = 50
 
+_REPORT_TOOLS = frozenset({"SubagentHandback", "SendMessage"})
+
 
 class ClaudeCodeTranscriptReader(TranscriptReader):
     """Reads Claude Code's JSONL transcript, one JSON entry per line."""
@@ -54,8 +56,7 @@ class ClaudeCodeTranscriptReader(TranscriptReader):
             The token count, or None if the subagent's transcript file does
             not exist or carries no assistant message with usage data.
         """
-        subagent_path = Path(transcript_path).with_suffix("") / "subagents" / f"agent-{agent_id}.jsonl"
-        latest_usage = _latest_usage(str(subagent_path), main_thread_only=False)
+        latest_usage = _latest_usage(str(_subagent_path(transcript_path, agent_id)), main_thread_only=False)
         if latest_usage is None:
             return None
         return _sum_context_fields(latest_usage)
@@ -79,6 +80,31 @@ class ClaudeCodeTranscriptReader(TranscriptReader):
         except OSError:
             return False
         return False
+
+    def subagent_report(self, transcript_path: str, agent_id: str) -> str:
+        """Return the last report a subagent wrote in its own transcript file.
+
+        The report is the input message of the subagent's last SubagentHandback
+        tool call, else of its last SendMessage tool call.
+
+        Args:
+            transcript_path: Path to the main session's or a subagent's transcript JSONL file.
+            agent_id: The subagent's own agent id.
+
+        Returns:
+            The report text, or "" if the subagent's transcript is unreadable or
+            holds no such message.
+        """
+        reports: dict[str, str] = {}
+        try:
+            with _subagent_path(transcript_path, agent_id).open(encoding="utf-8") as handle:
+                for line in handle:
+                    entry = _parse_entry(line)
+                    if entry is not None:
+                        reports.update(_report_messages(entry))
+        except OSError:
+            return ""
+        return reports.get("SubagentHandback") or reports.get("SendMessage") or ""
 
     def turn_assistant_text(self, transcript_path: str) -> str:
         """Return this turn's main-thread assistant text from a transcript.
@@ -127,6 +153,42 @@ class ClaudeCodeTranscriptReader(TranscriptReader):
             )
 
         return "\n".join(texts)
+
+
+def _subagent_path(transcript_path: str, agent_id: str) -> Path:
+    """Return the path of a subagent's own transcript file.
+
+    Args:
+        transcript_path: Path to the main session's transcript, or to a transcript already under `subagents/`.
+        agent_id: The subagent's own agent id.
+
+    Returns:
+        The subagent's `agent-<agent_id>.jsonl` path.
+    """
+    path = Path(transcript_path)
+    subagents_dir = path.parent if path.parent.name == "subagents" else path.with_suffix("") / "subagents"
+    return subagents_dir / f"agent-{agent_id}.jsonl"
+
+
+def _report_messages(entry: dict[str, Any]) -> dict[str, str]:
+    """Collect the string report messages of an assistant entry's report tool calls.
+
+    Returns:
+        Each report tool's name mapped to the input message it was last called with.
+    """
+    message = entry.get("message")
+    content = message.get("content") if entry.get("type") == "assistant" and isinstance(message, dict) else None
+    if not isinstance(content, list):
+        return {}
+    return {
+        block["name"]: block["input"]["message"]
+        for block in content
+        if isinstance(block, dict)
+        and block.get("type") == "tool_use"
+        and block.get("name") in _REPORT_TOOLS
+        and isinstance(block.get("input"), dict)
+        and isinstance(block["input"].get("message"), str)
+    }
 
 
 def _parse_entry(line: str) -> dict[str, Any] | None:

@@ -564,7 +564,7 @@ class TestPluginNoteDoesNotSuppressToolCheck:
         assert result is not None
         context = cast("str", result.get("contextModification", ""))
         assert "plugin note" in context
-        assert "MUST NOT write comments explaining the reasoning" in context
+        assert "MUST NOT add a comment that refers to the change you are making" in context
 
 
 class TestDelegationNudgeIntegration:

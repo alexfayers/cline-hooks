@@ -88,6 +88,16 @@ def _fixture_path(frontend: str, name: str) -> Path:
     return FIXTURES_DIR / name / f"{frontend}.json"
 
 
+_WITHHELD_REPORT_TEXT = (
+    "The subagent ended without delivering a report through SubagentHandback, "
+    "so no report was delivered. Its unsent text is not shown."
+)
+
+
+def _agent_response(text: str) -> dict[str, Any]:
+    return {"agentId": "agent-abc", "content": [{"type": "text", "text": text}]}
+
+
 def _parse(
     frontend: str,
     name: str,
@@ -137,6 +147,7 @@ class TestClaudeCodeNormalisation:
                 "success": True,
                 "executionTimeMs": 0,
                 "result": None,
+                "withheldReportAgentId": "",
             },
         }
 
@@ -253,6 +264,7 @@ class TestKiroNormalisation:
                 "success": True,
                 "executionTimeMs": 0,
                 "result": "file1\nfile2",
+                "withheldReportAgentId": "",
             },
         }
 
@@ -363,6 +375,7 @@ class TestClineNormalisation:
                 "success": True,
                 "executionTimeMs": 42,
                 "result": "file1\nfile2",
+                "withheldReportAgentId": "",
             },
         }
 
@@ -458,6 +471,7 @@ class TestCopilotNormalisation:
                 "success": True,
                 "executionTimeMs": 0,
                 "result": None,
+                "withheldReportAgentId": "",
             },
         }
 
@@ -571,6 +585,7 @@ class TestAntigravityNormalisation:
                 "success": True,
                 "executionTimeMs": 0,
                 "result": None,
+                "withheldReportAgentId": "",
             },
         }
 
@@ -590,6 +605,7 @@ class TestAntigravityNormalisation:
                 "success": False,
                 "executionTimeMs": 0,
                 "result": "exit status 1",
+                "withheldReportAgentId": "",
             },
         }
 
@@ -679,6 +695,7 @@ class TestPiNormalisation:
                 "success": True,
                 "executionTimeMs": 0,
                 "result": "file1\nfile2",
+                "withheldReportAgentId": "",
             },
         }
 
@@ -847,6 +864,40 @@ class TestFrontendAsymmetries:
         assert isinstance(claude_code_hook, HookInputPostToolUse)
         assert claude_code_hook.postToolUse is not None
         assert claude_code_hook.postToolUse.result is None
+
+    def test_claude_code_agent_withheld_report_sets_the_agent_id(self) -> None:
+        hook = _parse(
+            "claude-code",
+            "PostToolUse",
+            ClaudeCodeProtocol,
+            overrides={"tool_name": "Agent", "tool_response": _agent_response(_WITHHELD_REPORT_TEXT)},
+        )
+        assert isinstance(hook, HookInputPostToolUse)
+        assert hook.postToolUse is not None
+        assert hook.postToolUse.withheldReportAgentId == "agent-abc"
+
+    def test_claude_code_agent_delivered_report_leaves_the_agent_id_empty(self) -> None:
+        hook = _parse(
+            "claude-code",
+            "PostToolUse",
+            ClaudeCodeProtocol,
+            overrides={"tool_name": "Agent", "tool_response": _agent_response("All done.")},
+        )
+        assert isinstance(hook, HookInputPostToolUse)
+        assert hook.postToolUse is not None
+        assert hook.postToolUse.withheldReportAgentId == ""
+
+    def test_claude_code_withheld_text_without_agent_id_leaves_the_agent_id_empty(self) -> None:
+        response = {"content": [{"type": "text", "text": _WITHHELD_REPORT_TEXT}]}
+        hook = _parse(
+            "claude-code",
+            "PostToolUse",
+            ClaudeCodeProtocol,
+            overrides={"tool_name": "Workflow", "tool_response": response},
+        )
+        assert isinstance(hook, HookInputPostToolUse)
+        assert hook.postToolUse is not None
+        assert hook.postToolUse.withheldReportAgentId == ""
 
     def test_antigravity_derives_success_from_an_error_string(self) -> None:
         antigravity_hook = _parse(

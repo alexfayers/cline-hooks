@@ -9,6 +9,7 @@ _reader = ClaudeCodeTranscriptReader()
 get_context_tokens = _reader.context_tokens
 get_turn_assistant_text = _reader.turn_assistant_text
 get_subagent_context_tokens = _reader.subagent_context_tokens
+get_subagent_report = _reader.subagent_report
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -27,6 +28,14 @@ def _assistant_text(text: str, *, sidechain: bool = False) -> dict[str, Any]:
         "type": "assistant",
         "isSidechain": sidechain,
         "message": {"role": "assistant", "content": [{"type": "text", "text": text}]},
+    }
+
+
+def _assistant_tool_use(name: str, tool_input: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "type": "assistant",
+        "isSidechain": True,
+        "message": {"role": "assistant", "content": [{"type": "tool_use", "name": name, "input": tool_input}]},
     }
 
 
@@ -325,3 +334,65 @@ class TestGetTurnAssistantText:
         path = tmp_path / "t.jsonl"
         path.write_text("not json\n" + json.dumps(_assistant_text("kept")), encoding="utf-8")
         assert get_turn_assistant_text(str(path)) == "kept"
+
+
+class TestGetSubagentReport:
+    def _subagent_transcript(self, tmp_path: Path, entries: list[dict[str, Any]]) -> str:
+        subagents_dir = tmp_path / "session" / "subagents"
+        subagents_dir.mkdir(parents=True)
+        _write_jsonl(subagents_dir / "agent-sub1.jsonl", entries)
+        return str(tmp_path / "session.jsonl")
+
+    def test_returns_the_last_handback_message(self, tmp_path: Path) -> None:
+        transcript_path = self._subagent_transcript(
+            tmp_path,
+            [
+                _assistant_tool_use("SubagentHandback", {"message": "draft"}),
+                _assistant_tool_use("SubagentHandback", {"message": "final report"}),
+            ],
+        )
+        assert get_subagent_report(transcript_path, "sub1") == "final report"
+
+    def test_falls_back_to_the_last_send_message(self, tmp_path: Path) -> None:
+        transcript_path = self._subagent_transcript(
+            tmp_path,
+            [
+                _assistant_tool_use("SendMessage", {"message": "first"}),
+                _assistant_tool_use("SendMessage", {"message": "second"}),
+            ],
+        )
+        assert get_subagent_report(transcript_path, "sub1") == "second"
+
+    def test_handback_wins_over_a_later_send_message(self, tmp_path: Path) -> None:
+        transcript_path = self._subagent_transcript(
+            tmp_path,
+            [
+                _assistant_tool_use("SubagentHandback", {"message": "report"}),
+                _assistant_tool_use("SendMessage", {"message": "chatter"}),
+            ],
+        )
+        assert get_subagent_report(transcript_path, "sub1") == "report"
+
+    def test_non_string_message_is_ignored(self, tmp_path: Path) -> None:
+        transcript_path = self._subagent_transcript(
+            tmp_path,
+            [_assistant_tool_use("SendMessage", {"message": {"type": "shutdown_request"}})],
+        )
+        assert get_subagent_report(transcript_path, "sub1") == ""
+
+    def test_transcript_already_under_subagents_resolves_its_siblings(self, tmp_path: Path) -> None:
+        self._subagent_transcript(tmp_path, [_assistant_tool_use("SubagentHandback", {"message": "sibling report"})])
+        own_path = str(tmp_path / "session" / "subagents" / "agent-other.jsonl")
+        assert get_subagent_report(own_path, "sub1") == "sibling report"
+
+    def test_missing_file_returns_empty(self, tmp_path: Path) -> None:
+        assert get_subagent_report(str(tmp_path / "session.jsonl"), "sub1") == ""
+
+    def test_malformed_line_is_skipped(self, tmp_path: Path) -> None:
+        transcript_path = self._subagent_transcript(tmp_path, [])
+        subagent_file = tmp_path / "session" / "subagents" / "agent-sub1.jsonl"
+        subagent_file.write_text(
+            "not json\n" + json.dumps(_assistant_tool_use("SubagentHandback", {"message": "kept"})),
+            encoding="utf-8",
+        )
+        assert get_subagent_report(transcript_path, "sub1") == "kept"

@@ -95,6 +95,7 @@ class PostToolUseFields(HookFields):
     success: bool
     executionTimeMs: int = 0
     result: str | None = None
+    withheldReportAgentId: str = ""
 
 
 class TaskStartFields(HookFields):
