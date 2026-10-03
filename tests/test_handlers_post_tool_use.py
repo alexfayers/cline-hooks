@@ -1152,3 +1152,25 @@ class TestPostToolUseHandbackRescue:
         assert result is not None
         context = cast("dict[str, str]", result["hookSpecificOutput"])["additionalContext"]
         assert "RESCUED SUBAGENT REPORT (handback withheld by harness, agentId=abc):\nthe report" in context
+
+    def test_orphaned_handback_tells_the_subagent_to_stop_retrying(self) -> None:
+        set_protocol(ClaudeCodeProtocol())
+        payload = {
+            "hook_event_name": "PostToolUse",
+            "session_id": "session-1",
+            "cwd": "/workspace",
+            "agent_id": "abc",
+            "agent_type": "worker",
+            "tool_name": "SubagentHandback",
+            "tool_input": {"message": "the report"},
+            "tool_response": {
+                "success": False,
+                "message": "Nothing was sent: the agent that spawned you is no longer running.",
+            },
+        }
+        hook = ClaudeCodeProtocol().parse(RawPayload.from_stdin(json.dumps(payload)))
+        assert isinstance(hook, HookInputPostToolUse)
+        result = _run(hook)
+        assert result is not None
+        context = cast("dict[str, str]", result["hookSpecificOutput"])["additionalContext"]
+        assert "HANDBACK UNDELIVERABLE" in context

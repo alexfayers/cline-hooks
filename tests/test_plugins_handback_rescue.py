@@ -41,3 +41,6 @@ class TestHandbackRescuePlugin:
     def test_silent_for_other_hooks(self, stub_transcript: StubTranscriptT) -> None:
         stub_transcript(subagent_report_text="the report")
         assert _on_hook("TaskStart", withheld_report_agent_id="agent-abc", transcript_path="session.jsonl") is None
+
+    def test_silent_for_a_failed_tool_that_is_not_an_orphaned_handback(self) -> None:
+        assert _on_hook("ToolFailed", orphaned_handback=False) is None

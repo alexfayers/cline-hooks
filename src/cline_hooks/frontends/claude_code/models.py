@@ -15,6 +15,7 @@ from cline_hooks.core.models import (
 from cline_hooks.core.payload import Flag, ToolParams, diff_envelope
 
 WITHHELD_REPORT_MARKER = "without delivering a report through SubagentHandback"
+ORPHANED_HANDBACK_MARKER = "the agent that spawned you is no longer running"
 
 
 def _withheld_report_agent_id(data: dict[str, Any]) -> dict[str, Any]:
@@ -38,16 +39,47 @@ def _withheld_report_agent_id(data: dict[str, Any]) -> dict[str, Any]:
     return data
 
 
+def _orphaned_handback(data: dict[str, Any]) -> dict[str, Any]:
+    """Set `orphanedHandback` where a SubagentHandback failed because its spawner has ended.
+
+    Returns:
+        The payload, with `orphanedHandback` added for an orphaned handback.
+    """
+    response = data.get("tool_response")
+    if (
+        data.get("tool_name") == "SubagentHandback"
+        and isinstance(response, dict)
+        and ORPHANED_HANDBACK_MARKER in str(response.get("message", ""))
+    ):
+        return {**data, "orphanedHandback": True}
+    return data
+
+
 class ClaudeCodePostToolUse(PostToolUseFields):
     """Claude Code's PostToolUse fields.
 
     `executionTimeMs` comes from `duration_ms`; `withheldReportAgentId` is set
-    from an Agent result reporting its handback was withheld.
+    from an Agent result reporting its handback was withheld; `orphanedHandback`
+    from a SubagentHandback failing because its spawner has ended.
     """
 
     executionTimeMs: int = Field(default=0, validation_alias="duration_ms")
+    withheldReportAgentId: str = ""
+    orphanedHandback: bool = False
 
     _withheld = model_validator(mode="before")(_withheld_report_agent_id)
+    _orphaned = model_validator(mode="before")(_orphaned_handback)
+
+    def frontend_kwargs(self) -> dict[str, object]:
+        """Extra plugin dispatch kwargs a frontend derives from its own payload.
+
+        Returns:
+            The withheld-report agent id and orphaned-handback flag.
+        """
+        return {
+            "withheld_report_agent_id": self.withheldReportAgentId,
+            "orphaned_handback": self.orphanedHandback,
+        }
 
 
 class ClaudeCodeTaskStart(TaskStartFields):
