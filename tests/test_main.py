@@ -123,6 +123,12 @@ class TestInvocationContextFilter:
         assert record.context == "-"  # type: ignore[attr-defined]
 
 
+class TestParserProgramName:
+    def test_is_the_distribution_console_script_name(self) -> None:
+        with patch("cline_hooks._main.binary_names", return_value=("renamed-hook", "renamed-hook.exe")):
+            assert _build_parser().prog == "renamed-hook"
+
+
 class TestInstallSubcommands:
     """The CLI is generated from the registry, so it never names a frontend."""
 

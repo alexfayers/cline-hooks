@@ -6,6 +6,7 @@ import sys
 from typing import TYPE_CHECKING, NoReturn
 
 from cline_hooks.core.frontends import FRONTENDS, FRONTENDS_BY_NAME, select_protocol
+from cline_hooks.core.install import binary_names
 from cline_hooks.core.protocol import Protocol, RawPayload, set_protocol
 from cline_hooks.core.registry import HOOK_HANDLERS
 from cline_hooks.core.response import allow, emit
@@ -57,7 +58,7 @@ def _build_parser() -> argparse.ArgumentParser:
     Returns:
         The configured argument parser.
     """
-    parser = argparse.ArgumentParser(prog="cline-hook", description="AI coding assistant lifecycle hooks")
+    parser = argparse.ArgumentParser(prog=binary_names()[0], description="AI coding assistant lifecycle hooks")
     sub = parser.add_subparsers(dest="command")
 
     install_parser = sub.add_parser("install", help="Install hooks")
