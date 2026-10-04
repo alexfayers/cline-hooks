@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -16,6 +17,29 @@ if TYPE_CHECKING:
 
 _FAKE_PYTHON = str(Path("/fake/bin/python"))
 _EXPECTED_BINARY = str(Path(_FAKE_PYTHON).parent / "cline-hook")
+
+
+def _distribution_with_script(name: str) -> MagicMock:
+    """Build a fake distribution exposing one console script.
+
+    Returns:
+        A stand-in for `importlib.metadata.distribution(...)`.
+    """
+    script = MagicMock(group="console_scripts")
+    script.name = name
+    return MagicMock(entry_points=[MagicMock(group="other"), script])
+
+
+@contextmanager
+def _patch_script_name(name: str) -> Iterator[None]:
+    """Patch the installed distribution to declare a console script called `name`.
+
+    Yields:
+        Nothing; the patch holds for the duration of the context.
+    """
+    with patch("cline_hooks.core.install.distribution", return_value=_distribution_with_script(name)):
+        yield
+
 
 _JSON_FRONTENDS = [spec for spec in FRONTENDS if isinstance(spec.installer, JsonHookInstaller)]
 
@@ -150,6 +174,16 @@ class TestJsonHookInstallers:
         event = _first_event(spec)
         assert _commands(spec, config, event).count(_EXPECTED_BINARY) == 1
 
+    def test_skips_events_already_running_a_cline_hook_binary_elsewhere(self, spec: FrontendSpec, home: Path) -> None:
+        installer = _installer(spec)
+        event = _first_event(spec)
+        registration = next(iter(spec.protocol.supported_hooks.values()))
+        other_env = installer.build_entry(Path("/opt/other-env/bin/cline-hook"), registration)
+        _seed(spec, home, {installer.root_key: {event: [other_env]}})
+
+        config = _install(spec, home)
+        assert _commands(spec, config, event) == ["/opt/other-env/bin/cline-hook"]
+
 
 class TestNestedEntryFrontends:
     """Claude Code and Codex share the nested "hook group" config shape."""
@@ -253,6 +287,22 @@ class TestResolveBinary:
     def test_falls_back_to_the_unsuffixed_name(self, tmp_path: Path) -> None:
         with patch("cline_hooks.core.install.sys.executable", str(tmp_path / "python")):
             assert resolve_binary() == tmp_path / "cline-hook"
+
+    def test_takes_the_name_from_the_distribution_console_script(self, tmp_path: Path) -> None:
+        with (
+            _patch_script_name("renamed-hook"),
+            patch("cline_hooks.core.install.sys.executable", str(tmp_path / "python")),
+        ):
+            assert resolve_binary() == tmp_path / "renamed-hook"
+
+    def test_prefers_an_existing_windows_executable_of_the_derived_name(self, tmp_path: Path) -> None:
+        cmd = tmp_path / "renamed-hook.cmd"
+        cmd.write_text("", encoding="utf-8")
+        with (
+            _patch_script_name("renamed-hook"),
+            patch("cline_hooks.core.install.sys.executable", str(tmp_path / "python.exe")),
+        ):
+            assert resolve_binary() == cmd
 
 
 class TestEveryFrontendIsInstallable:

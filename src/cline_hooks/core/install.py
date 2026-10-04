@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from importlib.metadata import distribution
 import json
 from pathlib import Path
 import sys
@@ -47,6 +48,20 @@ class Installer(ABC):
         """
 
 
+def binary_names() -> tuple[str, ...]:
+    """Return the platform variants of this distribution's console script name.
+
+    Returns:
+        The bare, `.exe` and `.cmd` file names.
+    """
+    base = next(
+        entry_point.name
+        for entry_point in distribution("cline-hooks").entry_points
+        if entry_point.group == "console_scripts"
+    )
+    return (base, f"{base}.exe", f"{base}.cmd")
+
+
 def resolve_binary() -> Path:
     """Resolve the path to the cline-hook binary.
 
@@ -54,11 +69,7 @@ def resolve_binary() -> Path:
         Path to the binary, preferring existing files.
     """
     scripts_dir = Path(sys.executable).parent
-    candidates = (
-        scripts_dir / "cline-hook",
-        scripts_dir / "cline-hook.exe",
-        scripts_dir / "cline-hook.cmd",
-    )
+    candidates = tuple(scripts_dir / name for name in binary_names())
     for candidate in candidates:
         if candidate.exists():
             return candidate
@@ -69,8 +80,8 @@ class JsonHookInstaller(Installer):
     """Installer for frontends configured by a JSON file of hook events.
 
     Merges an entry per registered hook into the object under `root_key`,
-    preserving entries from other sources and skipping events already pointing
-    at this binary.
+    preserving entries from other sources and skipping events already running any
+    cline-hook binary.
 
     Attributes:
         must_exist: Whether the config file must already exist, rather than
@@ -116,7 +127,7 @@ class JsonHookInstaller(Installer):
             entry: One entry from the config's hook event list.
 
         Returns:
-            The entry's commands, used to skip re-adding this binary.
+            The entry's commands, used to skip re-adding a cline-hook binary.
         """
         return {str(hook.get("command", "")) for hook in entry.get("hooks", []) if isinstance(hook, dict)}
 
@@ -146,7 +157,7 @@ class JsonHookInstaller(Installer):
             target: The subcommand's positional argument, if it takes one.
         """
         binary = resolve_binary()
-        binary_str = str(binary)
+        names = binary_names()
         config_path = self.config_path(target)
         config = self._read_config(config_path)
 
@@ -157,7 +168,7 @@ class JsonHookInstaller(Installer):
             installed = {
                 command for entry in current if isinstance(entry, dict) for command in self.entry_commands(entry)
             }
-            if binary_str not in installed:
+            if not any(Path(command).name in names for command in installed):
                 current.append(self.build_entry(binary, registration))
                 added += 1
             existing[registration.native_name] = current
