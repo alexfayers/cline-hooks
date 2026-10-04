@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_550bead4fd5f17e4_protocol_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
-            created at 2026-10-04 19:08 +0000
+            created at 2026-10-04 19:15 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -88,7 +88,7 @@
     <p class="pln"><span class="n"><a id="t4" href="#t4">4</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t5" href="#t5">5</a></span><span class="t"><span class="key">from</span> <span class="nam">typing</span> <span class="key">import</span> <span class="nam">Any</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t6" href="#t6">6</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t7" href="#t7">7</a></span><span class="t"><span class="key">from</span> <span class="nam">pydantic</span> <span class="key">import</span> <span class="nam">Field</span><span class="op">,</span> <span class="nam">model_validator</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t7" href="#t7">7</a></span><span class="t"><span class="key">from</span> <span class="nam">pydantic</span> <span class="key">import</span> <span class="nam">AliasChoices</span><span class="op">,</span> <span class="nam">Field</span><span class="op">,</span> <span class="nam">model_validator</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t8" href="#t8">8</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t9" href="#t9">9</a></span><span class="t"><span class="key">from</span> <span class="nam">cline_hooks</span><span class="op">.</span><span class="nam">core</span><span class="op">.</span><span class="nam">models</span> <span class="key">import</span> <span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t10" href="#t10">10</a></span><span class="t">    <span class="nam">PostToolUseFields</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
@@ -195,18 +195,21 @@
     <p class="pln"><span class="n"><a id="t111" href="#t111">111</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t112" href="#t112">112</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t113" href="#t113">113</a></span><span class="t"><span class="key">class</span> <span class="nam">ClaudeCodeEditWriteParams</span><span class="op">(</span><span class="nam">ToolParams</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t114" href="#t114">114</a></span><span class="t">    <span class="str">&quot;&quot;&quot;Parameters for a Claude Code file edit or write tool call.&quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t114" href="#t114">114</a></span><span class="t">    <span class="str">&quot;&quot;&quot;Parameters for a Claude Code edit, multi-edit, notebook edit or write tool call.</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t115" href="#t115">115</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t116" href="#t116">116</a></span><span class="t">    <span class="nam">path</span><span class="op">:</span> <span class="nam">str</span> <span class="op">|</span> <span class="key">None</span> <span class="op">=</span> <span class="nam">Field</span><span class="op">(</span><span class="nam">default</span><span class="op">=</span><span class="key">None</span><span class="op">,</span> <span class="nam">validation_alias</span><span class="op">=</span><span class="str">&quot;file_path&quot;</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t117" href="#t117">117</a></span><span class="t">    <span class="nam">diff</span><span class="op">:</span> <span class="nam">str</span> <span class="op">|</span> <span class="key">None</span> <span class="op">=</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t116" href="#t116">116</a></span><span class="t"><span class="str">    `MultiEdit` carries its edits as a list, so it normalises to a path alone.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t117" href="#t117">117</a></span><span class="t"><span class="str">    &quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t118" href="#t118">118</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t119" href="#t119">119</a></span><span class="t">    <span class="nam">_diff</span> <span class="op">=</span> <span class="nam">model_validator</span><span class="op">(</span><span class="nam">mode</span><span class="op">=</span><span class="str">&quot;before&quot;</span><span class="op">)</span><span class="op">(</span><span class="nam">diff_envelope</span><span class="op">(</span><span class="str">&quot;new_string&quot;</span><span class="op">,</span> <span class="str">&quot;content&quot;</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t120" href="#t120">120</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t119" href="#t119">119</a></span><span class="t">    <span class="nam">path</span><span class="op">:</span> <span class="nam">str</span> <span class="op">|</span> <span class="key">None</span> <span class="op">=</span> <span class="nam">Field</span><span class="op">(</span><span class="nam">default</span><span class="op">=</span><span class="key">None</span><span class="op">,</span> <span class="nam">validation_alias</span><span class="op">=</span><span class="nam">AliasChoices</span><span class="op">(</span><span class="str">&quot;file_path&quot;</span><span class="op">,</span> <span class="str">&quot;notebook_path&quot;</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t120" href="#t120">120</a></span><span class="t">    <span class="nam">diff</span><span class="op">:</span> <span class="nam">str</span> <span class="op">|</span> <span class="key">None</span> <span class="op">=</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t121" href="#t121">121</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t122" href="#t122">122</a></span><span class="t"><span class="key">class</span> <span class="nam">ClaudeCodeShellParams</span><span class="op">(</span><span class="nam">ToolParams</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t123" href="#t123">123</a></span><span class="t">    <span class="str">&quot;&quot;&quot;Parameters for a Claude Code shell command execution tool call.&quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t122" href="#t122">122</a></span><span class="t">    <span class="nam">_diff</span> <span class="op">=</span> <span class="nam">model_validator</span><span class="op">(</span><span class="nam">mode</span><span class="op">=</span><span class="str">&quot;before&quot;</span><span class="op">)</span><span class="op">(</span><span class="nam">diff_envelope</span><span class="op">(</span><span class="str">&quot;new_string&quot;</span><span class="op">,</span> <span class="str">&quot;content&quot;</span><span class="op">,</span> <span class="str">&quot;new_source&quot;</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t123" href="#t123">123</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t124" href="#t124">124</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t125" href="#t125">125</a></span><span class="t">    <span class="nam">command</span><span class="op">:</span> <span class="nam">str</span> <span class="op">=</span> <span class="str">&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t125" href="#t125">125</a></span><span class="t"><span class="key">class</span> <span class="nam">ClaudeCodeShellParams</span><span class="op">(</span><span class="nam">ToolParams</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t126" href="#t126">126</a></span><span class="t">    <span class="str">&quot;&quot;&quot;Parameters for a Claude Code shell command execution tool call.&quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t127" href="#t127">127</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t128" href="#t128">128</a></span><span class="t">    <span class="nam">command</span><span class="op">:</span> <span class="nam">str</span> <span class="op">=</span> <span class="str">&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
 </main>
 <footer>
     <div class="content">
@@ -216,7 +219,7 @@
             <a class="nav" href="z_550bead4fd5f17e4_protocol_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
-            created at 2026-10-04 19:08 +0000
+            created at 2026-10-04 19:15 +0000
         </p>
     </div>
 </footer>
