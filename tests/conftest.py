@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import logging
 import os
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -23,8 +24,7 @@ import cline_hooks.state.store as state_store_module
 import cline_hooks.state.workspace as workspace_module
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-    from pathlib import Path
+    from collections.abc import Callable, Iterator
 
     from pytest_mock import MockerFixture
 
@@ -134,3 +134,109 @@ def isolate_state_files(mocker: MockerFixture, tmp_path: Path) -> None:
     mocker.patch.object(delegation_module._store, "_path", tmp_path / "delegation-state.json")
     mocker.patch.dict(os.environ, {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": ""})
     set_protocol(DEFAULT_PROTOCOL())
+
+
+FAKE_HOME = Path("/fake/home")
+
+
+@pytest.fixture
+def fake_home(monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A home directory that does not exist on disk, exported as HOME.
+
+    Returns:
+        The fake home path.
+    """
+    monkeypatch.setenv("HOME", str(FAKE_HOME))
+    return FAKE_HOME
+
+
+@dataclass
+class FakeDirEntry:
+    """A directory entry as returned by os.scandir."""
+
+    name: str
+    path: str
+    is_directory: bool = False
+    is_symlink: bool = False
+
+    def is_dir(self, *, follow_symlinks: bool = True) -> bool:
+        """Report whether the entry is a directory, as os.DirEntry.is_dir does.
+
+        Returns:
+            True for a directory, unless it is a symlink and symlinks are not followed.
+        """
+        return self.is_directory and (follow_symlinks or not self.is_symlink)
+
+
+@dataclass
+class FakeFilesystem:
+    """An in-memory directory tree served through the patched os.scandir and Path.read_text."""
+
+    listings: dict[str, list[FakeDirEntry]] = field(default_factory=dict)
+    gitignores: dict[str, str] = field(default_factory=dict)
+    unreadable: set[str] = field(default_factory=set)
+
+    def add_files(self, directory: str, count: int) -> str:
+        """Add `count` files to a directory, creating it when missing.
+
+        Returns:
+            The directory path.
+        """
+        entries = self.listings.setdefault(directory, [])
+        for _ in range(count):
+            name = f"file{len(entries)}.txt"
+            entries.append(FakeDirEntry(name, f"{directory}/{name}"))
+        return directory
+
+    def add_directory(self, parent: str, name: str, *, symlink: bool = False) -> str:
+        """Add an empty subdirectory, creating the parent when missing.
+
+        Returns:
+            The subdirectory path.
+        """
+        path = f"{parent}/{name}"
+        self.listings.setdefault(parent, []).append(FakeDirEntry(name, path, is_directory=True, is_symlink=symlink))
+        self.listings.setdefault(path, [])
+        return path
+
+    def scandir(self, path: str) -> Iterator[FakeDirEntry]:
+        """List a directory, as os.scandir does.
+
+        Returns:
+            An iterator over the directory's entries.
+
+        Raises:
+            PermissionError: If the directory is marked unreadable.
+            FileNotFoundError: If the directory does not exist.
+        """
+        if path in self.unreadable:
+            raise PermissionError(path)
+        if path not in self.listings:
+            raise FileNotFoundError(path)
+        return iter(self.listings[path])
+
+    def read_text(self, path: Path, **_: str) -> str:
+        """Read a .gitignore, as Path.read_text does.
+
+        Returns:
+            The registered file contents.
+
+        Raises:
+            FileNotFoundError: If no contents are registered for the path.
+        """
+        if str(path) not in self.gitignores:
+            raise FileNotFoundError(path)
+        return self.gitignores[str(path)]
+
+
+@pytest.fixture
+def fake_filesystem(mocker: MockerFixture) -> FakeFilesystem:
+    """Serve directory listings and file reads from an in-memory tree.
+
+    Returns:
+        The tree to populate.
+    """
+    filesystem = FakeFilesystem()
+    mocker.patch("os.scandir", side_effect=filesystem.scandir)
+    mocker.patch.object(Path, "read_text", autospec=True, side_effect=filesystem.read_text)
+    return filesystem
