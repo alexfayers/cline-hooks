@@ -33,6 +33,7 @@ class ParsedCommand:
     name: str
     flags: list[str]
     args: list[str]
+    words: list[str] = field(default_factory=list, compare=False)
 
 
 def is_git_push(commands: list[ParsedCommand]) -> bool:
@@ -121,15 +122,17 @@ def extract_commands(ast: list[bashlex.ast.node]) -> list[ParsedCommand]:
 
             flags = []
             args = []
+            words = []
             for part in parts[1:]:
                 if getattr(part, "kind", None) == "word":
                     word = getattr(part, "word", "")
+                    words.append(word)
                     if word.startswith("-"):
                         flags.append(word)
                     else:
                         args.append(word)
 
-            commands.append(ParsedCommand(name=cmd_name, flags=flags, args=args))
+            commands.append(ParsedCommand(name=cmd_name, flags=flags, args=args, words=words))
 
     return commands
 

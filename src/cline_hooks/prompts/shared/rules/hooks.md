@@ -6,9 +6,9 @@ Run `cline-hook plugins` for the live, authoritative list of which plugins and h
 
 This package bundles its behavior as plugins:
 
-- `default` - build-tool command names; shell rules (`rm -f`, single-line git commit messages, cat/head/tail-instead-of-Read, build-output filtering, no standalone `true`/`echo`, no `find /`); the build-failure alert.
+- `default` - build-tool command names; shell rules (`rm -f`, single-line git commit messages, cat/head/tail-instead-of-Read, build-output filtering, no standalone `true`/`echo`); the build-failure alert.
 - `tool_guards` - plan-mode emoji canary; large-file read guard; disallowed-comment flagging in diffs; attempt-completion blocks for incomplete task progress and a dirty tree.
-- `shell_guards` - skill-required-before-shell block; git-push managed-workspace-marker block; resume-time skill re-nudge.
+- `shell_guards` - skill-required-before-shell block; git-push managed-workspace-marker block; oversized recursive-search block (`grep -r`/`rg`/`find`/`fd`/`ag` over `/`, `~`, or a tree over 20,000 entries); resume-time skill re-nudge.
 - `managed_files` - blocks edits to llm-prompts-managed files, naming the source.
 - `tracking` - records skill loads, MCP memory writes, agent spawns.
 - `research` - supplies web-research tool names; records lookups; emits the citation trace on Stop.
