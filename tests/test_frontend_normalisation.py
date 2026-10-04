@@ -213,6 +213,31 @@ class TestClaudeCodeNormalisation:
             },
         }
 
+    def test_tools_notebook_edit(self) -> None:
+        hook = _parse("claude-code", "tools/NotebookEdit", ClaudeCodeProtocol)
+        assert hook.model_dump() == {
+            **_CLAUDE_CODE_ENVELOPE,
+            "hookName": "PreToolUse",
+            "preToolUse": {
+                "toolName": "replace_in_file",
+                "parameters": {
+                    "path": "/home/user/project/analysis.ipynb",
+                    "diff": "------- SEARCH\n=======\nprint('hi')\n+++++++ REPLACE",
+                },
+            },
+        }
+
+    def test_tools_multi_edit(self) -> None:
+        hook = _parse("claude-code", "tools/MultiEdit", ClaudeCodeProtocol)
+        assert hook.model_dump() == {
+            **_CLAUDE_CODE_ENVELOPE,
+            "hookName": "PreToolUse",
+            "preToolUse": {
+                "toolName": "replace_in_file",
+                "parameters": {"path": "/home/user/project/src/app.py"},
+            },
+        }
+
     def test_subagent_stop(self) -> None:
         hook = _parse("claude-code", "SubagentStop", ClaudeCodeProtocol)
         assert hook.model_dump() == {
