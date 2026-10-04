@@ -55,6 +55,8 @@ class ClaudeCodeHookSpec(StandardPayloadProtocol):
         "Bash": CanonicalTool.SHELL,
         "Read": CanonicalTool.READ,
         "Edit": CanonicalTool.EDIT,
+        "MultiEdit": CanonicalTool.EDIT,
+        "NotebookEdit": CanonicalTool.EDIT,
         "Write": CanonicalTool.WRITE,
         "Skill": CanonicalTool.SKILL,
         "Task": CanonicalTool.SPAWN_AGENT,

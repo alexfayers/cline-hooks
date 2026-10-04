@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import Field, model_validator
+from pydantic import AliasChoices, Field, model_validator
 
 from cline_hooks.core.models import (
     PostToolUseFields,
@@ -111,12 +111,15 @@ class ClaudeCodeReadParams(ToolParams):
 
 
 class ClaudeCodeEditWriteParams(ToolParams):
-    """Parameters for a Claude Code file edit or write tool call."""
+    """Parameters for a Claude Code edit, multi-edit, notebook edit or write tool call.
 
-    path: str | None = Field(default=None, validation_alias="file_path")
+    `MultiEdit` carries its edits as a list, so it normalises to a path alone.
+    """
+
+    path: str | None = Field(default=None, validation_alias=AliasChoices("file_path", "notebook_path"))
     diff: str | None = None
 
-    _diff = model_validator(mode="before")(diff_envelope("new_string", "content"))
+    _diff = model_validator(mode="before")(diff_envelope("new_string", "content", "new_source"))
 
 
 class ClaudeCodeShellParams(ToolParams):
