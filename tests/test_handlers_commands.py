@@ -21,6 +21,10 @@ class TestExtractCommands:
         commands = extract_commands(bashlex.parse("git push"))
         assert commands == [ParsedCommand(name="git", flags=[], args=["push"])]
 
+    def test_records_every_word_in_order(self) -> None:
+        commands = extract_commands(bashlex.parse("find . -maxdepth 2 -name x"))
+        assert commands[0].words == [".", "-maxdepth", "2", "-name", "x"]
+
 
 class TestIsGitPush:
     def test_detects_git_push(self) -> None:

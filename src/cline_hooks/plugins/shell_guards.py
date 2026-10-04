@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING, cast
 
 import bashlex
@@ -9,6 +10,7 @@ from cline_hooks.core.plugin import HookResult, HooksPlugin
 from cline_hooks.core.vocabulary import CanonicalHook, PluginScope
 from cline_hooks.handlers.commands import extract_commands, is_git_push
 from cline_hooks.handlers.push_guard import marker_above_repo
+from cline_hooks.handlers.search_scope import MAX_SCAN_ENTRIES, MAX_SCAN_SECONDS, find_oversized_search
 from cline_hooks.state.skills import (
     _SKILL_REQUIREMENTS,
     is_skill_called,
@@ -20,14 +22,14 @@ if TYPE_CHECKING:
 
 
 def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | None:
-    """Block a shell command missing a required skill or a blocked git push.
+    """Block a shell command missing a required skill, a blocked git push, or an oversized recursive search.
 
     Args:
         logger: This plugin's hook-scoped child logger.
         **kwargs: The PreShell dispatch kwargs (command, task_id, workspace_roots).
 
     Returns:
-        A blocking HookResult for a missing skill or a blocked git push, or None.
+        A blocking HookResult for a missing skill, a blocked git push or an oversized search, or None.
     """
     command = cast("str", kwargs.get("command") or "")
     task_id = cast("str", kwargs.get("task_id") or "")
@@ -56,6 +58,20 @@ def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | N
                     f"pushing directly."
                 )
             )
+
+    session_cwd = workspace_roots[0] if workspace_roots else os.getcwd()  # ruff: ignore[os-getcwd]
+    scope = find_oversized_search(commands, session_cwd)
+    if scope:
+        logger.debug("Blocked oversized recursive search")
+        return HookResult(
+            block=(
+                f"`{scope.tool}` would recursively search `{', '.join(scope.roots)}`, which is the "
+                f"filesystem root, the home directory, or a tree over {MAX_SCAN_ENTRIES:,} entries or "
+                f"{MAX_SCAN_SECONDS}s to list. MUST narrow the search path to the specific repo or "
+                f"package directory you need, or bound the depth (e.g. `find -maxdepth 2`, "
+                f"`rg --max-depth 2`)."
+            )
+        )
     return None
 
 
