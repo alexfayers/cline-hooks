@@ -22,32 +22,11 @@ from cline_hooks.core.plugin import (
     is_subagent,
     load_plugins,
 )
-from cline_hooks.handlers.commands import (
-    CommandRule,
-    get_all_build_commands,
-    get_all_command_rules,
-)
 import cline_hooks.plugins as plugins_pkg
 from cline_hooks.plugins.command_rules import CommandRulesPlugin
 
 
 class TestHooksPluginDefaults:
-    def test_get_build_commands_returns_empty(self) -> None:
-        plugin = HooksPlugin()
-        assert plugin.get_build_commands() == frozenset()
-
-    def test_get_command_rules_returns_empty(self) -> None:
-        plugin = HooksPlugin()
-        assert plugin.get_command_rules() == []
-
-    def test_get_state_write_tool_names_returns_empty(self) -> None:
-        plugin = HooksPlugin()
-        assert plugin.get_state_write_tool_names() == frozenset()
-
-    def test_get_research_detail_extractors_returns_empty(self) -> None:
-        plugin = HooksPlugin()
-        assert plugin.get_research_detail_extractors() == {}
-
     def test_on_hook_returns_none(self) -> None:
         plugin = HooksPlugin()
         assert plugin.on_hook("AnyHook", logger=logging.getLogger("test")) is None
@@ -258,52 +237,3 @@ class TestLoadPlugins:
         finally:
             sys.modules.pop(origin_name, None)
             sys.modules.pop(reexport_name, None)
-
-
-class TestGetAllBuildCommands:
-    def test_empty_plugins_returns_empty(self) -> None:
-        assert get_all_build_commands([]) == frozenset()
-
-    def test_aggregates_from_multiple_plugins(self) -> None:
-        class PluginA(HooksPlugin):
-            def get_build_commands(self) -> frozenset[str]:
-                return frozenset({"make"})
-
-        class PluginB(HooksPlugin):
-            def get_build_commands(self) -> frozenset[str]:
-                return frozenset({"gradle"})
-
-        result = get_all_build_commands([PluginA(), PluginB()])
-        assert result == frozenset({"make", "gradle"})
-
-    def test_deduplicates_commands(self) -> None:
-        class PluginA(HooksPlugin):
-            def get_build_commands(self) -> frozenset[str]:
-                return frozenset({"make"})
-
-        class PluginB(HooksPlugin):
-            def get_build_commands(self) -> frozenset[str]:
-                return frozenset({"make"})
-
-        result = get_all_build_commands([PluginA(), PluginB()])
-        assert result == frozenset({"make"})
-
-
-class TestGetAllCommandRules:
-    def test_empty_plugins_returns_empty(self) -> None:
-        assert get_all_command_rules([]) == []
-
-    def test_aggregates_rules_in_order(self) -> None:
-        rule_a = CommandRule(command="foo", message="foo blocked")
-        rule_b = CommandRule(command="bar", message="bar blocked")
-
-        class PluginA(HooksPlugin):
-            def get_command_rules(self) -> list[CommandRule]:
-                return [rule_a]
-
-        class PluginB(HooksPlugin):
-            def get_command_rules(self) -> list[CommandRule]:
-                return [rule_b]
-
-        result = get_all_command_rules([PluginA(), PluginB()])
-        assert result == [rule_a, rule_b]

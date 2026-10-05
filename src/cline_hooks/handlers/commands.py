@@ -11,8 +11,6 @@ import bashlex.ast
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
-    from cline_hooks.core.plugin import HooksPlugin
-
 logger = logging.getLogger("hooks.commands")
 
 
@@ -43,36 +41,6 @@ def is_git_push(commands: list[ParsedCommand]) -> bool:
         bool: True if a `git push` command is present.
     """
     return any(cmd.name == "git" and "push" in cmd.args for cmd in commands)
-
-
-def get_all_build_commands(plugins: list[HooksPlugin]) -> frozenset[str]:
-    """Aggregate build command names from all plugins.
-
-    Args:
-        plugins: The loaded plugin instances.
-
-    Returns:
-        frozenset of all build command names across all plugins.
-    """
-    result: set[str] = set()
-    for plugin in plugins:
-        result |= plugin.get_build_commands()
-    return frozenset(result)
-
-
-def get_all_command_rules(plugins: list[HooksPlugin]) -> list[CommandRule]:
-    """Aggregate command rules from all plugins.
-
-    Args:
-        plugins: The loaded plugin instances.
-
-    Returns:
-        List of all CommandRule instances across all plugins.
-    """
-    result: list[CommandRule] = []
-    for plugin in plugins:
-        result.extend(plugin.get_command_rules())
-    return result
 
 
 def _iter_nodes(node: bashlex.ast.node) -> Iterator[bashlex.ast.node]:

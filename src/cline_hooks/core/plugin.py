@@ -16,9 +16,6 @@ import cline_hooks.plugins as _plugins_pkg
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, Mapping, Sequence
-    from typing import Any
-
-    from cline_hooks.handlers.commands import CommandRule
 
 logger = logging.getLogger("hooks.plugin_loader")
 
@@ -128,51 +125,6 @@ class HooksPlugin:
         """This plugin's dedicated logger, named after its concrete class."""
         return logging.getLogger(f"hooks.{type(self).__name__}")
 
-    def get_build_commands(self) -> frozenset[str]:
-        """Return command names that are considered build tools.
-
-        Returns:
-            frozenset of command name strings.
-        """
-        return frozenset()
-
-    def get_command_rules(self) -> list[CommandRule]:
-        """Return CommandRule instances this plugin wants to enforce.
-
-        Returns:
-            List of CommandRule objects.
-        """
-        return []
-
-    def get_state_write_tool_names(self) -> frozenset[str]:
-        """Return MCP tool names that are considered state-write operations.
-
-        Returns:
-            frozenset of tool name strings.
-        """
-        return frozenset()
-
-    def get_research_tool_names(self) -> frozenset[str]:
-        """Return additional tool names that count as research lookups.
-
-        Returns:
-            frozenset of tool name strings.
-        """
-        return frozenset()
-
-    def get_research_detail_extractors(
-        self,
-    ) -> dict[str, Callable[[dict[str, Any]], str]]:
-        """Return per-tool detail extractors for research lookups.
-
-        Each maps a research tool name to a callable that derives a short
-        detail string (e.g. a URL or query) from that tool's parameters.
-
-        Returns:
-            Mapping of tool name to a detail-extraction callable.
-        """
-        return {}
-
     def get_tooling_note(self, workspace_roots: list[str]) -> ToolingNote | None:
         """Return this plugin's ecosystem tooling note for these workspace roots.
 
@@ -201,24 +153,6 @@ class HooksPlugin:
         return None
 
 
-@dataclass(frozen=True)
-class PluginMethodInfo:
-    """One introspected public method of the HooksPlugin protocol.
-
-    Attributes:
-        name: The method name.
-        params: The parameter list rendered as written in source, excluding
-            self (e.g. "workspace_roots" or "hook_name, **kwargs").
-        purpose: The method's docstring summary line.
-        return_type: The method's return type annotation as written in source.
-    """
-
-    name: str
-    params: str
-    purpose: str
-    return_type: str
-
-
 def _format_param(param: inspect.Parameter) -> str:
     """Render a parameter as it appears in source, without its annotation.
 
@@ -233,35 +167,6 @@ def _format_param(param: inspect.Parameter) -> str:
     if param.kind is inspect.Parameter.VAR_KEYWORD:
         return f"**{param.name}"
     return param.name
-
-
-def list_plugin_methods() -> list[PluginMethodInfo]:
-    """List HooksPlugin's public overridable methods, in definition order.
-
-    The single source of truth for both the generated README table and the
-    plugins CLI listing's override detection.
-
-    Returns:
-        One PluginMethodInfo per public method defined directly on
-        HooksPlugin, in source-definition order.
-    """
-    infos: list[PluginMethodInfo] = []
-    for name, member in vars(HooksPlugin).items():
-        if name.startswith("_") or not inspect.isfunction(member):
-            continue
-        sig = inspect.signature(member)
-        params = ", ".join(_format_param(param) for param_name, param in sig.parameters.items() if param_name != "self")
-        doc = inspect.getdoc(member) or ""
-        purpose = doc.splitlines()[0] if doc else ""
-        infos.append(
-            PluginMethodInfo(
-                name=name,
-                params=params,
-                purpose=purpose,
-                return_type=str(sig.return_annotation),
-            )
-        )
-    return infos
 
 
 class _PluginCache:
@@ -461,6 +366,57 @@ def collect_contributions[T](spec: Callable[..., object], expected: type[T], **k
             continue
         contributions.append(result)
     return contributions
+
+
+@dataclass(frozen=True)
+class ExtensionPointInfo:
+    """One introspected extension point published by a plugin.
+
+    Attributes:
+        name: The hookspec method name.
+        owner: The class name of the plugin that publishes it.
+        params: The parameter list rendered as written in source, excluding self.
+        purpose: The method's docstring summary line.
+        return_type: The method's return type annotation as written in source.
+    """
+
+    name: str
+    owner: str
+    params: str
+    purpose: str
+    return_type: str
+
+
+def list_extension_points(plugins: Sequence[HooksPlugin]) -> list[ExtensionPointInfo]:
+    """List the extension points the given plugins publish.
+
+    Args:
+        plugins: The plugins to inspect, in listing order.
+
+    Returns:
+        One ExtensionPointInfo per hookspec method, in definition order within each plugin.
+    """
+    infos: list[ExtensionPointInfo] = []
+    for plugin in plugins:
+        if plugin.hookspecs is None:
+            continue
+        for name, member in vars(plugin.hookspecs).items():
+            if not inspect.isfunction(member) or not hasattr(member, "cline_hooks_spec"):
+                continue
+            sig = inspect.signature(member)
+            doc = inspect.getdoc(member) or ""
+            infos.append(
+                ExtensionPointInfo(
+                    name=name,
+                    owner=type(plugin).__name__,
+                    params=", ".join(
+                        _format_param(param) for param_name, param in sig.parameters.items() if param_name != "self"
+                    ),
+                    purpose=doc.splitlines()[0] if doc else "",
+                    return_type=str(sig.return_annotation),
+                )
+            )
+    return infos
 
 
 # Deprecated alias for backward compatibility with external plugins.

@@ -4,38 +4,13 @@ import logging
 
 from cline_hooks.core.vocabulary import CanonicalHook
 from cline_hooks.plugins.research import (
-    WEB_RESEARCH_TOOLS,
     ResearchPlugin,
     get_research,
-    is_research_tool,
     record_research,
     reset,
 )
 
 _TASK = "task-1"
-
-
-class TestIsResearchTool:
-    def test_web_tool_is_research_when_supplied(self) -> None:
-        assert is_research_tool("web_fetch", WEB_RESEARCH_TOOLS)
-
-    def test_web_tool_is_not_research_without_supplied_names(self) -> None:
-        assert not is_research_tool("web_fetch", frozenset())
-
-    def test_read_is_not_research(self) -> None:
-        assert not is_research_tool("read_file", frozenset())
-
-    def test_bash_is_not_research(self) -> None:
-        assert not is_research_tool("execute_command", frozenset())
-
-    def test_extra_tool_is_research(self) -> None:
-        assert is_research_tool("InternalSearch", frozenset({"InternalSearch"}))
-
-    def test_unknown_extra_tool_is_not_research(self) -> None:
-        assert not is_research_tool("InternalSearch", frozenset({"OtherTool"}))
-
-    def test_default_set_contents(self) -> None:
-        assert frozenset({"web_fetch", "web_search"}) == WEB_RESEARCH_TOOLS
 
 
 class TestRecordAndGet:

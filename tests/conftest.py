@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import ExitStack
 from dataclasses import dataclass, field
 import logging
 import os
@@ -10,7 +11,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from cline_hooks.core.frontends import DEFAULT_PROTOCOL
-from cline_hooks.core.plugin import HooksPlugin, _plugin_cache, hookspec
+from cline_hooks.core.plugin import HooksPlugin, _plugin_cache, hookspec, plugins_override
 from cline_hooks.core.protocol import get_protocol, set_protocol
 from cline_hooks.core.transcript import TranscriptReader
 import cline_hooks.plugins.context_usage as context_usage_module
@@ -103,6 +104,21 @@ def stub_transcript(
         return stub
 
     return install
+
+
+@pytest.fixture
+def use_plugins() -> Iterator[Callable[..., None]]:
+    """Restrict plugin loading to the given plugins for the rest of the test.
+
+    Yields:
+        A callable taking the plugins to install.
+    """
+    with ExitStack() as stack:
+
+        def install(*plugins: HooksPlugin) -> None:
+            stack.enter_context(plugins_override(plugins))
+
+        yield install
 
 
 FAKE_PLUGIN_PREFIX = "fakeep_"

@@ -11,14 +11,17 @@ from cline_hooks._main import (
     _build_parser,
     _invocation_filter,
     _InvocationContextFilter,
-    _list_plugins,
     _run_hook,
     main,
 )
 from cline_hooks.core.frontends import FRONTENDS, FRONTENDS_BY_NAME
+from cline_hooks.core.plugin import HooksPlugin, hookimpl
 from cline_hooks.core.vocabulary import CanonicalHook
+from tests.conftest import GreeterOwner
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from cline_hooks.core.frontend import FrontendSpec
 
 
@@ -170,36 +173,35 @@ class TestInstallSubcommands:
             main()
 
 
+class Greeter(HooksPlugin):
+    @hookimpl
+    def greetings(self, name: str) -> list[str]:
+        return [f"hello {name}"]
+
+
+class StrayContributor(HooksPlugin):
+    @hookimpl
+    def unpublished_extension_point(self) -> list[str]:
+        return []
+
+
+def _plugins_output(capsys: pytest.CaptureFixture[str]) -> str:
+    with patch("sys.argv", ["cline-hook", "plugins"]), pytest.raises(SystemExit) as excinfo:
+        main()
+    assert excinfo.value.code == 0
+    return capsys.readouterr().out
+
+
 class TestListPlugins:
-    def test_reports_overridden_methods(self) -> None:
-        from cline_hooks.core.plugin import HookResult, HooksPlugin
+    def test_reports_the_check_pending_failure_naming_the_plugin(
+        self, use_plugins: Callable[..., None], capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        use_plugins(GreeterOwner(), Greeter(), StrayContributor())
 
-        class _Plugin(HooksPlugin):
-            def get_build_commands(self) -> frozenset[str]:
-                return frozenset({"make"})
+        output = _plugins_output(capsys)
 
-            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
-                return None
-
-        output: list[str] = []
-        with (
-            patch("cline_hooks.core.plugin.load_plugins", return_value=[_Plugin()]),
-            patch("builtins.print", side_effect=lambda s, **kw: output.append(str(s))),
-        ):
-            _list_plugins()
-        overrides_line = next(line for line in output if "overrides:" in line)
-        assert "get_build_commands" in overrides_line
-        assert "on_hook" in overrides_line
-        assert "get_command_rules" not in overrides_line
-
-    def test_no_overrides_says_none_rather_than_nothing(self) -> None:
-        from cline_hooks.core.plugin import HooksPlugin
-
-        output: list[str] = []
-        with (
-            patch("cline_hooks.core.plugin.load_plugins", return_value=[HooksPlugin()]),
-            patch("builtins.print", side_effect=lambda s, **kw: output.append(str(s))),
-        ):
-            _list_plugins()
-        overrides_line = next(line for line in output if "overrides:" in line)
-        assert "none" in overrides_line
+        assert "greetings" in output
+        assert "check_pending" in output
+        assert "clean" not in output
+        assert "unpublished_extension_point" in output
+        assert StrayContributor.__name__ in output

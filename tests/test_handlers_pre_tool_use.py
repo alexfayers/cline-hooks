@@ -8,18 +8,23 @@ from unittest.mock import patch
 import git
 import pytest
 
-from cline_hooks.core.plugin import HookResult, HooksPlugin
+from cline_hooks.core.plugin import HookResult, HooksPlugin, hookimpl
 from cline_hooks.core.protocol import RawPayload, set_protocol
 from cline_hooks.core.response import emit
+from cline_hooks.core.vocabulary import PluginScope
 from cline_hooks.frontends.claude_code.protocol import ClaudeCodeProtocol
 from cline_hooks.frontends.cline import ClineProtocol
+from cline_hooks.handlers.commands import CommandRule
 from cline_hooks.handlers.pre_tool_use import handle_pre_tool_use
+from cline_hooks.plugins.build_tools import BuildToolsSpec
+from cline_hooks.plugins.command_rules import CommandRulesPlugin
 from cline_hooks.plugins.managed_files import _is_managed_path
 from cline_hooks.plugins.tool_guards import ToolGuardsPlugin, _starts_with_emoji
 from cline_hooks.state.skills import record_skill
 from cline_hooks.state.store import TaskStateStore
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     import logging
     from pathlib import Path
 
@@ -720,3 +725,84 @@ class TestPreShellPluginScope:
         result = _run("execute_command", {"command": "ls -la"})
         assert result is not None
         assert "blocked by plugin" in cast("str", result.get("errorMessage", ""))
+
+
+_RM_F_MESSAGE = "rm -f is not allowed. MUST drop the -f flag."
+_TAIL_BUILD_MESSAGE = "MUST NOT filter build output with tail - MUST capture the full output."
+
+
+class _FakeBuildPlugin(HooksPlugin):
+    """Test double owning the build-command extension point and contributing `fakebuild`."""
+
+    hookspecs = BuildToolsSpec
+
+    @hookimpl
+    def build_commands(self) -> frozenset[str]:
+        return frozenset({"fakebuild"})
+
+
+class _FakeToolRulePlugin(HooksPlugin):
+    """Test double contributing a rule that blocks `faketool --danger`."""
+
+    @hookimpl
+    def command_rules(self) -> list[CommandRule]:
+        return [
+            CommandRule(
+                command="faketool",
+                blocked_flags=frozenset({"--danger"}),
+                message="faketool --danger is not allowed.",
+            )
+        ]
+
+
+class _PreShellBlockingPlugin(HooksPlugin):
+    """Test double blocking every shell call."""
+
+    def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
+        if hook_name == PluginScope.PRE_SHELL:
+            return HookResult(block="blocked by plugin")
+        return None
+
+
+class _PreShellRecordingPlugin(HooksPlugin):
+    """Test double recording every shell command it is shown."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.commands: list[object] = []
+
+    def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
+        if hook_name == PluginScope.PRE_SHELL:
+            self.commands.append(kwargs["command"])
+        return None
+
+
+class TestCommandRuleEnforcement:
+    def test_contributed_build_command_piped_into_tail_is_blocked(self, use_plugins: Callable[..., None]) -> None:
+        use_plugins(_FakeBuildPlugin(), CommandRulesPlugin())
+        result = _run("execute_command", {"command": "fakebuild | tail -n 20"})
+        assert result is not None
+        assert result.get("errorMessage") == _TAIL_BUILD_MESSAGE
+
+    def test_rule_message_wins_over_another_plugins_block(self, use_plugins: Callable[..., None]) -> None:
+        use_plugins(CommandRulesPlugin(), _PreShellBlockingPlugin())
+        result = _run("execute_command", {"command": "rm -f x"})
+        assert result is not None
+        assert result.get("errorMessage") == _RM_F_MESSAGE
+
+    def test_contributed_rule_is_enforced_alongside_standard_rules(self, use_plugins: Callable[..., None]) -> None:
+        use_plugins(CommandRulesPlugin(), _FakeToolRulePlugin())
+        contributed = _run("execute_command", {"command": "faketool --danger"})
+        standard = _run("execute_command", {"command": "rm -f x"})
+        assert contributed is not None
+        assert contributed.get("errorMessage") == "faketool --danger is not allowed."
+        assert standard is not None
+        assert standard.get("errorMessage") == _RM_F_MESSAGE
+
+    def test_plugin_shell_guards_still_run_on_a_rule_blocked_command(self, use_plugins: Callable[..., None]) -> None:
+        recorder = _PreShellRecordingPlugin()
+        use_plugins(CommandRulesPlugin(), recorder)
+        result = _run("execute_command", {"command": "rm -f x"})
+        assert result is not None
+        assert result.get("errorMessage") == _RM_F_MESSAGE
+        assert recorder.commands == ["rm -f x"]

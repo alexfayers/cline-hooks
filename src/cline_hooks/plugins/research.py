@@ -5,7 +5,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from cline_hooks.core.parameters import WebResearchParameters
-from cline_hooks.core.plugin import HookResult, HooksPlugin
+from cline_hooks.core.plugin import HookResult, HooksPlugin, collect_contributions, hookimpl, hookspec
 from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.state import PluginStateStore
 from cline_hooks.core.vocabulary import (
@@ -18,8 +18,6 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 logger = logging.getLogger("hooks.ResearchPlugin")
-
-WEB_RESEARCH_TOOLS = frozenset({CanonicalTool.WEB_FETCH, CanonicalTool.WEB_SEARCH})
 
 RESEARCH_TRACE_CAP = 15
 
@@ -53,19 +51,6 @@ class _ResearchState:
 
 
 _store: PluginStateStore[_ResearchState] = PluginStateStore("research-state.json", _ResearchState)
-
-
-def is_research_tool(tool_name: str, extra: frozenset[str]) -> bool:
-    """Check whether a tool name counts as an external research lookup.
-
-    Args:
-        tool_name: The tool name as reported by the frontend.
-        extra: Research tool names contributed by plugins.
-
-    Returns:
-        True if the tool fetches external information.
-    """
-    return tool_name in extra
 
 
 def record_research(task_id: str, tool: str, detail: str) -> None:
@@ -119,96 +104,51 @@ def drain_research(task_id: str) -> list[dict[str, str]]:
     return [record for state in _store.drain(task_id) for record in state.records]
 
 
-def get_all_research_tool_names(plugins: list[HooksPlugin]) -> frozenset[str]:
-    """Collect research lookup tool names from all plugins.
+class ResearchSpec:
+    """Extension point for contributing research lookup tools."""
 
-    Args:
-        plugins: Loaded plugin instances.
+    @hookspec
+    def research_tools(self) -> dict[str, Callable[[dict[str, Any]], str]]:
+        """Return the tools that count as research lookups, with their detail extractors.
 
-    Returns:
-        Union of all plugin research tool name sets.
-    """
-    names: set[str] = set()
-    for plugin in plugins:
-        names.update(plugin.get_research_tool_names())
-    return frozenset(names)
+        Each tool name maps to a callable that derives a short detail string (e.g. a URL
+        or query) from that tool's arguments; MCP arguments for MCP tools.
 
-
-def get_all_research_detail_extractors(
-    plugins: list[HooksPlugin],
-) -> dict[str, Callable[[dict[str, Any]], str]]:
-    """Collect research detail extractors from all plugins.
-
-    Later plugins override earlier ones on key collision.
-
-    Args:
-        plugins: Loaded plugin instances.
-
-    Returns:
-        Merged mapping of tool name to detail-extraction callable.
-    """
-    extractors: dict[str, Callable[[dict[str, Any]], str]] = {}
-    for plugin in plugins:
-        extractors.update(plugin.get_research_detail_extractors())
-    return extractors
+        Returns:
+            Mapping of tool name to a detail-extraction callable.
+        """
+        raise NotImplementedError
 
 
-def extract_research_detail(
-    tool_name: str,
-    parameters: dict[str, Any],
-    extractors: dict[str, Callable[[dict[str, Any]], str]],
-) -> str:
-    """Return a short identifier for a research lookup.
-
-    A plugin-supplied extractor for the tool takes precedence; extractors are
-    third-party plugin code, so failures are caught and treated as no detail.
-    Falls back to the built-in WebFetch/WebSearch handling.
-
-    Args:
-        tool_name: The research tool name.
-        parameters: The tool parameters.
-        extractors: Per-tool detail extractors contributed by plugins.
-
-    Returns:
-        A URL for WebFetch, a query for WebSearch, an extractor-derived string,
-        otherwise an empty string.
-    """
-    extractor = extractors.get(tool_name)
-    if extractor is not None:
-        try:
-            detail = extractor(parameters)
-        except Exception:
-            logger.exception("Research detail extractor for %s failed", tool_name)
-            return ""
-        return str(detail or "")
-    if tool_name in WEB_RESEARCH_TOOLS:
-        params = WebResearchParameters.build(parameters)
-        return str(params.url if tool_name == CanonicalTool.WEB_FETCH else params.query)
-    return ""
-
-
-def record_research_use(  # ruff: ignore[too-many-arguments, too-many-positional-arguments]
+def record_research_use(
     task_id: str,
     tool_name: str,
     mcp_tool_name: str | None,
     arguments: dict[str, Any],
-    research_names: frozenset[str],
-    extractors: dict[str, Callable[[dict[str, Any]], str]],
 ) -> None:
-    """Record a research lookup for a tool call, if it is one.
+    """Record a research lookup for a tool call, if a plugin contributes it as one.
+
+    The first contributor of the tool name supplies the detail extractor; extractors
+    are third-party plugin code, so a failing extractor is logged and records no detail.
 
     Args:
         task_id: The session or task identifier.
         tool_name: The tool name as reported by the frontend.
         mcp_tool_name: The resolved MCP tool name, if this was an MCP call.
         arguments: The tool arguments (MCP arguments when applicable).
-        research_names: Tool names that count as research lookups.
-        extractors: Per-tool research detail extractors contributed by plugins.
     """
     research_tool = mcp_tool_name or tool_name
-    if is_research_tool(research_tool, research_names):
-        detail = extract_research_detail(research_tool, arguments, extractors)
+    for tools in collect_contributions(ResearchSpec.research_tools, dict):
+        extractor = tools.get(research_tool)
+        if extractor is None:
+            continue
+        try:
+            detail = str(extractor(arguments) or "")
+        except Exception:
+            logger.exception("Research detail extractor for %s failed", research_tool)
+            detail = ""
         record_research(task_id, research_tool, detail)
+        return
 
 
 def research_trace_header() -> str:
@@ -275,13 +215,19 @@ def format_research_trace(records: list[dict[str, str]], header: str) -> str:
 class ResearchPlugin(HooksPlugin):
     """Supplies the default research tool set and emits the Stop research trace."""
 
-    def get_research_tool_names(self) -> frozenset[str]:
-        """Return the default set of research lookup tools.
+    hookspecs = ResearchSpec
+
+    @hookimpl
+    def research_tools(self) -> dict[str, Callable[[dict[str, Any]], str]]:
+        """Return the web lookup tools with their URL and query extractors.
 
         Returns:
-            frozenset containing web_fetch and web_search.
+            Mapping of web_fetch and web_search to their detail extractors.
         """
-        return WEB_RESEARCH_TOOLS
+        return {
+            CanonicalTool.WEB_FETCH: lambda parameters: str(WebResearchParameters.build(parameters).url),
+            CanonicalTool.WEB_SEARCH: lambda parameters: str(WebResearchParameters.build(parameters).query),
+        }
 
     def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
         """Emit the grouped research-citation trace on Stop.

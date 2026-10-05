@@ -4,14 +4,15 @@ from pathlib import Path
 import re
 
 from cline_hooks.core.frontends import FRONTENDS
-from cline_hooks.core.plugin import list_plugin_methods
+from cline_hooks.core.plugin import _package_plugins, list_extension_points
 from cline_hooks.core.vocabulary import CanonicalHook
+import cline_hooks.plugins
 
 _README_PATH = Path(__file__).parent.parent / "README.md"
 _MATRIX_START = "<!-- HOOK_MATRIX_START -->"
 _MATRIX_END = "<!-- HOOK_MATRIX_END -->"
-_PLUGIN_METHODS_START = "<!-- PLUGIN_METHODS_START -->"
-_PLUGIN_METHODS_END = "<!-- PLUGIN_METHODS_END -->"
+_EXTENSION_POINTS_START = "<!-- EXTENSION_POINTS_START -->"
+_EXTENSION_POINTS_END = "<!-- EXTENSION_POINTS_END -->"
 
 
 def _generate_hook_matrix() -> str:
@@ -36,21 +37,20 @@ def _generate_hook_matrix() -> str:
     return "\n".join(lines)
 
 
-def _generate_plugin_methods_table() -> str:
-    """Build the plugin-methods table from HooksPlugin's introspected methods.
+def _generate_extension_points_table() -> str:
+    """Build the extension-points table from the bundled plugins' published hookspecs.
 
     Returns:
-        A markdown table with one row per public HooksPlugin method, its
-        purpose (from its docstring summary), and its return type.
+        A markdown table with one row per extension point, its owning plugin,
+        its purpose (from its docstring summary), and its return type.
     """
     lines = [
-        "| Method | Purpose | Return |",
-        "|--------|---------|--------|",
+        "| Extension point | Owner | Purpose | Return |",
+        "|-----------------|-------|---------|--------|",
     ]
-    for info in list_plugin_methods():
-        method_cell = f"`{info.name}({info.params})`"
+    for info in list_extension_points(_package_plugins(cline_hooks.plugins)):
         return_type = info.return_type.replace("|", "\\|")
-        lines.append(f"| {method_cell} | {info.purpose} | `{return_type}` |")
+        lines.append(f"| `{info.name}({info.params})` | `{info.owner}` | {info.purpose} | `{return_type}` |")
     return "\n".join(lines)
 
 
@@ -66,13 +66,13 @@ class TestReadmeHookMatrix:
         assert match.group(1) == _generate_hook_matrix()
 
 
-class TestReadmePluginMethodsTable:
-    def test_committed_table_matches_introspected_methods(self) -> None:
+class TestReadmeExtensionPoints:
+    def test_committed_table_matches_published_extension_points(self) -> None:
         readme = _README_PATH.read_text(encoding="utf-8")
         match = re.search(
-            rf"{re.escape(_PLUGIN_METHODS_START)}\n(.*?)\n{re.escape(_PLUGIN_METHODS_END)}",
+            rf"{re.escape(_EXTENSION_POINTS_START)}\n(.*?)\n{re.escape(_EXTENSION_POINTS_END)}",
             readme,
             re.DOTALL,
         )
-        assert match is not None, "README is missing the plugin-methods markers"
-        assert match.group(1) == _generate_plugin_methods_table()
+        assert match is not None, "README is missing the extension-points markers"
+        assert match.group(1) == _generate_extension_points_table()

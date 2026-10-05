@@ -1,38 +1,26 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
-from cline_hooks.plugins.build_tools import BuildToolsPlugin
+from cline_hooks.core.plugin import HooksPlugin, hookimpl
+from cline_hooks.plugins.build_tools import BuildToolsPlugin, all_build_commands
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+
+class FakeBuildPlugin(HooksPlugin):
+    @hookimpl
+    def build_commands(self) -> frozenset[str]:
+        return frozenset({"fakebuild"})
 
 
 class TestBuildToolsPluginBuildCommands:
-    def test_contains_just(self) -> None:
-        plugin = BuildToolsPlugin()
-        assert "just" in plugin.get_build_commands()
+    def test_contributed_commands_join_the_defaults(self, use_plugins: Callable[..., None]) -> None:
+        use_plugins(BuildToolsPlugin(), FakeBuildPlugin())
 
-    def test_contains_pytest(self) -> None:
-        plugin = BuildToolsPlugin()
-        assert "pytest" in plugin.get_build_commands()
-
-    def test_contains_flutter(self) -> None:
-        plugin = BuildToolsPlugin()
-        assert "flutter" in plugin.get_build_commands()
-
-    def test_contains_dart(self) -> None:
-        plugin = BuildToolsPlugin()
-        assert "dart" in plugin.get_build_commands()
-
-    def test_does_not_contain_gradle(self) -> None:
-        plugin = BuildToolsPlugin()
-        assert "gradle" not in plugin.get_build_commands()
-
-    def test_does_not_contain_make(self) -> None:
-        plugin = BuildToolsPlugin()
-        assert "make" not in plugin.get_build_commands()
-
-    def test_does_not_contain_cargo(self) -> None:
-        plugin = BuildToolsPlugin()
-        assert "cargo" not in plugin.get_build_commands()
+        assert all_build_commands() == frozenset({"just", "pnpm", "npm", "pytest", "flutter", "dart", "fakebuild"})
 
 
 class TestBuildToolsPluginWorkspaceContext:

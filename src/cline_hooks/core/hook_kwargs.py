@@ -66,7 +66,6 @@ class TrackToolUseKwargs(HookKwargs):
     task_id: str = ""
     tool_name: str = ""
     parameters: dict[str, JsonValue] = Field(default_factory=dict)
-    is_state_write: bool = False
     mcp_tool_name: str | None = None
     workspace_roots: list[str] = Field(default_factory=list)
     agent_type: str = ""

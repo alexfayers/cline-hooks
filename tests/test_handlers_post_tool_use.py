@@ -5,24 +5,18 @@ from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import patch
 
 from cline_hooks.core.models import HookInput, HookInputPostToolUse
-from cline_hooks.core.plugin import HookResult, HooksPlugin, ToolingNote
+from cline_hooks.core.plugin import HookResult, HooksPlugin, ToolingNote, hookimpl
 from cline_hooks.core.protocol import RawPayload, set_protocol
 from cline_hooks.core.response import emit
 from cline_hooks.frontends.claude_code import ClaudeCodeProtocol
 from cline_hooks.frontends.cline import ClineProtocol
-from cline_hooks.handlers.post_tool_use import _record_tool_use, handle_post_tool_use
+from cline_hooks.handlers.post_tool_use import handle_post_tool_use
 from cline_hooks.plugins.build_tools import BuildToolsPlugin
 from cline_hooks.plugins.context_usage import context_note
 from cline_hooks.plugins.nudges import _RETRO_THRESHOLD, NudgesPlugin
 from cline_hooks.plugins.persistence import PersistencePlugin
 from cline_hooks.plugins.plan_handoff import consume_plan_nudge, record_plan_exit
-from cline_hooks.plugins.research import (
-    ResearchPlugin,
-    extract_research_detail,
-    get_all_research_detail_extractors,
-    get_all_research_tool_names,
-    get_research,
-)
+from cline_hooks.plugins.research import ResearchPlugin, get_research
 from cline_hooks.state.memory import record_memory_write
 from cline_hooks.state.retrospective import get_count, record_session
 from cline_hooks.state.workspace import record_workspace
@@ -384,80 +378,6 @@ class TestPlanHandoffNudgeFromPostToolUse:
             assert "PLAN COMPLETE" not in cast("str", third_result.get("contextModification", ""))
 
 
-class TestGetAllResearchToolNames:
-    def test_no_plugins_returns_empty(self) -> None:
-        assert get_all_research_tool_names([]) == frozenset()
-
-    def test_includes_default_plugin_tools(self) -> None:
-        assert get_all_research_tool_names([ResearchPlugin()]) == frozenset({"web_fetch", "web_search"})
-
-    def test_union_with_plugin_names(self) -> None:
-        class _ExtraToolsPlugin(HooksPlugin):
-            def get_research_tool_names(self) -> frozenset[str]:
-                return frozenset({"InternalSearch", "InternalCodeSearch"})
-
-        result = get_all_research_tool_names([ResearchPlugin(), _ExtraToolsPlugin()])
-        assert result == frozenset({"web_fetch", "web_search", "InternalSearch", "InternalCodeSearch"})
-
-
-class TestGetAllResearchDetailExtractors:
-    def test_empty_with_no_plugins(self) -> None:
-        assert get_all_research_detail_extractors([]) == {}
-
-    def test_merges_from_plugin(self) -> None:
-        class ExtractorPlugin(HooksPlugin):
-            def get_research_detail_extractors(
-                self,
-            ) -> dict[str, Callable[[dict[str, Any]], str]]:
-                return {"InternalSearch": lambda p: p.get("query", "")}
-
-        result = get_all_research_detail_extractors([ExtractorPlugin()])
-        assert set(result) == {"InternalSearch"}
-
-    def test_last_plugin_wins_on_collision(self) -> None:
-        class PluginA(HooksPlugin):
-            def get_research_detail_extractors(
-                self,
-            ) -> dict[str, Callable[[dict[str, Any]], str]]:
-                return {"X": lambda _p: "a"}
-
-        class PluginB(HooksPlugin):
-            def get_research_detail_extractors(
-                self,
-            ) -> dict[str, Callable[[dict[str, Any]], str]]:
-                return {"X": lambda _p: "b"}
-
-        result = get_all_research_detail_extractors([PluginA(), PluginB()])
-        assert result["X"]({}) == "b"
-
-
-class TestExtractResearchDetail:
-    def test_extractor_used_when_present(self) -> None:
-        assert extract_research_detail("X", {"k": "v"}, {"X": lambda p: p["k"]}) == "v"  # ruff: ignore[reimplemented-operator]
-
-    def test_webfetch_fallback(self) -> None:
-        assert extract_research_detail("web_fetch", {"url": "u"}, {}) == "u"
-
-    def test_websearch_fallback(self) -> None:
-        assert extract_research_detail("web_search", {"query": "q"}, {}) == "q"
-
-    def test_unknown_tool_returns_empty(self) -> None:
-        assert extract_research_detail("Unknown", {"url": "u"}, {}) == ""
-
-    def test_extractor_raises_returns_empty(self) -> None:
-        def _boom(_p: dict[str, Any]) -> str:
-            msg = "boom"
-            raise RuntimeError(msg)
-
-        assert extract_research_detail("X", {}, {"X": _boom}) == ""
-
-    def test_extractor_returns_none_coerced_empty(self) -> None:
-        def _none(_p: dict[str, Any]) -> str:
-            return cast("str", None)
-
-        assert extract_research_detail("X", {}, {"X": _none}) == ""
-
-
 class TestResearchRecording:
     def test_webfetch_records_url(self) -> None:
         _run(_make_hook("web_fetch", parameters={"url": "https://example.com/docs"}))
@@ -484,16 +404,12 @@ class TestResearchRecording:
 
 
 class TestClaudeCodeMcpResearchIntegration:
-    def test_prefixed_mcp_tool_records_research_via_plugin(self) -> None:
+    def test_prefixed_mcp_tool_records_research_via_plugin(self, use_plugins: Callable[..., None]) -> None:
         """A Claude Code mcp__ name reaches the handler already normalised."""
 
         class _ReadInternalWebsitesPlugin(HooksPlugin):
-            def get_research_tool_names(self) -> frozenset[str]:
-                return frozenset({"ReadInternalWebsites"})
-
-            def get_research_detail_extractors(
-                self,
-            ) -> dict[str, Callable[[dict[str, Any]], str]]:
+            @hookimpl
+            def research_tools(self) -> dict[str, Callable[[dict[str, Any]], str]]:
                 return {"ReadInternalWebsites": lambda p: p.get("inputs", [""])[0]}
 
         payload = {
@@ -509,83 +425,9 @@ class TestClaudeCodeMcpResearchIntegration:
         assert hook.postToolUse is not None
         assert hook.postToolUse.toolName == "use_mcp_tool"
 
-        with patch(
-            "cline_hooks.handlers.post_tool_use.load_plugins",
-            return_value=[_ReadInternalWebsitesPlugin()],
-        ):
-            _run(hook)
+        use_plugins(ResearchPlugin(), _ReadInternalWebsitesPlugin())
+        _run(hook)
         assert get_research("task-1") == [{"tool": "ReadInternalWebsites", "detail": "https://example.com/x"}]
-
-
-def _mcp_parameters(server_name: str, tool_name: str, arguments: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Build the canonical use_mcp_tool parameters a frontend normalises to.
-
-    Returns:
-        Parameters matching the use_mcp_tool schema.
-    """
-    return {
-        "server_name": server_name,
-        "tool_name": tool_name,
-        "arguments": json.dumps(arguments or {}),
-    }
-
-
-class TestRecordToolUseMcpResolution:
-    def test_mcp_research_with_extractor(self) -> None:
-        _record_tool_use(
-            "task-1",
-            "use_mcp_tool",
-            _mcp_parameters(
-                "builder-mcp",
-                "ReadInternalWebsites",
-                {"inputs": ["https://example.com/x"]},
-            ),
-            frozenset(),
-            frozenset({"ReadInternalWebsites"}),
-            {"ReadInternalWebsites": lambda p: p["inputs"][0]},
-        )
-        assert get_research("task-1") == [{"tool": "ReadInternalWebsites", "detail": "https://example.com/x"}]
-
-    def test_mcp_research_empty_extractors(self) -> None:
-        _record_tool_use(
-            "task-1",
-            "use_mcp_tool",
-            _mcp_parameters(
-                "builder-mcp",
-                "ReadInternalWebsites",
-                {"inputs": ["https://example.com/x"]},
-            ),
-            frozenset(),
-            frozenset({"ReadInternalWebsites"}),
-            {},
-        )
-        assert get_research("task-1") == [{"tool": "ReadInternalWebsites", "detail": ""}]
-
-    def test_mcp_state_write(self) -> None:
-        result = _record_tool_use(
-            "task-1",
-            "use_mcp_tool",
-            _mcp_parameters("srv", "SomeWrite"),
-            frozenset({"SomeWrite"}),
-            frozenset(),
-            {},
-        )
-        assert result == (True, "SomeWrite")
-
-    def test_cline_use_mcp_tool_with_json_arguments(self) -> None:
-        _record_tool_use(
-            "task-1",
-            "use_mcp_tool",
-            {
-                "server_name": "builder-mcp",
-                "tool_name": "InternalSearch",
-                "arguments": json.dumps({"query": "foo"}),
-            },
-            frozenset(),
-            frozenset({"InternalSearch"}),
-            {"InternalSearch": lambda p: p.get("query", "")},
-        )
-        assert get_research("task-1") == [{"tool": "InternalSearch", "detail": "foo"}]
 
 
 class TestMemoryWarningOnSessionEnd:
@@ -1048,23 +890,19 @@ class _CapturingPlugin(HooksPlugin):
 
 
 class TestTrackToolUsePluginScope:
-    def test_reaches_plugin_with_documented_kwargs(self) -> None:
+    def test_reaches_plugin_with_documented_kwargs(self, use_plugins: Callable[..., None]) -> None:
         captured: list[dict[str, object]] = []
         hook = _make_hook(
             "use_mcp_tool",
             parameters={"server_name": "s", "tool_name": "t", "arguments": {}},
         )
-        with patch(
-            "cline_hooks.handlers.post_tool_use.load_plugins",
-            return_value=[_CapturingPlugin("TrackToolUse", captured)],
-        ):
-            _run(hook)
+        use_plugins(_CapturingPlugin("TrackToolUse", captured))
+        _run(hook)
         assert len(captured) == 1
         kwargs = captured[0]
         assert kwargs["task_id"] == "task-1"
         assert kwargs["tool_name"] == "use_mcp_tool"
         assert kwargs["mcp_tool_name"] == "t"
-        assert kwargs["is_state_write"] is False
         assert kwargs["workspace_roots"] == ["/workspace"]
         assert kwargs["agent_type"] == ""
 

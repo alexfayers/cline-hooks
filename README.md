@@ -111,25 +111,30 @@ never reaches one.
 ## Plugins
 
 Plugins extend the hook framework with custom command rules, build tool
-detection, ecosystem tooling notes, and hook-driven notes/blocking.
+detection, research tools, ecosystem tooling notes, and hook-driven
+notes/blocking. Core knows only plugins and their callers: each extension point
+is published by an owning plugin, and other plugins contribute to it.
 
 ### Creating a plugin
 
-1. Subclass `HooksPlugin` and override the methods you need:
+1. Subclass `HooksPlugin` and mark the extension points you contribute to with
+   `@hookimpl`. The method name is the extension point's name:
 
 ```python
 import logging
 
-from cline_hooks.core.plugin import HookResult, HooksPlugin, ToolingNote
+from cline_hooks.core.plugin import HookResult, HooksPlugin, ToolingNote, hookimpl
 from cline_hooks.handlers.commands import CommandRule
 
 
 class MyPlugin(HooksPlugin):
-    def get_build_commands(self) -> frozenset[str]:
+    @hookimpl
+    def build_commands(self) -> frozenset[str]:
         """Register custom build tool names."""
         return frozenset({"make", "cmake"})
 
-    def get_command_rules(self) -> list[CommandRule]:
+    @hookimpl
+    def command_rules(self) -> list[CommandRule]:
         """Block dangerous commands or enforce conventions."""
         return [
             CommandRule(
@@ -147,6 +152,12 @@ class MyPlugin(HooksPlugin):
         """Handle any hook event, returning notes and/or a block reason."""
         return None
 ```
+
+   Implement only the methods you need; a `@hookimpl` method takes a subset of
+   its extension point's parameters. `@hookimpl(tryfirst=True)` runs before
+   other contributors. `@hookimpl(optionalhook=True)` contributes to an
+   extension point whose owner may not be installed, and is ignored when it is
+   absent.
 
 2. Register it as an entry point in your `pyproject.toml`:
 
@@ -169,19 +180,33 @@ my-plugins = "my_package.plugins"
 3. Install your package alongside cline-hooks. The plugin will be
    discovered automatically.
 
-### Plugin methods
+### Extension points
 
-<!-- PLUGIN_METHODS_START -->
-| Method | Purpose | Return |
-|--------|---------|--------|
-| `get_build_commands()` | Return command names that are considered build tools. | `frozenset[str]` |
-| `get_command_rules()` | Return CommandRule instances this plugin wants to enforce. | `list[CommandRule]` |
-| `get_state_write_tool_names()` | Return MCP tool names that are considered state-write operations. | `frozenset[str]` |
-| `get_research_tool_names()` | Return additional tool names that count as research lookups. | `frozenset[str]` |
-| `get_research_detail_extractors()` | Return per-tool detail extractors for research lookups. | `dict[str, Callable[[dict[str, Any]], str]]` |
-| `get_tooling_note(workspace_roots)` | Return this plugin's ecosystem tooling note for these workspace roots. | `ToolingNote \| None` |
-| `on_hook(hook_name, logger, **kwargs)` | Handle any hook event, returning notes and/or a block reason. | `HookResult \| None` |
-<!-- PLUGIN_METHODS_END -->
+<!-- EXTENSION_POINTS_START -->
+| Extension point | Owner | Purpose | Return |
+|-----------------|-------|---------|--------|
+| `build_commands()` | `BuildToolsPlugin` | Return command names that are considered build tools. | `frozenset[str]` |
+| `command_rules()` | `CommandRulesPlugin` | Return CommandRule instances this plugin wants to enforce. | `list[CommandRule]` |
+| `research_tools()` | `ResearchPlugin` | Return the tools that count as research lookups, with their detail extractors. | `dict[str, Callable[[dict[str, Any]], str]]` |
+<!-- EXTENSION_POINTS_END -->
+
+`cline-hook plugins` lists the extension points each loaded plugin owns and
+contributes to. `on_hook` is not an extension point: every plugin receives each
+hook event in registration order.
+
+### Merge rules
+
+Contributions are collected in pluggy order: `tryfirst` contributors first, then
+the last-registered plugin first, so plugins from entry points come before the
+bundled ones. A contribution that is `None`, raises, or returns the wrong type
+is skipped, and the last two are logged against the contributing plugin.
+
+| Extension point | Merge rule |
+|-----------------|------------|
+| `build_commands` | The union of every contribution. |
+| `command_rules` | Lists are concatenated in contributor order, and the first matching rule wins. |
+| `research_tools` | Dicts are merged in contributor order, and the first entry for a tool name wins. |
+| `ecosystem_tooling_note` | The generic note unless a contribution replaces it, then replacing notes, then additive notes. |
 
 ### Owning an extension point
 
