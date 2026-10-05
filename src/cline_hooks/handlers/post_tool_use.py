@@ -8,13 +8,10 @@ from cline_hooks.core.parameters import McpToolUse
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.registry import TOOL_HANDLERS, hook_handler
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool, PluginScope
-from cline_hooks.handlers.git_context import resolve_tooling_notes
 from cline_hooks.plugins.research import record_research_use
-from cline_hooks.state.workspace import should_note_workspace_change
 
 if TYPE_CHECKING:
     from cline_hooks.core.models import HookInputPostToolUse
-    from cline_hooks.core.plugin import HooksPlugin
 
 logger = logging.getLogger("hooks.post_tool_use")
 
@@ -40,28 +37,6 @@ def _record_tool_use(task_id: str, tool_name: str, parameters: dict[str, Any]) -
     record_research_use(task_id, tool_name, mcp_tool_name, arguments)
 
     return mcp_tool_name
-
-
-def _workspace_change_outcome(hook: HookInputPostToolUse, plugins: list[HooksPlugin]) -> Outcome:
-    """Build the ecosystem tooling guidance outcome for a workspace root change.
-
-    Args:
-        hook: The hook input data.
-        plugins: Loaded plugin instances.
-
-    Returns:
-        An ALLOW Outcome with the tooling note, or an empty Outcome if the
-        working directory hasn't changed or there's no note to show.
-    """
-    if not should_note_workspace_change(hook.stateKey, hook.workspaceRoots):
-        return Outcome()
-    notes = resolve_tooling_notes(plugins, hook.workspaceRoots)
-    if not notes:
-        return Outcome()
-    return Outcome.allow(
-        f"Working directory changed to {hook.workspaceRoots[0]}. " + "\n\n".join(notes),
-        label="REMINDER",
-    )
 
 
 @hook_handler(CanonicalHook.POST_TOOL_USE)
@@ -141,8 +116,5 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> Outcome:
     handler = TOOL_HANDLERS.get((CanonicalHook.POST_TOOL_USE, tool_name))
     if handler is not None:
         outcome = outcome.merge(handler(hook, hook.postToolUse, plugins))
-
-    if not outcome.notes:
-        outcome = outcome.merge(_workspace_change_outcome(hook, plugins))
 
     return outcome

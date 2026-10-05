@@ -123,8 +123,9 @@ is published by an owning plugin, and other plugins contribute to it.
 ```python
 import logging
 
-from cline_hooks.core.plugin import HookResult, HooksPlugin, ToolingNote, hookimpl
+from cline_hooks.core.plugin import HookResult, HooksPlugin, hookimpl
 from cline_hooks.handlers.commands import CommandRule
+from cline_hooks.plugins.ecosystem import ToolingNote
 
 
 class MyPlugin(HooksPlugin):
@@ -144,7 +145,8 @@ class MyPlugin(HooksPlugin):
             ),
         ]
 
-    def get_tooling_note(self, workspace_roots: list[str]) -> ToolingNote | None:
+    @hookimpl
+    def ecosystem_tooling_note(self, workspace_roots: list[str]) -> ToolingNote | None:
         """Supply this plugin's ecosystem tooling note for these workspace roots."""
         return None
 
@@ -187,6 +189,7 @@ my-plugins = "my_package.plugins"
 |-----------------|-------|---------|--------|
 | `build_commands()` | `BuildToolsPlugin` | Return command names that are considered build tools. | `frozenset[str]` |
 | `command_rules()` | `CommandRulesPlugin` | Return CommandRule instances this plugin wants to enforce. | `list[CommandRule]` |
+| `ecosystem_tooling_note(workspace_roots)` | `EcosystemPlugin` | Return this plugin's ecosystem tooling note for these workspace roots. | `ToolingNote \| None` |
 | `research_tools()` | `ResearchPlugin` | Return the tools that count as research lookups, with their detail extractors. | `dict[str, Callable[[dict[str, Any]], str]]` |
 <!-- EXTENSION_POINTS_END -->
 

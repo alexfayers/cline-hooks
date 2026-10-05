@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -14,16 +14,12 @@ from cline_hooks.core.models import (
     HookInputTaskStart,
     TaskStartFields,
 )
-from cline_hooks.core.plugin import HookResult, HooksPlugin, ToolingNote, UserFacingNote
+from cline_hooks.core.plugin import HookResult, HooksPlugin, UserFacingNote
 from cline_hooks.core.protocol import set_protocol
 from cline_hooks.frontends.claude_code import ClaudeCodeProtocol
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.frontends.kiro import KiroProtocol
-from cline_hooks.handlers.git_context import (
-    get_dirty_count,
-    get_generic_tooling_note,
-    resolve_tooling_notes,
-)
+from cline_hooks.handlers.git_context import get_dirty_count
 from cline_hooks.handlers.task_lifecycle import (
     _format_block_history,
     handle_task_cancel,
@@ -32,6 +28,7 @@ from cline_hooks.handlers.task_lifecycle import (
     handle_task_start,
 )
 from cline_hooks.plugins.context_usage import should_nudge_context
+from cline_hooks.plugins.ecosystem import EcosystemPlugin
 from cline_hooks.plugins.nudges import increment
 from cline_hooks.plugins.plan_handoff import consume_plan_nudge, record_plan_exit
 from cline_hooks.state.agents import has_agent_use, record_agent_use
@@ -39,6 +36,9 @@ from cline_hooks.state.memory import has_memory_writes, record_memory_write
 from cline_hooks.state.skills import is_skill_called, record_skill
 from cline_hooks.state.store import TaskBlockEvent, TaskStateStore
 from cline_hooks.state.workspace import record_workspace, should_note_workspace_change
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 BASE = {
     "clineVersion": "1.0",
@@ -131,65 +131,11 @@ class TestGetDirtyCount:
         assert get_dirty_count([]) is None
 
 
-class TestGetGenericToolingNote:
-    def test_python_project_with_uv(self, tmp_path: Path) -> None:
-        (tmp_path / "pyproject.toml").write_text("")
-        with patch("cline_hooks.handlers.git_context.shutil.which", return_value="/usr/bin/uv"):
-            note = get_generic_tooling_note([str(tmp_path)])
-        assert note is not None
-        assert "uv" in note
-        assert "Python project" in note
-
-    def test_python_project_without_uv(self, tmp_path: Path) -> None:
-        (tmp_path / "pyproject.toml").write_text("")
-        with patch("cline_hooks.handlers.git_context.shutil.which", return_value=None):
-            note = get_generic_tooling_note([str(tmp_path)])
-        assert note is not None
-        assert "Python project" in note
-        assert "uv" not in note
-
-    def test_no_marker_returns_none(self, tmp_path: Path) -> None:
-        assert get_generic_tooling_note([str(tmp_path)]) is None
-
-    def test_first_qualifying_root_wins(self, tmp_path: Path) -> None:
-        first = tmp_path / "first"
-        second = tmp_path / "second"
-        first.mkdir()
-        second.mkdir()
-        (second / "pyproject.toml").write_text("")
-        with patch("cline_hooks.handlers.git_context.shutil.which", return_value=None):
-            note = get_generic_tooling_note([str(first), str(second)])
-        assert note is not None
-        assert "Python project" in note
-
-
-class _ReplacingPlugin(HooksPlugin):
-    def get_tooling_note(self, workspace_roots: list[str]) -> ToolingNote | None:
-        return ToolingNote(note="PLUGIN NOTE", replaces_generic=True)
-
-
 class _UserNotePlugin(HooksPlugin):
     def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
         if hook_name == "TaskStart":
             return HookResult(user_notes=[UserFacingNote(user_text="USER TEXT")])
         return None
-
-
-class TestResolveToolingNotes:
-    def test_returns_note_when_no_plugin_replaces(self, tmp_path: Path) -> None:
-        (tmp_path / "pyproject.toml").write_text("")
-        assert resolve_tooling_notes([HooksPlugin()], [str(tmp_path)]) != []
-
-    def test_returns_only_plugin_note_when_replaced(self, tmp_path: Path) -> None:
-        (tmp_path / "pyproject.toml").write_text("")
-        assert resolve_tooling_notes([_ReplacingPlugin()], [str(tmp_path)]) == ["PLUGIN NOTE"]
-
-    def test_returns_empty_when_nothing_matches(self, tmp_path: Path) -> None:
-        assert resolve_tooling_notes([], [str(tmp_path)]) == []
-
-    def test_empty_plugin_list_still_returns_note(self, tmp_path: Path) -> None:
-        (tmp_path / "pyproject.toml").write_text("")
-        assert resolve_tooling_notes([], [str(tmp_path)]) != []
 
 
 class TestHandleTaskStart:
@@ -294,39 +240,9 @@ class TestHandleTaskStart:
             result = self._run(_task_start([str(tmp_path)], source="compact"))
         assert "Branch: main" in cast("str", result["contextModification"])
 
-    def test_tooling_note_included_when_unreplaced(self, tmp_path: Path) -> None:
-        with (
-            patch("cline_hooks.plugins.session_context.get_git_context", return_value=None),
-            patch(
-                "cline_hooks.handlers.task_lifecycle.load_plugins",
-                return_value=[HooksPlugin()],
-            ),
-            patch(
-                "cline_hooks.handlers.git_context.get_generic_tooling_note",
-                return_value="TOOLING NOTE",
-            ),
-        ):
-            result = self._run(_task_start([str(tmp_path)]))
-        assert "TOOLING NOTE" in cast("str", result["contextModification"])
-
-    def test_tooling_note_replaced_when_plugin_replaces(self, tmp_path: Path) -> None:
-        with (
-            patch("cline_hooks.plugins.session_context.get_git_context", return_value=None),
-            patch(
-                "cline_hooks.handlers.task_lifecycle.load_plugins",
-                return_value=[_ReplacingPlugin()],
-            ),
-            patch(
-                "cline_hooks.handlers.git_context.get_generic_tooling_note",
-                return_value="TOOLING NOTE",
-            ),
-        ):
-            result = self._run(_task_start([str(tmp_path)]))
-        assert "TOOLING NOTE" not in cast("str", result["contextModification"])
-
-    def test_workspace_state_seeded_on_start(self, tmp_path: Path) -> None:
-        with patch("cline_hooks.plugins.session_context.get_git_context", return_value=None):
-            self._run(_task_start([str(tmp_path)]))
+    def test_workspace_state_seeded_on_start(self, use_plugins: Callable[..., None], tmp_path: Path) -> None:
+        use_plugins(EcosystemPlugin())
+        self._run(_task_start([str(tmp_path)]))
         assert should_note_workspace_change("task-1", [str(tmp_path)]) is False
         assert should_note_workspace_change("task-1", ["/other"]) is True
 
@@ -473,39 +389,9 @@ class TestHandleTaskResume:
             self._run(_task_resume([str(tmp_path)]))
         assert has_agent_use("task-1")
 
-    def test_tooling_note_included_when_unreplaced(self, tmp_path: Path) -> None:
-        with (
-            patch("cline_hooks.plugins.session_context.get_git_context", return_value=None),
-            patch(
-                "cline_hooks.handlers.task_lifecycle.load_plugins",
-                return_value=[HooksPlugin()],
-            ),
-            patch(
-                "cline_hooks.handlers.git_context.get_generic_tooling_note",
-                return_value="TOOLING NOTE",
-            ),
-        ):
-            result = self._run(_task_resume([str(tmp_path)]))
-        assert "TOOLING NOTE" in cast("str", result["contextModification"])
-
-    def test_tooling_note_replaced_when_plugin_replaces(self, tmp_path: Path) -> None:
-        with (
-            patch("cline_hooks.plugins.session_context.get_git_context", return_value=None),
-            patch(
-                "cline_hooks.handlers.task_lifecycle.load_plugins",
-                return_value=[_ReplacingPlugin()],
-            ),
-            patch(
-                "cline_hooks.handlers.git_context.get_generic_tooling_note",
-                return_value="TOOLING NOTE",
-            ),
-        ):
-            result = self._run(_task_resume([str(tmp_path)]))
-        assert "TOOLING NOTE" not in cast("str", result["contextModification"])
-
-    def test_workspace_state_seeded_on_resume(self, tmp_path: Path) -> None:
-        with patch("cline_hooks.plugins.session_context.get_git_context", return_value=None):
-            self._run(_task_resume([str(tmp_path)]))
+    def test_workspace_state_seeded_on_resume(self, use_plugins: Callable[..., None], tmp_path: Path) -> None:
+        use_plugins(EcosystemPlugin())
+        self._run(_task_resume([str(tmp_path)]))
         assert should_note_workspace_change("task-1", [str(tmp_path)]) is False
         assert should_note_workspace_change("task-1", ["/other"]) is True
 

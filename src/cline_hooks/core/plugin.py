@@ -50,21 +50,6 @@ class HookResult:
     user_notes: list[UserFacingNote] = field(default_factory=list)
 
 
-@dataclass
-class ToolingNote:
-    """A plugin-supplied ecosystem tooling note.
-
-    Attributes:
-        note: The guidance text to show.
-        replaces_generic: If True, suppress the generic ecosystem tooling
-            note in favour of this one. If False, this note is shown
-            alongside the generic note (or lack thereof).
-    """
-
-    note: str
-    replaces_generic: bool = True
-
-
 def is_subagent(kwargs: Mapping[str, object]) -> bool:
     """Return True if a hook call is running inside a spawned subagent.
 
@@ -124,20 +109,6 @@ class HooksPlugin:
     def logger(self) -> logging.Logger:
         """This plugin's dedicated logger, named after its concrete class."""
         return logging.getLogger(f"hooks.{type(self).__name__}")
-
-    def get_tooling_note(self, workspace_roots: list[str]) -> ToolingNote | None:
-        """Return this plugin's ecosystem tooling note for these workspace roots.
-
-        A plugin supplies its own build-tool guidance here, optionally
-        replacing the generic ecosystem note for the same roots.
-
-        Args:
-            workspace_roots: List of workspace root paths.
-
-        Returns:
-            None by default.
-        """
-        return None
 
     def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
         """Handle any hook event, returning notes and/or a block reason.

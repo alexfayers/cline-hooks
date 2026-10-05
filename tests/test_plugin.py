@@ -15,7 +15,6 @@ if TYPE_CHECKING:
 from cline_hooks.core.plugin import (
     HookResult,
     HooksPlugin,
-    ToolingNote,
     UserFacingNote,
     _plugin_cache,
     collect_hook_results,
@@ -30,10 +29,6 @@ class TestHooksPluginDefaults:
     def test_on_hook_returns_none(self) -> None:
         plugin = HooksPlugin()
         assert plugin.on_hook("AnyHook", logger=logging.getLogger("test")) is None
-
-    def test_get_tooling_note_returns_none(self) -> None:
-        plugin = HooksPlugin()
-        assert plugin.get_tooling_note([]) is None
 
 
 class TestHookResult:
@@ -50,18 +45,6 @@ class TestHookResult:
     def test_user_notes_defaults_empty(self) -> None:
         result = HookResult()
         assert result.user_notes == []
-
-
-class TestToolingNote:
-    def test_defaults(self) -> None:
-        note = ToolingNote(note="hello")
-        assert note.note == "hello"
-        assert note.replaces_generic is True
-
-    def test_with_values(self) -> None:
-        note = ToolingNote(note="hello", replaces_generic=False)
-        assert note.note == "hello"
-        assert note.replaces_generic is False
 
 
 class TestCollectHookResults:
