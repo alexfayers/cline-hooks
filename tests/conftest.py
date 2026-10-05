@@ -4,11 +4,13 @@ from dataclasses import dataclass, field
 import logging
 import os
 from pathlib import Path
+import sys
 from typing import TYPE_CHECKING
 
 import pytest
 
 from cline_hooks.core.frontends import DEFAULT_PROTOCOL
+from cline_hooks.core.plugin import HooksPlugin, _plugin_cache, hookspec
 from cline_hooks.core.protocol import get_protocol, set_protocol
 from cline_hooks.core.transcript import TranscriptReader
 import cline_hooks.plugins.context_usage as context_usage_module
@@ -101,6 +103,31 @@ def stub_transcript(
         return stub
 
     return install
+
+
+FAKE_PLUGIN_PREFIX = "fakeep_"
+
+
+@pytest.fixture
+def fresh_plugin_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Reset the plugin cache around a test that imports fake plugin modules from tmp_path."""
+    monkeypatch.syspath_prepend(str(tmp_path))
+    _plugin_cache._loaded = None
+    yield
+    _plugin_cache._loaded = None
+    for name in [name for name in sys.modules if name.startswith(FAKE_PLUGIN_PREFIX)]:
+        del sys.modules[name]
+
+
+class GreeterSpec:
+    @hookspec
+    def greetings(self, name: str) -> list[str]:
+        """Greet someone by name."""
+        raise NotImplementedError
+
+
+class GreeterOwner(HooksPlugin):
+    hookspecs = GreeterSpec
 
 
 @pytest.fixture(autouse=True, scope="session")

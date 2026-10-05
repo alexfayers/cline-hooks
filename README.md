@@ -155,6 +155,17 @@ class MyPlugin(HooksPlugin):
 my-plugin = "my_package:MyPlugin"
 ```
 
+   An entry point may name a class, a module or a package. A module or
+   package entry point uses every `HooksPlugin` subclass defined in each
+   module, and a package is loaded one submodule at a time in alphabetical
+   order, so a submodule that fails to import is skipped. Entry points load
+   sorted by name, then value, after the bundled plugins.
+
+```toml
+[project.entry-points."cline_hooks"]
+my-plugins = "my_package.plugins"
+```
+
 3. Install your package alongside cline-hooks. The plugin will be
    discovered automatically.
 
@@ -171,6 +182,39 @@ my-plugin = "my_package:MyPlugin"
 | `get_tooling_note(workspace_roots)` | Return this plugin's ecosystem tooling note for these workspace roots. | `ToolingNote \| None` |
 | `on_hook(hook_name, logger, **kwargs)` | Handle any hook event, returning notes and/or a block reason. | `HookResult \| None` |
 <!-- PLUGIN_METHODS_END -->
+
+### Owning an extension point
+
+A plugin publishes an extension point by setting `hookspecs` to a class of
+`@hookspec` methods. The first docstring line of each method is its purpose,
+and the method name is what contributors implement with `@hookimpl`:
+
+```python
+from cline_hooks.core.plugin import HooksPlugin, collect_contributions, hookspec
+
+
+class LintersSpec:
+    """Extension point for contributing linter commands."""
+
+    @hookspec
+    def linter_commands(self) -> frozenset[str]:
+        """Return command names that are considered linters."""
+        raise NotImplementedError
+
+
+def all_linter_commands() -> frozenset[str]:
+    return frozenset().union(*collect_contributions(LintersSpec.linter_commands, frozenset))
+
+
+class LintersPlugin(HooksPlugin):
+    hookspecs = LintersSpec
+```
+
+`collect_contributions(spec, expected, **kwargs)` calls every contributor and
+returns their results as a list in contributor order. `expected` is the type each
+result must be, and `kwargs` are the spec's parameters by name. The list is
+empty when nothing contributes or the owner is not loaded. The owner decides
+how the results merge.
 
 ### CommandRule
 
