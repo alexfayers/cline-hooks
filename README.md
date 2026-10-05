@@ -172,7 +172,9 @@ my-plugin = "my_package:MyPlugin"
    package entry point uses every `HooksPlugin` subclass defined in each
    module, and a package is loaded one submodule at a time in alphabetical
    order, so a submodule that fails to import is skipped. Entry points load
-   sorted by name, then value, after the bundled plugins.
+   sorted by name, then value, after the bundled plugins. A plugin that fails
+   to load or register, or that still defines a removed `get_*` method, is
+   reported at TaskStart to both the agent and the user.
 
 ```toml
 [project.entry-points."cline_hooks"]

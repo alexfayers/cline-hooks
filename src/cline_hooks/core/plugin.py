@@ -146,6 +146,7 @@ class _PluginCache:
     def __init__(self) -> None:
         self._loaded: list[HooksPlugin] | None = None
         self._manager: pluggy.PluginManager | None = None
+        self._problems: list[str] = []
 
     def get(self) -> list[HooksPlugin] | None:
         """Return the cached plugin list, or None if not yet loaded."""
@@ -155,13 +156,36 @@ class _PluginCache:
         """Return the plugin manager built for the cached plugin list, or None if not yet built."""
         return self._manager
 
-    def set(self, plugins: list[HooksPlugin] | None, manager: pluggy.PluginManager | None = None) -> None:
-        """Store the loaded plugin list, with the manager built for it if any."""
+    def get_problems(self) -> list[str]:
+        """Return the problems recorded while loading the cached plugin list."""
+        return self._problems
+
+    def add_problem(self, problem: str) -> None:
+        """Record a problem met while loading plugins."""
+        self._problems.append(problem)
+
+    def set(
+        self,
+        plugins: list[HooksPlugin] | None,
+        manager: pluggy.PluginManager | None = None,
+        problems: list[str] | None = None,
+    ) -> None:
+        """Store the loaded plugin list, with the manager built for it and the problems met loading it, if any."""
         self._loaded = plugins
         self._manager = manager
+        self._problems = problems or []
 
 
 _plugin_cache = _PluginCache()
+
+REMOVED_PLUGIN_METHODS = (
+    "get_build_commands",
+    "get_command_rules",
+    "get_state_write_tool_names",
+    "get_research_tool_names",
+    "get_research_detail_extractors",
+    "get_tooling_note",
+)
 
 
 def _module_plugins(module: ModuleType) -> list[HooksPlugin]:
@@ -200,6 +224,7 @@ def _package_plugins(package: ModuleType) -> list[HooksPlugin]:
             plugins.extend(_module_plugins(importlib.import_module(name)))
         except Exception:
             logger.exception("Failed to load plugin module: %s", name)
+            _plugin_cache.add_problem(f"Plugin module {name} failed to load and is ignored")
     return plugins
 
 
@@ -242,14 +267,29 @@ def load_plugins() -> list[HooksPlugin]:
             loaded_external.extend(_entry_point_plugins(ep.load()))
         except Exception:
             logger.exception("Failed to load external plugin: %s", ep.name)
+            _plugin_cache.add_problem(f"External plugin {ep.name} failed to load and is ignored")
 
     logger.debug("Bundled plugins: %s", ",".join([plugin.__class__.__name__ for plugin in loaded_bundled]))
     logger.debug("External plugins: %s", ",".join([plugin.__class__.__name__ for plugin in loaded_external]))
 
     loaded = [*loaded_bundled, *loaded_external]
+    for plugin in loaded:
+        for method in REMOVED_PLUGIN_METHODS:
+            if hasattr(plugin, method):
+                _plugin_cache.add_problem(f"{type(plugin).__name__} defines removed method {method}, which is ignored")
 
-    _plugin_cache.set(loaded)
+    _plugin_cache.set(loaded, None, _plugin_cache.get_problems())
     return loaded
+
+
+def get_plugin_problems() -> list[str]:
+    """Return the problems met loading plugins and registering their hookimpls.
+
+    Returns:
+        One short description per problem; empty if every plugin loaded cleanly.
+    """
+    get_plugin_manager()
+    return list(_plugin_cache.get_problems())
 
 
 def _build_plugin_manager(plugins: Sequence[HooksPlugin]) -> pluggy.PluginManager:
@@ -271,6 +311,7 @@ def _build_plugin_manager(plugins: Sequence[HooksPlugin]) -> pluggy.PluginManage
         except pluggy.PluginValidationError:
             manager.unregister(plugin)
             plugin.logger.exception("Invalid hook implementation; plugin contributes nothing")
+            _plugin_cache.add_problem(f"{type(plugin).__name__} has an invalid hook implementation and is ignored")
     return manager
 
 
@@ -284,7 +325,7 @@ def get_plugin_manager() -> pluggy.PluginManager:
     manager = _plugin_cache.get_manager()
     if manager is None:
         manager = _build_plugin_manager(plugins)
-        _plugin_cache.set(plugins, manager)
+        _plugin_cache.set(plugins, manager, _plugin_cache.get_problems())
     return manager
 
 
@@ -298,7 +339,7 @@ def plugins_override(plugins: Sequence[HooksPlugin]) -> Iterator[None]:
     Yields:
         None, while the override is active.
     """
-    previous = (_plugin_cache.get(), _plugin_cache.get_manager())
+    previous = (_plugin_cache.get(), _plugin_cache.get_manager(), _plugin_cache.get_problems())
     _plugin_cache.set(list(plugins))
     try:
         yield

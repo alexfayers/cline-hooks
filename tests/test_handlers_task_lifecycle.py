@@ -350,6 +350,27 @@ class TestHandleTaskStart:
         assert "USER TEXT" not in raw
         assert "systemMessage" not in raw
 
+    def test_plugin_problems_reach_the_model_and_the_user(self, tmp_path: Path) -> None:
+        set_protocol(ClaudeCodeProtocol("SessionStart"))
+        try:
+            with (
+                patch(
+                    "cline_hooks.plugins.session_context.get_git_context",
+                    return_value=None,
+                ),
+                patch(
+                    "cline_hooks.handlers.task_lifecycle.get_plugin_problems",
+                    return_value=["FakePlugin failed to load and is ignored"],
+                ),
+            ):
+                raw = self._run_raw(_task_start([str(tmp_path)]))
+        finally:
+            set_protocol(ClineProtocol())
+        payload = json.loads(raw)
+        note = "cline-hooks plugin problems:\n- FakePlugin failed to load and is ignored"
+        assert payload["systemMessage"] == note
+        assert note in payload["hookSpecificOutput"]["additionalContext"]
+
 
 class TestHandleTaskResume:
     def _run(self, hook: HookInputTaskResume, store: TaskStateStore | None = None) -> dict[str, object]:

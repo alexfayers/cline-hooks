@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from cline_hooks.core.plugin import collect_hook_results, load_plugins
+from cline_hooks.core.plugin import UserFacingNote, collect_hook_results, get_plugin_problems, load_plugins
 from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
@@ -66,6 +66,10 @@ def handle_task_start(hook: HookInputTaskStart) -> None:
         agent_id=hook.agentId,
         is_teammate=hook.isTeammate,
     )
+    if problems := get_plugin_problems():
+        problem_note = "\n".join(["cline-hooks plugin problems:", *(f"- {problem}" for problem in problems)])
+        result.notes.append(problem_note)
+        result.user_notes.append(UserFacingNote(user_text=problem_note))
     parts.extend(result.notes)
 
     system_message: str | None = None

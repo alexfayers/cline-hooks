@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from cline_hooks.core.plugin import HooksPlugin, _entry_point_plugins, load_plugins
+from cline_hooks.core.plugin import HooksPlugin, _entry_point_plugins, get_plugin_problems, load_plugins
 from tests.conftest import FAKE_PLUGIN_PREFIX
 
 if TYPE_CHECKING:
@@ -120,3 +120,24 @@ class TestEntryPointLoading:
         plugins = load_with_entry_points(("pkg", "fakeep_pkg"))
 
         assert external_names(plugins) == ["AlphaPlugin", "ZetaPlugin"]
+
+
+class TestPluginProblems:
+    def test_plugin_defining_a_removed_method_is_reported(
+        self, register_module: RegisterModule, load_with_entry_points: LoadWithEntryPoints
+    ) -> None:
+        legacy = type(
+            "LegacyPlugin",
+            (HooksPlugin,),
+            {"__module__": "fakeep_legacy", "get_build_commands": lambda _: frozenset()},
+        )
+        register_module("fakeep_legacy", legacy)
+
+        load_with_entry_points(("legacy", "fakeep_legacy:LegacyPlugin"))
+
+        assert get_plugin_problems() == ["LegacyPlugin defines removed method get_build_commands, which is ignored"]
+
+    def test_entry_point_that_fails_to_import_is_reported(self, load_with_entry_points: LoadWithEntryPoints) -> None:
+        load_with_entry_points(("missing", "fakeep_missing:MissingPlugin"))
+
+        assert get_plugin_problems() == ["External plugin missing failed to load and is ignored"]
