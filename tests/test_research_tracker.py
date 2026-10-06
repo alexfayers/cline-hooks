@@ -9,6 +9,7 @@ from cline_hooks.plugins.research import (
     record_research,
     reset,
 )
+from cline_hooks.state.finished import mark_finished
 
 _TASK = "task-1"
 
@@ -51,15 +52,21 @@ class TestReset:
 
 
 class TestStopTrace:
-    def test_stop_drains_main_and_subagent_records(self) -> None:
+    def test_stop_drains_main_and_finished_subagent_records(self) -> None:
         record_research(_TASK, "web_fetch", "https://example.com")
-        record_research(f"{_TASK}:agent-a", "web_search", "query")
+        record_research(f"{_TASK}:agent-a", "web_search", "query", "Explore/agent-a")
+        record_research(f"{_TASK}:agent-b", "web_search", "pending", "Explore/agent-b")
+        mark_finished(f"{_TASK}:agent-a")
         result = ResearchPlugin().on_hook(CanonicalHook.STOP, logger=logging.getLogger("test"), task_id=_TASK)
         assert result is not None
         assert "https://example.com" in result.notes[0]
-        assert "query" in result.notes[0]
+        assert '- web_search via Explore/agent-a: "query"' in result.notes[0]
+        assert "pending" not in result.notes[0]
         assert get_research(_TASK) == []
         assert get_research(f"{_TASK}:agent-a") == []
+        assert get_research(f"{_TASK}:agent-b") == [
+            {"tool": "web_search", "detail": "pending", "agent": "Explore/agent-b"}
+        ]
 
     def test_subagent_stop_returns_none_and_keeps_records(self) -> None:
         record_research(_TASK, "web_fetch", "https://example.com")

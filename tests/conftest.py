@@ -20,6 +20,7 @@ import cline_hooks.plugins.nudges as nudges_module
 import cline_hooks.plugins.plan_handoff as plan_handoff_module
 import cline_hooks.plugins.research as research_module
 import cline_hooks.state.agents as agents_tracker_module
+import cline_hooks.state.finished as finished_tracker_module
 import cline_hooks.state.memory as memory_tracker_module
 import cline_hooks.state.retrospective as retrospective_module
 import cline_hooks.state.skills as skill_tracker_module
@@ -170,6 +171,7 @@ def isolate_state_files(mocker: MockerFixture, tmp_path: Path) -> None:
     mocker.patch.object(retrospective_module, "_STATE_PATH", tmp_path / "retrospective-state.json")
     mocker.patch.object(nudges_module._store, "_path", tmp_path / "turns-state.json")
     mocker.patch.object(agents_tracker_module, "_STATE_PATH", tmp_path / "agents-state.json")
+    mocker.patch.object(finished_tracker_module, "_STATE_PATH", tmp_path / "finished-agents.json")
     mocker.patch.object(context_usage_module._store, "_path", tmp_path / "context-state.json")
     mocker.patch.object(plan_handoff_module._store, "_path", tmp_path / "plan-state.json")
     mocker.patch.object(research_module._store, "_path", tmp_path / "research-state.json")

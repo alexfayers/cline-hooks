@@ -50,6 +50,23 @@ class HookResult:
     user_notes: list[UserFacingNote] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class AgentInfo:
+    """Identity of the subagent or teammate a hook call is running in.
+
+    Attributes:
+        agent_type: The agent type name, empty when unknown.
+        agent_id: The subagent id, None for the main agent and teammates.
+        parent_task_id: The spawning task's id, None unless running in a subagent.
+        is_teammate: True for a split-pane agent-team teammate.
+    """
+
+    agent_type: str = ""
+    agent_id: str | None = None
+    parent_task_id: str | None = None
+    is_teammate: bool = False
+
+
 def is_subagent(kwargs: Mapping[str, object]) -> bool:
     """Return True if a hook call is running inside a spawned subagent.
 
@@ -66,6 +83,26 @@ def is_subagent(kwargs: Mapping[str, object]) -> bool:
     return (isinstance(agent_id, str) and bool(agent_id)) or kwargs.get("is_teammate") is True
 
 
+def _agent_info(kwargs: Mapping[str, object]) -> AgentInfo | None:
+    """Build the agent identity a hook call is running in from its flat agent kwargs.
+
+    Args:
+        kwargs: The raw keyword arguments passed to on_hook.
+
+    Returns:
+        The agent identity, or None when the call carries no agent type, id or teammate flag.
+    """
+    agent_type, agent_id = str(kwargs.get("agent_type") or ""), str(kwargs.get("agent_id") or "")
+    is_teammate = kwargs.get("is_teammate") is True
+    if not (agent_type or agent_id or is_teammate):
+        return None
+    task_id = str(kwargs.get("task_id", ""))
+    parent_task_id = None
+    if agent_id and task_id.endswith(f":{agent_id}"):
+        parent_task_id = task_id.removesuffix(f":{agent_id}")
+    return AgentInfo(agent_type, agent_id or None, parent_task_id, is_teammate)
+
+
 def collect_hook_results(plugins: list[HooksPlugin], hook_name: str, **kwargs: object) -> HookResult:
     """Collect and merge HookResults from all plugins for a given hook.
 
@@ -77,6 +114,7 @@ def collect_hook_results(plugins: list[HooksPlugin], hook_name: str, **kwargs: o
     Returns:
         A merged HookResult with all notes and the first block reason found.
     """
+    kwargs.setdefault("agent", _agent_info(kwargs))
     merged = HookResult()
     for plugin in plugins:
         plugin_logger = plugin.logger.getChild(hook_name)

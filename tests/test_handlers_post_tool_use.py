@@ -397,8 +397,11 @@ class TestResearchRecording:
     def test_subagent_records_under_its_own_state_key(self) -> None:
         hook = _make_hook("web_fetch", parameters={"url": "https://example.com/docs"})
         hook.agentId = "agent-7"
+        hook.agentType = "Explore"
         _run(hook)
-        assert get_research("task-1:agent-7") == [{"tool": "web_fetch", "detail": "https://example.com/docs"}]
+        assert get_research("task-1:agent-7") == [
+            {"tool": "web_fetch", "detail": "https://example.com/docs", "agent": "Explore/agent-7"}
+        ]
         assert get_research("task-1") == []
 
 

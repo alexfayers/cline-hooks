@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 from cline_hooks.core.plugin import (
+    AgentInfo,
     HookResult,
     HooksPlugin,
     UserFacingNote,
@@ -131,7 +132,30 @@ class TestCollectHookResults:
                 return None
 
         collect_hook_results([PluginA()], "TestHook", task_id="t1", tool_name="test")
-        assert received == {"task_id": "t1", "tool_name": "test"}
+        assert received == {"task_id": "t1", "tool_name": "test", "agent": None}
+
+    @pytest.mark.parametrize(
+        ("kwargs", "expected"),
+        [
+            ({"task_id": "t1", "agent_id": None}, None),
+            (
+                {"task_id": "t1:agent-7", "agent_id": "agent-7", "agent_type": "X"},
+                AgentInfo("X", "agent-7", "t1", False),
+            ),
+            ({"task_id": "t1", "is_teammate": True}, AgentInfo(is_teammate=True)),
+            ({"task_id": "t1", "agent_type": "X"}, AgentInfo(agent_type="X")),
+        ],
+    )
+    def test_agent_info_built_from_flat_kwargs(self, kwargs: dict[str, object], expected: AgentInfo | None) -> None:
+        received: dict[str, object] = {}
+
+        class PluginA(HooksPlugin):
+            def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
+                received.update(kwargs)
+                return None
+
+        collect_hook_results([PluginA()], "TestHook", **kwargs)
+        assert received["agent"] == expected
 
     def test_skips_blank_and_whitespace_only_notes(self) -> None:
         class PluginA(HooksPlugin):
