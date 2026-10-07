@@ -65,7 +65,7 @@ class KiroProtocol(StandardPayloadProtocol):
     }
     session_env_keys: ClassVar[tuple[str, ...]] = ("KIRO_SESSION_ID",)
     mcp_prefix: ClassVar[str] = "@"
-    mcp_separator: ClassVar[str] = "/"
+    mcp_separators: ClassVar[tuple[str, ...]] = ("/",)
 
     @classmethod
     def detect(cls, payload: RawPayload) -> bool:

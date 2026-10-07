@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parseTemplateSections, findBodyIssues } = require('./check-pr-template.js');
+const { parseTemplateSections, findBodyIssues } = require('./check-pr-template.cjs');
 
 const TEMPLATE = `## Summary
 

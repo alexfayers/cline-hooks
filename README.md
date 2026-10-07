@@ -33,9 +33,9 @@ cline-hook install kiro ~/.kiro/agents/my-agent.json
 cline-hook install pi
 ```
 
-Pass `--force` to repoint existing cline-hook entries, Pi's extension and Cline's
-entry points even where the binary they name still exists; without it, only those
-whose binary is missing are repointed.
+Pass `--force` to repoint existing cline-hook entries and Cline's entry points even
+where the binary they name still exists; without it, only those whose binary is
+missing are repointed. Pi's extension is always repointed at the resolved binary.
 
 Pi has no command hooks, so `cline-hook install pi` writes a bridge extension
 (`~/.pi/agent/extensions/cline-hooks.ts`, or under `$PI_CODING_AGENT_DIR`) that
@@ -65,7 +65,7 @@ the build if it drifts.
 | UserPromptSubmit | - | `UserPromptSubmit` | `UserPromptSubmit` | `UserPromptSubmit` | `UserPromptSubmit` | `userPromptSubmit` | `before_agent_start` |
 | PreCompact | - | - | `PreCompact` | - | `PreCompact` | - | `session_before_compact` |
 | Stop | `Stop` | `Stop` | `Stop` | `Stop` | `Stop` | `stop` | `agent_end` |
-| SubagentStop | - | `SubagentStop` | - | `SubagentStop` | `SubagentStop` | - | - |
+| SubagentStop | - | `SubagentStop` | - | `SubagentStop` | `SubagentStop` | - | `session_shutdown` |
 <!-- HOOK_MATRIX_END -->
 
 ## Adding a frontend
@@ -87,7 +87,7 @@ class MyAgentProtocol(StandardPayloadProtocol):
     tool_map = {"run": CanonicalTool.SHELL}
     hook_models = {...}              # only where raw hook fields differ
     tool_models = {...}              # only where raw tool input differs
-    mcp_prefix, mcp_separator = "mcp__", "__"
+    mcp_prefix, mcp_separators = "mcp__", ("__",)
 
     @classmethod
     def detect(cls, payload): ...

@@ -63,19 +63,23 @@ def ensure_dict(value: dict[str, Any] | str | list[Any] | None) -> dict[str, Any
     return {}
 
 
-def mcp_parameters(native_name: str, tool_input: dict[str, Any], prefix: str, separator: str) -> dict[str, Any]:
+def mcp_parameters(
+    native_name: str, tool_input: dict[str, Any], prefix: str, separators: tuple[str, ...]
+) -> dict[str, Any]:
     """Build use_mcp_tool-style parameters from a frontend's native MCP tool name.
 
     Args:
         native_name: The frontend's native tool name, prefixed per `prefix`.
         tool_input: The tool input from the frontend's hook event.
         prefix: The frontend's MCP tool-name prefix.
-        separator: The frontend's MCP server/tool separator.
+        separators: The frontend's MCP server/tool separators; the first one found in the name splits it.
 
     Returns:
         Parameters dict matching the use_mcp_tool schema.
     """
-    parts = native_name.removeprefix(prefix).split(separator, 1)
+    name = native_name.removeprefix(prefix)
+    separator = next((sep for sep in separators if sep in name), separators[0])
+    parts = name.split(separator, 1)
     server_name = parts[0]
     tool_name = parts[1] if len(parts) > 1 else ""
     return {
@@ -228,7 +232,7 @@ def _tool_parameters(
         no model for this tool.
     """
     if raw_tool.startswith(protocol_cls.mcp_prefix):
-        return mcp_parameters(raw_tool, tool_input, protocol_cls.mcp_prefix, protocol_cls.mcp_separator)
+        return mcp_parameters(raw_tool, tool_input, protocol_cls.mcp_prefix, protocol_cls.mcp_separators)
     params_cls = protocol_cls.tool_models.get(cast("CanonicalTool", tool))
     if params_cls is None:
         return tool_input
@@ -299,7 +303,7 @@ def parse_standard_payload(payload: RawPayload, protocol_cls: type[StandardPaylo
     fields_cls = protocol_cls.hook_models.get(cast("CanonicalHook", hook))
     if fields_cls is not None:
         input_cls = HOOK_INPUTS[hook]
-        fields[input_cls.payload_field] = fields_cls.model_validate(data, context=context).model_dump()
+        fields[input_cls.payload_field] = fields_cls.model_validate(data, context=context)
         return input_cls.build(fields)
 
     return HookInput.build(fields)
@@ -315,7 +319,7 @@ class StandardPayloadProtocol(Protocol):
         session_env_keys: Env vars holding the session id, in priority order,
             for payloads that omit it.
         mcp_prefix: Prefix marking a native tool name as an MCP tool call.
-        mcp_separator: Separator between server and tool in that name.
+        mcp_separators: Separators between server and tool in that name, in precedence order.
         hook_event_key: Payload key naming the native hook event.
     """
 
@@ -324,7 +328,7 @@ class StandardPayloadProtocol(Protocol):
     tool_models: ClassVar[Mapping[CanonicalTool, type[ToolParams]]] = {}
     session_env_keys: ClassVar[tuple[str, ...]] = ()
     mcp_prefix: ClassVar[str]
-    mcp_separator: ClassVar[str]
+    mcp_separators: ClassVar[tuple[str, ...]]
     hook_event_key: ClassVar[str] = "hook_event_name"
 
     def parse(self, payload: RawPayload) -> HookInput:

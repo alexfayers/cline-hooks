@@ -17,6 +17,7 @@ _BAND_SIZE = 10_000
 CONTEXT_REDUCED_THRESHOLD = 300_000
 CONTEXT_DEGRADED_THRESHOLD = 500_000
 _BOUNDARIES: tuple[int, ...] = (CONTEXT_REDUCED_THRESHOLD, CONTEXT_DEGRADED_THRESHOLD)
+_PERCENT = 100
 
 
 @dataclass
@@ -106,31 +107,44 @@ def reset(task_id: str) -> None:
 
 _CONTEXT_STATUS = "CONTEXT STATUS: ~{tokens:,} tokens in use."
 
-_CONTEXT_NUDGE_INFO = f"{_CONTEXT_STATUS} No action needed yet."
+_CONTEXT_STATUS_WINDOW = "CONTEXT STATUS: ~{tokens:,} / {window:,} tokens ({percent:.1f}%) in use."
+
+_CONTEXT_NUDGE_INFO = "{status} No action needed yet."
 
 _CONTEXT_NUDGE_REDUCED = (
-    f"{_CONTEXT_STATUS} Accuracy degrading past {CONTEXT_REDUCED_THRESHOLD // 1000}k. MUST ask the user before "
+    f"{{status}} Accuracy degrading past {CONTEXT_REDUCED_THRESHOLD // 1000}k. MUST ask the user before "
     "starting new planning or implementation. To continue, MUST record current state in memory."
 )
 
 _CONTEXT_NUDGE_SEVERE = (
-    f"{_CONTEXT_STATUS} Accuracy badly degraded. MUST push back on new work - record current state in memory "
+    "{status} Accuracy badly degraded. MUST push back on new work - record current state in memory "
     "and hand off to a fresh session unless told to continue."
 )
 
 _CONTEXT_NUDGE_REDUCED_SUBAGENT = (
-    f"{_CONTEXT_STATUS} Accuracy degrading past {CONTEXT_REDUCED_THRESHOLD // 1000}k. MUST report your state to "
+    f"{{status}} Accuracy degrading past {CONTEXT_REDUCED_THRESHOLD // 1000}k. MUST report your state to "
     "your caller/lead before starting new planning or implementation. To continue, MUST record current state in "
     "memory."
 )
 
 _CONTEXT_NUDGE_SEVERE_SUBAGENT = (
-    f"{_CONTEXT_STATUS} Accuracy badly degraded. MUST push back on new work - report your state to your "
+    "{status} Accuracy badly degraded. MUST push back on new work - report your state to your "
     "caller/lead and ask to be replaced."
 )
 
 
-def context_note(task_id: str, token_count: int, *, is_subagent: bool = False) -> str | None:
+def _status(token_count: int, context_window: int | None) -> str:
+    """Return the status sentence, with the window and percent when the window is known."""
+    if not context_window or context_window <= 0:
+        return _CONTEXT_STATUS.format(tokens=token_count)
+    return _CONTEXT_STATUS_WINDOW.format(
+        tokens=token_count, window=context_window, percent=token_count / context_window * _PERCENT
+    )
+
+
+def context_note(
+    task_id: str, token_count: int, *, is_subagent: bool = False, context_window: int | None = None
+) -> str | None:
     """Return the context-usage nudge for the current token count, or None.
 
     Fires at most once per 10k-token band, from whichever call site reaches
@@ -145,6 +159,8 @@ def context_note(task_id: str, token_count: int, *, is_subagent: bool = False) -
         token_count: The current context token count.
         is_subagent: Whether this hook fired for a subagent/teammate rather
             than the main agent.
+        context_window: The model's context window in tokens, when the
+            frontend reports it. Shown in the note.
 
     Returns:
         The nudge text, or None when nothing should fire this check.
@@ -152,15 +168,30 @@ def context_note(task_id: str, token_count: int, *, is_subagent: bool = False) -
     if not should_nudge_context(task_id, token_count):
         return None
     boundary = crossed_boundary(task_id, token_count)
+    status = _status(token_count, context_window)
     if boundary == CONTEXT_DEGRADED_THRESHOLD:
         if is_subagent:
-            return _CONTEXT_NUDGE_SEVERE_SUBAGENT.format(tokens=token_count)
-        return with_team_clause(_CONTEXT_NUDGE_SEVERE.format(tokens=token_count), task_id)
+            return _CONTEXT_NUDGE_SEVERE_SUBAGENT.format(status=status)
+        return with_team_clause(_CONTEXT_NUDGE_SEVERE.format(status=status), task_id)
     if boundary == CONTEXT_REDUCED_THRESHOLD:
         if is_subagent:
-            return _CONTEXT_NUDGE_REDUCED_SUBAGENT.format(tokens=token_count)
-        return with_team_clause(_CONTEXT_NUDGE_REDUCED.format(tokens=token_count), task_id)
-    return _CONTEXT_NUDGE_INFO.format(tokens=token_count)
+            return _CONTEXT_NUDGE_REDUCED_SUBAGENT.format(status=status)
+        return with_team_clause(_CONTEXT_NUDGE_REDUCED.format(status=status), task_id)
+    return _CONTEXT_NUDGE_INFO.format(status=status)
+
+
+def _token_count(kwargs: dict[str, object]) -> int | None:
+    """Return the frontend-reported token count, else the one its transcript reports."""
+    reported = kwargs.get("context_tokens")
+    if isinstance(reported, int):
+        return reported
+    transcript_path = kwargs.get("transcript_path")
+    if not isinstance(transcript_path, str) or not transcript_path:
+        return None
+    agent_id = kwargs.get("agent_id")
+    if isinstance(agent_id, str) and agent_id:
+        return get_protocol().transcript.subagent_context_tokens(transcript_path, agent_id)
+    return get_protocol().transcript.context_tokens(transcript_path)
 
 
 class ContextUsagePlugin(HooksPlugin):
@@ -194,19 +225,18 @@ class ContextUsagePlugin(HooksPlugin):
         }:
             return None
         task_id = kwargs.get("task_id")
-        transcript_path = kwargs.get("transcript_path")
-        if not isinstance(task_id, str) or not isinstance(transcript_path, str):
+        if not isinstance(task_id, str):
             return None
-        if not transcript_path:
-            return None
-        agent_id = kwargs.get("agent_id")
-        if isinstance(agent_id, str) and agent_id:
-            token_count = get_protocol().transcript.subagent_context_tokens(transcript_path, agent_id)
-        else:
-            token_count = get_protocol().transcript.context_tokens(transcript_path)
+        token_count = _token_count(kwargs)
         if token_count is None:
             return None
-        note = context_note(task_id, token_count, is_subagent=is_subagent(kwargs))
+        context_window = kwargs.get("context_window")
+        note = context_note(
+            task_id,
+            token_count,
+            is_subagent=is_subagent(kwargs),
+            context_window=context_window if isinstance(context_window, int) else None,
+        )
         if note is None:
             return None
         logger.debug("Emitted context-usage note")

@@ -11,6 +11,7 @@ from cline_hooks.core.models import (
     HookInput,
     HookInputPostToolUse,
     HookInputPreToolUse,
+    HookInputUserPromptSubmit,
 )
 from cline_hooks.core.protocol import Protocol, RawPayload
 from cline_hooks.frontends.antigravity.protocol import AntigravityProtocol
@@ -715,6 +716,52 @@ class TestPiNormalisation:
             },
         }
 
+    @pytest.mark.parametrize(
+        ("session_name", "agent_type", "agent_id"),
+        [
+            ("Explore#1a2b3c4d", "Explore", "1a2b3c4d"),
+            ("my#review#0f1e2d3c", "my#review", "0f1e2d3c"),
+            ("", "", None),
+            ("refactor auth", "", None),
+            ("ticket#42", "", None),
+        ],
+    )
+    def test_subagent_identity_comes_from_the_session_name(
+        self, session_name: str, agent_type: str, agent_id: str | None
+    ) -> None:
+        hook = _parse("pi", "PreToolUse", PiProtocol, overrides={"session_name": session_name})
+        assert (hook.agentType, hook.agentId) == (agent_type, agent_id)
+
+    @pytest.mark.parametrize(
+        ("overrides", "agent_type", "agent_id"),
+        [
+            ({"agent_type": "worker", "agent_id": "run-1", "session_name": ""}, "worker", "run-1"),
+            ({"agent_type": "", "agent_id": ""}, "", ""),
+            ({"agent_type": "worker", "agent_id": "run-1", "session_name": "Explore#1a2b3c4d"}, "Explore", "1a2b3c4d"),
+        ],
+    )
+    def test_subagent_identity_comes_from_the_herdsman_fields(
+        self, overrides: dict[str, str], agent_type: str, agent_id: str
+    ) -> None:
+        hook = _parse("pi", "PreToolUse", PiProtocol, overrides=overrides)
+        assert (hook.agentType, hook.agentId) == (agent_type, agent_id)
+
+    @pytest.mark.parametrize("name", ["PostToolUse", "UserPromptSubmit"])
+    def test_context_usage_comes_from_the_bridge(self, name: str) -> None:
+        hook = _parse("pi", name, PiProtocol, overrides={"context_window": 1_000_000, "context_tokens": 210_000})
+        assert isinstance(hook, HookInputPostToolUse | HookInputUserPromptSubmit)
+        fields = hook.postToolUse if isinstance(hook, HookInputPostToolUse) else hook.userPromptSubmit
+        assert fields is not None
+        assert fields.frontend_kwargs() == {"context_window": 1_000_000, "context_tokens": 210_000}
+
+    @pytest.mark.parametrize("name", ["PostToolUse", "UserPromptSubmit"])
+    def test_context_usage_is_unknown_when_the_bridge_omits_it(self, name: str) -> None:
+        hook = _parse("pi", name, PiProtocol)
+        assert isinstance(hook, HookInputPostToolUse | HookInputUserPromptSubmit)
+        fields = hook.postToolUse if isinstance(hook, HookInputPostToolUse) else hook.userPromptSubmit
+        assert fields is not None
+        assert fields.frontend_kwargs() == {"context_window": None, "context_tokens": None}
+
     def test_post_tool_use(self) -> None:
         hook = _parse("pi", "PostToolUse", PiProtocol)
         assert hook.model_dump() == {
@@ -763,6 +810,16 @@ class TestPiNormalisation:
             **_PI_ENVELOPE,
             "hookName": "Stop",
             "stop": {"stopHookActive": False},
+        }
+
+    def test_subagent_stop(self) -> None:
+        hook = _parse("pi", "SubagentStop", PiProtocol)
+        assert hook.model_dump() == {
+            **_PI_ENVELOPE,
+            "agentType": "general-purpose",
+            "agentId": "fixture-agent-id",
+            "hookName": "SubagentStop",
+            "subagentStop": {"stopHookActive": False},
         }
 
     def test_tools_read_converts_offset_and_limit_to_a_line_range(self) -> None:
@@ -852,6 +909,40 @@ class TestPiNormalisation:
                 },
             },
         }
+
+    def test_tools_mcp_splits_core_tool_name(self) -> None:
+        hook = _parse("pi", "tools/Mcp", PiProtocol, overrides={"tool_name": "mcp__memory__read_graph"})
+        assert isinstance(hook, HookInputPreToolUse)
+        assert hook.preToolUse is not None
+        assert hook.preToolUse.parameters["server_name"] == "memory"
+        assert hook.preToolUse.parameters["tool_name"] == "read_graph"
+
+    def test_agent_tool_maps_to_spawn_agent(self) -> None:
+        hook = _parse("pi", "tools/Mcp", PiProtocol, overrides={"tool_name": "Agent", "tool_input": {}})
+        assert isinstance(hook, HookInputPreToolUse)
+        assert hook.preToolUse is not None
+        assert hook.preToolUse.toolName == "spawn_agent"
+
+    @pytest.mark.parametrize(
+        ("tool_name", "canonical"),
+        [
+            ("steer_agent", "steer_agent"),
+            ("interrupt_agent", "interrupt_agent"),
+            ("reply_agent", "reply_agent"),
+            ("close_agent", "close_agent"),
+        ],
+    )
+    def test_herdsman_tools_map_only_spawning_ones_to_spawn_agent(self, tool_name: str, canonical: str) -> None:
+        hook = _parse("pi", "tools/Mcp", PiProtocol, overrides={"tool_name": tool_name, "tool_input": {}})
+        assert isinstance(hook, HookInputPreToolUse)
+        assert hook.preToolUse is not None
+        assert hook.preToolUse.toolName == canonical
+
+    def test_plan_mode_complete_maps_to_the_plan_response_tool(self) -> None:
+        hook = _parse("pi", "tools/Mcp", PiProtocol, overrides={"tool_name": "plan_mode_complete", "tool_input": {}})
+        assert isinstance(hook, HookInputPreToolUse)
+        assert hook.preToolUse is not None
+        assert hook.preToolUse.toolName == "plan_mode_respond"
 
 
 class TestFrontendAsymmetries:

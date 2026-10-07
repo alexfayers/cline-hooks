@@ -11,6 +11,7 @@ import pytest
 from cline_hooks.core.plugin import HooksPlugin, load_plugins
 from cline_hooks.core.protocol import RawPayload, get_protocol
 from cline_hooks.frontends.cline import ClineProtocol
+from cline_hooks.frontends.pi import PiProtocol
 from cline_hooks.handlers.user_prompt import (
     _is_agent_message,
     handle_user_prompt_submit,
@@ -550,6 +551,27 @@ class TestContextNudge:
         result = _run_with_transcript(_BELOW_REDUCED_NEXT_BAND)
         assert result is not None
         assert "CONTEXT STATUS" in cast("str", result.get("contextModification", ""))
+
+
+class TestContextNudgeWindow:
+    def test_pi_usage_shows_tokens_window_and_percent(self) -> None:
+        payload = {
+            "hook_event_name": "before_agent_start",
+            "session_id": "task-1",
+            "cwd": "/workspace",
+            "transcript_path": "session.jsonl",
+            "prompt": "neutral",
+            "context_window": 1_000_000,
+            "context_tokens": 210_000,
+        }
+        hook = PiProtocol().parse(RawPayload.from_stdin(json.dumps(payload)))
+        output: list[str] = []
+        with (
+            patch("builtins.print", side_effect=lambda s, _out=output, **kw: _out.append(s)),
+            contextlib.suppress(SystemExit),
+        ):
+            handle_user_prompt_submit(cast("HookInputUserPromptSubmit", hook))
+        assert "210,000 / 1,000,000 tokens (21.0%)" in cast("str", json.loads(output[0])["contextModification"])
 
 
 class TestPlanHandoffNudge:

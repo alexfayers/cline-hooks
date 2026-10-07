@@ -55,9 +55,9 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
-      - run: node --test .github/scripts/check-pr-template.test.js
+      - run: node --test .github/scripts/check-pr-template.test.cjs
       - uses: actions/github-script@v9
         with:
           script: |
-            const { check } = require('./.github/scripts/check-pr-template.js')
+            const { check } = require('./.github/scripts/check-pr-template.cjs')
             await check({ github, context, core })

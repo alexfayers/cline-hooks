@@ -125,7 +125,8 @@ class TestGrepBlock:
         assert result is not None
         assert "build output" in cast("str", result.get("errorMessage", ""))
 
-    def test_grep_standalone_is_not_blocked(self) -> None:
+    def test_grep_standalone_is_not_blocked(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.chdir(tmp_path)
         result = _run("execute_command", {"command": "grep -r foo ."})
         assert result is None
 
@@ -235,6 +236,12 @@ class TestEchoTrueBlock:
 
 
 class TestPlanModeRespondEmojiCheck:
+    def test_blocks_a_plan_without_emoji(self) -> None:
+        assert _run("plan_mode_respond", {"plan": "No emoji"}) is not None
+
+    def test_allows_a_plan_with_emoji(self) -> None:
+        assert _run("plan_mode_respond", {"plan": "👋 Plan"}) is None
+
     def test_emoji_start_is_allowed(self) -> None:
         result = _run("plan_mode_respond", {"response": "👋 Hey there!"})
         assert result is None

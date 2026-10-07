@@ -71,26 +71,33 @@ class TestPiInstaller:
             assert f'pi.on("{registration.native_name}"' in content
             assert f'hook_event_name: "{registration.native_name}"' in content
 
+    def test_relays_the_herdsman_child_identity(self, home: Path) -> None:
+        content = _install()
+        assert 'agent_type: process.env.PI_HERDSMAN_AGENT_DEFINITION ?? ""' in content
+        assert 'agent_id: process.env.PI_HERDSMAN_RUN_ID ?? ""' in content
+
+    def test_relays_the_context_usage_pi_reports(self, home: Path) -> None:
+        content = _install()
+        assert "context_window: usage?.contextWindow" in content
+        assert "context_tokens: usage?.tokens" in content
+
+    def test_relays_the_parent_tool_call_id_of_tool_events(self, home: Path) -> None:
+        content = _install()
+        assert content.count("parent_tool_call_id: event.parentToolCallId") == 2
+
     def test_reinstall_is_idempotent(self, home: Path, capsys: pytest.CaptureFixture[str]) -> None:
         first = _install()
         capsys.readouterr()
         assert _install() == first
         assert "already up to date" in capsys.readouterr().out
 
-    def test_leaves_an_embedded_binary_that_still_exists(self, home: Path) -> None:
+    def test_repoints_an_embedded_binary_that_still_exists(self, home: Path) -> None:
         working = home / "other-env" / "cline-hook"
         working.parent.mkdir()
         working.write_text("", encoding="utf-8")
         _seed_embedded_binary(working)
-        assert f"const BINARY: string = {json.dumps(str(working))};" in _install()
+        assert f"const BINARY: string = {json.dumps(_EXPECTED_BINARY)};" in _install()
 
     def test_replaces_an_embedded_binary_that_is_gone(self, home: Path) -> None:
         _seed_embedded_binary(home / "gone" / "cline-hook")
         assert f"const BINARY: string = {json.dumps(_EXPECTED_BINARY)};" in _install()
-
-    def test_force_replaces_an_embedded_binary_that_still_exists(self, home: Path) -> None:
-        working = home / "other-env" / "cline-hook"
-        working.parent.mkdir()
-        working.write_text("", encoding="utf-8")
-        _seed_embedded_binary(working)
-        assert f"const BINARY: string = {json.dumps(_EXPECTED_BINARY)};" in _install(force=True)

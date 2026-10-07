@@ -92,7 +92,7 @@ class AntigravityProtocol(StandardPayloadProtocol):
     }
     transcript: ClassVar[TranscriptReader] = AntigravityTranscriptReader()
     mcp_prefix: ClassVar[str] = _NO_MCP_PREFIX
-    mcp_separator: ClassVar[str] = _NO_MCP_PREFIX
+    mcp_separators: ClassVar[tuple[str, ...]] = (_NO_MCP_PREFIX,)
     hook_event_key: ClassVar[str] = _HOOK_EVENT_KEY
 
     def __init__(self, hook: str = CanonicalHook.PRE_TOOL_USE) -> None:

@@ -71,6 +71,36 @@ class TestContextNote:
         assert "stop the team" not in note
 
 
+class TestContextNoteWindow:
+    def test_info_note_shows_tokens_window_and_percent(self) -> None:
+        note = context_note("task-1", 210_000, context_window=1_000_000)
+        assert note is not None
+        assert "210,000 / 1,000,000 tokens (21.0%)" in note
+
+    def test_unknown_window_keeps_the_plain_wording(self) -> None:
+        note = context_note("task-1", 210_000, context_window=None)
+        assert note is not None
+        assert "~210,000 tokens in use" in note
+        assert "%" not in note
+
+    def test_large_window_keeps_the_absolute_thresholds(self) -> None:
+        note = context_note("task-1", _JUST_ABOVE_REDUCED, context_window=1_000_000)
+        assert note is not None
+        assert "Accuracy degrading past 300k" in note
+
+    def test_small_window_keeps_the_absolute_thresholds(self) -> None:
+        note = context_note("task-1", 180_000, context_window=200_000)
+        assert note is not None
+        assert "90.0%" in note
+        assert "No action needed yet" in note
+
+    def test_subagent_note_shows_window_too(self) -> None:
+        note = context_note("task-1:sub-1", _JUST_ABOVE_REDUCED, is_subagent=True, context_window=1_000_000)
+        assert note is not None
+        assert "310,000 / 1,000,000 tokens (31.0%)" in note
+        assert "report your state to your caller/lead" in note
+
+
 class TestContextNoteSubagent:
     def test_reduced_note_instructs_reporting_to_caller(self) -> None:
         note = context_note("task-1:sub-1", _JUST_ABOVE_REDUCED, is_subagent=True)
