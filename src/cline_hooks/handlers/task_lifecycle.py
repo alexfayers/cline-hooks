@@ -3,20 +3,16 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from cline_hooks.core.plugin import collect_hook_results, load_plugins
+from cline_hooks.core.plugin import UserFacingNote, collect_hook_results, get_plugin_problems, load_plugins
 from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
 from cline_hooks.core.vocabulary import NO_RESET_TASK_START_SOURCES, CanonicalHook
-from cline_hooks.handlers.git_context import resolve_tooling_notes
 from cline_hooks.state.agents import reset as _reset_agents
 from cline_hooks.state.memory import reset as _reset_memory
 from cline_hooks.state.skills import reset as _reset_skills
 from cline_hooks.state.store import TaskStateStore
-from cline_hooks.state.workspace import (
-    record_workspace,
-    reset as reset_workspace,
-)
+from cline_hooks.state.workspace import reset as reset_workspace
 
 if TYPE_CHECKING:
     from cline_hooks.core.models import (
@@ -60,13 +56,8 @@ def handle_task_start(hook: HookInputTaskStart) -> None:
         _reset_agents(hook.taskId)
     parts: list[str] = []
 
-    plugins = load_plugins()
-
-    parts.extend(resolve_tooling_notes(plugins, hook.workspaceRoots))
-    record_workspace(hook.taskId, hook.workspaceRoots)
-
     result = collect_hook_results(
-        plugins,
+        load_plugins(),
         "TaskStart",
         task_id=hook.stateKey,
         workspace_roots=hook.workspaceRoots,
@@ -75,6 +66,10 @@ def handle_task_start(hook: HookInputTaskStart) -> None:
         agent_id=hook.agentId,
         is_teammate=hook.isTeammate,
     )
+    if problems := get_plugin_problems():
+        problem_note = "\n".join(["cline-hooks plugin problems:", *(f"- {problem}" for problem in problems)])
+        result.notes.append(problem_note)
+        result.user_notes.append(UserFacingNote(user_text=problem_note))
     parts.extend(result.notes)
 
     system_message: str | None = None
@@ -97,13 +92,8 @@ def handle_task_resume(hook: HookInputTaskResume) -> None:
     if blocks:
         parts.append(_format_block_history(blocks))
 
-    plugins = load_plugins()
-
-    parts.extend(resolve_tooling_notes(plugins, hook.workspaceRoots))
-    record_workspace(hook.taskId, hook.workspaceRoots)
-
     result = collect_hook_results(
-        plugins,
+        load_plugins(),
         "TaskResume",
         task_id=hook.stateKey,
         workspace_roots=hook.workspaceRoots,

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from cline_hooks.core.plugin import HookResult, HooksPlugin
+from cline_hooks.core.plugin import HookResult, HooksPlugin, collect_contributions, hookimpl, hookspec
 from cline_hooks.core.vocabulary import CanonicalHook
 
 if TYPE_CHECKING:
@@ -11,10 +11,35 @@ if TYPE_CHECKING:
 DEFAULT_BUILD_COMMANDS = frozenset({"just", "pnpm", "npm", "pytest", "flutter", "dart"})
 
 
+class BuildToolsSpec:
+    """Extension point for contributing build tool command names."""
+
+    @hookspec
+    def build_commands(self) -> frozenset[str]:
+        """Return command names that are considered build tools.
+
+        Returns:
+            frozenset of command name strings.
+        """
+        raise NotImplementedError
+
+
+def all_build_commands() -> frozenset[str]:
+    """Return the union of the build commands every plugin contributes.
+
+    Returns:
+        frozenset of command name strings; empty if nothing contributes.
+    """
+    return frozenset().union(*collect_contributions(BuildToolsSpec.build_commands, frozenset))
+
+
 class BuildToolsPlugin(HooksPlugin):
     """Recognises standard build tool commands and alerts on build failures."""
 
-    def get_build_commands(self) -> frozenset[str]:
+    hookspecs = BuildToolsSpec
+
+    @hookimpl
+    def build_commands(self) -> frozenset[str]:
         """Return the standard set of build tool command names.
 
         Returns:

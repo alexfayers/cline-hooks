@@ -76,14 +76,12 @@ class TestTrackToolUseKwargs:
             "task_id": "t1",
             "tool_name": "use_mcp_tool",
             "parameters": {"k": "v"},
-            "is_state_write": True,
             "mcp_tool_name": "SomeTool",
             "workspace_roots": ["/repo"],
             "agent_type": "Explore",
             "agent_id": "agent-7",
         })
         assert built.parameters == {"k": "v"}
-        assert built.is_state_write is True
         assert built.mcp_tool_name == "SomeTool"
         assert built.workspace_roots == ["/repo"]
         assert built.agent_type == "Explore"
@@ -92,7 +90,6 @@ class TestTrackToolUseKwargs:
     def test_missing_fields_default(self) -> None:
         built = TrackToolUseKwargs.build({})
         assert built.parameters == {}
-        assert built.is_state_write is False
         assert built.mcp_tool_name is None
 
 

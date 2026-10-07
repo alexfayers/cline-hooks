@@ -122,9 +122,12 @@ def _run_hook() -> NoReturn:
 
 def _list_plugins() -> None:
     """Print all loaded plugins and their capabilities."""
+    import pluggy  # ruff: ignore[import-outside-top-level]
+
     from cline_hooks.core.plugin import (  # ruff: ignore[import-outside-top-level]
         HooksPlugin,
-        list_plugin_methods,
+        get_plugin_manager,
+        list_extension_points,
         load_plugins,
     )
 
@@ -133,24 +136,31 @@ def _list_plugins() -> None:
         print("No plugins loaded.")  # ruff: ignore[print]
         return
 
-    method_names = [info.name for info in list_plugin_methods()]
+    manager = get_plugin_manager()
+    extension_points = list_extension_points(plugins)
 
     for plugin in plugins:
         name = type(plugin).__name__
-        module = type(plugin).__module__
-        build_cmds = plugin.get_build_commands()
-        rules = plugin.get_command_rules()
-        overrides = [
-            method_name
-            for method_name in method_names
-            if getattr(plugin, method_name).__func__ is not getattr(HooksPlugin, method_name)
+        owned = [
+            f"{point.name}({point.params}) -> {point.return_type}: {point.purpose}"
+            for point in extension_points
+            if point.owner == name
         ]
-        print(f"{name} ({module})")  # ruff: ignore[print]
-        if build_cmds:
-            print(f"  build commands: {', '.join(sorted(build_cmds))}")  # ruff: ignore[print]
-        if rules:
-            print(f"  command rules:  {len(rules)}")  # ruff: ignore[print]
-        print(f"  overrides:      {', '.join(overrides) if overrides else 'none'}")  # ruff: ignore[print]
+        contributions = sorted(caller.name for caller in manager.get_hookcallers(plugin) or [])
+        overrides_on_hook = type(plugin).on_hook is not HooksPlugin.on_hook
+        print(f"{name} ({type(plugin).__module__})")  # ruff: ignore[print]
+        print("  extension points:")  # ruff: ignore[print]
+        for line in owned or ["none"]:
+            print(f"    {line}")  # ruff: ignore[print]
+        print(f"  contributes to:  {', '.join(contributions) if contributions else 'none'}")  # ruff: ignore[print]
+        print(f"  on_hook:         {'overridden' if overrides_on_hook else 'not overridden'}")  # ruff: ignore[print]
+
+    try:
+        manager.check_pending()
+    except pluggy.PluginValidationError as error:
+        print(f"check_pending: failed - {error}")  # ruff: ignore[print]
+    else:
+        print("check_pending: clean")  # ruff: ignore[print]
 
 
 def main() -> NoReturn:

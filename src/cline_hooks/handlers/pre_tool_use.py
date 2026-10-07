@@ -12,7 +12,7 @@ from cline_hooks.core.parameters import (
     McpToolUse,
     ShellParameters,
 )
-from cline_hooks.core.plugin import collect_hook_results, load_plugins
+from cline_hooks.core.plugin import collect_contributions, collect_hook_results, load_plugins
 from cline_hooks.core.registry import TOOL_HANDLERS, hook_handler, tool_handler
 from cline_hooks.core.vocabulary import (
     KNOWN_TOOLS,
@@ -21,11 +21,8 @@ from cline_hooks.core.vocabulary import (
     CanonicalTool,
     PluginScope,
 )
-from cline_hooks.handlers.commands import (
-    check_rules,
-    extract_commands,
-    get_all_command_rules,
-)
+from cline_hooks.handlers.commands import check_rules, extract_commands
+from cline_hooks.plugins.command_rules import CommandRulesSpec
 from cline_hooks.state.store import TaskStateStore
 
 if TYPE_CHECKING:
@@ -88,11 +85,12 @@ def _pre_shell(hook: HookInputPreToolUse, fields: PreToolUseFields, plugins: lis
 
     commands = extract_commands(parsed)
 
-    violated_rule = check_rules(commands, get_all_command_rules(plugins))
-    if violated_rule:
-        return Outcome.block(violated_rule.message)
+    rules = [
+        rule for contributed in collect_contributions(CommandRulesSpec.command_rules, list) for rule in contributed
+    ]
+    violated_rule = check_rules(commands, rules)
 
-    return _hook_result_outcome(
+    plugin_outcome = _hook_result_outcome(
         PluginScope.PRE_SHELL,
         plugins,
         hook.stateKey,
@@ -103,6 +101,7 @@ def _pre_shell(hook: HookInputPreToolUse, fields: PreToolUseFields, plugins: lis
         agent_id=hook.agentId,
         is_teammate=hook.isTeammate,
     )
+    return Outcome.block(violated_rule.message) if violated_rule else plugin_outcome
 
 
 @tool_handler(CanonicalHook.PRE_TOOL_USE, CanonicalTool.MCP)

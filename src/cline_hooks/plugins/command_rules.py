@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from cline_hooks.core.plugin import HooksPlugin
+from cline_hooks.core.plugin import HooksPlugin, hookimpl, hookspec
 from cline_hooks.handlers.commands import CommandRule
-from cline_hooks.plugins.build_tools import DEFAULT_BUILD_COMMANDS
+from cline_hooks.plugins.build_tools import all_build_commands
 
 if TYPE_CHECKING:
     from cline_hooks.handlers.commands import ParsedCommand
@@ -37,7 +37,8 @@ def validate_git_commit_message(cmd: ParsedCommand, _all: list[ParsedCommand]) -
 
 def _requires_build_context(_cmd: ParsedCommand, all_commands: list[ParsedCommand]) -> bool:
     """Return True only when a build tool is present in the same command list."""
-    return any(cmd.name in DEFAULT_BUILD_COMMANDS for cmd in all_commands)
+    build_commands = all_build_commands()
+    return any(cmd.name in build_commands for cmd in all_commands)
 
 
 def _is_standalone(_cmd: ParsedCommand, all_commands: list[ParsedCommand]) -> bool:
@@ -59,10 +60,26 @@ def _is_standalone_tail(cmd: ParsedCommand, all_commands: list[ParsedCommand]) -
     return len(all_commands) == 1 and not _is_follow(cmd)
 
 
+class CommandRulesSpec:
+    """Extension point for contributing shell command rules."""
+
+    @hookspec
+    def command_rules(self) -> list[CommandRule]:
+        """Return CommandRule instances this plugin wants to enforce.
+
+        Returns:
+            List of CommandRule objects.
+        """
+        raise NotImplementedError
+
+
 class CommandRulesPlugin(HooksPlugin):
     """Standard shell-safety command rules (rm -f, commit messages, build output)."""
 
-    def get_command_rules(self) -> list[CommandRule]:
+    hookspecs = CommandRulesSpec
+
+    @hookimpl
+    def command_rules(self) -> list[CommandRule]:
         """Return the standard set of command rules.
 
         Returns:
