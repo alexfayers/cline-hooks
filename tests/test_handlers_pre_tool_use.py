@@ -9,8 +9,8 @@ import git
 import pytest
 
 from cline_hooks.core.plugin import HookResult, HooksPlugin, hookimpl
-from cline_hooks.core.protocol import RawPayload, set_protocol
-from cline_hooks.core.response import emit
+from cline_hooks.core.protocol import RawPayload, get_protocol, set_protocol
+from cline_hooks.core.response import render
 from cline_hooks.core.vocabulary import PluginScope
 from cline_hooks.frontends.claude_code.protocol import ClaudeCodeProtocol
 from cline_hooks.frontends.cline import ClineProtocol
@@ -70,17 +70,13 @@ def _run(
     workspace_roots: list[str] | None = None,
 ) -> dict[str, object] | None:
     hook = _make_hook(tool_name, parameters, workspace_roots)
-    output: list[str] = []
-    try:
-        with patch("builtins.print", side_effect=lambda s, **kw: output.append(s)):
-            outcome = handle_pre_tool_use(hook)
-            if outcome is not None and outcome.message is not None:
-                emit(outcome)
-    except SystemExit:
-        pass
-    if not output:
+    outcome = handle_pre_tool_use(hook)
+    if outcome is None or outcome.message is None:
         return None
-    return cast("dict[str, object]", json.loads(output[0]))
+    response = render(outcome, get_protocol())
+    if not response.stdout:
+        return None
+    return cast("dict[str, object]", json.loads(response.stdout))
 
 
 def _init_clean_repo(path: Path) -> None:
@@ -322,6 +318,10 @@ class TestClearBlocksOnPass:
         assert len(store.get_blocks("task-1:agent-7")) == 1
         assert store.get_blocks("task-1") == []
 
+    def test_main_agent_block_recorded_under_its_state_key(self) -> None:
+        _run("execute_command", {"command": "rm -f file.txt"})
+        assert len(TaskStateStore().get_blocks("task-1")) == 1
+
 
 class TestTeammateDelegationNudge:
     def _edit_output(self, transcript_entry: dict[str, object], tmp_path: Path, mocker: MockerFixture) -> list[str]:
@@ -330,12 +330,10 @@ class TestTeammateDelegationNudge:
         mocker.patch.dict("os.environ", {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"})
         set_protocol(ClaudeCodeProtocol())
         hook = _make_hook("replace_in_file", {"path": "/x.py"}).model_copy(update={"transcriptPath": str(transcript)})
-        output: list[str] = []
-        with patch("builtins.print", side_effect=lambda s, **kw: output.append(s)), contextlib.suppress(SystemExit):
-            outcome = handle_pre_tool_use(hook)
-            if outcome is not None and outcome.message is not None:
-                emit(outcome)
-        return output
+        outcome = handle_pre_tool_use(hook)
+        if outcome is None or outcome.message is None:
+            return []
+        return [render(outcome, get_protocol()).stdout]
 
     def test_teammate_gets_no_delegation_nudge(self, tmp_path: Path, mocker: MockerFixture) -> None:
         entry: dict[str, object] = {"type": "user", "teamName": "session-team01", "agentName": "probe"}

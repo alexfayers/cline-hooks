@@ -48,13 +48,16 @@ class Installer(ABC):
         """
 
 
-def binary_names() -> tuple[str, ...]:
-    """Return the platform variants of this distribution's console script name.
+def binary_names(script: str | None = None) -> tuple[str, ...]:
+    """Return the platform variants of a console script name.
+
+    Args:
+        script: The script's base name, defaulting to this distribution's first console script.
 
     Returns:
         The bare, `.exe` and `.cmd` file names.
     """
-    base = next(
+    base = script or next(
         entry_point.name
         for entry_point in distribution("cline-hooks").entry_points
         if entry_point.group == "console_scripts"
@@ -62,14 +65,17 @@ def binary_names() -> tuple[str, ...]:
     return (base, f"{base}.exe", f"{base}.cmd")
 
 
-def resolve_binary() -> Path:
-    """Resolve the path to the cline-hook binary.
+def resolve_binary(name: str | None = None) -> Path:
+    """Resolve the path to a console-script binary installed alongside this interpreter.
+
+    Args:
+        name: The script's base name, e.g. "cline-hook-guard"; defaults to the main cline-hook script.
 
     Returns:
         Path to the binary, preferring existing files.
     """
     scripts_dir = Path(sys.executable).parent
-    candidates = tuple(scripts_dir / name for name in binary_names())
+    candidates = tuple(scripts_dir / variant for variant in binary_names(name))
     for candidate in candidates:
         if candidate.exists():
             return candidate
@@ -87,10 +93,12 @@ class JsonHookInstaller(Installer):
         must_exist: Whether the config file must already exist, rather than
             being created on demand.
         root_key: The config key holding the object of hook events.
+        supports_thin_client: Whether registrations' `binary_name` is honoured.
     """
 
     must_exist: ClassVar[bool] = False
     root_key: ClassVar[str] = "hooks"
+    supports_thin_client: ClassVar[bool] = False
 
     @abstractmethod
     def config_path(self, target: str | None) -> Path:
@@ -127,9 +135,66 @@ class JsonHookInstaller(Installer):
             entry: One entry from the config's hook event list.
 
         Returns:
-            The entry's commands, used to skip re-adding a cline-hook binary.
+            The entry's commands, used to skip re-adding a cline-hook binary. A hook
+            with no "command" key (e.g. an http-transport hook) contributes nothing.
         """
-        return {str(hook.get("command", "")) for hook in entry.get("hooks", []) if isinstance(hook, dict)}
+        return {str(hook["command"]) for hook in entry.get("hooks", []) if isinstance(hook, dict) and "command" in hook}
+
+    def known_binary_names(self, protocol_cls: type[Protocol], binary: Path) -> frozenset[str]:
+        """Return every binary basename this installer may legitimately have written.
+
+        Args:
+            protocol_cls: The frontend's Protocol class.
+            binary: Path to the resolved default `cline-hook` binary.
+
+        Returns:
+            `binary`'s own basename, plus the resolved basename of every
+            registration's `binary_name` this installer honours.
+        """
+        names = {binary.name}
+        if self.supports_thin_client:
+            names.update(
+                resolve_binary(registration.binary_name).name
+                for registration in protocol_cls.supported_hooks.values()
+                if registration.binary_name is not None
+            )
+        return frozenset(names)
+
+    def owns_entry(self, entry: dict[str, Any], binary_names: frozenset[str]) -> bool:
+        """Whether an existing config entry was installed by cline-hooks.
+
+        Args:
+            entry: One entry from the config's hook event list.
+            binary_names: Basenames from `known_binary_names()`.
+
+        Returns:
+            True if this entry should be replaced/removed on reinstall.
+        """
+        return self._owns_command_entry(entry, binary_names)
+
+    def _owns_command_entry(self, entry: dict[str, Any], binary_names: frozenset[str]) -> bool:
+        """Whether an entry runs one of cline-hooks' own binaries, by exact basename.
+
+        Args:
+            entry: One entry from the config's hook event list.
+            binary_names: Basenames from `known_binary_names()`.
+
+        Returns:
+            True if any command the entry runs matches one of the basenames.
+        """
+        return any(Path(cmd).name in binary_names for cmd in self.entry_commands(entry))
+
+    def _runs_from(self, entry: dict[str, Any], scripts_dir: Path) -> bool:
+        """Whether an existing config entry runs a command located in `scripts_dir`.
+
+        Args:
+            entry: One entry from the config's hook event list.
+            scripts_dir: The directory holding this interpreter's console scripts.
+
+        Returns:
+            True if any command the entry runs lives in `scripts_dir`.
+        """
+        return any(Path(cmd).parent == scripts_dir for cmd in self.entry_commands(entry))
 
     def _read_config(self, config_path: Path) -> dict[str, Any]:
         """Read the frontend's JSON config, creating its directory if allowed.
@@ -149,6 +214,61 @@ class JsonHookInstaller(Installer):
         config_path.parent.mkdir(parents=True, exist_ok=True)
         return {}
 
+    def entry_binary(self, registration: HookRegistration, binary: Path) -> Path:
+        """Return the binary this registration's entry should actually run.
+
+        Returns:
+            `resolve_binary(registration.binary_name)` where this installer
+            supports thin-client binaries and the registration names one,
+            otherwise the resolved default `binary`.
+        """
+        return (
+            resolve_binary(registration.binary_name)
+            if self.supports_thin_client and registration.binary_name is not None
+            else binary
+        )
+
+    def _reconcile_registration(
+        self,
+        current: list[dict[str, Any]],
+        registration: HookRegistration,
+        binary: Path,
+        binary_names: frozenset[str],
+    ) -> str:
+        """Reconcile one hook registration's entries in-place against the desired state.
+
+        Returns:
+            One of "added", "migrated", "unchanged".
+        """
+        entry_binary = self.entry_binary(registration, binary)
+        owned_indices = [
+            index
+            for index, entry in enumerate(current)
+            if isinstance(entry, dict) and self.owns_entry(entry, binary_names)
+        ]
+        desired = self.build_entry(entry_binary, registration)
+        if not owned_indices:
+            current.append(desired)
+            return "added"
+
+        first_index = owned_indices[0]
+        if not self._runs_from(current[first_index], binary.parent):
+            return "unchanged"
+        status = "unchanged"
+        if current[first_index] != desired:
+            current[first_index] = desired
+            status = "migrated"
+        for index in reversed(owned_indices[1:]):
+            del current[index]
+        return status
+
+    def _report_install_result(self, config_path: Path, counts: dict[str, int]) -> None:
+        if not counts["added"] and not counts["migrated"]:
+            print(f"{config_path} already has all cline-hooks entries.")
+            return
+        parts = [f"{counts[status]} {status}" for status in ("added", "migrated", "unchanged") if counts[status]]
+        print(f"Patched {config_path}: {', '.join(parts)}.")
+
     def install(self, protocol_cls: type[Protocol], target: str | None) -> None:
         """Patch the frontend's JSON config with an entry per registered hook.
 
@@ -157,25 +277,18 @@ class JsonHookInstaller(Installer):
             target: The subcommand's positional argument, if it takes one.
         """
         binary = resolve_binary()
-        names = binary_names()
+        binary_names = self.known_binary_names(protocol_cls, binary)
         config_path = self.config_path(target)
         config = self._read_config(config_path)
 
         existing: dict[str, list[dict[str, Any]]] = config.get(self.root_key, {})
-        added = 0
+        counts = {"added": 0, "migrated": 0, "unchanged": 0}
         for registration in protocol_cls.supported_hooks.values():
             current = existing.get(registration.native_name, [])
-            installed = {
-                command for entry in current if isinstance(entry, dict) for command in self.entry_commands(entry)
-            }
-            if not any(Path(command).name in names for command in installed):
-                current.append(self.build_entry(binary, registration))
-                added += 1
+            status = self._reconcile_registration(current, registration, binary, binary_names)
+            counts[status] += 1
             existing[registration.native_name] = current
 
         config[self.root_key] = existing
         config_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
-        if added:
-            print(f"Patched {config_path} with {added} hook event(s).")
-        else:
-            print(f"{config_path} already has all cline-hooks entries.")
+        self._report_install_result(config_path, counts)

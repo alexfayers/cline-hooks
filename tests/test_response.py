@@ -2,39 +2,20 @@ from __future__ import annotations
 
 from io import StringIO
 import json
-from typing import cast
+from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
 
-from cline_hooks.core.response import allow, block, feedback
+from cline_hooks.core.outcome import Outcome
+from cline_hooks.core.response import render
 from cline_hooks.frontends.claude_code import ClaudeCodeProtocol
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.frontends.kiro import KiroProtocol
+from cline_hooks.frontends.pi import PiProtocol
 
-
-def _capture_allow(message: str | None = None, *, prefix: str = "REMINDER") -> dict[str, object]:
-    buf = StringIO()
-    with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
-        allow(message, prefix=prefix)
-    assert exc.value.code == 0
-    return cast("dict[str, object]", json.loads(buf.getvalue()))
-
-
-def _capture_block(message: str, *, task_id: str | None = None, tool_name: str | None = None) -> dict[str, object]:
-    buf = StringIO()
-    with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
-        block(message, task_id=task_id, tool_name=tool_name)
-    assert exc.value.code == 0
-    return cast("dict[str, object]", json.loads(buf.getvalue()))
-
-
-def _capture_feedback(message: str) -> dict[str, object]:
-    buf = StringIO()
-    with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
-        feedback(message)
-    assert exc.value.code == 0
-    return cast("dict[str, object]", json.loads(buf.getvalue()))
+if TYPE_CHECKING:
+    from cline_hooks.core.protocol import Protocol
 
 
 class TestClineProtocol:
@@ -211,51 +192,42 @@ class TestClaudeCodeProtocol:
         assert buf.getvalue() == ""
 
 
-class TestAllow:
-    def test_no_message_produces_no_context(self) -> None:
-        result = _capture_allow()
-        assert result == {"cancel": False}
-        assert "contextModification" not in result
+class TestRender:
+    @pytest.mark.parametrize(("label", "expected"), [("", "ctx"), ("MEMORY REMINDER", "MEMORY REMINDER: ctx")])
+    def test_allow_against_cline_writes_the_labelled_context(self, label: str, expected: str) -> None:
+        response = render(Outcome.allow("ctx", label=label), ClineProtocol())
+        assert response.exit_code == 0
+        assert json.loads(response.stdout)["contextModification"] == expected
 
-    def test_message_uses_default_prefix(self) -> None:
-        result = _capture_allow("do something")
-        assert result["contextModification"] == "REMINDER: do something"
+    @pytest.mark.parametrize(
+        ("outcome", "protocol_cls"),
+        [
+            (Outcome.block("nope"), KiroProtocol),
+            (Outcome.block("nope"), PiProtocol),
+            (Outcome.feedback("nope"), PiProtocol),
+        ],
+    )
+    def test_refusal_writes_stderr_with_exit_2(self, outcome: Outcome, protocol_cls: type[Protocol]) -> None:
+        response = render(outcome, protocol_cls())
+        assert response.exit_code == 2
+        assert response.stderr == "nope"
 
-    def test_custom_prefix(self) -> None:
-        result = _capture_allow("update memory", prefix="MEMORY REMINDER")
-        assert result["contextModification"] == "MEMORY REMINDER: update memory"
+    @pytest.mark.parametrize(
+        ("outcome", "expected"), [(Outcome.allow("ctx", label="Lbl"), "Lbl: ctx"), (Outcome.allow(), "")]
+    )
+    def test_allow_against_pi_writes_plain_stdout(self, outcome: Outcome, expected: str) -> None:
+        response = render(outcome, PiProtocol())
+        assert response.exit_code == 0
+        assert response.stdout == expected
 
-    def test_not_cancelled(self) -> None:
-        result = _capture_allow("msg")
-        assert result["cancel"] is False
+    def test_feedback_outcome_against_claude_code(self) -> None:
+        response = render(Outcome.feedback("trace text"), ClaudeCodeProtocol())
+        assert response.exit_code == 0
+        assert json.loads(response.stdout) == {
+            "hookSpecificOutput": {"hookEventName": "Stop", "additionalContext": "trace text"},
+        }
 
-
-class TestBlock:
-    def test_cancels(self) -> None:
-        result = _capture_block("bad command")
-        assert result["cancel"] is True
-
-    def test_error_message_included(self) -> None:
-        result = _capture_block("bad command")
-        assert result["errorMessage"] == "bad command"
-
-    def test_records_block_event_when_task_and_tool_given(self) -> None:
-        with patch("cline_hooks.state.store.TaskStateStore.record_block") as mock_record:
-            _capture_block("reason", task_id="task-1", tool_name="execute_command")
-        mock_record.assert_called_once_with("task-1", "execute_command", "reason")
-
-    def test_no_state_store_call_without_task_id(self) -> None:
-        with patch("cline_hooks.state.store.TaskStateStore.record_block") as mock_record:
-            _capture_block("reason")
-        mock_record.assert_not_called()
-
-
-class TestFeedback:
-    def test_continues_with_block_shaped_output_under_default_protocol(self) -> None:
-        result = _capture_feedback("trace text")
-        assert result == {"cancel": True, "errorMessage": "trace text"}
-
-    def test_never_records_block_event(self) -> None:
-        with patch("cline_hooks.state.store.TaskStateStore.record_block") as mock_record:
-            _capture_feedback("trace text")
-        mock_record.assert_not_called()
+    def test_allow_outcome_carries_user_message_for_claude_code(self) -> None:
+        response = render(Outcome.allow(user_message="user text"), ClaudeCodeProtocol("SessionStart"))
+        assert response.exit_code == 0
+        assert json.loads(response.stdout) == {"systemMessage": "user text"}

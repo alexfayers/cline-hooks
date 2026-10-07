@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from cline_hooks.core.outcome import Outcome
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.registry import hook_handler
-from cline_hooks.core.response import allow, feedback
 from cline_hooks.core.vocabulary import CanonicalHook
 from cline_hooks.state.agents import reset as _reset_agents
 from cline_hooks.state.finished import mark_finished
@@ -30,13 +30,16 @@ def _discard_agent_state(state_key: str) -> None:
     TaskStateStore().clear_blocks(state_key, discard_children=False)
 
 
-def _dispatch_stop(hook: HookInput, canonical_hook: CanonicalHook, stop_fields: StopFields | None) -> None:
+def _dispatch_stop(hook: HookInput, canonical_hook: CanonicalHook, stop_fields: StopFields | None) -> Outcome:
     """Dispatch a Stop-shaped hook (main or subagent) to plugins.
 
     Args:
         hook: The hook input data.
         canonical_hook: The canonical hook to dispatch as.
         stop_fields: The hook's own StopFields payload, if present.
+
+    Returns:
+        The merged Outcome for this stop event.
     """
     discards_agent_state = canonical_hook is CanonicalHook.SUBAGENT_STOP and bool(hook.agentId)
     if discards_agent_state:
@@ -44,7 +47,7 @@ def _dispatch_stop(hook: HookInput, canonical_hook: CanonicalHook, stop_fields: 
     if stop_fields and stop_fields.stopHookActive:
         if discards_agent_state:
             _discard_agent_state(hook.stateKey)
-        allow()
+        return Outcome.allow()
 
     result = collect_hook_results(
         load_plugins(),
@@ -63,26 +66,32 @@ def _dispatch_stop(hook: HookInput, canonical_hook: CanonicalHook, stop_fields: 
     if not notes:
         if discards_agent_state:
             _discard_agent_state(hook.stateKey)
-        allow()
+        return Outcome.allow()
 
-    feedback("\n\n".join(notes))
+    return Outcome.feedback("\n\n".join(notes))
 
 
 @hook_handler(CanonicalHook.STOP)
-def handle_stop(hook: HookInputStop) -> None:
+def handle_stop(hook: HookInputStop) -> Outcome:
     """Handle Stop hook events by dispatching to plugins.
 
     Args:
         hook: The hook input data.
+
+    Returns:
+        The merged Outcome for this stop event.
     """
-    _dispatch_stop(hook, CanonicalHook.STOP, hook.stop)
+    return _dispatch_stop(hook, CanonicalHook.STOP, hook.stop)
 
 
 @hook_handler(CanonicalHook.SUBAGENT_STOP)
-def handle_subagent_stop(hook: HookInputSubagentStop) -> None:
+def handle_subagent_stop(hook: HookInputSubagentStop) -> Outcome:
     """Handle SubagentStop hook events by dispatching to plugins.
 
     Args:
         hook: The hook input data.
+
+    Returns:
+        The merged Outcome for this subagent stop event.
     """
-    _dispatch_stop(hook, CanonicalHook.SUBAGENT_STOP, hook.subagentStop)
+    return _dispatch_stop(hook, CanonicalHook.SUBAGENT_STOP, hook.subagentStop)
