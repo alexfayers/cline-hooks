@@ -53,7 +53,7 @@ class _ResearchState:
 _store: PluginStateStore[_ResearchState] = PluginStateStore("research-state.json", _ResearchState)
 
 
-def record_research(task_id: str, tool: str, detail: str) -> None:
+def record_research(task_id: str, tool: str, detail: str, agent: str = "") -> None:
     """Record that a research lookup was made for a session.
 
     Every lookup is recorded so the surfaced trace reflects the full set of
@@ -63,10 +63,11 @@ def record_research(task_id: str, tool: str, detail: str) -> None:
         task_id: The session or task identifier.
         tool: The research tool that was called.
         detail: A short identifier for the lookup (e.g. a URL or query).
+        agent: The label of the subagent that made the lookup, empty for the main agent.
     """
 
     def append(state: _ResearchState) -> None:
-        state.records.append({"tool": tool, "detail": detail})
+        state.records.append({"tool": tool, "detail": detail, **({"agent": agent} if agent else {})})
 
     _store.update(task_id, append)
 
@@ -78,7 +79,8 @@ def get_research(task_id: str) -> list[dict[str, str]]:
         task_id: The session or task identifier.
 
     Returns:
-        A list of {"tool": ..., "detail": ...} records in call order.
+        A list of {"tool": ..., "detail": ...} records in call order, each with an
+        "agent" label when a subagent made the lookup.
     """
     return _store.get(task_id).records
 
@@ -93,7 +95,7 @@ def reset(task_id: str) -> None:
 
 
 def drain_research(task_id: str) -> list[dict[str, str]]:
-    """Remove and return the research lookups recorded for a session and its subagents.
+    """Remove and return the research lookups recorded for a session and its finished subagents.
 
     Args:
         task_id: The session or task identifier.
@@ -101,7 +103,7 @@ def drain_research(task_id: str) -> list[dict[str, str]]:
     Returns:
         A list of {"tool": ..., "detail": ...} records, the session's own first.
     """
-    return [record for state in _store.drain(task_id) for record in state.records]
+    return [record for state in _store.drain(task_id, finished_only=True) for record in state.records]
 
 
 class ResearchSpec:
@@ -125,6 +127,7 @@ def record_research_use(
     tool_name: str,
     mcp_tool_name: str | None,
     arguments: dict[str, Any],
+    agent: str = "",
 ) -> None:
     """Record a research lookup for a tool call, if a plugin contributes it as one.
 
@@ -136,6 +139,7 @@ def record_research_use(
         tool_name: The tool name as reported by the frontend.
         mcp_tool_name: The resolved MCP tool name, if this was an MCP call.
         arguments: The tool arguments (MCP arguments when applicable).
+        agent: The label of the subagent making the call, empty for the main agent.
     """
     research_tool = mcp_tool_name or tool_name
     for tools in collect_contributions(ResearchSpec.research_tools, dict):
@@ -147,7 +151,7 @@ def record_research_use(
         except Exception:
             logger.exception("Research detail extractor for %s failed", research_tool)
             detail = ""
-        record_research(task_id, research_tool, detail)
+        record_research(task_id, research_tool, detail, agent)
         return
 
 
@@ -171,11 +175,12 @@ def format_research_trace(records: list[dict[str, str]], header: str) -> str:
     is never silently dropped.
 
     Args:
-        records: Research records in call order, each with "tool" and "detail".
+        records: Research records in call order, each with "tool" and "detail", and
+            "agent" when a subagent made the lookup.
         header: The protocol-specific instruction header to prepend.
 
     Returns:
-        A RESEARCH TRACE note listing lookups grouped by tool, or an empty
+        A RESEARCH TRACE note listing lookups grouped by tool and agent, or an empty
         string if there are no records.
     """
     if not records:
@@ -183,7 +188,8 @@ def format_research_trace(records: list[dict[str, str]], header: str) -> str:
 
     grouped: dict[str, list[str]] = {}
     for record in records:
-        details = grouped.setdefault(record["tool"], [])
+        agent = record.get("agent")
+        details = grouped.setdefault(f"{record['tool']} via {agent}" if agent else record["tool"], [])
         detail = record["detail"]
         if detail and detail not in details:
             details.append(detail)

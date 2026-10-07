@@ -16,13 +16,14 @@ if TYPE_CHECKING:
 logger = logging.getLogger("hooks.post_tool_use")
 
 
-def _record_tool_use(task_id: str, tool_name: str, parameters: dict[str, Any]) -> str | None:
+def _record_tool_use(task_id: str, tool_name: str, parameters: dict[str, Any], agent: str = "") -> str | None:
     """Record research use for a tool call and resolve its MCP identity.
 
     Args:
         task_id: The session or task identifier.
         tool_name: The tool name as reported by the frontend.
         parameters: The tool parameters.
+        agent: The label of the subagent making the call, empty for the main agent.
 
     Returns:
         The MCP tool name, or None if this was not an MCP call.
@@ -34,7 +35,7 @@ def _record_tool_use(task_id: str, tool_name: str, parameters: dict[str, Any]) -
         mcp_tool_name = tool.tool_name
         arguments = tool.arguments
 
-    record_research_use(task_id, tool_name, mcp_tool_name, arguments)
+    record_research_use(task_id, tool_name, mcp_tool_name, arguments, agent)
 
     return mcp_tool_name
 
@@ -75,7 +76,8 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> Outcome:
         )
         return Outcome.allow("\n\n".join(failure_result.notes))
 
-    mcp_tool_name = _record_tool_use(hook.stateKey, tool_name, parameters)
+    agent_label = (f"{hook.agentType}/{hook.agentId}" if hook.agentType else hook.agentId) if hook.agentId else ""
+    mcp_tool_name = _record_tool_use(hook.stateKey, tool_name, parameters, agent_label)
 
     track_result = collect_hook_results(
         plugins,

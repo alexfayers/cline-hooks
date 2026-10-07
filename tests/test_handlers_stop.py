@@ -22,6 +22,7 @@ from cline_hooks.plugins.research import (
     research_trace_header,
 )
 from cline_hooks.state.agents import has_agent_use, record_agent_use
+from cline_hooks.state.finished import finished_keys
 from cline_hooks.state.memory import has_memory_writes, record_memory_write
 from cline_hooks.state.skills import is_skill_called, record_skill
 from cline_hooks.state.store import TaskStateStore
@@ -130,6 +131,17 @@ class TestFormatResearchTrace:
         result = format_research_trace(records, "HEADER")
         assert '- WebSearch: "python entry points", "frozenset union"' in result
         assert '- WebFetch: "https://example.com"' in result
+
+    def test_subagent_lookups_get_separate_labelled_line(self) -> None:
+        records = [
+            {"tool": "web_fetch", "detail": "https://example.com"},
+            {"tool": "web_fetch", "detail": "https://example.org", "agent": "Explore/agent-a"},
+            {"tool": "InternalSearch", "detail": "", "agent": "Explore/agent-a"},
+        ]
+        result = format_research_trace(records, "HEADER")
+        assert '- web_fetch: "https://example.com"' in result
+        assert '- web_fetch via Explore/agent-a: "https://example.org"' in result
+        assert "- InternalSearch via Explore/agent-a" in result
 
     def test_dedupes_by_detail(self) -> None:
         records = [
@@ -393,6 +405,11 @@ class TestHandleSubagentStop:
         _seed_state("task-1")
         _run_subagent(_subagent_stop(agent_id=""))
         assert _has_state("task-1")
+
+    @pytest.mark.parametrize("stop_hook_active", [False, True])
+    def test_subagent_stop_marks_the_subagent_finished(self, stop_hook_active: bool) -> None:
+        _run_subagent(_subagent_stop(stop_hook_active=stop_hook_active))
+        assert finished_keys("task-1") == {"task-1:agent-7"}
 
 
 class TestHandleSubagentStopClaudeCode:

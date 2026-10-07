@@ -7,6 +7,7 @@ from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow, feedback
 from cline_hooks.core.vocabulary import CanonicalHook
 from cline_hooks.state.agents import reset as _reset_agents
+from cline_hooks.state.finished import mark_finished
 from cline_hooks.state.memory import reset as _reset_memory
 from cline_hooks.state.skills import reset as _reset_skills
 from cline_hooks.state.store import TaskStateStore
@@ -38,6 +39,8 @@ def _dispatch_stop(hook: HookInput, canonical_hook: CanonicalHook, stop_fields: 
         stop_fields: The hook's own StopFields payload, if present.
     """
     discards_agent_state = canonical_hook is CanonicalHook.SUBAGENT_STOP and bool(hook.agentId)
+    if discards_agent_state:
+        mark_finished(hook.stateKey)
     if stop_fields and stop_fields.stopHookActive:
         if discards_agent_state:
             _discard_agent_state(hook.stateKey)

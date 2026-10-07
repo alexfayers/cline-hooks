@@ -32,6 +32,7 @@ from cline_hooks.plugins.ecosystem import EcosystemPlugin
 from cline_hooks.plugins.nudges import increment
 from cline_hooks.plugins.plan_handoff import consume_plan_nudge, record_plan_exit
 from cline_hooks.state.agents import has_agent_use, record_agent_use
+from cline_hooks.state.finished import finished_keys, mark_finished
 from cline_hooks.state.memory import has_memory_writes, record_memory_write
 from cline_hooks.state.skills import is_skill_called, record_skill
 from cline_hooks.state.store import TaskBlockEvent, TaskStateStore
@@ -176,6 +177,12 @@ class TestHandleTaskStart:
         assert not has_agent_use("task-1:agent-a")
         assert not is_skill_called("task-1:agent-a", "git-usage")
         assert not has_memory_writes("task-1:agent-a")
+
+    def test_finished_agents_reset_on_start(self, tmp_path: Path) -> None:
+        mark_finished("task-1:agent-a")
+        with patch("cline_hooks.plugins.session_context.get_git_context", return_value=None):
+            self._run(_task_start([str(tmp_path)]))
+        assert finished_keys("task-1") == set()
 
     def test_context_band_reset_on_start(self, tmp_path: Path) -> None:
         should_nudge_context("task-1", 210_000)
@@ -506,6 +513,11 @@ class TestHandleTaskComplete:
         record_agent_use("task-1", "Agent")
         self._run(_task_complete([str(tmp_path)]))
         assert not has_agent_use("task-1")
+
+    def test_finished_agents_reset_on_complete(self, tmp_path: Path) -> None:
+        mark_finished("task-1:agent-a")
+        self._run(_task_complete([str(tmp_path)]))
+        assert finished_keys("task-1") == set()
 
     def test_context_band_reset_on_complete(self, tmp_path: Path) -> None:
         should_nudge_context("task-1", 210_000)

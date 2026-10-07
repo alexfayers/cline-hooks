@@ -6,6 +6,7 @@ import threading
 from typing import TYPE_CHECKING
 
 from cline_hooks.core.state import PluginStateStore
+from cline_hooks.state.finished import mark_finished
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -76,6 +77,16 @@ class TestPluginStateStore:
         store.update("task-1:agent-b", _setter(3))
         assert store.drain("task-1") == [_SampleState(count=1), _SampleState(count=2), _SampleState(count=3)]
         assert json.loads(path.read_text()) == {}
+
+    def test_drain_finished_only_drains_own_entry_and_finished_children(self, tmp_path: Path) -> None:
+        path = tmp_path / "sample.json"
+        store = PluginStateStore("sample.json", _SampleState, path)
+        store.update("task-1", _setter(1))
+        store.update("task-1:agent-a", _setter(2))
+        store.update("task-1:agent-b", _setter(3))
+        mark_finished("task-1:agent-a")
+        assert store.drain("task-1", finished_only=True) == [_SampleState(count=1), _SampleState(count=2)]
+        assert json.loads(path.read_text()) == {"task-1:agent-b": {"count": 3, "label": ""}}
 
     def test_drain_absent_key_returns_empty_and_creates_no_file(self, tmp_path: Path) -> None:
         path = tmp_path / "sample.json"

@@ -9,6 +9,7 @@ from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
 from cline_hooks.core.vocabulary import NO_RESET_TASK_START_SOURCES, CanonicalHook
 from cline_hooks.state.agents import reset as _reset_agents
+from cline_hooks.state.finished import reset as _reset_finished
 from cline_hooks.state.memory import reset as _reset_memory
 from cline_hooks.state.skills import reset as _reset_skills
 from cline_hooks.state.store import TaskStateStore
@@ -54,6 +55,7 @@ def handle_task_start(hook: HookInputTaskStart) -> None:
         _reset_skills(hook.taskId)
         _reset_memory(hook.taskId)
         _reset_agents(hook.taskId)
+        _reset_finished(hook.taskId)
     parts: list[str] = []
 
     result = collect_hook_results(
@@ -142,6 +144,7 @@ def handle_task_complete(hook: HookInputTaskComplete) -> None:
     _store.clear_blocks(hook.taskId)
     _reset_memory(hook.taskId)
     _reset_agents(hook.taskId)
+    _reset_finished(hook.taskId)
     reset_workspace(hook.taskId)
     collect_hook_results(
         load_plugins(),
