@@ -13,9 +13,9 @@ if TYPE_CHECKING:
 _HOOKS = tuple(registration.native_name for registration in ClineProtocol.supported_hooks.values())
 
 
-def install(target_dir: str) -> None:
+def install(target_dir: str, *, force: bool = False) -> None:
     """Run the Cline installer against a target directory."""
-    ClineInstaller().install(ClineProtocol, target_dir)
+    ClineInstaller().install(ClineProtocol, target_dir, force=force)
 
 
 class TestClineInstaller:
@@ -109,6 +109,51 @@ class TestClineInstaller:
         assert self._normalize_link_target(str((tmp_path / _HOOKS[0]).readlink())) == self._normalize_link_target(
             binary
         )
+
+    def test_leaves_a_symlink_to_a_binary_that_still_exists(self, tmp_path: Path) -> None:
+        working = tmp_path / "other-env" / "cline-hook"
+        working.parent.mkdir()
+        working.write_text("", encoding="utf-8")
+        hooks_dir = tmp_path / "hooks"
+        hooks_dir.mkdir()
+        (hooks_dir / _HOOKS[0]).symlink_to(working)
+        with (
+            patch("cline_hooks.core.install.sys.executable", self._FAKE_PYTHON),
+            patch("cline_hooks.frontends.cline.install._is_windows", return_value=False),
+        ):
+            install(str(hooks_dir))
+        assert (hooks_dir / _HOOKS[0]).readlink() == working
+
+    def test_force_replaces_a_symlink_to_a_binary_that_still_exists(self, tmp_path: Path) -> None:
+        working = tmp_path / "other-env" / "cline-hook"
+        working.parent.mkdir()
+        working.write_text("", encoding="utf-8")
+        hooks_dir = tmp_path / "hooks"
+        hooks_dir.mkdir()
+        (hooks_dir / _HOOKS[0]).symlink_to(working)
+        with (
+            patch("cline_hooks.core.install.sys.executable", self._FAKE_PYTHON),
+            patch("cline_hooks.frontends.cline.install._is_windows", return_value=False),
+        ):
+            install(str(hooks_dir), force=True)
+        assert self._normalize_link_target(str((hooks_dir / _HOOKS[0]).readlink())) == self._normalize_link_target(
+            self._expected_binary()
+        )
+
+    def test_windows_leaves_a_script_for_a_binary_that_still_exists(self, tmp_path: Path) -> None:
+        working = tmp_path / "other-env" / "cline-hook"
+        working.parent.mkdir()
+        working.write_text("", encoding="utf-8")
+        with (
+            patch("cline_hooks.core.install.sys.executable", self._FAKE_PYTHON),
+            patch("cline_hooks.frontends.cline.install._is_windows", return_value=True),
+        ):
+            install(str(tmp_path / "hooks"))
+            script = tmp_path / "hooks" / f"{_HOOKS[0]}.ps1"
+            seeded = script.read_text(encoding="utf-8").replace(self._expected_binary(), str(working))
+            script.write_text(seeded, encoding="utf-8")
+            install(str(tmp_path / "hooks"))
+        assert script.read_text(encoding="utf-8") == seeded
 
     def test_windows_writes_ps1_files_for_all_hooks(self, tmp_path: Path) -> None:
         with (

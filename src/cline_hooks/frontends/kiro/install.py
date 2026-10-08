@@ -46,10 +46,10 @@ class KiroInstaller(JsonHookInstaller):
             entry["matcher"] = registration.matcher
         return entry
 
-    def entry_commands(self, entry: dict[str, Any]) -> set[str]:
-        """Return the command a flat Kiro entry runs.
+    def entry_handlers(self, entry: dict[str, Any]) -> list[dict[str, Any]]:
+        """Return the handler of a flat Kiro entry.
 
         Returns:
-            The entry's own command.
+            The entry itself, which holds the command.
         """
-        return {str(entry.get("command", ""))}
+        return [entry]
