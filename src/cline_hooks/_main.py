@@ -71,6 +71,9 @@ def _build_parser() -> argparse.ArgumentParser:
         frontend_parser = install_sub.add_parser(frontend.name, help=installer.help)
         if installer.argument is not None:
             frontend_parser.add_argument(installer.argument.name, help=installer.argument.help)
+        frontend_parser.add_argument(
+            "--force", action="store_true", help="Repoint existing cline-hook entries even where their binary exists"
+        )
 
     sub.add_parser("plugins", help="List installed plugins")
 
@@ -174,7 +177,7 @@ def main() -> NoReturn:
         else:
             argument = frontend.installer.argument
             target = getattr(args, argument.name) if argument is not None else None
-            frontend.install(target)
+            frontend.install(target, force=args.force)
         sys.exit(0)
 
     if args.command == "plugins":

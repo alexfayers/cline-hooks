@@ -147,14 +147,14 @@ class TestFires:
 
 class TestFrontendSpecInstall:
     def test_delegates_to_the_installer_with_its_protocol(self) -> None:
-        calls: list[tuple[type[Protocol], str | None]] = []
+        calls: list[tuple[type[Protocol], str | None, bool]] = []
 
         class _Recorder:
             help = "test"
             argument = None
 
-            def install(self, protocol_cls: type[Protocol], target: str | None) -> None:
-                calls.append((protocol_cls, target))
+            def install(self, protocol_cls: type[Protocol], target: str | None, *, force: bool) -> None:
+                calls.append((protocol_cls, target, force))
 
         spec = FrontendSpec(
             name="test-only",
@@ -162,5 +162,5 @@ class TestFrontendSpecInstall:
             protocol=_Bare,
             installer=_Recorder(),  # type: ignore[arg-type]
         )
-        spec.install("/somewhere")
-        assert calls == [(_Bare, "/somewhere")]
+        spec.install("/somewhere", force=True)
+        assert calls == [(_Bare, "/somewhere", True)]

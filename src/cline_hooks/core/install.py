@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from importlib.metadata import distribution
 import json
 from pathlib import Path
+import shutil
 import sys
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -39,12 +40,13 @@ class Installer(ABC):
     argument: ClassVar[InstallArgument | None] = None
 
     @abstractmethod
-    def install(self, protocol_cls: type[Protocol], target: str | None) -> None:
+    def install(self, protocol_cls: type[Protocol], target: str | None, *, force: bool = False) -> None:
         """Install every hook `protocol_cls` registers.
 
         Args:
             protocol_cls: The frontend's Protocol class.
             target: The subcommand's positional argument, if it takes one.
+            force: Whether to repoint existing entries even where their binary exists.
         """
 
 
@@ -66,22 +68,24 @@ def resolve_binary() -> Path:
     """Resolve the path to the cline-hook binary.
 
     Returns:
-        Path to the binary, preferring existing files.
+        Path to the binary, preferring the PATH link to the running binary, then
+        existing files.
     """
     scripts_dir = Path(sys.executable).parent
     candidates = tuple(scripts_dir / name for name in binary_names())
-    for candidate in candidates:
-        if candidate.exists():
-            return candidate
-    return candidates[0]
+    own = next((candidate for candidate in candidates if candidate.exists()), candidates[0])
+    linked = shutil.which(binary_names()[0])
+    if linked and Path(linked).resolve() == own.resolve():
+        return Path(linked)
+    return own
 
 
 class JsonHookInstaller(Installer):
     """Installer for frontends configured by a JSON file of hook events.
 
     Merges an entry per registered hook into the object under `root_key`,
-    preserving entries from other sources and skipping events already running any
-    cline-hook binary.
+    preserving entries from other sources and pointing existing cline-hook entries
+    whose binary is missing, or all of them when forced, at the resolved binary.
 
     Attributes:
         must_exist: Whether the config file must already exist, rather than
@@ -120,16 +124,16 @@ class JsonHookInstaller(Installer):
             entry["matcher"] = registration.matcher
         return entry
 
-    def entry_commands(self, entry: dict[str, Any]) -> set[str]:
-        """Return the commands an existing config entry already runs.
+    def entry_handlers(self, entry: dict[str, Any]) -> list[dict[str, Any]]:
+        """Return the command handlers of an existing config entry.
 
         Args:
             entry: One entry from the config's hook event list.
 
         Returns:
-            The entry's commands, used to skip re-adding a cline-hook binary.
+            The entry's handler objects, used to find and repoint a cline-hook binary.
         """
-        return {str(hook.get("command", "")) for hook in entry.get("hooks", []) if isinstance(hook, dict)}
+        return [hook for hook in entry.get("hooks", []) if isinstance(hook, dict)]
 
     def _read_config(self, config_path: Path) -> dict[str, Any]:
         """Read the frontend's JSON config, creating its directory if allowed.
@@ -149,12 +153,13 @@ class JsonHookInstaller(Installer):
         config_path.parent.mkdir(parents=True, exist_ok=True)
         return {}
 
-    def install(self, protocol_cls: type[Protocol], target: str | None) -> None:
+    def install(self, protocol_cls: type[Protocol], target: str | None, *, force: bool = False) -> None:
         """Patch the frontend's JSON config with an entry per registered hook.
 
         Args:
             protocol_cls: The frontend's Protocol class.
             target: The subcommand's positional argument, if it takes one.
+            force: Whether to repoint existing entries even where their binary exists.
         """
         binary = resolve_binary()
         names = binary_names()
@@ -163,12 +168,21 @@ class JsonHookInstaller(Installer):
 
         existing: dict[str, list[dict[str, Any]]] = config.get(self.root_key, {})
         added = 0
+        rewritten = 0
         for registration in protocol_cls.supported_hooks.values():
             current = existing.get(registration.native_name, [])
-            installed = {
-                command for entry in current if isinstance(entry, dict) for command in self.entry_commands(entry)
-            }
-            if not any(Path(command).name in names for command in installed):
+            installed = False
+            for entry in current:
+                if not isinstance(entry, dict):
+                    continue
+                for handler in self.entry_handlers(entry):
+                    if Path(str(handler.get("command", ""))).name not in names:
+                        continue
+                    installed = True
+                    if force or not Path(handler["command"]).exists():
+                        handler["command"] = str(binary)
+                        rewritten += 1
+            if not installed:
                 current.append(self.build_entry(binary, registration))
                 added += 1
             existing[registration.native_name] = current
@@ -177,5 +191,7 @@ class JsonHookInstaller(Installer):
         config_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
         if added:
             print(f"Patched {config_path} with {added} hook event(s).")
-        else:
+        if rewritten:
+            print(f"Updated the cline-hook path in {rewritten} hook(s) in {config_path}.")
+        if not added and not rewritten:
             print(f"{config_path} already has all cline-hooks entries.")

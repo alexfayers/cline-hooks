@@ -33,6 +33,10 @@ cline-hook install kiro ~/.kiro/agents/my-agent.json
 cline-hook install pi
 ```
 
+Pass `--force` to repoint existing cline-hook entries, Pi's extension and Cline's
+entry points even where the binary they name still exists; without it, only those
+whose binary is missing are repointed.
+
 Pi has no command hooks, so `cline-hook install pi` writes a bridge extension
 (`~/.pi/agent/extensions/cline-hooks.ts`, or under `$PI_CODING_AGENT_DIR`) that
 relays pi's extension events to `cline-hook`.

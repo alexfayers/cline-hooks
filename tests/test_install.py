@@ -118,7 +118,9 @@ def _commands(spec: FrontendSpec, config: dict[str, Any], event: str) -> list[st
     """
     installer = _installer(spec)
     return [
-        command for entry in config[installer.root_key][event] for command in sorted(installer.entry_commands(entry))
+        str(handler["command"])
+        for entry in config[installer.root_key][event]
+        for handler in installer.entry_handlers(entry)
     ]
 
 
@@ -174,7 +176,7 @@ class TestJsonHookInstallers:
         event = _first_event(spec)
         assert _commands(spec, config, event).count(_EXPECTED_BINARY) == 1
 
-    def test_skips_events_already_running_a_cline_hook_binary_elsewhere(self, spec: FrontendSpec, home: Path) -> None:
+    def test_rewrites_a_stale_cline_hook_path(self, spec: FrontendSpec, home: Path) -> None:
         installer = _installer(spec)
         event = _first_event(spec)
         registration = next(iter(spec.protocol.supported_hooks.values()))
@@ -182,7 +184,49 @@ class TestJsonHookInstallers:
         _seed(spec, home, {installer.root_key: {event: [other_env]}})
 
         config = _install(spec, home)
-        assert _commands(spec, config, event) == ["/opt/other-env/bin/cline-hook"]
+        assert _commands(spec, config, event) == [_EXPECTED_BINARY]
+
+    def test_leaves_a_cline_hook_path_that_still_exists(self, spec: FrontendSpec, home: Path) -> None:
+        installer = _installer(spec)
+        event = _first_event(spec)
+        registration = next(iter(spec.protocol.supported_hooks.values()))
+        working = home / "other-env" / "cline-hook"
+        working.parent.mkdir()
+        working.write_text("", encoding="utf-8")
+        _seed(spec, home, {installer.root_key: {event: [installer.build_entry(working, registration)]}})
+
+        config = _install(spec, home)
+        assert _commands(spec, config, event) == [str(working)]
+
+    def test_force_rewrites_a_cline_hook_path_that_still_exists(self, spec: FrontendSpec, home: Path) -> None:
+        installer = _installer(spec)
+        event = _first_event(spec)
+        registration = next(iter(spec.protocol.supported_hooks.values()))
+        working = home / "other-env" / "cline-hook"
+        working.parent.mkdir()
+        working.write_text("", encoding="utf-8")
+        config_path = _seed(spec, home, {installer.root_key: {event: [installer.build_entry(working, registration)]}})
+
+        spec.install(_target_for(spec, home), force=True)
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        assert _commands(spec, config, event) == [_EXPECTED_BINARY]
+
+    def test_rewrite_keeps_the_entry_s_other_fields(self, spec: FrontendSpec, home: Path) -> None:
+        installer = _installer(spec)
+        event = _first_event(spec)
+        registration = next(iter(spec.protocol.supported_hooks.values()))
+        stale = installer.build_entry(Path("/opt/other-env/bin/cline-hook"), registration)
+        for handler in installer.entry_handlers(stale):
+            handler["timeout"] = 5
+        _seed(spec, home, {installer.root_key: {event: [stale]}})
+
+        config = _install(spec, home)
+        timeouts = [
+            handler["timeout"]
+            for entry in config[installer.root_key][event]
+            for handler in installer.entry_handlers(entry)
+        ]
+        assert timeouts == [5]
 
 
 class TestNestedEntryFrontends:
@@ -303,6 +347,32 @@ class TestResolveBinary:
             patch("cline_hooks.core.install.sys.executable", str(tmp_path / "python.exe")),
         ):
             assert resolve_binary() == cmd
+
+    def test_prefers_the_path_link_to_the_running_binary(self, tmp_path: Path) -> None:
+        scripts_dir = tmp_path / "scripts"
+        scripts_dir.mkdir()
+        binary = scripts_dir / "cline-hook"
+        binary.write_text("", encoding="utf-8")
+        link = tmp_path / "bin" / "cline-hook"
+        link.parent.mkdir()
+        link.symlink_to(binary)
+        with (
+            patch("cline_hooks.core.install.sys.executable", str(scripts_dir / "python")),
+            patch("cline_hooks.core.install.shutil.which", return_value=str(link)),
+        ):
+            assert resolve_binary() == link
+
+    def test_ignores_a_path_binary_from_another_install(self, tmp_path: Path) -> None:
+        scripts_dir = tmp_path / "scripts"
+        scripts_dir.mkdir()
+        (scripts_dir / "cline-hook").write_text("", encoding="utf-8")
+        other = tmp_path / "other-cline-hook"
+        other.write_text("", encoding="utf-8")
+        with (
+            patch("cline_hooks.core.install.sys.executable", str(scripts_dir / "python")),
+            patch("cline_hooks.core.install.shutil.which", return_value=str(other)),
+        ):
+            assert resolve_binary() == scripts_dir / "cline-hook"
 
 
 class TestEveryFrontendIsInstallable:

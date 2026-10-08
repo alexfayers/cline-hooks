@@ -36,10 +36,10 @@ class CopilotInstaller(JsonHookInstaller):
         """
         return {"type": "command", "command": str(binary)}
 
-    def entry_commands(self, entry: dict[str, Any]) -> set[str]:
-        """Return the command a flat Copilot entry runs.
+    def entry_handlers(self, entry: dict[str, Any]) -> list[dict[str, Any]]:
+        """Return the handler of a flat Copilot entry.
 
         Returns:
-            The entry's own command.
+            The entry itself, which holds the command.
         """
-        return {str(entry.get("command", ""))}
+        return [entry]

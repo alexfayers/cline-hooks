@@ -43,12 +43,12 @@ class AntigravityInstaller(JsonHookInstaller):
             return handler
         return {"matcher": registration.matcher, "hooks": [handler]}
 
-    def entry_commands(self, entry: dict[str, Any]) -> set[str]:
-        """Return the commands an entry of either structure already runs.
+    def entry_handlers(self, entry: dict[str, Any]) -> list[dict[str, Any]]:
+        """Return the handlers of an entry of either structure.
 
         Returns:
-            The commands in the entry's hook group, or the entry's own command.
+            The handlers in the entry's hook group, or the entry itself.
         """
         if "hooks" in entry:
-            return super().entry_commands(entry)
-        return {str(entry.get("command", ""))}
+            return super().entry_handlers(entry)
+        return [entry]

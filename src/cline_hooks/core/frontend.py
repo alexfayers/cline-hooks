@@ -43,11 +43,12 @@ class FrontendSpec:
     detect_priority: int = SHAPE_SNIFF
     default: bool = False
 
-    def install(self, target: str | None = None) -> None:
+    def install(self, target: str | None = None, *, force: bool = False) -> None:
         """Run this frontend's install step.
 
         Args:
             target: The install subcommand's positional argument, if any.
+            force: Whether to repoint existing entries even where their binary exists.
 
         Raises:
             RuntimeError: If the frontend has no install step.
@@ -55,7 +56,7 @@ class FrontendSpec:
         if self.installer is None:
             msg = f"{self.name} has no install step"
             raise RuntimeError(msg)
-        self.installer.install(self.protocol, target)
+        self.installer.install(self.protocol, target, force=force)
 
 
 REGISTERED_FRONTENDS: dict[str, FrontendSpec] = {}

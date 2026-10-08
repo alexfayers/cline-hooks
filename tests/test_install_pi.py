@@ -31,15 +31,23 @@ def home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
         yield tmp_path
 
 
-def _install() -> str:
+def _install(*, force: bool = False) -> str:
     """Run the pi installer and read back the extension it wrote.
 
     Returns:
         The written extension source.
     """
     installer = PiInstaller()
-    installer.install(PiProtocol, None)
+    installer.install(PiProtocol, None, force=force)
     return installer.extension_path().read_text(encoding="utf-8")
+
+
+def _seed_embedded_binary(binary: Path) -> None:
+    """Install the extension, then repoint its embedded binary at `binary`."""
+    content = _install()
+    PiInstaller().extension_path().write_text(
+        content.replace(json.dumps(_EXPECTED_BINARY), json.dumps(str(binary))), encoding="utf-8"
+    )
 
 
 class TestPiInstaller:
@@ -68,3 +76,21 @@ class TestPiInstaller:
         capsys.readouterr()
         assert _install() == first
         assert "already up to date" in capsys.readouterr().out
+
+    def test_leaves_an_embedded_binary_that_still_exists(self, home: Path) -> None:
+        working = home / "other-env" / "cline-hook"
+        working.parent.mkdir()
+        working.write_text("", encoding="utf-8")
+        _seed_embedded_binary(working)
+        assert f"const BINARY: string = {json.dumps(str(working))};" in _install()
+
+    def test_replaces_an_embedded_binary_that_is_gone(self, home: Path) -> None:
+        _seed_embedded_binary(home / "gone" / "cline-hook")
+        assert f"const BINARY: string = {json.dumps(_EXPECTED_BINARY)};" in _install()
+
+    def test_force_replaces_an_embedded_binary_that_still_exists(self, home: Path) -> None:
+        working = home / "other-env" / "cline-hook"
+        working.parent.mkdir()
+        working.write_text("", encoding="utf-8")
+        _seed_embedded_binary(working)
+        assert f"const BINARY: string = {json.dumps(_EXPECTED_BINARY)};" in _install(force=True)

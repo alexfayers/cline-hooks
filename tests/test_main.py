@@ -164,6 +164,24 @@ class TestInstallSubcommands:
         called_protocol, called_target = install.call_args.args
         assert called_protocol is spec.protocol
         assert called_target == ("/tmp/target" if installer.argument else None)
+        assert install.call_args.kwargs == {"force": False}
+
+    @pytest.mark.parametrize("spec", FRONTENDS, ids=lambda spec: spec.name)
+    def test_force_flag_is_passed_to_the_installer(self, spec: FrontendSpec) -> None:
+        installer = spec.installer
+        assert installer is not None
+        argv = ["cline-hook", "install", spec.name, "--force"]
+        if installer.argument is not None:
+            argv.append("/tmp/target")
+
+        with (
+            patch.object(type(installer), "install") as install,
+            patch("sys.argv", argv),
+            pytest.raises(SystemExit),
+        ):
+            main()
+
+        assert install.call_args.kwargs == {"force": True}
 
     def test_unknown_install_mode_prints_help(self) -> None:
         with (
