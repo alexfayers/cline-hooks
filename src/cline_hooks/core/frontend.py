@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, TypeVar
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from pathlib import Path
 
     from cline_hooks.core.install import Installer
     from cline_hooks.core.protocol import Protocol
@@ -34,6 +35,7 @@ class FrontendSpec:
         installer: How to install it, or None where it has no install step.
         detect_priority: Higher runs earlier during detection.
         default: Whether this frontend handles payloads nothing detects.
+        skills_dir: Returns where this frontend's installed skills live, or None where unknown.
     """
 
     name: str
@@ -42,6 +44,7 @@ class FrontendSpec:
     installer: Installer | None = None
     detect_priority: int = SHAPE_SNIFF
     default: bool = False
+    skills_dir: Callable[[], Path] | None = None
 
     def install(self, target: str | None = None, *, force: bool = False) -> None:
         """Run this frontend's install step.
@@ -62,13 +65,14 @@ class FrontendSpec:
 REGISTERED_FRONTENDS: dict[str, FrontendSpec] = {}
 
 
-def frontend(
+def frontend(  # ruff: ignore[too-many-arguments]
     *,
     name: str,
     display_name: str,
     installer: Installer | None = None,
     detect_priority: int = SHAPE_SNIFF,
     default: bool = False,
+    skills_dir: Callable[[], Path] | None = None,
 ) -> Callable[[_ProtocolT], _ProtocolT]:
     """Register the decorated Protocol class as a supported frontend.
 
@@ -79,6 +83,7 @@ def frontend(
         detect_priority: `EXACT_MATCH` where detection reads an exact signal,
             `SHAPE_SNIFF` where it guesses from a payload's shape.
         default: Whether this frontend handles payloads nothing detects.
+        skills_dir: Returns where this frontend's installed skills live, or None where unknown.
 
     Returns:
         A decorator that registers the decorated class and returns it unchanged.
@@ -92,6 +97,7 @@ def frontend(
             installer=installer,
             detect_priority=detect_priority,
             default=default,
+            skills_dir=skills_dir,
         )
         existing = REGISTERED_FRONTENDS.get(name)
         if existing is not None and existing.protocol is not cls:

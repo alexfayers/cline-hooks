@@ -9,7 +9,7 @@ from cline_hooks.core.payload import StandardPayloadProtocol, ToolParams
 from cline_hooks.core.protocol import HookRegistration, exit_allow, exit_block
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
 from cline_hooks.frontends.copilot.models import CopilotPreCompact
-from cline_hooks.frontends.pi.install import PiInstaller
+from cline_hooks.frontends.pi.install import PiInstaller, agent_dir
 from cline_hooks.frontends.pi.models import (
     PiEditParams,
     PiReadParams,
@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     display_name="Pi",
     installer=PiInstaller(),
     detect_priority=EXACT_MATCH,
+    skills_dir=lambda: agent_dir() / "skills",
 )
 class PiProtocol(StandardPayloadProtocol):
     """Pi exit-code protocol: exit 0 + stdout for context, exit 2 + stderr to block.
