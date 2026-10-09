@@ -8,7 +8,7 @@ import bashlex.errors
 
 from cline_hooks.core.plugin import HookResult, HooksPlugin
 from cline_hooks.core.vocabulary import CanonicalHook, PluginScope
-from cline_hooks.handlers.commands import extract_commands, is_git_push
+from cline_hooks.handlers.commands import extract_commands, is_git_push, is_read_only_git
 from cline_hooks.handlers.push_guard import marker_above_repo
 from cline_hooks.handlers.search_scope import MAX_SCAN_ENTRIES, MAX_SCAN_SECONDS, find_oversized_search
 from cline_hooks.state.skills import (
@@ -26,7 +26,7 @@ def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | N
 
     Args:
         logger: This plugin's hook-scoped child logger.
-        **kwargs: The PreShell dispatch kwargs (command, task_id, workspace_roots).
+        **kwargs: The PreShell dispatch kwargs (command, task_id, workspace_roots, agent_id).
 
     Returns:
         A blocking HookResult for a missing skill, a blocked git push or an oversized search, or None.
@@ -34,6 +34,7 @@ def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | N
     command = cast("str", kwargs.get("command") or "")
     task_id = cast("str", kwargs.get("task_id") or "")
     workspace_roots = cast("list[str]", kwargs.get("workspace_roots") or [])
+    agent_id = kwargs.get("agent_id")
 
     try:
         parsed = bashlex.parse(command)
@@ -41,7 +42,7 @@ def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | N
         return None
     commands = extract_commands(parsed)
 
-    required_skill = required_skill_for([cmd.name for cmd in commands])
+    required_skill = required_skill_for([cmd.name for cmd in commands if not (agent_id and is_read_only_git(cmd))])
     if required_skill and not is_skill_called(task_id, required_skill):
         logger.debug("Blocked shell command: missing required skill")
         return HookResult(block=f"MUST use the `{required_skill}` skill before running this command")
