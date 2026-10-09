@@ -388,7 +388,8 @@ class NudgesPlugin(HooksPlugin):
         if hour >= _LATE_NIGHT_START or hour < _EARLY_MORNING_END:
             notes.append(_LATE_EARLY_WARNING)
         if _contains_correction_signal(message):
-            notes.append(_CORRECTION_REMINDER)
+            if not is_subagent(kwargs):
+                notes.append(_CORRECTION_REMINDER)
         elif _contains_info_signal(message) or random.random() < _INFO_REMINDER_CHANCE:
             notes.append(_INFO_REMINDER)
         if random.random() < _SIDE_REQUEST_REMINDER_CHANCE:

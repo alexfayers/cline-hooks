@@ -252,6 +252,18 @@ class TestHandleUserPromptSubmit:
         assert result is not None
         assert "correction" in cast("str", result.get("contextModification", "")).lower()
 
+    def test_subagent_skips_correction_reminder(self) -> None:
+        hook = _make_hook("You should always run lint first")
+        hook.agentId = "agent-7"
+        output: list[str] = []
+        with (
+            patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
+            patch("builtins.print", side_effect=lambda s, **kw: output.append(s)),
+            contextlib.suppress(SystemExit),
+        ):
+            handle_user_prompt_submit(hook)
+        assert "correction" not in "".join(output).lower()
+
     def test_correction_takes_priority_over_info(self) -> None:
         with patch("cline_hooks.plugins.nudges.random.random", return_value=1.0):
             result = _run("You should always use type hints")
