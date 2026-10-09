@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 import sys
 from typing import TYPE_CHECKING, ClassVar, NoReturn, Self
 
@@ -89,6 +90,7 @@ class ClaudeCodeHookSpec(StandardPayloadProtocol):
     display_name="Claude Code",
     installer=ClaudeCodeInstaller(),
     detect_priority=SHAPE_SNIFF,
+    skills_dir=lambda: Path.home() / ".claude" / "skills",
 )
 class ClaudeCodeProtocol(ClaudeCodeHookSpec):
     """Claude Code exit-code protocol.

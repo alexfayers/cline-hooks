@@ -5,7 +5,10 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from cline_hooks.core.protocol import set_protocol
 from cline_hooks.core.vocabulary import PluginScope
+from cline_hooks.frontends.claude_code.protocol import ClaudeCodeProtocol
+from cline_hooks.frontends.pi.protocol import PiProtocol
 from cline_hooks.plugins.shell_guards import ShellGuardsPlugin
 from cline_hooks.state.skills import record_skill
 
@@ -50,6 +53,38 @@ class TestSkillGuard:
     def test_allows_git_commit_in_a_subagent_after_the_skill(self) -> None:
         record_skill("t:a1", "git-usage")
         assert _pre_shell("git commit -m x", [], agent_id="a1") is None
+
+
+class TestSkillPathInBlock:
+    def test_pi_block_names_the_existing_skill_file(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        skill = tmp_path / "skills" / "git-usage" / "SKILL.md"
+        skill.parent.mkdir(parents=True)
+        skill.write_text("x")
+        monkeypatch.setenv("PI_CODING_AGENT_DIR", str(tmp_path))
+        set_protocol(PiProtocol())
+        result = _pre_shell("git status", [])
+        assert result is not None
+        assert result.block == f"MUST use the `git-usage` skill before running this command - read {skill} first"
+
+    def test_pi_block_without_the_skill_file_keeps_the_plain_text(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("PI_CODING_AGENT_DIR", str(tmp_path))
+        set_protocol(PiProtocol())
+        result = _pre_shell("git status", [])
+        assert result is not None
+        assert result.block == "MUST use the `git-usage` skill before running this command"
+
+    def test_claude_block_names_the_home_skill_file(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("HOME", str(tmp_path))
+        skill = tmp_path / ".claude" / "skills" / "git-usage" / "SKILL.md"
+        skill.parent.mkdir(parents=True)
+        skill.write_text("x")
+        set_protocol(ClaudeCodeProtocol())
+        result = _pre_shell("git status", [])
+        assert result is not None
+        assert result.block is not None
+        assert str(skill) in result.block
 
 
 class TestOversizedSearchGuard:

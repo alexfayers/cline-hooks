@@ -7,6 +7,7 @@ import bashlex
 import bashlex.errors
 
 from cline_hooks.core.plugin import HookResult, HooksPlugin
+from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.vocabulary import CanonicalHook, PluginScope
 from cline_hooks.handlers.commands import extract_commands, is_git_push, is_read_only_git
 from cline_hooks.handlers.push_guard import marker_above_repo
@@ -19,6 +20,16 @@ from cline_hooks.state.skills import (
 
 if TYPE_CHECKING:
     import logging
+
+
+def _skill_block_message(skill: str) -> str:
+    message = f"MUST use the `{skill}` skill before running this command"
+    spec = get_protocol().frontend_spec
+    if spec is not None and spec.skills_dir is not None:
+        skill_file = spec.skills_dir() / skill / "SKILL.md"
+        if skill_file.is_file():
+            return f"{message} - read {skill_file} first"
+    return message
 
 
 def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | None:
@@ -45,7 +56,7 @@ def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | N
     required_skill = required_skill_for([cmd.name for cmd in commands if not (agent_id and is_read_only_git(cmd))])
     if required_skill and not is_skill_called(task_id, required_skill):
         logger.debug("Blocked shell command: missing required skill")
-        return HookResult(block=f"MUST use the `{required_skill}` skill before running this command")
+        return HookResult(block=_skill_block_message(required_skill))
 
     if is_git_push(commands):
         marker = marker_above_repo(workspace_roots)
