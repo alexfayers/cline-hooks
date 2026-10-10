@@ -10,6 +10,7 @@ from cline_hooks.core.plugin import HookResult, HooksPlugin
 from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.vocabulary import CanonicalHook, PluginScope
 from cline_hooks.handlers.commands import extract_commands, is_git_push, is_read_only_git
+from cline_hooks.handlers.herdr_guard import removed_worktree_paths, workspace_linking
 from cline_hooks.handlers.push_guard import marker_above_repo
 from cline_hooks.handlers.search_scope import MAX_SCAN_ENTRIES, MAX_SCAN_SECONDS, find_oversized_search
 from cline_hooks.state.skills import (
@@ -72,6 +73,16 @@ def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | N
             )
 
     session_cwd = workspace_roots[0] if workspace_roots else os.getcwd()  # ruff: ignore[os-getcwd]
+    workspace_id = workspace_linking(removed_worktree_paths(commands), session_cwd)
+    if workspace_id:
+        logger.debug("Blocked git worktree remove: a Herdr workspace links the path")
+        return HookResult(
+            block=(
+                f"git worktree remove is blocked: Herdr workspace {workspace_id} links this worktree path. "
+                f"Once no live agent runs there, MUST close it with `herdr workspace close {workspace_id}` "
+                f"and then retry."
+            )
+        )
     scope = find_oversized_search(commands, session_cwd)
     if scope:
         logger.debug("Blocked oversized recursive search")
