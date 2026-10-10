@@ -56,3 +56,18 @@ class TestContributedResearchTools:
         use_plugins(ResearchPlugin(), _contributor({"web_fetch": lambda arguments: f"external {arguments['url']}"}))
         _post_tool_use("web_fetch", {"url": "https://example.com/docs"})
         assert get_research(_TASK) == [{"tool": "web_fetch", "detail": "external https://example.com/docs"}]
+
+
+class TestResearchTraceKeepsReport:
+    def test_every_header_keeps_the_full_report(self) -> None:
+        from cline_hooks.plugins.research import DEFAULT_RESEARCH_TRACE_HEADER, RESEARCH_TRACE_HEADERS
+
+        for header in [DEFAULT_RESEARCH_TRACE_HEADER, *RESEARCH_TRACE_HEADERS.values()]:
+            assert "FULL" in header
+            assert "never reply with only" in header
+
+    def test_no_header_limits_the_reply_to_the_sources_line(self) -> None:
+        from cline_hooks.plugins.research import DEFAULT_RESEARCH_TRACE_HEADER, RESEARCH_TRACE_HEADERS
+
+        for header in [DEFAULT_RESEARCH_TRACE_HEADER, *RESEARCH_TRACE_HEADERS.values()]:
+            assert "nothing else" not in header
