@@ -66,6 +66,7 @@ class ClaudeCodeHookSpec(StandardPayloadProtocol):
         "ExitPlanMode": CanonicalTool.PLAN_EXIT,
         "WebFetch": CanonicalTool.WEB_FETCH,
         "WebSearch": CanonicalTool.WEB_SEARCH,
+        "SendMessage": CanonicalTool.SEND_MESSAGE,
     }
     envelope_model: ClassVar[type[PayloadEnvelope]] = PayloadEnvelope
     hook_models: ClassVar[Mapping[CanonicalHook, type[HookFields]]] = {

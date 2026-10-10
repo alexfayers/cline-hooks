@@ -52,6 +52,8 @@ class PiProtocol(StandardPayloadProtocol):
         CanonicalHook.STOP: HookRegistration("agent_end"),
     }
     tool_map: ClassVar[Mapping[str, CanonicalTool]] = {
+        "delegate_agent": CanonicalTool.SPAWN_AGENT,
+        "continue_agent": CanonicalTool.SPAWN_AGENT,
         "bash": CanonicalTool.SHELL,
         "read": CanonicalTool.READ,
         "edit": CanonicalTool.EDIT,

@@ -264,6 +264,17 @@ class TestClaudeCodeNormalisation:
             },
         }
 
+    def test_tools_send_message(self) -> None:
+        hook = _parse("claude-code", "tools/SendMessage", ClaudeCodeProtocol)
+        assert hook.model_dump() == {
+            **_CLAUDE_CODE_ENVELOPE,
+            "hookName": "PreToolUse",
+            "preToolUse": {
+                "toolName": "send_message",
+                "parameters": {"to": "peer", "message": "HANDOFF-ACK w1:p1\nUse the pickup skill."},
+            },
+        }
+
 
 class TestKiroNormalisation:
     def test_pre_tool_use(self) -> None:
@@ -563,6 +574,7 @@ class TestCodexNormalisation:
             "tools/Edit",
             "tools/Write",
             "tools/Mcp",
+            "tools/SendMessage",
         ],
     )
     def test_matches_claude_code_normalisation(self, name: str) -> None:
@@ -805,6 +817,26 @@ class TestPiNormalisation:
                 },
             },
         }
+
+    def test_tools_delegate_agent_maps_to_spawn_agent(self) -> None:
+        hook = _parse("pi", "tools/DelegateAgent", PiProtocol)
+        assert hook.model_dump() == {
+            **_PI_ENVELOPE,
+            "hookName": "PreToolUse",
+            "preToolUse": {
+                "toolName": "spawn_agent",
+                "parameters": {
+                    "definition": "worker",
+                    "task": 'Run exactly: herdr agent prompt w1:p1 "HANDOFF-ACK w1:p1"',
+                },
+            },
+        }
+
+    def test_tools_continue_agent_maps_to_spawn_agent(self) -> None:
+        hook = _parse("pi", "tools/DelegateAgent", PiProtocol, overrides={"tool_name": "continue_agent"})
+        assert isinstance(hook, HookInputPreToolUse)
+        assert hook.preToolUse is not None
+        assert hook.preToolUse.toolName == "spawn_agent"
 
     def test_tools_mcp_splits_adapter_direct_tool_name(self) -> None:
         hook = _parse("pi", "tools/Mcp", PiProtocol)

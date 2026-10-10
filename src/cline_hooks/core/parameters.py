@@ -11,6 +11,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    JsonValue,
     ValidationError,
     ValidationInfo,
     field_validator,
@@ -138,6 +139,26 @@ class WebResearchParameters(ToolParameters):
 
     url: str = ""
     query: str = ""
+
+
+@parameter_model(CanonicalTool.SEND_MESSAGE)
+class SendMessageParameters(ToolParameters):
+    """Parameters for a message sent to another agent session."""
+
+    to: str = Field(default="", validation_alias=AliasChoices("to", "recipient"))
+    message: str | dict[str, JsonValue] = ""
+
+    @property
+    def text(self) -> str:
+        """The message body when it is plain text, else empty."""
+        return self.message if isinstance(self.message, str) else ""
+
+
+@parameter_model(CanonicalTool.SPAWN_AGENT)
+class SpawnAgentParameters(ToolParameters):
+    """Parameters for a call that hands a task to a subagent."""
+
+    task: str = Field(default="", validation_alias=AliasChoices("task", "prompt"))
 
 
 @parameter_model(CanonicalTool.MCP)

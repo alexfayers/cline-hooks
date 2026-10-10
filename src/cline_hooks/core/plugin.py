@@ -139,9 +139,12 @@ class HooksPlugin:
     Attributes:
         hookspecs: The class of @hookspec methods this plugin publishes as an
             extension point, or None if it publishes none.
+        handles_peer_messages: Whether this plugin still receives UserPromptSubmit
+            events for cross-session peer messages, which all other plugins skip.
     """
 
     hookspecs: ClassVar[type | None] = None
+    handles_peer_messages: ClassVar[bool] = False
 
     @property
     def logger(self) -> logging.Logger:
