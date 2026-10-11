@@ -18,6 +18,20 @@ if TYPE_CHECKING:
     import logging
 
 _LARGE_FILE_THRESHOLD = 1000
+_BINARY_SNIFF_BYTES = 8192
+_BINARY_EXTENSIONS = frozenset({
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".bmp",
+    ".ico",
+    ".tif",
+    ".tiff",
+    ".pdf",
+    ".zip",
+})
 _EMOJI_THRESHOLD = 0x7F
 
 
@@ -46,6 +60,21 @@ def _reads_bounded_range(params: ReadParameters) -> bool:
     if params.end_line is None:
         return False
     return params.end_line - (params.start_line or 0) <= _LARGE_FILE_THRESHOLD
+
+
+def _is_binary_file(path: Path) -> bool:
+    """Check whether a file is binary, by extension or a NUL byte near its start.
+
+    Args:
+        path: The file to check.
+
+    Returns:
+        True if the file has a known binary extension or contains a NUL byte in its first bytes.
+    """
+    if path.suffix.lower() in _BINARY_EXTENSIONS:
+        return True
+    with path.open("rb") as file:
+        return b"\0" in file.read(_BINARY_SNIFF_BYTES)
 
 
 def _plan_mode_respond_guard(logger: logging.Logger, parameters: dict[str, Any]) -> HookResult | None:
@@ -85,8 +114,11 @@ def _read_guard(logger: logging.Logger, parameters: dict[str, Any]) -> HookResul
     params = ReadParameters.build(parameters)
     if not params.path or _reads_bounded_range(params):
         return None
+    path = Path(params.path)
     try:
-        line_count = Path(params.path).read_text(encoding="utf-8", errors="replace").count("\n")
+        if _is_binary_file(path):
+            return None
+        line_count = path.read_text(encoding="utf-8", errors="replace").count("\n")
     except OSError:
         return None
     if line_count > _LARGE_FILE_THRESHOLD:

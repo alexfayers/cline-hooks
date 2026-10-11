@@ -602,6 +602,13 @@ class TestLargeFileReadGuard:
         result = _run("read_file", {"path": str(file_path), "start_line": 1, "end_line": 500})
         assert result is None
 
+    @pytest.mark.parametrize("name", ["image.png", "blob"])
+    def test_long_binary_file_is_allowed(self, tmp_path: Path, name: str) -> None:
+        file_path = tmp_path / name
+        file_path.write_bytes(b"\x00" + b"\n" * 1001)
+        result = _run("read_file", {"path": str(file_path)})
+        assert result is None
+
     def test_short_file_without_range_is_allowed(self, tmp_path: Path) -> None:
         file_path = tmp_path / "short.txt"
         file_path.write_text("\n" * 10)
