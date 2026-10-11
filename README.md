@@ -79,7 +79,7 @@
 | src/cline\_hooks/plugins/research.py                    |      104 |        6 |       32 |        3 |     93% |122, 151-153, 208, 258-\>260, 265 |
 | src/cline\_hooks/plugins/session\_context.py            |       19 |        0 |        6 |        0 |    100% |           |
 | src/cline\_hooks/plugins/shell\_guards.py               |       50 |        2 |       14 |        0 |     97% |     40-41 |
-| src/cline\_hooks/plugins/tool\_guards.py                |       80 |        3 |       34 |        1 |     96% |90-91, 123 |
+| src/cline\_hooks/plugins/tool\_guards.py                |       90 |        3 |       38 |        1 |     97% |122-123, 155 |
 | src/cline\_hooks/plugins/tracking.py                    |       36 |        1 |       22 |        3 |     93% |33-\>exit, 63-\>65, 66 |
 | src/cline\_hooks/state/\_\_init\_\_.py                  |        0 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/state/agents.py                        |       22 |        0 |        0 |        0 |    100% |           |
@@ -111,7 +111,7 @@
 | tests/test\_handlers\_context\_nudge.py                 |       70 |        0 |        0 |        0 |    100% |           |
 | tests/test\_handlers\_post\_tool\_use.py                |      460 |        9 |       24 |        6 |     97% |369, 377, 448-449, 455-456, 489-490, 644 |
 | tests/test\_handlers\_pre\_compact.py                   |       19 |        0 |        0 |        0 |    100% |           |
-| tests/test\_handlers\_pre\_tool\_use.py                 |      470 |        0 |       14 |        0 |    100% |           |
+| tests/test\_handlers\_pre\_tool\_use.py                 |      476 |        0 |       14 |        0 |    100% |           |
 | tests/test\_handlers\_push\_guard.py                    |       28 |        0 |        0 |        0 |    100% |           |
 | tests/test\_handlers\_search\_scope.py                  |      163 |        0 |        2 |        0 |    100% |           |
 | tests/test\_handlers\_stop.py                           |      314 |        0 |        4 |        0 |    100% |           |
@@ -147,7 +147,7 @@
 | tests/test\_state\_jsonfile.py                          |       65 |        0 |        6 |        0 |    100% |           |
 | tests/test\_turns.py                                    |      104 |        1 |       12 |        1 |     98% |       164 |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **9774** |  **196** | **1144** |   **96** | **97%** |           |
+| **TOTAL**                                               | **9790** |  **196** | **1148** |   **96** | **97%** |           |
 
 
 ## Setup coverage badge
