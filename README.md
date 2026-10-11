@@ -54,7 +54,7 @@
 | src/cline\_hooks/frontends/pi/models.py                 |       45 |        1 |        4 |        1 |     96% |        96 |
 | src/cline\_hooks/frontends/pi/protocol.py               |       27 |        3 |        2 |        1 |     86% |82, 87, 91 |
 | src/cline\_hooks/handlers/\_\_init\_\_.py               |        3 |        0 |        0 |        0 |    100% |           |
-| src/cline\_hooks/handlers/commands.py                   |      115 |        5 |       64 |       10 |     92% |53, 80, 84, 88, 95-\>94, 122, 129-\>127, 131-\>127, 133-\>127, 134-\>133 |
+| src/cline\_hooks/handlers/commands.py                   |      115 |        5 |       64 |        9 |     92% |53, 80, 84, 88, 95-\>94, 122, 131-\>127, 133-\>127, 134-\>133 |
 | src/cline\_hooks/handlers/context\_nudge.py             |        7 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/handlers/git\_context.py               |       33 |       14 |        4 |        1 |     59% |     23-46 |
 | src/cline\_hooks/handlers/post\_tool\_use.py            |       44 |        2 |       12 |        2 |     93% |   54, 120 |
@@ -147,7 +147,7 @@
 | tests/test\_state\_jsonfile.py                          |       65 |        0 |        6 |        0 |    100% |           |
 | tests/test\_turns.py                                    |      104 |        1 |       12 |        1 |     98% |       164 |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **9790** |  **196** | **1148** |   **96** | **97%** |           |
+| **TOTAL**                                               | **9790** |  **196** | **1148** |   **95** | **97%** |           |
 
 
 ## Setup coverage badge
