@@ -21,8 +21,14 @@ logger = logging.getLogger("hooks.ResearchPlugin")
 
 RESEARCH_TRACE_CAP = 15
 
+KEEP_REPORT_SUFFIX = (
+    " If your reply is a report or result, repeat it in FULL and append the sources line at the end - "
+    "never reply with only the sources line."
+)
+
 DEFAULT_RESEARCH_TRACE_HEADER = (
     "RESEARCH TRACE: MUST cite the lookups behind this turn's claims to the user, in ONE line only."
+    + KEEP_REPORT_SUFFIX
 )
 
 # Keyed by FrontendSpec.name; a frontend with no entry gets the default, which
@@ -30,15 +36,15 @@ DEFAULT_RESEARCH_TRACE_HEADER = (
 RESEARCH_TRACE_HEADERS = {
     "claude-code": (
         "RESEARCH TRACE: MUST cite lookups behind this turn's claims, in ONE "
-        "line only - the user already sees this hook's raw output."
+        "line only - the user already sees this hook's raw output." + KEEP_REPORT_SUFFIX
     ),
     "kiro": (
         "RESEARCH TRACE: MUST start your reply with a line break, then write ONE "
-        "line in exactly this format and nothing else: Sources: <tool> "
+        "line in exactly this format, with no other text on that line: Sources: <tool> "
         '"<detail>", <tool> "<detail>", ... - substituting each tool/detail '
         "pair from the lookups below, copied verbatim, each detail written "
         "only once. No narration, no commentary, no parentheses, no restating "
-        "a detail a second time."
+        "a detail a second time." + KEEP_REPORT_SUFFIX
     ),
 }
 
