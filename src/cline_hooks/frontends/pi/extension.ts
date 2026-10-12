@@ -12,10 +12,16 @@ interface HookOutcome {
 }
 
 function runHook(ctx: ExtensionContext, payload: Record<string, unknown>): Promise<HookOutcome> {
+  const usage = ctx.getContextUsage();
   const input = JSON.stringify({
     session_id: ctx.sessionManager.getSessionId(),
     cwd: ctx.cwd,
     transcript_path: ctx.sessionManager.getSessionFile() ?? "",
+    session_name: ctx.sessionManager.getSessionName() ?? "",
+    agent_type: process.env.PI_HERDSMAN_AGENT_DEFINITION ?? "",
+    agent_id: process.env.PI_HERDSMAN_RUN_ID ?? "",
+    context_window: usage?.contextWindow,
+    context_tokens: usage?.tokens,
     ...payload,
   });
   return new Promise((resolve) => {
@@ -59,6 +65,7 @@ export default function (pi: ExtensionAPI) {
       hook_event_name: "tool_call",
       tool_name: event.toolName,
       tool_input: event.input,
+      parent_tool_call_id: event.parentToolCallId,
     });
     if (outcome.blocked) return { block: true, reason: outcome.message };
     if (outcome.message) pendingToolContext.set(event.toolCallId, outcome.message);
@@ -70,6 +77,7 @@ export default function (pi: ExtensionAPI) {
       hook_event_name: "tool_result",
       tool_name: event.toolName,
       tool_input: event.input,
+      parent_tool_call_id: event.parentToolCallId,
       tool_response: { success: !event.isError, result },
     });
     const notes = [pendingToolContext.get(event.toolCallId), message].filter(Boolean).join("\n\n");
@@ -83,6 +91,11 @@ export default function (pi: ExtensionAPI) {
       estimated_tokens: event.preparation.tokensBefore,
     });
     if (message) queueNote(message);
+  });
+
+  pi.on("session_shutdown", async (event, ctx) => {
+    if (event.reason === "reload" || !process.env.PI_HERDSMAN_RUN_ID) return;
+    await runHook(ctx, { hook_event_name: "session_shutdown", reason: event.reason });
   });
 
   pi.on("agent_end", async (_event, ctx) => {

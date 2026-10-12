@@ -41,7 +41,7 @@ class _DerivedPreCompact(HookFields):
 
 class _ConcreteProtocol(StandardPayloadProtocol):
     mcp_prefix: ClassVar[str] = "@"
-    mcp_separator: ClassVar[str] = "/"
+    mcp_separators: ClassVar[tuple[str, ...]] = ("/",)
 
     @classmethod
     def detect(cls, payload: RawPayload) -> bool:
@@ -200,18 +200,18 @@ class TestEnsureDict:
 
 class TestMcpParameters:
     def test_splits_server_and_tool(self) -> None:
-        params = mcp_parameters("@server/tool", {"a": 1}, prefix="@", separator="/")
+        params = mcp_parameters("@server/tool", {"a": 1}, prefix="@", separators=("/",))
         assert params["server_name"] == "server"
         assert params["tool_name"] == "tool"
         assert params["arguments"] == json.dumps({"a": 1})
 
     def test_empty_tool_name_when_no_separator(self) -> None:
-        params = mcp_parameters("@onlyserver", {}, prefix="@", separator="/")
+        params = mcp_parameters("@onlyserver", {}, prefix="@", separators=("/",))
         assert params["server_name"] == "onlyserver"
         assert params["tool_name"] == ""
 
     def test_only_one_prefix_removed(self) -> None:
-        params = mcp_parameters("@@server/tool", {}, prefix="@", separator="/")
+        params = mcp_parameters("@@server/tool", {}, prefix="@", separators=("/",))
         assert params["server_name"] == "@server"
         assert params["tool_name"] == "tool"
 

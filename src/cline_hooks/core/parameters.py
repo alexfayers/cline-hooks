@@ -123,7 +123,7 @@ class SkillParameters(ToolParameters):
 class PlanModeRespondParameters(ToolParameters):
     """Parameters for a plan-mode response tool call."""
 
-    response: str = ""
+    response: str = Field(default="", validation_alias=AliasChoices("response", "plan"))
 
 
 @parameter_model(CanonicalTool.ATTEMPT_COMPLETION)
@@ -138,7 +138,20 @@ class WebResearchParameters(ToolParameters):
     """Parameters for a web fetch or web search tool call."""
 
     url: str = ""
+    urls: list[str] = Field(default_factory=list)
     query: str = ""
+    queries: list[str] = Field(default_factory=list)
+    claim: str = ""
+
+    @property
+    def fetch_detail(self) -> str:
+        """The URLs fetched, or the stored-content query when no URL was given."""
+        return self.url or ", ".join(self.urls) or self.query
+
+    @property
+    def search_detail(self) -> str:
+        """The search queries, or the claim being source-checked."""
+        return self.query or ", ".join(self.queries) or self.claim
 
 
 @parameter_model(CanonicalTool.SEND_MESSAGE)

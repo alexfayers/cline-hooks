@@ -67,6 +67,7 @@ def handle_user_prompt_submit(hook: HookInputUserPromptSubmit) -> None:
         transcript_path=hook.transcriptPath,
         agent_id=hook.agentId,
         is_teammate=hook.isTeammate,
+        **(hook.userPromptSubmit.frontend_kwargs() if hook.userPromptSubmit else {}),
     )
     notes.extend(result.notes)
 

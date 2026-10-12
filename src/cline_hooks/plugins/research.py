@@ -237,8 +237,8 @@ class ResearchPlugin(HooksPlugin):
             Mapping of web_fetch and web_search to their detail extractors.
         """
         return {
-            CanonicalTool.WEB_FETCH: lambda parameters: str(WebResearchParameters.build(parameters).url),
-            CanonicalTool.WEB_SEARCH: lambda parameters: str(WebResearchParameters.build(parameters).query),
+            CanonicalTool.WEB_FETCH: lambda parameters: WebResearchParameters.build(parameters).fetch_detail,
+            CanonicalTool.WEB_SEARCH: lambda parameters: WebResearchParameters.build(parameters).search_detail,
         }
 
     def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:

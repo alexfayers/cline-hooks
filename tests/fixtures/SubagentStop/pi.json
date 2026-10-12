@@ -1,0 +1,9 @@
+{
+  "hook_event_name": "session_shutdown",
+  "cwd": "/home/user/project",
+  "session_id": "fixture-session-id",
+  "transcript_path": "/home/user/.pi/agent/sessions/fixture/session.jsonl",
+  "agent_type": "general-purpose",
+  "agent_id": "fixture-agent-id",
+  "reason": "quit"
+}

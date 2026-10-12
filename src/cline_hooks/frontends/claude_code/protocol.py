@@ -83,7 +83,7 @@ class ClaudeCodeHookSpec(StandardPayloadProtocol):
         CanonicalTool.SHELL: ClaudeCodeShellParams,
     }
     mcp_prefix: ClassVar[str] = "mcp__"
-    mcp_separator: ClassVar[str] = "__"
+    mcp_separators: ClassVar[tuple[str, ...]] = ("__",)
 
 
 @frontend(

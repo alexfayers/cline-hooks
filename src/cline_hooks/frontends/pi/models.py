@@ -2,16 +2,35 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from pydantic import Field, field_validator, model_validator
 
-from cline_hooks.core.models import StopFields, TaskStartFields, UserPromptSubmitFields
-from cline_hooks.core.payload import Flag, ToolParams, diff_envelope
+from cline_hooks.core.models import PostToolUseFields, StopFields, TaskStartFields, UserPromptSubmitFields
+from cline_hooks.core.payload import Flag, PayloadEnvelope, ToolParams, diff_envelope
 from cline_hooks.core.vocabulary import TaskSource
 
 # Pi's session_start reasons that continue an existing conversation.
 _RESUMING_REASONS = frozenset({"reload", "fork"})
+
+# pi-subagents names a child session `<agent type>#<first 8 hex chars of its agent id>`.
+_SUBAGENT_SESSION_NAME = re.compile(r"(?P<agent_type>.+)#(?P<agent_id>[0-9a-f]{8})")
+
+
+class PiEnvelope(PayloadEnvelope):
+    """Pi's envelope fields; a subagent's type and id come from its `session_name`."""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _subagent_identity(cls, data: dict[str, Any]) -> dict[str, Any]:
+        """Set `agent_type` and `agent_id` from a pi-subagents child session name.
+
+        Returns:
+            The data with the subagent's type and id set, where the session is a child.
+        """
+        match = _SUBAGENT_SESSION_NAME.fullmatch(str(data.get("session_name") or ""))
+        return {**data, **match.groupdict()} if match else data
 
 
 class PiTaskStart(TaskStartFields):
@@ -33,10 +52,35 @@ class PiTaskStart(TaskStartFields):
         return TaskSource.RESUME if value in _RESUMING_REASONS else value
 
 
+class PiPostToolUse(PostToolUseFields):
+    """Pi's PostToolUse fields; the context usage is as the bridge reports it."""
+
+    contextWindow: int | None = Field(default=None, validation_alias="context_window")
+    contextTokens: int | None = Field(default=None, validation_alias="context_tokens")
+
+    def frontend_kwargs(self) -> dict[str, object]:
+        """Extra plugin dispatch kwargs a frontend derives from its own payload.
+
+        Returns:
+            The model's context window and the tokens in use, each None where the bridge reports none.
+        """
+        return {"context_window": self.contextWindow, "context_tokens": self.contextTokens}
+
+
 class PiUserPromptSubmit(UserPromptSubmitFields):
-    """Pi's UserPromptSubmit fields; `userMessage` comes from `prompt`."""
+    """Pi's UserPromptSubmit fields; `userMessage` comes from `prompt`, the context usage from the bridge."""
 
     userMessage: str = Field(default="", validation_alias="prompt")
+    contextWindow: int | None = Field(default=None, validation_alias="context_window")
+    contextTokens: int | None = Field(default=None, validation_alias="context_tokens")
+
+    def frontend_kwargs(self) -> dict[str, object]:
+        """Extra plugin dispatch kwargs a frontend derives from its own payload.
+
+        Returns:
+            The model's context window and the tokens in use, each None where the bridge reports none.
+        """
+        return {"context_window": self.contextWindow, "context_tokens": self.contextTokens}
 
 
 class PiStop(StopFields):

@@ -4,12 +4,15 @@ import json
 from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import patch
 
+import pytest
+
 from cline_hooks.core.models import HookInput, HookInputPostToolUse
 from cline_hooks.core.plugin import HookResult, HooksPlugin, hookimpl
 from cline_hooks.core.protocol import RawPayload, set_protocol
 from cline_hooks.core.response import emit
 from cline_hooks.frontends.claude_code import ClaudeCodeProtocol
 from cline_hooks.frontends.cline import ClineProtocol
+from cline_hooks.frontends.pi import PiProtocol
 from cline_hooks.handlers.post_tool_use import handle_post_tool_use
 from cline_hooks.plugins.build_tools import BuildToolsPlugin
 from cline_hooks.plugins.context_usage import context_note
@@ -135,6 +138,26 @@ class TestPostToolUseContextNudge:
         hook = _make_hook("Read", transcript_path="session.jsonl")
         result = _run(hook)
         assert result is None
+
+
+class TestPostToolUseContextWindow:
+    def test_pi_usage_shows_tokens_window_and_percent(self) -> None:
+        payload = {
+            "hook_event_name": "tool_result",
+            "session_id": "task-1",
+            "cwd": "/workspace",
+            "transcript_path": "session.jsonl",
+            "tool_name": "read",
+            "tool_input": {"path": "a.py"},
+            "tool_response": {"success": True, "result": "x"},
+            "context_window": 1_000_000,
+            "context_tokens": 210_000,
+        }
+        hook = PiProtocol().parse(RawPayload.from_stdin(json.dumps(payload)))
+        assert isinstance(hook, HookInputPostToolUse)
+        result = _run(hook)
+        assert result is not None
+        assert "210,000 / 1,000,000 tokens (21.0%)" in cast("str", result.get("contextModification", ""))
 
 
 class TestPostToolUseContextNudgeSubagent:
@@ -385,6 +408,40 @@ class TestResearchRecording:
     def test_websearch_records_query(self) -> None:
         _run(_make_hook("web_search", parameters={"query": "python entry points"}))
         assert get_research("task-1") == [{"tool": "web_search", "detail": "python entry points"}]
+
+    @pytest.mark.parametrize(
+        ("tool_name", "arguments", "detail"),
+        [
+            ("web_search", {"query": "python entry points"}, "python entry points"),
+            ("web_search", {"queries": ["pluggy", "pytest hooks"]}, "pluggy, pytest hooks"),
+            ("fetch_content", {"url": "https://example.com/docs"}, "https://example.com/docs"),
+            (
+                "fetch_content",
+                {"urls": ["https://a.example", "https://b.example"]},
+                "https://a.example, https://b.example",
+            ),
+            ("source_check", {"claim": "pluggy is a plugin system", "queries": ["pluggy"]}, "pluggy"),
+            ("source_check", {"claim": "pluggy is a plugin system"}, "pluggy is a plugin system"),
+            ("get_search_content", {"responseId": "r1", "url": "https://example.com/docs"}, "https://example.com/docs"),
+            ("get_search_content", {"responseId": "r1", "query": "pluggy"}, "pluggy"),
+        ],
+    )
+    def test_pi_web_tools_record_their_query_or_urls(
+        self, tool_name: str, arguments: dict[str, object], detail: str
+    ) -> None:
+        payload = {
+            "hook_event_name": "tool_result",
+            "session_id": "task-1",
+            "cwd": "/workspace",
+            "transcript_path": "session.jsonl",
+            "tool_name": tool_name,
+            "tool_input": arguments,
+            "tool_response": {"success": True, "result": "x"},
+        }
+        hook = PiProtocol().parse(RawPayload.from_stdin(json.dumps(payload)))
+        assert isinstance(hook, HookInputPostToolUse)
+        _run(hook)
+        assert [record["detail"] for record in get_research("task-1")] == [detail]
 
     def test_non_research_tool_records_nothing(self) -> None:
         _run(_make_hook("read_file", parameters={"path": "/x.py"}))
