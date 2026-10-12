@@ -55,8 +55,8 @@
             </div>
         </aside>
         <h2>
-            <span class="text">30 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">30<span class="text"> run</span></button>
+            <span class="text">40 statements &nbsp;</span>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">40<span class="text"> run</span></button>
             <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">0<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">2<span class="text"> excluded</span></button>
             <button type="button" class="par run show_par button_toggle_par" value="par" data-shortcut="p" title="Toggle lines partially run">0<span class="text"> partial</span></button>
@@ -66,8 +66,8 @@
             <a id="indexLink" class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
             <a id="nextFileLink" class="nav" href="z_a44f0ac069e85531_test_plugins_shell_guards_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
-            created at 2026-10-11 23:54 +0000
+            <a class="nav" href="https://coverage.readthedocs.io/en/7.16.2">coverage.py v7.16.2</a>,
+            created at 2026-10-12 19:04 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -140,6 +140,21 @@
     <p class="run"><span class="n"><a id="t56" href="#t56">56</a></span><span class="t">        <span class="nam">use_plugins</span><span class="op">(</span><span class="nam">ResearchPlugin</span><span class="op">(</span><span class="op">)</span><span class="op">,</span> <span class="nam">_contributor</span><span class="op">(</span><span class="op">{</span><span class="str">&quot;web_fetch&quot;</span><span class="op">:</span> <span class="key">lambda</span> <span class="nam">arguments</span><span class="op">:</span> <span class="fst">f&quot;</span><span class="fst">external </span><span class="op">{</span><span class="nam">arguments</span><span class="op">[</span><span class="str">&#x27;url&#x27;</span><span class="op">]</span><span class="op">}</span><span class="fst">&quot;</span><span class="op">}</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t57" href="#t57">57</a></span><span class="t">        <span class="nam">_post_tool_use</span><span class="op">(</span><span class="str">&quot;web_fetch&quot;</span><span class="op">,</span> <span class="op">{</span><span class="str">&quot;url&quot;</span><span class="op">:</span> <span class="str">&quot;https://example.com/docs&quot;</span><span class="op">}</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t58" href="#t58">58</a></span><span class="t">        <span class="key">assert</span> <span class="nam">get_research</span><span class="op">(</span><span class="nam">_TASK</span><span class="op">)</span> <span class="op">==</span> <span class="op">[</span><span class="op">{</span><span class="str">&quot;tool&quot;</span><span class="op">:</span> <span class="str">&quot;web_fetch&quot;</span><span class="op">,</span> <span class="str">&quot;detail&quot;</span><span class="op">:</span> <span class="str">&quot;external https://example.com/docs&quot;</span><span class="op">}</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t59" href="#t59">59</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t60" href="#t60">60</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t61" href="#t61">61</a></span><span class="t"><span class="key">class</span> <span class="nam">TestResearchTraceKeepsReport</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t62" href="#t62">62</a></span><span class="t">    <span class="key">def</span> <span class="nam">test_every_header_keeps_the_full_report</span><span class="op">(</span><span class="nam">self</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t63" href="#t63">63</a></span><span class="t">        <span class="key">from</span> <span class="nam">cline_hooks</span><span class="op">.</span><span class="nam">plugins</span><span class="op">.</span><span class="nam">research</span> <span class="key">import</span> <span class="nam">DEFAULT_RESEARCH_TRACE_HEADER</span><span class="op">,</span> <span class="nam">RESEARCH_TRACE_HEADERS</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t64" href="#t64">64</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t65" href="#t65">65</a></span><span class="t">        <span class="key">for</span> <span class="nam">header</span> <span class="key">in</span> <span class="op">[</span><span class="nam">DEFAULT_RESEARCH_TRACE_HEADER</span><span class="op">,</span> <span class="op">*</span><span class="nam">RESEARCH_TRACE_HEADERS</span><span class="op">.</span><span class="nam">values</span><span class="op">(</span><span class="op">)</span><span class="op">]</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t66" href="#t66">66</a></span><span class="t">            <span class="key">assert</span> <span class="str">&quot;FULL&quot;</span> <span class="key">in</span> <span class="nam">header</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t67" href="#t67">67</a></span><span class="t">            <span class="key">assert</span> <span class="str">&quot;never reply with only&quot;</span> <span class="key">in</span> <span class="nam">header</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t68" href="#t68">68</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t69" href="#t69">69</a></span><span class="t">    <span class="key">def</span> <span class="nam">test_no_header_limits_the_reply_to_the_sources_line</span><span class="op">(</span><span class="nam">self</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t70" href="#t70">70</a></span><span class="t">        <span class="key">from</span> <span class="nam">cline_hooks</span><span class="op">.</span><span class="nam">plugins</span><span class="op">.</span><span class="nam">research</span> <span class="key">import</span> <span class="nam">DEFAULT_RESEARCH_TRACE_HEADER</span><span class="op">,</span> <span class="nam">RESEARCH_TRACE_HEADERS</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t71" href="#t71">71</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t72" href="#t72">72</a></span><span class="t">        <span class="key">for</span> <span class="nam">header</span> <span class="key">in</span> <span class="op">[</span><span class="nam">DEFAULT_RESEARCH_TRACE_HEADER</span><span class="op">,</span> <span class="op">*</span><span class="nam">RESEARCH_TRACE_HEADERS</span><span class="op">.</span><span class="nam">values</span><span class="op">(</span><span class="op">)</span><span class="op">]</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t73" href="#t73">73</a></span><span class="t">            <span class="key">assert</span> <span class="str">&quot;nothing else&quot;</span> <span class="key">not</span> <span class="key">in</span> <span class="nam">header</span>&nbsp;</span><span class="r"></span></p>
 </main>
 <footer>
     <div class="content">
@@ -148,8 +163,8 @@
             <a class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
             <a class="nav" href="z_a44f0ac069e85531_test_plugins_shell_guards_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
-            created at 2026-10-11 23:54 +0000
+            <a class="nav" href="https://coverage.readthedocs.io/en/7.16.2">coverage.py v7.16.2</a>,
+            created at 2026-10-12 19:04 +0000
         </p>
     </div>
 </footer>
