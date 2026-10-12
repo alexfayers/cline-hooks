@@ -8,6 +8,7 @@ from cline_hooks.core.parameters import (
     FileEditParameters,
     McpToolUse,
     ReadParameters,
+    SendMessageParameters,
     ShellParameters,
     SkillParameters,
     ToolParameters,
@@ -80,6 +81,20 @@ class TestSkillParametersAlias:
 
     def test_skill_alone(self) -> None:
         assert SkillParameters.build({"skill": "b"}).skill == "b"
+
+
+class TestSendMessageParameters:
+    def test_recipient_alias_fills_a_missing_to(self) -> None:
+        assert SendMessageParameters.build({"recipient": "peer"}).to == "peer"
+
+    def test_to_takes_precedence_over_recipient(self) -> None:
+        assert SendMessageParameters.build({"to": "a", "recipient": "b"}).to == "a"
+
+    def test_text_is_the_message_when_it_is_a_string(self) -> None:
+        assert SendMessageParameters.build({"message": "hello"}).text == "hello"
+
+    def test_text_is_empty_for_an_object_message(self) -> None:
+        assert SendMessageParameters.build({"message": {"type": "shutdown_request"}}).text == ""
 
 
 class TestMcpToolUse:

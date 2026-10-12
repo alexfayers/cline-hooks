@@ -82,6 +82,13 @@ def _build_parser() -> argparse.ArgumentParser:
     retro_group.add_argument("--get", action="store_true", help="Print the current session count")
     retro_group.add_argument("--reset", action="store_true", help="Reset the session count to zero")
 
+    ack_parser = sub.add_parser(
+        "handoff-ack", help="Release sessions blocked by an owed or awaited handoff acknowledgement"
+    )
+    ack_parser.add_argument(
+        "--clear", action="store_true", required=True, help="Clear every owed and awaited acknowledgement"
+    )
+
     return parser
 
 
@@ -191,6 +198,12 @@ def main() -> NoReturn:
             retrospective.reset()
         else:
             print(retrospective.get_count())  # ruff: ignore[print]
+        sys.exit(0)
+
+    if args.command == "handoff-ack":
+        from cline_hooks.plugins import handoff_ack  # ruff: ignore[import-outside-top-level]
+
+        handoff_ack.clear_acks()
         sys.exit(0)
 
     _run_hook()

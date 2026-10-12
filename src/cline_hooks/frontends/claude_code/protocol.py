@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 import sys
 from typing import TYPE_CHECKING, ClassVar, NoReturn, Self
 
@@ -65,6 +66,7 @@ class ClaudeCodeHookSpec(StandardPayloadProtocol):
         "ExitPlanMode": CanonicalTool.PLAN_EXIT,
         "WebFetch": CanonicalTool.WEB_FETCH,
         "WebSearch": CanonicalTool.WEB_SEARCH,
+        "SendMessage": CanonicalTool.SEND_MESSAGE,
     }
     envelope_model: ClassVar[type[PayloadEnvelope]] = PayloadEnvelope
     hook_models: ClassVar[Mapping[CanonicalHook, type[HookFields]]] = {
@@ -89,6 +91,7 @@ class ClaudeCodeHookSpec(StandardPayloadProtocol):
     display_name="Claude Code",
     installer=ClaudeCodeInstaller(),
     detect_priority=SHAPE_SNIFF,
+    skills_dir=lambda: Path.home() / ".claude" / "skills",
 )
 class ClaudeCodeProtocol(ClaudeCodeHookSpec):
     """Claude Code exit-code protocol.

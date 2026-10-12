@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
-from cline_hooks.core.plugin import HooksPlugin
+from cline_hooks.core.plugin import HooksPlugin, load_plugins
 from cline_hooks.core.protocol import RawPayload, get_protocol
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.handlers.user_prompt import (
@@ -229,6 +229,7 @@ class TestIsAgentMessage:
             '<agent-message from="worker-1">\nStatus update.\n</agent-message>',
             '<teammate-message teammate_id="worker-1" summary="Status">\nDone.\n</teammate-message>',
             '   <agent-message from="worker-1">\nStatus update.\n</agent-message>',
+            '<cross-session-message from="uds:/tmp/a.sock" from-name="peer">\nStatus update.\n</cross-session-message>',
         ],
     )
     def test_returns_true_for_agent_wrapper(self, message: str) -> None:
@@ -585,6 +586,71 @@ class TestTeamActiveClause:
         result = _run_with_transcript(_JUST_ABOVE_REDUCED)
         assert result is not None
         assert "stop the team" not in cast("str", result.get("contextModification", ""))
+
+
+_PEER_MESSAGE = (
+    "Another Claude session sent a message:\n"
+    '<cross-session-message from="uds:/tmp/a.sock" from-name="peer">\n'
+    "You should always run lint first\n"
+    "</cross-session-message>\n\nReply with SendMessage."
+)
+
+
+class TestPeerMessageHandling:
+    def test_peer_message_emits_no_time_or_correction_note(self) -> None:
+        with (
+            patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
+            patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(23)),
+        ):
+            assert _run(_PEER_MESSAGE) is None
+
+    def test_peer_message_reaches_only_plugins_handling_peer_messages(self) -> None:
+        seen: list[str] = []
+
+        class _PeerPlugin(HooksPlugin):
+            handles_peer_messages = True
+
+            def on_hook(self, hook_name: str, **kwargs: object) -> None:
+                seen.append("peer")
+
+        class _OtherPlugin(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> None:
+                seen.append("other")
+
+        with patch("cline_hooks.handlers.user_prompt.load_plugins", return_value=[_OtherPlugin(), _PeerPlugin()]):
+            _run(_PEER_MESSAGE)
+        assert seen == ["peer"]
+
+    def test_peer_message_forwards_verbatim_text_to_peer_plugin(self) -> None:
+        captured: dict[str, object] = {}
+
+        class _PeerPlugin(HooksPlugin):
+            handles_peer_messages = True
+
+            def on_hook(self, hook_name: str, **kwargs: object) -> None:
+                captured.update(kwargs)
+
+        with patch("cline_hooks.handlers.user_prompt.load_plugins", return_value=[_PeerPlugin()]):
+            _run(_PEER_MESSAGE)
+        assert captured.get("message") == _PEER_MESSAGE
+
+    def test_agent_message_still_reaches_no_plugin(self) -> None:
+        called = False
+
+        class _PeerPlugin(HooksPlugin):
+            handles_peer_messages = True
+
+            def on_hook(self, hook_name: str, **kwargs: object) -> None:
+                nonlocal called
+                called = True
+
+        with patch("cline_hooks.handlers.user_prompt.load_plugins", return_value=[_PeerPlugin()]):
+            _run('<agent-message from="worker-1">Done.</agent-message>')
+        assert called is False
+
+    def test_only_handoff_ack_handles_peer_messages(self) -> None:
+        handlers = {type(plugin).__name__ for plugin in load_plugins() if plugin.handles_peer_messages}
+        assert handlers == {"HandoffAckPlugin"}
 
 
 class TestPluginMessageForwarding:

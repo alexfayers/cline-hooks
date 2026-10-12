@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import bashlex
+import pytest
 
 from cline_hooks.handlers.commands import (
     ParsedCommand,
@@ -8,6 +9,7 @@ from cline_hooks.handlers.commands import (
     extract_commands,
     extract_replacement_blocks,
     is_git_push,
+    is_read_only_git,
     strip_strings,
 )
 
@@ -45,6 +47,28 @@ class TestIsGitPush:
             ParsedCommand(name="git", flags=[], args=["push"]),
         ]
         assert is_git_push(commands) is True
+
+
+class TestIsReadOnlyGit:
+    @pytest.mark.parametrize(
+        ("command", "expected"),
+        [
+            ("git status", True),
+            ("git -P log --oneline", True),
+            ("git diff HEAD", True),
+            ("git commit -m x", False),
+            ("git -C /x status", True),
+            ("git -C /x -P log --oneline", True),
+            ("git --git-dir=/x/.git status", True),
+            ("git -c core.pager=cat diff", True),
+            ("git -C /x commit -m x", False),
+            ("git -C /x", False),
+            ("git", False),
+            ("status", False),
+        ],
+    )
+    def test_matches_only_read_only_git_subcommands(self, command: str, expected: bool) -> None:
+        assert is_read_only_git(extract_commands(bashlex.parse(command))[0]) is expected
 
 
 class TestExtractReplacementBlocks:

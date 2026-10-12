@@ -7,8 +7,10 @@ import bashlex
 import bashlex.errors
 
 from cline_hooks.core.plugin import HookResult, HooksPlugin
+from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.vocabulary import CanonicalHook, PluginScope
-from cline_hooks.handlers.commands import extract_commands, is_git_push
+from cline_hooks.handlers.commands import extract_commands, is_git_push, is_read_only_git
+from cline_hooks.handlers.herdr_guard import removed_worktree_paths, workspace_linking
 from cline_hooks.handlers.push_guard import marker_above_repo
 from cline_hooks.handlers.search_scope import MAX_SCAN_ENTRIES, MAX_SCAN_SECONDS, find_oversized_search
 from cline_hooks.state.skills import (
@@ -21,12 +23,22 @@ if TYPE_CHECKING:
     import logging
 
 
+def _skill_block_message(skill: str) -> str:
+    message = f"MUST use the `{skill}` skill before running this command"
+    spec = get_protocol().frontend_spec
+    if spec is not None and spec.skills_dir is not None:
+        skill_file = spec.skills_dir() / skill / "SKILL.md"
+        if skill_file.is_file():
+            return f"{message} - read {skill_file} first"
+    return message
+
+
 def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | None:
     """Block a shell command missing a required skill, a blocked git push, or an oversized recursive search.
 
     Args:
         logger: This plugin's hook-scoped child logger.
-        **kwargs: The PreShell dispatch kwargs (command, task_id, workspace_roots).
+        **kwargs: The PreShell dispatch kwargs (command, task_id, workspace_roots, agent_id).
 
     Returns:
         A blocking HookResult for a missing skill, a blocked git push or an oversized search, or None.
@@ -34,6 +46,7 @@ def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | N
     command = cast("str", kwargs.get("command") or "")
     task_id = cast("str", kwargs.get("task_id") or "")
     workspace_roots = cast("list[str]", kwargs.get("workspace_roots") or [])
+    agent_id = kwargs.get("agent_id")
 
     try:
         parsed = bashlex.parse(command)
@@ -41,10 +54,10 @@ def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | N
         return None
     commands = extract_commands(parsed)
 
-    required_skill = required_skill_for([cmd.name for cmd in commands])
+    required_skill = required_skill_for([cmd.name for cmd in commands if not (agent_id and is_read_only_git(cmd))])
     if required_skill and not is_skill_called(task_id, required_skill):
         logger.debug("Blocked shell command: missing required skill")
-        return HookResult(block=f"MUST use the `{required_skill}` skill before running this command")
+        return HookResult(block=_skill_block_message(required_skill))
 
     if is_git_push(commands):
         marker = marker_above_repo(workspace_roots)
@@ -60,6 +73,16 @@ def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | N
             )
 
     session_cwd = workspace_roots[0] if workspace_roots else os.getcwd()  # ruff: ignore[os-getcwd]
+    workspace_id = workspace_linking(removed_worktree_paths(commands), session_cwd)
+    if workspace_id:
+        logger.debug("Blocked git worktree remove: a Herdr workspace links the path")
+        return HookResult(
+            block=(
+                f"git worktree remove is blocked: Herdr workspace {workspace_id} links this worktree path. "
+                f"Once no live agent runs there, MUST close it with `herdr workspace close {workspace_id}` "
+                f"and then retry."
+            )
+        )
     scope = find_oversized_search(commands, session_cwd)
     if scope:
         logger.debug("Blocked oversized recursive search")

@@ -84,6 +84,18 @@ class PluginStateStore[StateT: "DataclassInstance"]:
             data[task_id] = dataclasses.asdict(state)
         return result
 
+    def update_all(self, mutate: Callable[[StateT], object]) -> None:
+        """Mutate every task's state under an exclusive lock, persisting the result.
+
+        Args:
+            mutate: Called with each task's current state, mutating it in place.
+        """
+        with updated_json(self._path, cast("dict[str, dict[str, Any]]", {})) as data:
+            for task_id, entry in data.items():
+                state = self._parse(entry)
+                mutate(state)
+                data[task_id] = dataclasses.asdict(state)
+
     def reset(self, task_id: str) -> None:
         """Clear the state entry for a task and every per-agent entry nested under it.
 

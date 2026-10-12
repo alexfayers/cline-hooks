@@ -20,6 +20,7 @@ class CanonicalTool(StrEnum):
     PLAN_EXIT = "exit_plan_mode"
     WEB_FETCH = "web_fetch"
     WEB_SEARCH = "web_search"
+    SEND_MESSAGE = "send_message"
 
 
 class CanonicalHook(StrEnum):
@@ -61,6 +62,7 @@ FILE_EDIT_TOOLS = frozenset({CanonicalTool.EDIT, CanonicalTool.WRITE})
 FILE_READ_TOOLS = frozenset({CanonicalTool.READ})
 SKILL_TOOLS = frozenset({CanonicalTool.SKILL})
 AGENT_SPAWN_TOOLS = frozenset({CanonicalTool.SPAWN_AGENT})
+MESSAGE_TOOLS = frozenset({CanonicalTool.SEND_MESSAGE})
 PLAN_EXIT_TOOLS = frozenset({CanonicalTool.PLAN_EXIT, CanonicalTool.PLAN_MODE_RESPOND})
 KNOWN_TOOLS = frozenset(CanonicalTool)
 

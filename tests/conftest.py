@@ -16,6 +16,7 @@ from cline_hooks.core.protocol import get_protocol, set_protocol
 from cline_hooks.core.transcript import TranscriptReader
 import cline_hooks.plugins.context_usage as context_usage_module
 import cline_hooks.plugins.delegation as delegation_module
+import cline_hooks.plugins.handoff_ack as handoff_ack_module
 import cline_hooks.plugins.nudges as nudges_module
 import cline_hooks.plugins.plan_handoff as plan_handoff_module
 import cline_hooks.plugins.research as research_module
@@ -177,6 +178,7 @@ def isolate_state_files(mocker: MockerFixture, tmp_path: Path) -> None:
     mocker.patch.object(research_module._store, "_path", tmp_path / "research-state.json")
     mocker.patch.object(workspace_module, "_STATE_PATH", tmp_path / "workspace-state.json")
     mocker.patch.object(delegation_module._store, "_path", tmp_path / "delegation-state.json")
+    mocker.patch.object(handoff_ack_module._store, "_path", tmp_path / "handoff-ack-state.json")
     mocker.patch.dict(os.environ, {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": ""})
     set_protocol(DEFAULT_PROTOCOL())
 

@@ -43,6 +43,45 @@ def is_git_push(commands: list[ParsedCommand]) -> bool:
     return any(cmd.name == "git" and "push" in cmd.args for cmd in commands)
 
 
+_READ_ONLY_GIT_SUBCOMMANDS = frozenset({
+    "status",
+    "log",
+    "diff",
+    "show",
+    "rev-parse",
+    "ls-files",
+    "blame",
+    "merge-base",
+    "rev-list",
+    "cat-file",
+    "describe",
+    "shortlog",
+})
+
+
+_GIT_OPTIONS_TAKING_A_VALUE = frozenset({"-C", "-c", "--git-dir", "--work-tree", "--namespace"})
+
+
+def _git_subcommand(words: list[str]) -> str | None:
+    """Return the first `git` word that is not a global option or its value."""
+    remaining = iter(words)
+    for word in remaining:
+        if word in _GIT_OPTIONS_TAKING_A_VALUE:
+            next(remaining, None)
+        elif not word.startswith("-"):
+            return word
+    return None
+
+
+def is_read_only_git(cmd: ParsedCommand) -> bool:
+    """Check if a command is a read-only `git` subcommand, after any global options.
+
+    Returns:
+        bool: True if the command is `git` whose subcommand is read-only.
+    """
+    return cmd.name == "git" and _git_subcommand(cmd.words) in _READ_ONLY_GIT_SUBCOMMANDS
+
+
 def _iter_nodes(node: bashlex.ast.node) -> Iterator[bashlex.ast.node]:
     """Recursively yield all nodes in a bashlex AST.
 
