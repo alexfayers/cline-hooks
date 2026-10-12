@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_6e4cb019f5d8edbb_session_context_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.2">coverage.py v7.16.2</a>,
-            created at 2026-10-12 19:17 +0000
+            created at 2026-10-12 19:37 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -321,8 +321,8 @@
     <p class="pln"><span class="n"><a id="t237" href="#t237">237</a></span><span class="t"><span class="str">            Mapping of web_fetch and web_search to their detail extractors.</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t238" href="#t238">238</a></span><span class="t"><span class="str">        &quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t239" href="#t239">239</a></span><span class="t">        <span class="key">return</span> <span class="op">{</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t240" href="#t240">240</a></span><span class="t">            <span class="nam">CanonicalTool</span><span class="op">.</span><span class="nam">WEB_FETCH</span><span class="op">:</span> <span class="key">lambda</span> <span class="nam">parameters</span><span class="op">:</span> <span class="nam">str</span><span class="op">(</span><span class="nam">WebResearchParameters</span><span class="op">.</span><span class="nam">build</span><span class="op">(</span><span class="nam">parameters</span><span class="op">)</span><span class="op">.</span><span class="nam">url</span><span class="op">)</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t241" href="#t241">241</a></span><span class="t">            <span class="nam">CanonicalTool</span><span class="op">.</span><span class="nam">WEB_SEARCH</span><span class="op">:</span> <span class="key">lambda</span> <span class="nam">parameters</span><span class="op">:</span> <span class="nam">str</span><span class="op">(</span><span class="nam">WebResearchParameters</span><span class="op">.</span><span class="nam">build</span><span class="op">(</span><span class="nam">parameters</span><span class="op">)</span><span class="op">.</span><span class="nam">query</span><span class="op">)</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t240" href="#t240">240</a></span><span class="t">            <span class="nam">CanonicalTool</span><span class="op">.</span><span class="nam">WEB_FETCH</span><span class="op">:</span> <span class="key">lambda</span> <span class="nam">parameters</span><span class="op">:</span> <span class="nam">WebResearchParameters</span><span class="op">.</span><span class="nam">build</span><span class="op">(</span><span class="nam">parameters</span><span class="op">)</span><span class="op">.</span><span class="nam">fetch_detail</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t241" href="#t241">241</a></span><span class="t">            <span class="nam">CanonicalTool</span><span class="op">.</span><span class="nam">WEB_SEARCH</span><span class="op">:</span> <span class="key">lambda</span> <span class="nam">parameters</span><span class="op">:</span> <span class="nam">WebResearchParameters</span><span class="op">.</span><span class="nam">build</span><span class="op">(</span><span class="nam">parameters</span><span class="op">)</span><span class="op">.</span><span class="nam">search_detail</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t242" href="#t242">242</a></span><span class="t">        <span class="op">}</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t243" href="#t243">243</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t244" href="#t244">244</a></span><span class="t">    <span class="key">def</span> <span class="nam">on_hook</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="nam">hook_name</span><span class="op">:</span> <span class="nam">str</span><span class="op">,</span> <span class="op">*</span><span class="op">,</span> <span class="nam">logger</span><span class="op">:</span> <span class="nam">logging</span><span class="op">.</span><span class="nam">Logger</span><span class="op">,</span> <span class="op">**</span><span class="nam">kwargs</span><span class="op">:</span> <span class="nam">object</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="nam">HookResult</span> <span class="op">|</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
@@ -366,7 +366,7 @@
             <a class="nav" href="z_6e4cb019f5d8edbb_session_context_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.2">coverage.py v7.16.2</a>,
-            created at 2026-10-12 19:17 +0000
+            created at 2026-10-12 19:37 +0000
         </p>
     </div>
 </footer>
