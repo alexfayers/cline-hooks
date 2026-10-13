@@ -6,10 +6,10 @@
 
 <!-- Why it changed. -->
 
-## Testing
+## Dependencies
 
-<!-- How this was tested. -->
+<!-- Optional. e.g. Depends on #N -->
 
-## Checks
+## Issues
 
-- [ ] README updated (frontend/plugin/hook matrix changes only)
+<!-- Optional. e.g. Closes #N -->
