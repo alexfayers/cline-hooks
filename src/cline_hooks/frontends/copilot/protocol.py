@@ -31,6 +31,8 @@ class CopilotProtocol(ClaudeCodeHookSpec):
     input" - Claude Code's snake_case shape, with tool_name reported as the
     Claude tool name (`Bash`, not `bash`) - so Copilot inherits that payload
     spec and adds PreCompact, an event Claude Code has no counterpart for.
+    Its documented `subagentStart` takes camelCase input and returns a
+    top-level `additionalContext`, so SubagentStart is not registered.
 
     Only the tool NAME mapping is documented, so a tool_input whose keys differ
     from Claude's normalises to empty parameters rather than wrong ones. The
@@ -40,7 +42,11 @@ class CopilotProtocol(ClaudeCodeHookSpec):
     """
 
     supported_hooks: ClassVar[Mapping[CanonicalHook, HookRegistration]] = {
-        **ClaudeCodeHookSpec.supported_hooks,
+        **{
+            hook: registration
+            for hook, registration in ClaudeCodeHookSpec.supported_hooks.items()
+            if hook is not CanonicalHook.SUBAGENT_START
+        },
         CanonicalHook.PRE_COMPACT: HookRegistration("PreCompact"),
     }
     hook_models: ClassVar[Mapping[CanonicalHook, type[HookFields]]] = {

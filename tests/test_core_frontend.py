@@ -87,6 +87,24 @@ class TestFrontendDecorator:
             REGISTERED_FRONTENDS.clear()
             REGISTERED_FRONTENDS.update(before)
 
+    def test_the_context_cap_defaults_to_none_and_reaches_the_spec(self) -> None:
+        before = dict(REGISTERED_FRONTENDS)
+        try:
+
+            @frontend(name="test-only", display_name="Test Only")
+            class _Uncapped(_Bare):
+                pass
+
+            @frontend(name="test-capped", display_name="Test Capped", max_context_chars=123)
+            class _Capped(_Bare):
+                pass
+
+            assert REGISTERED_FRONTENDS["test-only"].max_context_chars is None
+            assert REGISTERED_FRONTENDS["test-capped"].max_context_chars == 123
+        finally:
+            REGISTERED_FRONTENDS.clear()
+            REGISTERED_FRONTENDS.update(before)
+
     def test_a_duplicate_name_is_refused(self) -> None:
         before = dict(REGISTERED_FRONTENDS)
         try:

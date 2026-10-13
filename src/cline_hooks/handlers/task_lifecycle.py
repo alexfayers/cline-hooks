@@ -17,6 +17,7 @@ from cline_hooks.state.workspace import reset as reset_workspace
 
 if TYPE_CHECKING:
     from cline_hooks.core.models import (
+        HookInputSubagentStart,
         HookInputTaskCancel,
         HookInputTaskComplete,
         HookInputTaskResume,
@@ -79,6 +80,25 @@ def handle_task_start(hook: HookInputTaskStart) -> None:
         system_message = "\n\n".join(n.user_text for n in result.user_notes)
 
     allow("\n\n".join(parts) or None, prefix="", system_message=system_message)
+
+
+@hook_handler(CanonicalHook.SUBAGENT_START)
+def handle_subagent_start(hook: HookInputSubagentStart) -> None:
+    """Handle SubagentStart hook events.
+
+    Args:
+        hook: The hook input data.
+    """
+    result = collect_hook_results(
+        load_plugins(),
+        CanonicalHook.SUBAGENT_START,
+        task_id=hook.stateKey,
+        workspace_roots=hook.workspaceRoots,
+        agent_type=hook.agentType,
+        agent_id=hook.agentId,
+        is_teammate=hook.isTeammate,
+    )
+    allow("\n\n".join(result.notes) or None, prefix="")
 
 
 @hook_handler(CanonicalHook.TASK_RESUME)

@@ -9,6 +9,7 @@ import sys
 from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, Self
 
 from cline_hooks.core.frontend import SHAPE_SNIFF, backticked, frontend
+from cline_hooks.core.models import SubagentStartFields
 from cline_hooks.core.payload import (
     PayloadEnvelope,
     StandardPayloadProtocol,
@@ -50,6 +51,7 @@ class ClaudeCodeHookSpec(StandardPayloadProtocol):
         CanonicalHook.PRE_TOOL_USE: HookRegistration("PreToolUse", matcher=""),
         CanonicalHook.POST_TOOL_USE: HookRegistration("PostToolUse", matcher=""),
         CanonicalHook.STOP: HookRegistration("Stop"),
+        CanonicalHook.SUBAGENT_START: HookRegistration("SubagentStart"),
         CanonicalHook.SUBAGENT_STOP: HookRegistration("SubagentStop"),
     }
     tool_map: ClassVar[Mapping[str, CanonicalTool]] = {
@@ -74,6 +76,7 @@ class ClaudeCodeHookSpec(StandardPayloadProtocol):
         CanonicalHook.TASK_START: ClaudeCodeTaskStart,
         CanonicalHook.USER_PROMPT_SUBMIT: ClaudeCodeUserPromptSubmit,
         CanonicalHook.STOP: ClaudeCodeStop,
+        CanonicalHook.SUBAGENT_START: SubagentStartFields,
         CanonicalHook.SUBAGENT_STOP: ClaudeCodeStop,
     }
     tool_models: ClassVar[Mapping[CanonicalTool, type[ToolParams]]] = {

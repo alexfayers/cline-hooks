@@ -56,3 +56,11 @@ class TestGitContext:
 
         assert "HANDOFF.md present: run pickup" in context(tmp_path)
         assert "RULES.md present" in context(tmp_path)
+
+    def test_a_repo_without_commits_still_gives_a_summary(self, tmp_path: Path) -> None:
+        git.Repo.init(tmp_path, initial_branch="main")
+
+        assert "Branch: main" in context(tmp_path)
+
+    def test_a_directory_that_is_not_a_repo_gives_no_summary(self, tmp_path: Path) -> None:
+        assert get_git_context([str(tmp_path), str(tmp_path / "missing")]) is None

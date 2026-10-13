@@ -57,7 +57,7 @@ def get_git_context(workspace_roots: list[str]) -> str | None:
 
         dirty_count = len(repo.index.diff(None)) + len(repo.untracked_files)
 
-        commits = [str(c.summary) for c in repo.iter_commits(max_count=3)]
+        commits = [str(c.summary) for c in repo.iter_commits(max_count=3)] if repo.head.is_valid() else []
         commits_str = "\n".join(f"  - {s}" for s in commits)
 
         root_path = Path(repo.working_dir)

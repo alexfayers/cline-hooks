@@ -17,7 +17,8 @@ pytestmark = pytest.mark.skipif(shutil.which("node") is None, reason="node is no
 def _run_extension(tmp_path: Path, hook_stdout: str, tool_input: dict[str, Any]) -> dict[str, Any]:
     binary = tmp_path / "cline-hook"
     binary.write_text(
-        f"#!/bin/sh\ncase \"$(cat)\" in *'\"hook_event_name\":\"tool_call\"'*) printf '%s' '{hook_stdout}';; esac\n",
+        f"#!/bin/sh\ncase \"$(cat)\" in *'\"hook_event_name\":\"tool_call\"'*) printf '%s' '{hook_stdout}';;"
+        ' *\'"source":"compact"\'*) printf recap;; esac\n',
         encoding="utf-8",
     )
     binary.chmod(0o755)
@@ -46,3 +47,7 @@ def test_plain_text_context_leaves_the_tool_input_alone(tmp_path: Path) -> None:
     result = _run_extension(tmp_path, "REMINDER: plain", {"task": "do it"})
     assert result["input"] == {"task": "do it"}
     assert result["content"][-1]["text"] == "REMINDER: plain"
+
+
+def test_a_compaction_is_relayed_as_a_compact_task_start(tmp_path: Path) -> None:
+    assert _run_extension(tmp_path, "", {"task": "do it"})["queued"] == ["recap"]

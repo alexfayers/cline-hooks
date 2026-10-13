@@ -35,6 +35,7 @@ class CanonicalHook(StrEnum):
     USER_PROMPT_SUBMIT = "UserPromptSubmit"
     PRE_COMPACT = "PreCompact"
     STOP = "Stop"
+    SUBAGENT_START = "SubagentStart"
     SUBAGENT_STOP = "SubagentStop"
 
 
