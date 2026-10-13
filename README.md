@@ -197,6 +197,7 @@ my-plugins = "my_package.plugins"
 | `command_rules()` | `CommandRulesPlugin` | Return CommandRule instances this plugin wants to enforce. | `list[CommandRule]` |
 | `ecosystem_tooling_note(workspace_roots)` | `EcosystemPlugin` | Return this plugin's ecosystem tooling note for these workspace roots. | `ToolingNote \| None` |
 | `research_tools()` | `ResearchPlugin` | Return the tools that count as research lookups, with their detail extractors. | `dict[str, Callable[[dict[str, Any]], str]]` |
+| `startup_blocks(workspace_roots)` | `StartupBlocksPlugin` | Return the startup blocks this plugin injects at session start. | `list[StartupBlock]` |
 <!-- EXTENSION_POINTS_END -->
 
 `cline-hook plugins` lists the extension points each loaded plugin owns and
@@ -216,6 +217,7 @@ is skipped, and the last two are logged against the contributing plugin.
 | `command_rules` | Lists are concatenated in contributor order, and the first matching rule wins. |
 | `research_tools` | Dicts are merged in contributor order, and the first entry for a tool name wins. |
 | `ecosystem_tooling_note` | The generic note unless a contribution replaces it, then replacing notes, then additive notes. |
+| `startup_blocks` | Joined, sorted by (order, title), each body gets the chars left, over-budget -> fallback note, a fallback note that does not fit is dropped. |
 
 ### Owning an extension point
 
