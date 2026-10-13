@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, TypeVar
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
     from pathlib import Path
 
     from cline_hooks.core.install import Installer
@@ -22,6 +22,30 @@ _ProtocolT = TypeVar("_ProtocolT", bound="type[Protocol]")
 # payloads belonging to a frontend with an exact signal.
 EXACT_MATCH = 10
 SHAPE_SNIFF = 0
+
+
+def backticked(names: Sequence[str]) -> str:
+    """Join names as comma-separated inline code.
+
+    Args:
+        names: The names to join.
+
+    Returns:
+        The names, each in backticks.
+    """
+    return ", ".join(f"`{name}`" for name in names)
+
+
+def default_skill_hint(skills: Sequence[str]) -> str:
+    """Word a skill suggestion as a note to the spawner, for frontends that cannot change a spawn.
+
+    Args:
+        skills: The names of the skills that may fit the subagent.
+
+    Returns:
+        The suggestion text.
+    """
+    return f"Skills that may fit this subagent: {backticked(skills)}. Consider naming them in its task."
 
 
 @dataclass(frozen=True)
@@ -37,6 +61,7 @@ class FrontendSpec:
         default: Whether this frontend handles payloads nothing detects.
         skills_dir: Returns where this frontend's installed skills live, or None where unknown.
         max_context_chars: The most characters of hook context this frontend takes at session start, or None.
+        skill_hint: Words a suggestion of skills for a subagent, in this frontend's own way of loading one.
     """
 
     name: str
@@ -47,6 +72,7 @@ class FrontendSpec:
     default: bool = False
     skills_dir: Callable[[], Path] | None = None
     max_context_chars: int | None = None
+    skill_hint: Callable[[Sequence[str]], str] = default_skill_hint
 
     def install(self, target: str | None = None, *, force: bool = False) -> None:
         """Run this frontend's install step.
@@ -76,6 +102,7 @@ def frontend(  # ruff: ignore[too-many-arguments]
     default: bool = False,
     skills_dir: Callable[[], Path] | None = None,
     max_context_chars: int | None = None,
+    skill_hint: Callable[[Sequence[str]], str] = default_skill_hint,
 ) -> Callable[[_ProtocolT], _ProtocolT]:
     """Register the decorated Protocol class as a supported frontend.
 
@@ -88,6 +115,7 @@ def frontend(  # ruff: ignore[too-many-arguments]
         default: Whether this frontend handles payloads nothing detects.
         skills_dir: Returns where this frontend's installed skills live, or None where unknown.
         max_context_chars: The most characters of hook context this frontend takes at session start, or None.
+        skill_hint: Words a suggestion of skills for a subagent, in this frontend's own way of loading one.
 
     Returns:
         A decorator that registers the decorated class and returns it unchanged.
@@ -103,6 +131,7 @@ def frontend(  # ruff: ignore[too-many-arguments]
             default=default,
             skills_dir=skills_dir,
             max_context_chars=max_context_chars,
+            skill_hint=skill_hint,
         )
         existing = REGISTERED_FRONTENDS.get(name)
         if existing is not None and existing.protocol is not cls:

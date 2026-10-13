@@ -7,10 +7,12 @@ from unittest.mock import patch
 
 import pytest
 
-from cline_hooks.core.response import allow, block, feedback
+from cline_hooks.core.outcome import Outcome
+from cline_hooks.core.response import allow, block, emit, feedback
 from cline_hooks.frontends.claude_code import ClaudeCodeProtocol
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.frontends.kiro import KiroProtocol
+from cline_hooks.frontends.pi.protocol import PiProtocol
 
 
 def _capture_allow(message: str | None = None, *, prefix: str = "REMINDER") -> dict[str, object]:
@@ -259,3 +261,46 @@ class TestFeedback:
         with patch("cline_hooks.state.store.TaskStateStore.record_block") as mock_record:
             _capture_feedback("trace text")
         mock_record.assert_not_called()
+
+
+def _capture_emit(outcome: Outcome) -> dict[str, object]:
+    buf = StringIO()
+    with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
+        emit(outcome)
+    assert exc.value.code == 0
+    return cast("dict[str, object]", json.loads(buf.getvalue()))
+
+
+class TestEmitInputUpdate:
+    def test_a_protocol_that_cannot_update_input_shows_the_fallback_note(self) -> None:
+        outcome = Outcome.allow("ctx", updated_input={"task": "new"}, fallback_note="try this")
+        result = _capture_emit(outcome)
+        assert result["contextModification"] == "ctx\n\ntry this"
+
+    def test_claude_code_sends_the_updated_input_without_the_fallback_note(self) -> None:
+        outcome = Outcome.allow("ctx", label="REMINDER", updated_input={"prompt": "new"}, fallback_note="try this")
+        with patch("cline_hooks.core.response.get_protocol", return_value=ClaudeCodeProtocol("PreToolUse")):
+            result = _capture_emit(outcome)
+        assert result == {
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "updatedInput": {"prompt": "new"},
+                "additionalContext": "REMINDER: ctx",
+            },
+        }
+
+    def test_claude_code_sends_only_the_updated_input_when_there_is_no_context(self) -> None:
+        outcome = Outcome.allow(updated_input={"prompt": "new"}, fallback_note="try this")
+        with patch("cline_hooks.core.response.get_protocol", return_value=ClaudeCodeProtocol("PreToolUse")):
+            result = _capture_emit(outcome)
+        assert result == {"hookSpecificOutput": {"hookEventName": "PreToolUse", "updatedInput": {"prompt": "new"}}}
+
+    def test_pi_sends_the_updated_input_and_context_as_json(self) -> None:
+        outcome = Outcome.allow("ctx", label="REMINDER", updated_input={"task": "new"}, fallback_note="try this")
+        with patch("cline_hooks.core.response.get_protocol", return_value=PiProtocol()):
+            result = _capture_emit(outcome)
+        assert result == {"updated_input": {"task": "new"}, "message": "REMINDER: ctx"}
+
+    def test_feedback_ignores_the_updated_input(self) -> None:
+        outcome = Outcome.feedback("trace").merge(Outcome.allow(updated_input={"task": "new"}))
+        assert _capture_emit(outcome) == {"cancel": True, "errorMessage": "trace"}

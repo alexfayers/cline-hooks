@@ -165,6 +165,11 @@ class MyPlugin(HooksPlugin):
    extension point whose owner may not be installed, and is ignored when it is
    absent.
 
+   On a PreToolUse call, `on_hook` may set `HookResult.updated_input` to the
+   tool's complete input as it should run. Claude Code and Pi apply it. Other
+   frontends show `HookResult.fallback_notes` instead. A frontend's
+   `skill_hint` words a skill suggestion in its own way of loading a skill.
+
 2. Register it as an entry point in your `pyproject.toml`:
 
 ```toml

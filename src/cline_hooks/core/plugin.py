@@ -8,7 +8,7 @@ import inspect
 import logging
 import pkgutil
 from types import ModuleType
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import pluggy
 
@@ -43,11 +43,17 @@ class HookResult:
         notes: Context strings to inject into the response.
         block: If set, block the tool call with this reason.
         user_notes: Notes destined for the user rather than the model.
+        updated_input: The tool's complete input as it should run, on
+            frontends that can change a call's input.
+        fallback_notes: Context strings shown only on frontends that cannot
+            apply `updated_input`.
     """
 
     notes: list[str] = field(default_factory=list)
     block: str | None = None
     user_notes: list[UserFacingNote] = field(default_factory=list)
+    updated_input: dict[str, Any] | None = None
+    fallback_notes: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -112,7 +118,7 @@ def collect_hook_results(plugins: list[HooksPlugin], hook_name: str, **kwargs: o
         **kwargs: Hook-specific keyword arguments passed to each plugin.
 
     Returns:
-        A merged HookResult with all notes and the first block reason found.
+        A merged HookResult with all notes, input updates and the first block reason found.
     """
     kwargs.setdefault("agent", _agent_info(kwargs))
     merged = HookResult()
@@ -121,10 +127,13 @@ def collect_hook_results(plugins: list[HooksPlugin], hook_name: str, **kwargs: o
         result = plugin.on_hook(hook_name, logger=plugin_logger, **kwargs)
         if result is None:
             continue
-        if result.notes or result.user_notes or result.block:
+        if result.notes or result.user_notes or result.block or result.updated_input:
             plugin_logger.info("Produced a hook result")
         merged.notes.extend(note for note in result.notes if note.strip())
         merged.user_notes.extend(result.user_notes)
+        merged.fallback_notes.extend(note for note in result.fallback_notes if note.strip())
+        if result.updated_input is not None:
+            merged.updated_input = {**(merged.updated_input or {}), **result.updated_input}
         if result.block and merged.block is None:
             merged.block = result.block
     return merged

@@ -105,3 +105,21 @@ class TestMergeFeedbackDisposition:
     def test_allow_and_feedback_becomes_feedback(self) -> None:
         merged = Outcome.allow("note").merge(Outcome.feedback("trace"))
         assert merged.disposition is Disposition.FEEDBACK
+
+
+class TestUpdatedInput:
+    def test_allow_carries_the_updated_input_and_fallback_note(self) -> None:
+        outcome = Outcome.allow(updated_input={"task": "new"}, fallback_note="hint")
+        assert outcome.updated_input == {"task": "new"}
+        assert outcome.fallback_notes == ("hint",)
+
+    def test_merge_overlays_later_input_and_collects_fallback_notes(self) -> None:
+        first = Outcome.allow(updated_input={"task": "a", "keep": 1}, fallback_note="one")
+        merged = first.merge(Outcome.allow(updated_input={"task": "b"}, fallback_note="two"))
+        assert merged.updated_input == {"task": "b", "keep": 1}
+        assert merged.fallback_notes == ("one", "two")
+
+    def test_a_block_discards_the_updated_input(self) -> None:
+        merged = Outcome.allow(updated_input={"task": "a"}, fallback_note="hint").merge(Outcome.block("no"))
+        assert merged.updated_input is None
+        assert merged.fallback_notes == ()
