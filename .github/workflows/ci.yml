@@ -2,7 +2,7 @@ name: CI
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled, unlabeled]
+    types: [opened, reopened, synchronize, ready_for_review, edited, labeled, unlabeled]
   push:
     branches:
       - main
@@ -54,12 +54,8 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
+      issues: write
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
-      - run: node --test .github/scripts/check-pr-template.test.cjs
-      - uses: actions/github-script@v9
-        with:
-          script: |
-            const { check } = require('./.github/scripts/check-pr-template.cjs')
-            await check({ github, context, core })
+      - uses: alexfayers/llm-prompts/.github/actions/pr-template@main
