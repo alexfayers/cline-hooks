@@ -8,7 +8,7 @@ from typing import Any
 from pydantic import Field, field_validator, model_validator
 
 from cline_hooks.core.models import PostToolUseFields, StopFields, TaskStartFields, UserPromptSubmitFields
-from cline_hooks.core.payload import Flag, PayloadEnvelope, ToolParams, diff_envelope
+from cline_hooks.core.payload import Flag, PayloadEnvelope, ToolParams, diff_envelope, line_range
 from cline_hooks.core.vocabulary import TaskSource
 
 # Pi's session_start reasons that continue an existing conversation.
@@ -96,20 +96,7 @@ class PiReadParams(ToolParams):
     start_line: int | None = None
     end_line: int | None = None
 
-    @model_validator(mode="before")
-    @classmethod
-    def _line_range(cls, data: dict[str, Any]) -> dict[str, Any]:
-        """Convert pi's 1-indexed `offset` and `limit` into start and end lines.
-
-        Returns:
-            The data with `start_line`/`end_line` set where pi bounds the read.
-        """
-        offset = data.get("offset")
-        limit = data.get("limit")
-        if not isinstance(limit, int):
-            return {**data, "start_line": offset}
-        start = offset if isinstance(offset, int) else 1
-        return {**data, "start_line": start, "end_line": start + limit - 1}
+    _line_range = model_validator(mode="before")(line_range)
 
 
 class PiWriteParams(ToolParams):

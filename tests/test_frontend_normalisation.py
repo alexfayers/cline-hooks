@@ -182,7 +182,7 @@ class TestClaudeCodeNormalisation:
             "hookName": "PreToolUse",
             "preToolUse": {
                 "toolName": "read_file",
-                "parameters": {"path": "/home/user/project/README.md"},
+                "parameters": {"path": "/home/user/project/README.md", "start_line": 1, "end_line": 50},
             },
         }
 

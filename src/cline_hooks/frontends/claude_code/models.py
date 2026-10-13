@@ -12,7 +12,7 @@ from cline_hooks.core.models import (
     TaskStartFields,
     UserPromptSubmitFields,
 )
-from cline_hooks.core.payload import Flag, ToolParams, diff_envelope
+from cline_hooks.core.payload import Flag, ToolParams, diff_envelope, line_range
 
 WITHHELD_REPORT_MARKER = "without delivering a report through SubagentHandback"
 ORPHANED_HANDBACK_MARKER = "the agent that spawned you is no longer running"
@@ -104,10 +104,14 @@ class ClaudeCodeReadParams(ToolParams):
     """Parameters for a Claude Code file read tool call.
 
     `path` is deliberately not optional - Claude Code always emits it, even
-    when `file_path` is absent, unlike Kiro.
+    when `file_path` is absent, unlike Kiro. `offset`/`limit` become a line range.
     """
 
     path: str = Field(default="", validation_alias="file_path")
+    start_line: int | None = None
+    end_line: int | None = None
+
+    _line_range = model_validator(mode="before")(line_range)
 
 
 class ClaudeCodeEditWriteParams(ToolParams):
