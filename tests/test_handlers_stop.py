@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
+from cline_hooks._main import _run_hook
 from cline_hooks.core.models import HookInputStop, HookInputSubagentStop, StopFields
 from cline_hooks.core.plugin import HookResult, HooksPlugin
 from cline_hooks.core.protocol import set_protocol
@@ -98,6 +99,23 @@ def _run_cc(hook: HookInputStop) -> dict[str, object]:
     finally:
         set_protocol(ClineProtocol())
     return cast("dict[str, object]", json.loads(output[0]))
+
+
+def _run_payload(payload: dict[str, object]) -> str:
+    """Feed one native payload through the hook entry point, as its frontend would.
+
+    Returns:
+        Everything the hook printed, joined.
+    """
+    output: list[str] = []
+    with (
+        patch("builtins.input", return_value=json.dumps(payload)),
+        patch("builtins.print", side_effect=lambda s, **kw: output.append(str(s))),
+        patch.dict("os.environ", {}, clear=True),
+        pytest.raises(SystemExit),
+    ):
+        _run_hook()
+    return "".join(output)
 
 
 def _seed_state(key: str) -> None:
@@ -328,6 +346,28 @@ class TestHandleStopClaudeCode:
             set_protocol(ClineProtocol())
         assert exc.value.code == 0
         assert get_research("task-1") != []
+
+
+_NATIVE_STOP: dict[str, dict[str, object]] = {
+    "claude-code": {"hook_event_name": "Stop", "cwd": "/workspace", "session_id": "native-1"},
+    "pi": {"hook_event_name": "agent_end", "cwd": "/workspace", "session_id": "native-1"},
+}
+
+
+class TestResearchTraceByAgent:
+    def test_claude_code_main_session_gets_the_trace_without_repeat_wording(self) -> None:
+        record_research("native-1", "WebFetch", "https://example.com/docs")
+        output = _run_payload(_NATIVE_STOP["claude-code"])
+        assert "RESEARCH TRACE" in output
+        assert "https://example.com/docs" in output
+        assert "FULL" not in output
+
+    def test_pi_subagent_is_told_to_repeat_its_report(self) -> None:
+        record_research("native-1:1a2b3c4d", "WebFetch", "https://example.com/docs")
+        output = _run_payload({**_NATIVE_STOP["pi"], "session_name": "worker#1a2b3c4d"})
+        assert "RESEARCH TRACE" in output
+        assert "https://example.com/docs" in output
+        assert "repeat it in FULL" in output
 
 
 class TestHandleSubagentStop:
