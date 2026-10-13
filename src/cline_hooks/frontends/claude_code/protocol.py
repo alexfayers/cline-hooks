@@ -92,6 +92,7 @@ class ClaudeCodeHookSpec(StandardPayloadProtocol):
     installer=ClaudeCodeInstaller(),
     detect_priority=SHAPE_SNIFF,
     skills_dir=lambda: Path.home() / ".claude" / "skills",
+    max_context_chars=10_000,
 )
 class ClaudeCodeProtocol(ClaudeCodeHookSpec):
     """Claude Code exit-code protocol.

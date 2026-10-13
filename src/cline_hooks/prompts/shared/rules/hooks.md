@@ -17,6 +17,7 @@ This package bundles its behavior as plugins:
 - `context_usage` - context-token tier warnings.
 - `handback_rescue` - surfaces a subagent report the harness withheld from its spawner, read from the subagent's own transcript.
 - `session_context` - session-start/resume git summary.
+- `startup_blocks` - plugins can add start-up notes at a fresh start.
 - `persistence` - persist-to-memory nudge after a failed tool call; memory warning at session end.
 - `ecosystem` - ecosystem tooling notes at task start/resume and after a working-directory change; the working-directory reminder.
 - `nudges` - commit-size, retrospective, dismissed-issue, session-length, fan-out, late-hour, correction, info, and side-request reminders (including `CORRECTION DETECTED`).
