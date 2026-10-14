@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from cline_hooks.core.plugin import HooksPlugin, hookimpl, hookspec
@@ -35,10 +36,70 @@ def validate_git_commit_message(cmd: ParsedCommand, _all: list[ParsedCommand]) -
     return False
 
 
-def _requires_build_context(_cmd: ParsedCommand, all_commands: list[ParsedCommand]) -> bool:
-    """Return True only when a build tool is present in the same command list."""
-    build_commands = all_build_commands()
-    return any(cmd.name in build_commands for cmd in all_commands)
+_NON_BUILD_FLAGS = frozenset({"--help", "--version"})
+
+
+def _is_build_invocation(cmd: ParsedCommand | None) -> bool:
+    """Return True when the command runs a build tool and is not a help or version query."""
+    return cmd is not None and cmd.name in all_build_commands() and _NON_BUILD_FLAGS.isdisjoint(cmd.flags)
+
+
+_VALUE_SHORT_OPTIONS = {"grep": frozenset("efmABCdD"), "head": frozenset("nc"), "tail": frozenset("ncs")}
+_PATTERN_OPTIONS = frozenset({"e", "f", "--regexp", "--file"})
+_VALUE_LONG_OPTIONS = frozenset({
+    "--regexp",
+    "--file",
+    "--max-count",
+    "--after-context",
+    "--before-context",
+    "--context",
+    "--directories",
+    "--devices",
+    "--lines",
+    "--bytes",
+    "--sleep-interval",
+    "--pid",
+})
+
+
+def _operands(cmd: ParsedCommand) -> list[str]:
+    """Return the command's non-option words, less grep's pattern operand unless -e/-f supplied it."""
+    value_options = _VALUE_SHORT_OPTIONS.get(cmd.name, frozenset())
+    operands: list[str] = []
+    has_pattern_option = False
+    pending_value = False
+    options_ended = False
+    for word in cmd.words:
+        if pending_value:
+            pending_value = False
+        elif options_ended or not word.startswith("-") or word == "-":
+            operands.append(word)
+        elif word == "--":
+            options_ended = True
+        elif word.startswith("--"):
+            name = word.split("=", 1)[0]
+            has_pattern_option |= name in _PATTERN_OPTIONS
+            pending_value = name in _VALUE_LONG_OPTIONS and "=" not in word
+        else:
+            for index, char in enumerate(word[1:], start=1):
+                if char in value_options:
+                    has_pattern_option |= char in _PATTERN_OPTIONS
+                    pending_value = index == len(word) - 1
+                    break
+    return operands[1:] if cmd.name == "grep" and not has_pattern_option else operands
+
+
+def _file_inputs(cmd: ParsedCommand) -> list[str]:
+    """Return the files a command reads: its operands and stdin redirects."""
+    return [*_operands(cmd), *cmd.redirect_inputs]
+
+
+def _filters_build_output(cmd: ParsedCommand, all_commands: list[ParsedCommand]) -> bool:
+    """Return True when the command reads a build command's output via stdin or a log it redirected to."""
+    build_logs = {Path(log) for build in all_commands if _is_build_invocation(build) for log in build.redirect_outputs}
+    file_inputs = _file_inputs(cmd)
+    reads_piped_build = _is_build_invocation(cmd.piped_from) and (not file_inputs or "-" in file_inputs)
+    return reads_piped_build or not build_logs.isdisjoint(map(Path, file_inputs))
 
 
 def _is_standalone(_cmd: ParsedCommand, all_commands: list[ParsedCommand]) -> bool:
@@ -106,12 +167,12 @@ class CommandRulesPlugin(HooksPlugin):
             CommandRule(
                 command="grep",
                 message="MUST NOT filter build output with grep - MUST capture the full output.",
-                validator=_requires_build_context,
+                validator=_filters_build_output,
             ),
             CommandRule(
                 command="head",
                 message="MUST NOT filter build output with head - MUST capture the full output.",
-                validator=_requires_build_context,
+                validator=_filters_build_output,
             ),
             CommandRule(
                 command="head",
@@ -121,7 +182,7 @@ class CommandRulesPlugin(HooksPlugin):
             CommandRule(
                 command="tail",
                 message="MUST NOT filter build output with tail - MUST capture the full output.",
-                validator=_requires_build_context,
+                validator=_filters_build_output,
             ),
             CommandRule(
                 command="tail",
