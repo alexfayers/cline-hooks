@@ -8,7 +8,7 @@
 | src/cline\_hooks/\_main.py                              |      127 |       26 |       34 |        5 |     76% |70, 116-118, 127-130, 146-147, 173, 194-209, 213-217 |
 | src/cline\_hooks/config.py                              |        7 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/core/\_\_init\_\_.py                   |        0 |        0 |        0 |        0 |    100% |           |
-| src/cline\_hooks/core/frontend.py                       |       32 |        0 |        4 |        0 |    100% |           |
+| src/cline\_hooks/core/frontend.py                       |       33 |        0 |        4 |        0 |    100% |           |
 | src/cline\_hooks/core/frontends.py                      |       26 |        2 |        8 |        1 |     91% |     42-43 |
 | src/cline\_hooks/core/hook\_kwargs.py                   |       43 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/core/install.py                        |       83 |        2 |       28 |        2 |     96% |  177, 197 |
@@ -33,7 +33,7 @@
 | src/cline\_hooks/frontends/claude\_code/\_\_init\_\_.py |        3 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/frontends/claude\_code/install.py      |        8 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/frontends/claude\_code/models.py       |       45 |        0 |        8 |        0 |    100% |           |
-| src/cline\_hooks/frontends/claude\_code/protocol.py     |       58 |        1 |       12 |        2 |     96% |132, 144-\>146 |
+| src/cline\_hooks/frontends/claude\_code/protocol.py     |       58 |        1 |       12 |        2 |     96% |133, 145-\>147 |
 | src/cline\_hooks/frontends/claude\_code/transcript.py   |      137 |        7 |       58 |        7 |     93% |145, 148, 182, 241, 247, 293, 296 |
 | src/cline\_hooks/frontends/cline/\_\_init\_\_.py        |        3 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/frontends/cline/install.py             |       84 |        9 |       24 |        3 |     89% |22, 35-36, 67, 70-74, 77-82, 92-\>94 |
@@ -55,7 +55,7 @@
 | src/cline\_hooks/frontends/pi/protocol.py               |       30 |        3 |        2 |        1 |     88% |100, 105, 109 |
 | src/cline\_hooks/frontends/pi/transcript.py             |       51 |        4 |       16 |        2 |     91% |78-79, 87, 96 |
 | src/cline\_hooks/handlers/\_\_init\_\_.py               |        3 |        0 |        0 |        0 |    100% |           |
-| src/cline\_hooks/handlers/commands.py                   |      127 |        5 |       70 |        9 |     93% |92, 119, 123, 127, 134-\>133, 161, 170-\>166, 172-\>166, 173-\>172 |
+| src/cline\_hooks/handlers/commands.py                   |      127 |        5 |       70 |       10 |     92% |92, 119, 123, 127, 134-\>133, 161, 168-\>166, 170-\>166, 172-\>166, 173-\>172 |
 | src/cline\_hooks/handlers/context\_nudge.py             |        7 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/handlers/git\_context.py               |       44 |        5 |        8 |        1 |     88% |26, 50-51, 55-56 |
 | src/cline\_hooks/handlers/herdr\_guard.py               |       79 |        1 |       24 |        1 |     98% |        84 |
@@ -82,6 +82,7 @@
 | src/cline\_hooks/plugins/research.py                    |      105 |        6 |       32 |        3 |     93% |128, 157-159, 214, 264-\>266, 271 |
 | src/cline\_hooks/plugins/session\_context.py            |       19 |        0 |        6 |        0 |    100% |           |
 | src/cline\_hooks/plugins/shell\_guards.py               |       65 |        2 |       20 |        0 |     98% |     53-54 |
+| src/cline\_hooks/plugins/startup\_blocks.py             |       68 |        1 |       18 |        0 |     99% |        99 |
 | src/cline\_hooks/plugins/tool\_guards.py                |       90 |        3 |       38 |        1 |     97% |122-123, 155 |
 | src/cline\_hooks/plugins/tracking.py                    |       36 |        1 |       22 |        3 |     93% |33-\>exit, 63-\>65, 66 |
 | src/cline\_hooks/state/\_\_init\_\_.py                  |        0 |        0 |        0 |        0 |    100% |           |
@@ -143,6 +144,7 @@
 | tests/test\_plugins\_handoff\_ack.py                    |      300 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugins\_research.py                        |       40 |        0 |        4 |        0 |    100% |           |
 | tests/test\_plugins\_shell\_guards.py                   |      114 |        0 |        0 |        0 |    100% |           |
+| tests/test\_plugins\_startup\_blocks.py                 |       73 |        0 |        0 |        0 |    100% |           |
 | tests/test\_readme\_matrix.py                           |       40 |        0 |        6 |        0 |    100% |           |
 | tests/test\_registry.py                                 |       49 |        5 |        0 |        0 |     90% |24, 30, 40, 44, 68 |
 | tests/test\_research\_tracker.py                        |       50 |        0 |        0 |        0 |    100% |           |
@@ -153,7 +155,7 @@
 | tests/test\_state\_jsonfile.py                          |       65 |        0 |        6 |        0 |    100% |           |
 | tests/test\_turns.py                                    |      104 |        1 |       12 |        1 |     98% |       164 |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **10827** |  **197** | **1276** |   **97** | **97%** |           |
+| **TOTAL**                                               | **10969** |  **198** | **1294** |   **98** | **97%** |           |
 
 
 ## Setup coverage badge
