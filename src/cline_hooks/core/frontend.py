@@ -36,6 +36,7 @@ class FrontendSpec:
         detect_priority: Higher runs earlier during detection.
         default: Whether this frontend handles payloads nothing detects.
         skills_dir: Returns where this frontend's installed skills live, or None where unknown.
+        max_context_chars: The most characters of hook context this frontend takes at session start, or None.
     """
 
     name: str
@@ -45,6 +46,7 @@ class FrontendSpec:
     detect_priority: int = SHAPE_SNIFF
     default: bool = False
     skills_dir: Callable[[], Path] | None = None
+    max_context_chars: int | None = None
 
     def install(self, target: str | None = None, *, force: bool = False) -> None:
         """Run this frontend's install step.
@@ -73,6 +75,7 @@ def frontend(  # ruff: ignore[too-many-arguments]
     detect_priority: int = SHAPE_SNIFF,
     default: bool = False,
     skills_dir: Callable[[], Path] | None = None,
+    max_context_chars: int | None = None,
 ) -> Callable[[_ProtocolT], _ProtocolT]:
     """Register the decorated Protocol class as a supported frontend.
 
@@ -84,6 +87,7 @@ def frontend(  # ruff: ignore[too-many-arguments]
             `SHAPE_SNIFF` where it guesses from a payload's shape.
         default: Whether this frontend handles payloads nothing detects.
         skills_dir: Returns where this frontend's installed skills live, or None where unknown.
+        max_context_chars: The most characters of hook context this frontend takes at session start, or None.
 
     Returns:
         A decorator that registers the decorated class and returns it unchanged.
@@ -98,6 +102,7 @@ def frontend(  # ruff: ignore[too-many-arguments]
             detect_priority=detect_priority,
             default=default,
             skills_dir=skills_dir,
+            max_context_chars=max_context_chars,
         )
         existing = REGISTERED_FRONTENDS.get(name)
         if existing is not None and existing.protocol is not cls:
