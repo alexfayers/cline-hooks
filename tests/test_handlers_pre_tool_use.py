@@ -8,12 +8,14 @@ from unittest.mock import patch
 import git
 import pytest
 
+from cline_hooks.core.outcome import Disposition
 from cline_hooks.core.plugin import HookResult, HooksPlugin, hookimpl
 from cline_hooks.core.protocol import RawPayload, set_protocol
 from cline_hooks.core.response import emit
 from cline_hooks.core.vocabulary import PluginScope
 from cline_hooks.frontends.claude_code.protocol import ClaudeCodeProtocol
 from cline_hooks.frontends.cline import ClineProtocol
+from cline_hooks.frontends.pi.protocol import PiProtocol
 from cline_hooks.handlers.commands import CommandRule
 from cline_hooks.handlers.pre_tool_use import handle_pre_tool_use
 from cline_hooks.plugins.build_tools import BuildToolsSpec
@@ -183,6 +185,40 @@ class TestHeadTailBlock:
     def test_tail_combined_follow_flag_not_blocked(self) -> None:
         result = _run("execute_command", {"command": "tail -100f service.log"})
         assert result is None
+
+
+class TestBuildOutputFilterScope:
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "just build; printf x | tail",
+            "just --help | head",
+            "just --version | head",
+            "just build && grep x package.json",
+            "just > build.log; grep build.log unrelated.txt",
+            "just build | grep x package.json",
+        ],
+    )
+    def test_filter_not_reading_build_output_is_not_blocked(self, command: str) -> None:
+        result = _run("execute_command", {"command": command})
+        assert result is None
+
+    @pytest.mark.parametrize(
+        ("command", "filter_name"),
+        [
+            ("just build > build.log; tail build.log", "tail"),
+            ("just build > build.log; grep x < build.log", "grep"),
+            ("just > build.log; grep x ./build.log", "grep"),
+            ("just > build.log; grep -eFAIL build.log", "grep"),
+            ("just build | tail -n 20 -", "tail"),
+            ("just build | grep x package.json -", "grep"),
+        ],
+    )
+    def test_filter_reading_redirected_build_log_is_blocked(self, command: str, filter_name: str) -> None:
+        result = _run("execute_command", {"command": command})
+        assert result is not None
+        expected = f"MUST NOT filter build output with {filter_name} - MUST capture the full output."
+        assert result.get("errorMessage") == expected
 
 
 class TestCatBlock:
@@ -594,10 +630,11 @@ class TestDelegationNudgeIntegration:
 
 
 class TestLargeFileReadGuard:
-    def test_long_file_without_range_is_blocked(self, tmp_path: Path) -> None:
+    @pytest.mark.parametrize("params", [{}, {"start_line": 1}])
+    def test_long_file_without_range_is_blocked(self, tmp_path: Path, params: dict[str, int]) -> None:
         file_path = tmp_path / "long.txt"
         file_path.write_text("\n" * 1001)
-        result = _run("read_file", {"path": str(file_path)})
+        result = _run("read_file", {"path": str(file_path), **params})
         assert result is not None
         error = cast("str", result.get("errorMessage", ""))
         assert "1001 lines" in error
@@ -608,6 +645,21 @@ class TestLargeFileReadGuard:
         file_path.write_text("\n" * 1001)
         result = _run("read_file", {"path": str(file_path), "start_line": 1, "end_line": 500})
         assert result is None
+
+    def test_pi_read_naming_only_an_offset_is_allowed(self, tmp_path: Path) -> None:
+        file_path = tmp_path / "long.txt"
+        file_path.write_text("\n" * 4000)
+        data = {
+            "hook_event_name": "tool_call",
+            "cwd": str(tmp_path),
+            "session_id": "task-1",
+            "transcript_path": "",
+            "tool_name": "read",
+            "tool_input": {"path": str(file_path), "offset": 1},
+        }
+        set_protocol(PiProtocol())
+        hook = PiProtocol().parse(RawPayload(raw=json.dumps(data), data=data, env={}))
+        assert handle_pre_tool_use(hook).disposition == Disposition.ALLOW
 
     @pytest.mark.parametrize("name", ["image.png", "blob"])
     def test_long_binary_file_is_allowed(self, tmp_path: Path, name: str) -> None:

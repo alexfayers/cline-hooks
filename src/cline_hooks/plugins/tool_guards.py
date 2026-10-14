@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     import logging
 
 _LARGE_FILE_THRESHOLD = 1000
+_PI_FRONTEND = "pi"
 _BINARY_SNIFF_BYTES = 8192
 _BINARY_EXTENSIONS = frozenset({
     ".png",
@@ -55,10 +56,11 @@ def _reads_bounded_range(params: ReadParameters) -> bool:
         params: The read call's parameters.
 
     Returns:
-        True if the call names an end line within a threshold-sized span.
+        True if the call names an end line within a threshold-sized span, or pi names a start line alone.
     """
     if params.end_line is None:
-        return False
+        spec = get_protocol().frontend_spec
+        return params.start_line is not None and spec is not None and spec.name == _PI_FRONTEND
     return params.end_line - (params.start_line or 0) <= _LARGE_FILE_THRESHOLD
 
 

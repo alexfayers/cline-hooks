@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from itertools import pairwise
 import logging
 from pathlib import Path
 import re
@@ -32,6 +33,9 @@ class ParsedCommand:
     flags: list[str]
     args: list[str]
     words: list[str] = field(default_factory=list, compare=False)
+    piped_from: ParsedCommand | None = field(default=None, compare=False, repr=False)
+    redirect_outputs: list[str] = field(default_factory=list, compare=False)
+    redirect_inputs: list[str] = field(default_factory=list, compare=False)
 
 
 def is_git_push(commands: list[ParsedCommand]) -> bool:
@@ -101,6 +105,17 @@ def _iter_nodes(node: bashlex.ast.node) -> Iterator[bashlex.ast.node]:
                     yield from _iter_nodes(child)
 
 
+def _redirect_targets(parts: list[bashlex.ast.node], is_wanted_type: Callable[[str], bool]) -> list[str]:
+    """Return the file names of the command's redirects whose operator satisfies the predicate."""
+    return [
+        part.output.word
+        for part in parts
+        if getattr(part, "kind", None) == "redirect"
+        and is_wanted_type(part.type)
+        and getattr(part.output, "kind", None) == "word"
+    ]
+
+
 def extract_commands(ast: list[bashlex.ast.node]) -> list[ParsedCommand]:
     """Traverse a bashlex AST and return all commands found.
 
@@ -110,7 +125,12 @@ def extract_commands(ast: list[bashlex.ast.node]) -> list[ParsedCommand]:
     commands = []
 
     for root in ast:
+        parsed_by_node: dict[int, ParsedCommand] = {}
+        feeders: dict[int, int] = {}
         for node in _iter_nodes(root):
+            if getattr(node, "kind", None) == "pipeline":
+                stages = [part for part in node.parts if getattr(part, "kind", None) != "pipe"]
+                feeders.update({id(consumer): id(feeder) for feeder, consumer in pairwise(stages)})
             if getattr(node, "kind", None) != "command":
                 continue
 
@@ -139,7 +159,18 @@ def extract_commands(ast: list[bashlex.ast.node]) -> list[ParsedCommand]:
                     else:
                         args.append(word)
 
-            commands.append(ParsedCommand(name=cmd_name, flags=flags, args=args, words=words))
+            feeder_id = feeders.get(id(node))
+            command = ParsedCommand(
+                name=cmd_name,
+                flags=flags,
+                args=args,
+                words=words,
+                piped_from=parsed_by_node.get(feeder_id) if feeder_id is not None else None,
+                redirect_outputs=_redirect_targets(parts, lambda type_: type_.startswith((">", "&>"))),
+                redirect_inputs=_redirect_targets(parts, lambda type_: type_ == "<"),
+            )
+            parsed_by_node[id(node)] = command
+            commands.append(command)
 
     return commands
 
