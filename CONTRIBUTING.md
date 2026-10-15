@@ -13,8 +13,8 @@ just          # lint, type-check, test (the default recipe)
 just lint     # ruff check --fix + ruff format
 just lint-check  # ruff check only, no fixes (what CI runs)
 just type-check  # mypy src/ tests/ (strict)
-just ts-lint       # biome check on the pi extension (needs npm)
-just ts-type-check # tsc --noEmit on the pi extension (needs npm)
+just ts-lint       # biome check on the pi extension (needs pnpm)
+just ts-type-check # tsc --noEmit on the pi extension (needs pnpm)
 just test     # pytest
 just test-cov # pytest with coverage report
 ```
