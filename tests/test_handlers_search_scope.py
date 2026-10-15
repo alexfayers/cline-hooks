@@ -211,6 +211,10 @@ class TestFindOversizedSearch:
     def test_blocks_a_pathless_search_from_home(self, fake_home: Path) -> None:
         assert _oversized("rg foo", fake_home)
 
+    def test_allows_a_pathless_search_reading_a_pipe(self, fake_home: Path) -> None:
+        assert _oversized("echo x | rg y", fake_home) is None
+        assert _oversized("rg y", fake_home)
+
     def test_depth_limit_skips_the_home_check(self, fake_home: Path) -> None:
         assert _oversized("find ~ -maxdepth 1") is None
 
