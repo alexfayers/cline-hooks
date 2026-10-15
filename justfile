@@ -13,14 +13,14 @@ lint-check: _uv
 type-check: _uv
     uv run mypy src/ tests/
 
-@_npm:
-    npm ci --silent
+@_pnpm:
+    pnpm install --frozen-lockfile --silent
 
-ts-lint: _npm
-    npx biome check src/cline_hooks/frontends/pi/extension.ts
+ts-lint: _pnpm
+    pnpm exec biome check src/cline_hooks/frontends/pi/extension.ts
 
-ts-type-check: _npm
-    npx tsc -p tsconfig.json
+ts-type-check: _pnpm
+    pnpm exec tsc -p tsconfig.json
 
 test: _uv
     uv run pytest -vv --nf
