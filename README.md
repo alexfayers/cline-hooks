@@ -63,7 +63,7 @@
 | src/cline\_hooks/handlers/pre\_compact.py               |       14 |        1 |        2 |        1 |     88% |        22 |
 | src/cline\_hooks/handlers/pre\_tool\_use.py             |       67 |       10 |       18 |        4 |     84% |78, 82-84, 119-120, 159, 174, 179-180 |
 | src/cline\_hooks/handlers/push\_guard.py                |       23 |        0 |       10 |        0 |    100% |           |
-| src/cline\_hooks/handlers/search\_scope.py              |      163 |        3 |       72 |        1 |     98% |240, 256-257 |
+| src/cline\_hooks/handlers/search\_scope.py              |      168 |        3 |       74 |        1 |     98% |248, 264-265 |
 | src/cline\_hooks/handlers/stop.py                       |       41 |        0 |       12 |        0 |    100% |           |
 | src/cline\_hooks/handlers/task\_lifecycle.py            |       66 |        1 |       10 |        1 |     97% |       123 |
 | src/cline\_hooks/handlers/user\_prompt.py               |       28 |        0 |        6 |        0 |    100% |           |
@@ -119,7 +119,7 @@
 | tests/test\_handlers\_pre\_compact.py                   |       19 |        0 |        0 |        0 |    100% |           |
 | tests/test\_handlers\_pre\_tool\_use.py                 |      502 |        0 |       14 |        0 |    100% |           |
 | tests/test\_handlers\_push\_guard.py                    |       28 |        0 |        0 |        0 |    100% |           |
-| tests/test\_handlers\_search\_scope.py                  |      163 |        0 |        2 |        0 |    100% |           |
+| tests/test\_handlers\_search\_scope.py                  |      166 |        0 |        2 |        0 |    100% |           |
 | tests/test\_handlers\_stop.py                           |      314 |        0 |        4 |        0 |    100% |           |
 | tests/test\_handlers\_task\_lifecycle.py                |      315 |        7 |        8 |        4 |     97% |90-95, 139, 261-\>exit, 279-\>exit, 297-\>exit |
 | tests/test\_handlers\_user\_prompt.py                   |      388 |        6 |       20 |        7 |     97% |137, 347-\>exit, 438-439, 530-\>exit, 546-\>exit, 596-\>exit, 640, 667, 685, 703-\>exit, 722-\>exit |
@@ -155,7 +155,7 @@
 | tests/test\_state\_jsonfile.py                          |       65 |        0 |        6 |        0 |    100% |           |
 | tests/test\_turns.py                                    |      104 |        1 |       12 |        1 |     98% |       164 |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **11040** |  **202** | **1310** |   **99** | **97%** |           |
+| **TOTAL**                                               | **11048** |  **202** | **1312** |   **99** | **97%** |           |
 
 
 ## Setup coverage badge
