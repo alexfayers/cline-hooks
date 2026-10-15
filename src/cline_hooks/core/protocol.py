@@ -142,6 +142,28 @@ class Protocol(ABC):
     def allow(self, message: str | None = None, *, system_message: str | None = None) -> NoReturn:
         """Allow the operation, optionally injecting context."""
 
+    def allow_with_input(
+        self,
+        updated_input: Mapping[str, Any],
+        message: str | None = None,
+        *,
+        fallback_message: str | None = None,
+        system_message: str | None = None,
+    ) -> NoReturn:
+        """Allow the operation with a changed input, optionally injecting context.
+
+        This default cannot change a call's input, so it drops `updated_input`
+        and shows `fallback_message` alongside `message` instead.
+
+        Args:
+            updated_input: The tool's complete input, as it should run.
+            message: Context shown on every frontend.
+            fallback_message: Context shown only where `updated_input` cannot be applied.
+            system_message: Message surfaced directly to the user, where supported.
+        """
+        context = "\n\n".join(part for part in (message, fallback_message) if part)
+        self.allow(context or None, system_message=system_message)
+
     def supports_user_message(self) -> bool:
         """Whether this protocol can surface a message directly to the user.
 

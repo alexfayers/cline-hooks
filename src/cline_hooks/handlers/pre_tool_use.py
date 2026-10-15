@@ -55,8 +55,13 @@ def _hook_result_outcome(
     result = collect_hook_results(plugins, hook_name, task_id=task_id, tool_name=tool_name, **kwargs)
     if result.block:
         return Outcome.block(result.block)
-    if result.notes:
-        return Outcome.allow("\n\n".join(result.notes), label="REMINDER")
+    if result.notes or result.updated_input is not None:
+        return Outcome.allow(
+            "\n\n".join(result.notes),
+            label="REMINDER",
+            updated_input=result.updated_input,
+            fallback_note="\n\n".join(result.fallback_notes),
+        )
     return Outcome()
 
 

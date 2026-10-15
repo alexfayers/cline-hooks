@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 class Disposition(StrEnum):
@@ -24,12 +28,18 @@ class Outcome:
         user_message: Message surfaced directly to the user on frontends that
             support a user channel.
         label: Prefix shown ahead of the joined notes.
+        updated_input: The tool's complete input as it should run, on
+            frontends that can change a call's input.
+        fallback_notes: Context strings shown only on frontends that cannot
+            apply `updated_input`.
     """
 
     disposition: Disposition = Disposition.ALLOW
     notes: tuple[str, ...] = ()
     user_message: str = ""
     label: str = ""
+    updated_input: Mapping[str, Any] | None = None
+    fallback_notes: tuple[str, ...] = ()
 
     @property
     def message(self) -> str | None:
@@ -37,13 +47,22 @@ class Outcome:
         return "\n\n".join(self.notes) or None
 
     @classmethod
-    def allow(cls, *notes: str, label: str = "", user_message: str = "") -> Outcome:
+    def allow(
+        cls,
+        *notes: str,
+        label: str = "",
+        user_message: str = "",
+        updated_input: Mapping[str, Any] | None = None,
+        fallback_note: str = "",
+    ) -> Outcome:
         """Build an ALLOW outcome, dropping any empty/blank notes.
 
         Args:
             *notes: Context strings to inject.
             label: Prefix shown ahead of the joined notes.
             user_message: Message surfaced directly to the user.
+            updated_input: The tool's complete input as it should run.
+            fallback_note: Context shown only where `updated_input` cannot be applied.
 
         Returns:
             An ALLOW Outcome.
@@ -53,6 +72,8 @@ class Outcome:
             notes=tuple(note for note in notes if note.strip()),
             user_message=user_message,
             label=label,
+            updated_input=updated_input,
+            fallback_notes=(fallback_note,) if fallback_note.strip() else (),
         )
 
     @classmethod
@@ -84,8 +105,9 @@ class Outcome:
     def merge(self, other: Outcome) -> Outcome:
         """Combine this outcome with a later contributor's outcome.
 
-        A BLOCK wins: it discards notes accumulated before it, and nothing
-        after it contributes any. `user_message` accumulates regardless.
+        A BLOCK wins: it discards notes and input updates accumulated before
+        it, and nothing after it contributes any. `user_message` accumulates
+        regardless. Later input updates overwrite earlier ones key by key.
 
         Args:
             other: The later contributor's outcome.
@@ -110,9 +132,14 @@ class Outcome:
         disposition = (
             Disposition.FEEDBACK if Disposition.FEEDBACK in {self.disposition, other.disposition} else Disposition.ALLOW
         )
+        updated_input = None
+        if self.updated_input is not None or other.updated_input is not None:
+            updated_input = {**(self.updated_input or {}), **(other.updated_input or {})}
         return Outcome(
             disposition,
             notes=self.notes + other.notes,
             user_message=user_message,
             label=label,
+            updated_input=updated_input,
+            fallback_notes=self.fallback_notes + other.fallback_notes,
         )

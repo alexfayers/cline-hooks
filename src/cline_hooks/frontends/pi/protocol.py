@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar, NoReturn
+import json
+from typing import TYPE_CHECKING, Any, ClassVar, NoReturn
 
 from cline_hooks.core.frontend import EXACT_MATCH, frontend
 from cline_hooks.core.payload import PayloadEnvelope, StandardPayloadProtocol, ToolParams
@@ -23,11 +24,23 @@ from cline_hooks.frontends.pi.models import (
 from cline_hooks.frontends.pi.transcript import PiTranscriptReader
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
+    from pathlib import Path
 
     from cline_hooks.core.models import HookFields
     from cline_hooks.core.protocol import RawPayload
     from cline_hooks.core.transcript import TranscriptReader
+
+
+def _skills_dir() -> Path:
+    return agent_dir() / "skills"
+
+
+def _skill_hint(skills: Sequence[str]) -> str:
+    named = ", ".join(f"`{skill}` (`{_skills_dir() / skill / 'SKILL.md'}`)" for skill in skills)
+    return (
+        f"Skills that may fit this task: {named}. If one applies, read it before you start. Ignore any that don't fit."
+    )
 
 
 @frontend(
@@ -35,7 +48,8 @@ if TYPE_CHECKING:
     display_name="Pi",
     installer=PiInstaller(),
     detect_priority=EXACT_MATCH,
-    skills_dir=lambda: agent_dir() / "skills",
+    skills_dir=_skills_dir,
+    skill_hint=_skill_hint,
 )
 class PiProtocol(StandardPayloadProtocol):
     """Pi exit-code protocol: exit 0 + stdout for context, exit 2 + stderr to block.
@@ -103,6 +117,17 @@ class PiProtocol(StandardPayloadProtocol):
     def allow(self, message: str | None = None, *, system_message: str | None = None) -> NoReturn:
         """Allow via exit 0, context on stdout."""
         exit_allow(message)
+
+    def allow_with_input(
+        self,
+        updated_input: Mapping[str, Any],
+        message: str | None = None,
+        *,
+        fallback_message: str | None = None,
+        system_message: str | None = None,
+    ) -> NoReturn:
+        """Allow via exit 0, JSON on stdout that the bridge extension copies into the tool input."""
+        exit_allow(json.dumps({"updated_input": dict(updated_input), "message": message}))
 
     def block(self, message: str) -> NoReturn:
         """Block via exit 2, error on stderr."""

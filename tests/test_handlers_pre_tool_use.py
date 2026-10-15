@@ -433,6 +433,15 @@ class TestForwardsAgentType:
         assert all(kw.get("agent_type") == "" for kw in captured)
 
 
+class TestInputUpdate:
+    def test_a_plugins_input_update_reaches_the_outcome(self) -> None:
+        result = HookResult(updated_input={"task": "new"}, fallback_notes=["hint"])
+        with patch("cline_hooks.handlers.pre_tool_use.collect_hook_results", return_value=result):
+            outcome = handle_pre_tool_use(_make_hook("read_file", {"path": "/x.py"}))
+        assert outcome.updated_input == {"task": "new"}
+        assert outcome.fallback_notes == ("hint",)
+
+
 class TestGitPushMarkerBlock:
     def test_push_without_marker_is_allowed(self) -> None:
         record_skill("task-1", "git-usage")

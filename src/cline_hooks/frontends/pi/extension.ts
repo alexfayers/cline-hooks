@@ -39,6 +39,22 @@ function runHook(ctx: ExtensionContext, payload: Record<string, unknown>): Promi
   });
 }
 
+interface InputUpdate {
+  updated_input: Record<string, unknown>;
+  message?: string | null;
+}
+
+function parseInputUpdate(output: string): InputUpdate | undefined {
+  if (!output.startsWith("{")) return undefined;
+  try {
+    const parsed = JSON.parse(output);
+    if (parsed && typeof parsed.updated_input === "object" && parsed.updated_input !== null) return parsed;
+  } catch {
+    return undefined;
+  }
+  return undefined;
+}
+
 export default function (pi: ExtensionAPI) {
   const pendingToolContext = new Map<string, string>();
   let stopHookActive = false;
@@ -68,7 +84,10 @@ export default function (pi: ExtensionAPI) {
       parent_tool_call_id: event.parentToolCallId,
     });
     if (outcome.blocked) return { block: true, reason: outcome.message };
-    if (outcome.message) pendingToolContext.set(event.toolCallId, outcome.message);
+    const update = parseInputUpdate(outcome.message);
+    if (update) Object.assign(event.input, update.updated_input);
+    const message = update ? update.message : outcome.message;
+    if (message) pendingToolContext.set(event.toolCallId, message);
   });
 
   pi.on("tool_result", async (event, ctx) => {

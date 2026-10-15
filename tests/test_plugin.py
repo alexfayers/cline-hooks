@@ -111,6 +111,19 @@ class TestCollectHookResults:
         result = collect_hook_results([PluginA(), PluginB()], "TestHook")
         assert result.block == "block-a"
 
+    def test_merges_input_updates_and_fallback_notes(self) -> None:
+        class PluginA(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+                return HookResult(updated_input={"task": "a", "keep": 1}, fallback_notes=["fa"])
+
+        class PluginB(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+                return HookResult(updated_input={"task": "b"}, fallback_notes=["fb"])
+
+        result = collect_hook_results([PluginA(), PluginB()], "TestHook")
+        assert result.updated_input == {"task": "b", "keep": 1}
+        assert result.fallback_notes == ["fa", "fb"]
+
     def test_none_results_skipped(self) -> None:
         class PluginA(HooksPlugin):
             def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:

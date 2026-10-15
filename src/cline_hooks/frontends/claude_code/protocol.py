@@ -6,9 +6,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import sys
-from typing import TYPE_CHECKING, ClassVar, NoReturn, Self
+from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, Self
 
-from cline_hooks.core.frontend import SHAPE_SNIFF, frontend
+from cline_hooks.core.frontend import SHAPE_SNIFF, backticked, frontend
 from cline_hooks.core.payload import (
     PayloadEnvelope,
     StandardPayloadProtocol,
@@ -29,7 +29,7 @@ from cline_hooks.frontends.claude_code.models import (
 from cline_hooks.frontends.claude_code.transcript import ClaudeCodeTranscriptReader
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
 
     from cline_hooks.core.models import HookFields
     from cline_hooks.core.protocol import RawPayload
@@ -86,6 +86,13 @@ class ClaudeCodeHookSpec(StandardPayloadProtocol):
     mcp_separators: ClassVar[tuple[str, ...]] = ("__",)
 
 
+def _skill_hint(skills: Sequence[str]) -> str:
+    return (
+        f"Skills that may fit this task: {backticked(skills)}. "
+        "If one applies, load it with the Skill tool before you start. Ignore any that don't fit."
+    )
+
+
 @frontend(
     name="claude-code",
     display_name="Claude Code",
@@ -93,6 +100,7 @@ class ClaudeCodeHookSpec(StandardPayloadProtocol):
     detect_priority=SHAPE_SNIFF,
     skills_dir=lambda: Path.home() / ".claude" / "skills",
     max_context_chars=10_000,
+    skill_hint=_skill_hint,
 )
 class ClaudeCodeProtocol(ClaudeCodeHookSpec):
     """Claude Code exit-code protocol.
@@ -170,14 +178,35 @@ class ClaudeCodeProtocol(ClaudeCodeHookSpec):
 
     def allow(self, message: str | None = None, *, system_message: str | None = None) -> NoReturn:
         """Continue via exit 0, context in hookSpecificOutput and/or systemMessage."""
-        payload: dict[str, object] = {}
+        self._allow_with(message, system_message, None)
+
+    def allow_with_input(
+        self,
+        updated_input: Mapping[str, Any],
+        message: str | None = None,
+        *,
+        fallback_message: str | None = None,
+        system_message: str | None = None,
+    ) -> NoReturn:
+        """Continue via exit 0, replacing the tool input through hookSpecificOutput.updatedInput."""
+        self._allow_with(message, system_message, updated_input)
+
+    def _allow_with(
+        self,
+        message: str | None,
+        system_message: str | None,
+        updated_input: Mapping[str, Any] | None,
+    ) -> NoReturn:
+        payload: dict[str, Any] = {}
         if system_message is not None:
             payload["systemMessage"] = system_message
+        specific: dict[str, Any] = {}
+        if updated_input is not None:
+            specific["updatedInput"] = dict(updated_input)
         if message is not None:
-            payload["hookSpecificOutput"] = {
-                "hookEventName": self._hook_event_name,
-                "additionalContext": message,
-            }
+            specific["additionalContext"] = message
+        if specific:
+            payload["hookSpecificOutput"] = {"hookEventName": self._hook_event_name, **specific}
         if payload:
             print(json.dumps(payload), end="")
         sys.exit(0)
