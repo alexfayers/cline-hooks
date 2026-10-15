@@ -14,6 +14,7 @@ MAX_SCAN_ENTRIES = 20_000
 MAX_SCAN_SECONDS = 0.5
 
 _GREP_TOOLS = frozenset({"grep", "egrep", "fgrep"})
+_STDIN_READERS = _GREP_TOOLS | {"rg"}
 _ALWAYS_RECURSIVE = frozenset({"rg", "ag", "ack", "fd", "fdfind", "find"})
 _FD_TOOLS = frozenset({"fd", "fdfind"})
 _IGNORE_AWARE = frozenset({"rg", "ag"}) | _FD_TOOLS
@@ -122,6 +123,11 @@ def _positionals(cmd: ParsedCommand) -> list[str]:
     return positionals
 
 
+def _reads_pipe(cmd: ParsedCommand) -> bool:
+    """Return True when a pathless grep or rg reads the output of the previous pipeline command."""
+    return cmd.piped_from is not None and cmd.name in _STDIN_READERS and not _positionals(cmd)
+
+
 def _expand(word: str) -> str:
     """Return the word with environment variables and a leading ~ expanded."""
     return str(Path(os.path.expandvars(word)).expanduser())
@@ -149,6 +155,8 @@ def search_scope(cmd: ParsedCommand, cwd: str) -> SearchScope | None:
         The search scope, or None when the command is not a recursive search.
     """
     if not _is_recursive(cmd):
+        return None
+    if _reads_pipe(cmd):
         return None
     no_ignore_flags = _NO_IGNORE_FLAGS | _FD_NO_IGNORE_FLAGS if cmd.name in _FD_TOOLS else _NO_IGNORE_FLAGS
     roots = tuple(root for word in _positionals(cmd) if (root := _resolve_root(word, cwd)) is not None)
