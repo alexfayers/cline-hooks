@@ -18,7 +18,6 @@ if TYPE_CHECKING:
     import logging
 
 _LARGE_FILE_THRESHOLD = 1000
-_PI_FRONTEND = "pi"
 _BINARY_SNIFF_BYTES = 8192
 _BINARY_EXTENSIONS = frozenset({
     ".png",
@@ -56,12 +55,9 @@ def _reads_bounded_range(params: ReadParameters) -> bool:
         params: The read call's parameters.
 
     Returns:
-        True if the call names an end line within a threshold-sized span, or pi names a start line alone.
+        True if the call names an end line within a threshold-sized span.
     """
-    if params.end_line is None:
-        spec = get_protocol().frontend_spec
-        return params.start_line is not None and spec is not None and spec.name == _PI_FRONTEND
-    return params.end_line - (params.start_line or 0) <= _LARGE_FILE_THRESHOLD
+    return params.end_line is not None and params.end_line - (params.start_line or 1) + 1 <= _LARGE_FILE_THRESHOLD
 
 
 def _is_binary_file(path: Path) -> bool:
@@ -111,7 +107,8 @@ def _read_guard(logger: logging.Logger, parameters: dict[str, Any]) -> HookResul
 
     Returns:
         A blocking HookResult if the file exceeds the large-file threshold and
-        the call asks for more of it than the threshold allows.
+        the call asks for more of it than the threshold allows, counting from
+        its start line when it names no end line.
     """
     params = ReadParameters.build(parameters)
     if not params.path or _reads_bounded_range(params):
@@ -120,14 +117,17 @@ def _read_guard(logger: logging.Logger, parameters: dict[str, Any]) -> HookResul
     try:
         if _is_binary_file(path):
             return None
-        line_count = path.read_text(encoding="utf-8", errors="replace").count("\n")
+        text = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return None
+    # pi's default read is 2000 lines (DEFAULT_MAX_LINES in pi's truncate.js), above the threshold.
+    line_count = text.count("\n") + (not text.endswith("\n"))
+    line_count -= max((params.start_line or 1) - 1, 0)
     if line_count > _LARGE_FILE_THRESHOLD:
         logger.debug("Blocked read: file exceeds large-file threshold")
         return HookResult(
             block=(
-                f"{params.path} is {line_count} lines. "
+                f"{params.path} has {line_count} lines to read. "
                 "MUST search it with specific patterns instead of reading the whole file."
             )
         )

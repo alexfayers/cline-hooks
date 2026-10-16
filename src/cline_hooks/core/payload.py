@@ -213,6 +213,20 @@ def diff_envelope(*keys: str) -> Callable[[dict[str, Any]], dict[str, Any]]:
     return validate
 
 
+def line_range(data: dict[str, Any]) -> dict[str, Any]:
+    """Convert a tool input's 1-indexed `offset` and `limit` into start and end lines.
+
+    Returns:
+        The data with `start_line`/`end_line` set where the input bounds the read.
+    """
+    offset = data.get("offset")
+    limit = data.get("limit")
+    if not isinstance(limit, int):
+        return {**data, "start_line": offset}
+    start = offset if isinstance(offset, int) else 1
+    return {**data, "start_line": start, "end_line": start + limit - 1}
+
+
 def _tool_parameters(
     raw_tool: str,
     tool: str,

@@ -8,14 +8,12 @@ from unittest.mock import patch
 import git
 import pytest
 
-from cline_hooks.core.outcome import Disposition
 from cline_hooks.core.plugin import HookResult, HooksPlugin, hookimpl
 from cline_hooks.core.protocol import RawPayload, set_protocol
 from cline_hooks.core.response import emit
 from cline_hooks.core.vocabulary import PluginScope
 from cline_hooks.frontends.claude_code.protocol import ClaudeCodeProtocol
 from cline_hooks.frontends.cline import ClineProtocol
-from cline_hooks.frontends.pi.protocol import PiProtocol
 from cline_hooks.handlers.commands import CommandRule
 from cline_hooks.handlers.pre_tool_use import handle_pre_tool_use
 from cline_hooks.plugins.build_tools import BuildToolsSpec
@@ -655,20 +653,17 @@ class TestLargeFileReadGuard:
         result = _run("read_file", {"path": str(file_path), "start_line": 1, "end_line": 500})
         assert result is None
 
-    def test_pi_read_naming_only_an_offset_is_allowed(self, tmp_path: Path) -> None:
+    def test_read_naming_only_a_start_line_counts_lines_from_there(self, tmp_path: Path) -> None:
         file_path = tmp_path / "long.txt"
-        file_path.write_text("\n" * 4000)
-        data = {
-            "hook_event_name": "tool_call",
-            "cwd": str(tmp_path),
-            "session_id": "task-1",
-            "transcript_path": "",
-            "tool_name": "read",
-            "tool_input": {"path": str(file_path), "offset": 1},
-        }
-        set_protocol(PiProtocol())
-        hook = PiProtocol().parse(RawPayload(raw=json.dumps(data), data=data, env={}))
-        assert handle_pre_tool_use(hook).disposition == Disposition.ALLOW
+        file_path.write_text("\n" * 1001)
+        result = _run("read_file", {"path": str(file_path), "start_line": 500})
+        assert result is None
+
+    @pytest.mark.parametrize("params", [{}, {"start_line": 1, "end_line": 1001}])
+    def test_read_of_an_unterminated_1001_line_file_is_blocked(self, tmp_path: Path, params: dict[str, int]) -> None:
+        file_path = tmp_path / "long.txt"
+        file_path.write_text("\n" * 1000 + "x")
+        assert _run("read_file", {"path": str(file_path), **params}) is not None
 
     @pytest.mark.parametrize("name", ["image.png", "blob"])
     def test_long_binary_file_is_allowed(self, tmp_path: Path, name: str) -> None:
