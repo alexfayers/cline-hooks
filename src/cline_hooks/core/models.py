@@ -139,6 +139,10 @@ class PreCompactFields(HookFields):
     estimatedTokens: int = 0
 
 
+class SubagentStartFields(HookFields):
+    """Fields specific to SubagentStart hooks."""
+
+
 class StopFields(HookFields):
     """Fields specific to Stop hooks."""
 
@@ -256,6 +260,14 @@ class HookInputStop(HookInput):
 
     stop: StopFields | None = None
     hookName: str = "Stop"
+
+
+@hook_input(CanonicalHook.SUBAGENT_START)
+class HookInputSubagentStart(HookInput):
+    """Hook input for SubagentStart events: a subagent's or teammate's own start."""
+
+    subagentStart: SubagentStartFields | None = None
+    hookName: str = "SubagentStart"
 
 
 @hook_input(CanonicalHook.SUBAGENT_STOP)

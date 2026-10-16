@@ -39,7 +39,8 @@ missing are repointed. Pi's extension is always repointed at the resolved binary
 
 Pi has no command hooks, so `cline-hook install pi` writes a bridge extension
 (`~/.pi/agent/extensions/cline-hooks.ts`, or under `$PI_CODING_AGENT_DIR`) that
-relays pi's extension events to `cline-hook`.
+relays pi's extension events to `cline-hook`, including `session_compact` as a
+`TaskStart` with source `compact`.
 
 ### List installed plugins
 
@@ -65,6 +66,7 @@ the build if it drifts.
 | UserPromptSubmit | - | `UserPromptSubmit` | `UserPromptSubmit` | `UserPromptSubmit` | `UserPromptSubmit` | `userPromptSubmit` | `before_agent_start` |
 | PreCompact | - | - | `PreCompact` | - | `PreCompact` | - | `session_before_compact` |
 | Stop | `Stop` | `Stop` | `Stop` | `Stop` | `Stop` | `stop` | `agent_end` |
+| SubagentStart | - | `SubagentStart` | - | `SubagentStart` | - | - | - |
 | SubagentStop | - | `SubagentStop` | - | `SubagentStop` | `SubagentStop` | - | `session_shutdown` |
 <!-- HOOK_MATRIX_END -->
 
@@ -222,7 +224,7 @@ is skipped, and the last two are logged against the contributing plugin.
 | `command_rules` | Lists are concatenated in contributor order, and the first matching rule wins. |
 | `research_tools` | Dicts are merged in contributor order, and the first entry for a tool name wins. |
 | `ecosystem_tooling_note` | The generic note unless a contribution replaces it, then replacing notes, then additive notes. |
-| `startup_blocks` | Joined, sorted by (order, title), each body gets the chars left, over-budget -> fallback note, a fallback note that does not fit is dropped. |
+| `startup_blocks` | Joined, filtered by flags, sorted by (order, title), each body gets the chars left, over-budget -> fallback note, a fallback note that does not fit is dropped. |
 
 ### Owning an extension point
 

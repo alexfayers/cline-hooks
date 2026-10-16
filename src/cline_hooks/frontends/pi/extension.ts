@@ -67,6 +67,11 @@ export default function (pi: ExtensionAPI) {
     if (message) queueNote(message);
   });
 
+  pi.on("session_compact", async (_event, ctx) => {
+    const { message } = await runHook(ctx, { hook_event_name: "session_start", source: "compact" });
+    if (message) queueNote(message);
+  });
+
   pi.on("input", async (event) => {
     if (event.source !== "extension") stopHookActive = false;
   });
