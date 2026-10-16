@@ -8,8 +8,14 @@ from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.registry import hook_handler
 from cline_hooks.core.response import allow
 from cline_hooks.core.vocabulary import NO_RESET_TASK_START_SOURCES, CanonicalHook
-from cline_hooks.state.agents import reset as _reset_agents
-from cline_hooks.state.finished import reset as _reset_finished
+from cline_hooks.state.agents import (
+    record_agent_start,
+    reset as _reset_agents,
+)
+from cline_hooks.state.finished import (
+    mark_started,
+    reset as _reset_finished,
+)
 from cline_hooks.state.memory import reset as _reset_memory
 from cline_hooks.state.skills import reset as _reset_skills
 from cline_hooks.state.store import TaskStateStore
@@ -89,6 +95,9 @@ def handle_subagent_start(hook: HookInputSubagentStart) -> None:
     Args:
         hook: The hook input data.
     """
+    if hook.agentId:
+        record_agent_start(hook.taskId, hook.agentId)
+        mark_started(hook.stateKey)
     result = collect_hook_results(
         load_plugins(),
         CanonicalHook.SUBAGENT_START,

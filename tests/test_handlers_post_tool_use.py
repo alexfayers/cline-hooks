@@ -20,6 +20,7 @@ from cline_hooks.plugins.nudges import _RETRO_THRESHOLD, NudgesPlugin
 from cline_hooks.plugins.persistence import PersistencePlugin
 from cline_hooks.plugins.plan_handoff import consume_plan_nudge, record_plan_exit
 from cline_hooks.plugins.research import ResearchPlugin, get_research
+from cline_hooks.state.agents import agent_use_count, record_agent_start, record_agent_use
 from cline_hooks.state.memory import record_memory_write
 from cline_hooks.state.retrospective import get_count, record_session
 
@@ -344,6 +345,18 @@ class TestAgentUseRecording:
         with patch("cline_hooks.plugins.tracking.record_agent_use") as mock_record:
             _run(hook)
         mock_record.assert_called_once_with("task-1", "spawn_agent")
+
+    def test_spawn_agent_is_left_to_subagent_start_once_it_has_fired(self) -> None:
+        record_agent_start("task-1", "agent-a")
+        hook = _make_hook("spawn_agent", parameters={"description": "research"})
+        with patch("cline_hooks.plugins.tracking.record_agent_use") as mock_record:
+            _run(hook)
+        mock_record.assert_not_called()
+
+    def test_spawn_agent_still_counts_after_an_earlier_tool_name_entry(self) -> None:
+        record_agent_use("task-1", "Agent")
+        _run(_make_hook("spawn_agent", parameters={"description": "research"}))
+        assert agent_use_count("task-1") == 2
 
     def test_non_agent_tool_does_not_record(self) -> None:
         hook = _make_hook("execute_command", parameters={"command": "echo hi"})

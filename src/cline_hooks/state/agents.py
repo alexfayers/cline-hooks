@@ -11,6 +11,7 @@ from cline_hooks.state.paths import get_data_dir
 logger = logging.getLogger("hooks.state.agents")
 
 _STATE_PATH = get_data_dir() / "agents-state.json"
+_START_PREFIX = "start:"
 
 
 def is_agent_tool(tool_name: str) -> bool:
@@ -38,6 +39,33 @@ def record_agent_use(task_id: str, tool_name: str) -> None:
     empty: dict[str, list[str]] = {}
     with updated_json(_STATE_PATH, empty) as data:
         data[task_id] = [*data.get(task_id, []), tool_name]
+
+
+def record_agent_start(task_id: str, agent_id: str) -> None:
+    """Record a subagent's start once per agent, so a resume or teammate message does not count again.
+
+    Args:
+        task_id: The parent session or task identifier.
+        agent_id: The subagent's identifier.
+    """
+    empty: dict[str, list[str]] = {}
+    with updated_json(_STATE_PATH, empty) as data:
+        entry = f"{_START_PREFIX}{agent_id}"
+        if entry not in data.get(task_id, []):
+            data[task_id] = [*data.get(task_id, []), entry]
+
+
+def has_agent_start(task_id: str) -> bool:
+    """Check whether SubagentStart has recorded a subagent for a session.
+
+    Args:
+        task_id: The session or task identifier.
+
+    Returns:
+        True if at least one subagent id is recorded, so the frontend fires SubagentStart.
+    """
+    data: dict[str, list[str]] = read_json(_STATE_PATH, {})
+    return any(entry.startswith(_START_PREFIX) for entry in data.get(task_id, []))
 
 
 def has_agent_use(task_id: str) -> bool:
