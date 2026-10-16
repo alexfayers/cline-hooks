@@ -22,7 +22,7 @@ from cline_hooks.plugins.research import (
     research_trace_header,
 )
 from cline_hooks.state.agents import has_agent_use, record_agent_use
-from cline_hooks.state.finished import finished_keys
+from cline_hooks.state.finished import finished_keys, live_keys, mark_started
 from cline_hooks.state.memory import has_memory_writes, record_memory_write
 from cline_hooks.state.skills import is_skill_called, record_skill
 from cline_hooks.state.store import TaskStateStore
@@ -410,6 +410,11 @@ class TestHandleSubagentStop:
     def test_subagent_stop_marks_the_subagent_finished(self, stop_hook_active: bool) -> None:
         _run_subagent(_subagent_stop(stop_hook_active=stop_hook_active))
         assert finished_keys("task-1") == {"task-1:agent-7"}
+
+    def test_subagent_stop_removes_the_subagent_from_the_live_set(self) -> None:
+        mark_started("task-1:agent-7")
+        _run_subagent(_subagent_stop())
+        assert live_keys("task-1") == set()
 
 
 class TestHandleSubagentStopClaudeCode:

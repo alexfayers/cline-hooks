@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from cline_hooks.core.models import (
+    HookInputSubagentStart,
     HookInputTaskCancel,
     HookInputTaskComplete,
     HookInputTaskResume,
@@ -22,6 +23,7 @@ from cline_hooks.frontends.kiro import KiroProtocol
 from cline_hooks.handlers.git_context import get_dirty_count
 from cline_hooks.handlers.task_lifecycle import (
     _format_block_history,
+    handle_subagent_start,
     handle_task_cancel,
     handle_task_complete,
     handle_task_resume,
@@ -31,8 +33,8 @@ from cline_hooks.plugins.context_usage import should_nudge_context
 from cline_hooks.plugins.ecosystem import EcosystemPlugin
 from cline_hooks.plugins.nudges import increment
 from cline_hooks.plugins.plan_handoff import consume_plan_nudge, record_plan_exit
-from cline_hooks.state.agents import has_agent_use, record_agent_use
-from cline_hooks.state.finished import finished_keys, mark_finished
+from cline_hooks.state.agents import agent_use_count, has_agent_use, record_agent_use
+from cline_hooks.state.finished import finished_keys, live_keys, mark_finished
 from cline_hooks.state.memory import has_memory_writes, record_memory_write
 from cline_hooks.state.skills import is_skill_called, record_skill
 from cline_hooks.state.store import TaskBlockEvent, TaskStateStore
@@ -377,6 +379,31 @@ class TestHandleTaskStart:
         note = "cline-hooks plugin problems:\n- FakePlugin failed to load and is ignored"
         assert payload["systemMessage"] == note
         assert note in payload["hookSpecificOutput"]["additionalContext"]
+
+
+class TestHandleSubagentStart:
+    @staticmethod
+    def _start(agent_id: str) -> None:
+        hook = HookInputSubagentStart(
+            taskId="task-1", workspaceRoots=["/workspace"], hookName="SubagentStart", agentId=agent_id
+        )
+        with patch("builtins.print"), pytest.raises(SystemExit):
+            handle_subagent_start(hook)
+
+    def test_counts_each_agent_once_under_the_parent_session(self) -> None:
+        for agent_id in ("agent-a", "agent-a", "agent-b"):
+            self._start(agent_id)
+        assert agent_use_count("task-1") == 2
+
+    def test_restart_makes_a_finished_agent_live_again(self) -> None:
+        mark_finished("task-1:agent-a")
+        self._start("agent-a")
+        assert live_keys("task-1") == {"task-1:agent-a"}
+        assert finished_keys("task-1") == set()
+
+    def test_a_start_without_an_agent_id_records_nothing(self) -> None:
+        self._start("")
+        assert not has_agent_use("task-1")
 
 
 class TestHandleTaskResume:
