@@ -96,6 +96,13 @@ def _skill_hint(skills: Sequence[str]) -> str:
     )
 
 
+def _tool_hint(names: Sequence[str]) -> str:
+    return (
+        "MCP tools this user often calls (not a full list). "
+        f"Add these to your one ToolSearch `select:` call: `{','.join(names)}`."
+    )
+
+
 @frontend(
     name="claude-code",
     display_name="Claude Code",
@@ -104,6 +111,7 @@ def _skill_hint(skills: Sequence[str]) -> str:
     skills_dir=lambda: Path.home() / ".claude" / "skills",
     max_context_chars=10_000,
     skill_hint=_skill_hint,
+    tool_hint=_tool_hint,
 )
 class ClaudeCodeProtocol(ClaudeCodeHookSpec):
     """Claude Code exit-code protocol.

@@ -185,6 +185,14 @@ class TestBudget:
         assert len(NOTE_SEPARATOR.join(notes)) <= 400
         assert block_header("beta") not in notes[1]
 
+    def test_a_block_with_no_title_is_its_body_alone_or_nothing_where_it_does_not_fit(
+        self, use_plugins: Callable[..., None], mocker: MockerFixture
+    ) -> None:
+        cap_budget(mocker, 400)
+        use_plugins(StartupBlocksPlugin(), contributor(block("", "A" * 50), block("", "B" * 1000)))
+
+        assert run() == ["A" * 50]
+
     def test_a_body_receives_the_characters_left_after_earlier_notes(
         self, use_plugins: Callable[..., None], mocker: MockerFixture
     ) -> None:

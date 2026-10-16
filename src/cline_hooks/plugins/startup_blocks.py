@@ -22,7 +22,7 @@ class StartupBlock:
     """Text injected at session start in place of a step the model would otherwise do.
 
     Attributes:
-        title: What the block is, shown in its header.
+        title: What the block is, shown in its header. Empty injects the body alone, or nothing where it does not fit.
         replaces: The step the block makes unnecessary.
         body: Builds the block text from the characters left, or None where there is no cap.
         skill: Skill name recorded as loaded when the block is injected, or empty.
@@ -91,6 +91,8 @@ def block_text(block: StartupBlock, body: str) -> str:
     Returns:
         The header, the step the block replaces, and the body.
     """
+    if not block.title:
+        return body
     replaced = f"Result of: {block.replaces}. Already done - do not repeat it."
     return f"{block_header(block.title)}\n{replaced}\n\n{body}"
 
@@ -181,6 +183,8 @@ class StartupBlocksPlugin(HooksPlugin):
             note = _render(block, room, logger)
             if note is not None and block.skill and isinstance(task_id, str):
                 record_skill(task_id, block.skill)
+            if note is None and not block.title:
+                continue
             note = note or fallback_note(block)
             if room is not None and len(note) > room:
                 logger.error("Dropped startup block %r: no room left for its fallback note", block.title)

@@ -43,6 +43,11 @@ def _skill_hint(skills: Sequence[str]) -> str:
     )
 
 
+def _tool_hint(names: Sequence[str]) -> str:
+    calls = ", ".join(f"`tools.{name}`" for name in names)
+    return f"MCP tools this user often calls (not a full list): {calls}"
+
+
 @frontend(
     name="pi",
     display_name="Pi",
@@ -50,6 +55,7 @@ def _skill_hint(skills: Sequence[str]) -> str:
     detect_priority=EXACT_MATCH,
     skills_dir=_skills_dir,
     skill_hint=_skill_hint,
+    tool_hint=_tool_hint,
 )
 class PiProtocol(StandardPayloadProtocol):
     """Pi exit-code protocol: exit 0 + stdout for context, exit 2 + stderr to block.
