@@ -59,12 +59,13 @@ class TestContributedResearchTools:
 
 
 class TestResearchTraceKeepsReport:
-    def test_every_header_keeps_the_full_report(self) -> None:
-        from cline_hooks.plugins.research import DEFAULT_RESEARCH_TRACE_HEADER, RESEARCH_TRACE_HEADERS
+    def test_only_a_subagent_header_asks_for_the_full_report(self) -> None:
+        from cline_hooks.plugins.research import research_trace_header
 
-        for header in [DEFAULT_RESEARCH_TRACE_HEADER, *RESEARCH_TRACE_HEADERS.values()]:
-            assert "FULL" in header
-            assert "never reply with only" in header
+        header = research_trace_header(subagent=True)
+        assert "FULL" in header
+        assert "never reply with only" in header
+        assert "FULL" not in research_trace_header()
 
     def test_no_header_limits_the_reply_to_the_sources_line(self) -> None:
         from cline_hooks.plugins.research import DEFAULT_RESEARCH_TRACE_HEADER, RESEARCH_TRACE_HEADERS

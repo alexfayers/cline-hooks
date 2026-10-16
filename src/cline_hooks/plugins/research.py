@@ -5,7 +5,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from cline_hooks.core.parameters import WebResearchParameters
-from cline_hooks.core.plugin import HookResult, HooksPlugin, collect_contributions, hookimpl, hookspec
+from cline_hooks.core.plugin import HookResult, HooksPlugin, collect_contributions, hookimpl, hookspec, is_subagent
 from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.state import PluginStateStore
 from cline_hooks.core.vocabulary import (
@@ -21,14 +21,13 @@ logger = logging.getLogger("hooks.ResearchPlugin")
 
 RESEARCH_TRACE_CAP = 15
 
-KEEP_REPORT_SUFFIX = (
+SUBAGENT_REPORT_SUFFIX = (
     " If your reply is a report or result, repeat it in FULL and append the sources line at the end - "
     "never reply with only the sources line."
 )
 
 DEFAULT_RESEARCH_TRACE_HEADER = (
     "RESEARCH TRACE: MUST cite the lookups behind this turn's claims to the user, in ONE line only."
-    + KEEP_REPORT_SUFFIX
 )
 
 # Keyed by FrontendSpec.name; a frontend with no entry gets the default, which
@@ -36,7 +35,7 @@ DEFAULT_RESEARCH_TRACE_HEADER = (
 RESEARCH_TRACE_HEADERS = {
     "claude-code": (
         "RESEARCH TRACE: MUST cite lookups behind this turn's claims, in ONE "
-        "line only - the user already sees this hook's raw output." + KEEP_REPORT_SUFFIX
+        "line only - the user already sees this hook's raw output."
     ),
     "kiro": (
         "RESEARCH TRACE: MUST start your reply with a line break, then write ONE "
@@ -44,7 +43,7 @@ RESEARCH_TRACE_HEADERS = {
         '"<detail>", <tool> "<detail>", ... - substituting each tool/detail '
         "pair from the lookups below, copied verbatim, each detail written "
         "only once. No narration, no commentary, no parentheses, no restating "
-        "a detail a second time." + KEEP_REPORT_SUFFIX
+        "a detail a second time."
     ),
 }
 
@@ -161,16 +160,20 @@ def record_research_use(
         return
 
 
-def research_trace_header() -> str:
+def research_trace_header(*, subagent: bool = False) -> str:
     """Return the Stop research-trace instruction header for the live frontend.
+
+    Args:
+        subagent: Whether the Stop is a subagent's, whose reply is its report and
+            so is told to repeat it in full.
 
     Returns:
         The frontend's header, or DEFAULT_RESEARCH_TRACE_HEADER where it
-        declares none.
+        declares none, with the report-repeat instruction for a subagent.
     """
     spec = get_protocol().frontend_spec
-    name = spec.name if spec else ""
-    return RESEARCH_TRACE_HEADERS.get(name, DEFAULT_RESEARCH_TRACE_HEADER)
+    header = RESEARCH_TRACE_HEADERS.get(spec.name if spec else "", DEFAULT_RESEARCH_TRACE_HEADER)
+    return header + SUBAGENT_REPORT_SUFFIX if subagent else header
 
 
 def format_research_trace(records: list[dict[str, str]], header: str) -> str:
@@ -269,7 +272,7 @@ class ResearchPlugin(HooksPlugin):
         task_id = kwargs.get("task_id")
         if not isinstance(task_id, str):
             return None
-        trace = format_research_trace(drain_research(task_id), research_trace_header())
+        trace = format_research_trace(drain_research(task_id), research_trace_header(subagent=is_subagent(kwargs)))
         if not trace:
             return None
         return HookResult(notes=[trace])
