@@ -12,6 +12,7 @@ from cline_hooks.core.plugin import HooksPlugin, load_plugins
 from cline_hooks.core.protocol import RawPayload, get_protocol
 from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.frontends.pi import PiProtocol
+from cline_hooks.handlers.post_tool_use import handle_post_tool_use
 from cline_hooks.handlers.user_prompt import (
     _is_agent_message,
     handle_user_prompt_submit,
@@ -26,13 +27,14 @@ from cline_hooks.plugins.nudges import (
     _AGENT_NUDGE_THRESHOLD,
     _contains_correction_signal,
     _contains_info_signal,
+    mark_edited,
 )
 from cline_hooks.plugins.plan_handoff import record_plan_exit
 from cline_hooks.state.agents import record_agent_use
 from tests.conftest import StubTranscript
 
 if TYPE_CHECKING:
-    from cline_hooks.core.models import HookInput, HookInputUserPromptSubmit
+    from cline_hooks.core.models import HookInput, HookInputPostToolUse, HookInputUserPromptSubmit
 
 
 def parse_data(raw: str) -> HookInput:
@@ -283,6 +285,7 @@ class TestHandleUserPromptSubmit:
         assert "persist to memory" not in context.lower()
 
     def test_info_signal_fires_info_reminder(self) -> None:
+        mark_edited("task-1")
         with patch("cline_hooks.plugins.nudges.random.random", return_value=1.0):
             result = _run("Actually, the deadline is Friday")
         assert result is not None
@@ -290,6 +293,7 @@ class TestHandleUserPromptSubmit:
         assert "persist to memory" in context.lower()
 
     def test_neutral_message_with_low_random_fires_info_reminder(self) -> None:
+        mark_edited("task-1")
         with patch("cline_hooks.plugins.nudges.random.random", return_value=0.0):
             result = _run("Can you implement this feature?")
         assert result is not None
@@ -487,6 +491,46 @@ class TestSideRequestReminder:
         ):
             result = _run("neutral message")
         _assert_time_only(result)
+
+
+def _pi_edit(**payload: object) -> None:
+    """Run a successful pi `edit` PostToolUse for task-1, with the given extra payload fields."""
+    hook = PiProtocol().parse(
+        RawPayload.from_stdin(
+            json.dumps({
+                "hook_event_name": "tool_result",
+                "session_id": "task-1",
+                "cwd": "/workspace",
+                "tool_name": "edit",
+                "tool_input": {"path": "/x.py"},
+                "tool_response": {"success": True, "result": "x"},
+                **payload,
+            })
+        )
+    )
+    with (
+        patch("builtins.print"),
+        contextlib.suppress(SystemExit),
+    ):
+        handle_post_tool_use(cast("HookInputPostToolUse", hook))
+
+
+class TestInfoReminderWaitsForFirstFileEdit:
+    def _info_reminder_fires(self, message: str = "Actually, the deadline is Friday") -> bool:
+        with patch("cline_hooks.plugins.nudges.random.random", return_value=0.0):
+            result = _run(message)
+        return "persist to memory" in cast("str", (result or {}).get("contextModification", "")).lower()
+
+    def test_no_reminder_before_any_edit(self) -> None:
+        assert not self._info_reminder_fires()
+
+    def test_reminder_allowed_after_an_edit(self) -> None:
+        _pi_edit()
+        assert self._info_reminder_fires()
+
+    def test_subagent_edit_does_not_start_the_reminder(self) -> None:
+        _pi_edit(agent_id="agent-7")
+        assert not self._info_reminder_fires()
 
 
 class TestContextNudge:

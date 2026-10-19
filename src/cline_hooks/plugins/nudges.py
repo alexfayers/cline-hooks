@@ -28,9 +28,10 @@ if TYPE_CHECKING:
 
 @dataclass
 class _TurnsState:
-    """Per-session user-prompt turn count."""
+    """Per-session user-prompt turn count and whether the session has edited a file."""
 
     count: int = 0
+    edited: bool = False
 
 
 _store: PluginStateStore[_TurnsState] = PluginStateStore("turns-state.json", _TurnsState)
@@ -74,8 +75,21 @@ def should_nudge_agents(turn_count: int, agent_count: int) -> bool:
     return agent_count < turn_count // _AGENT_NUDGE_THRESHOLD
 
 
+def mark_edited(task_id: str) -> None:
+    """Record that a session has made a file edit.
+
+    Args:
+        task_id: The session or task identifier.
+    """
+
+    def mark(state: _TurnsState) -> None:
+        state.edited = True
+
+    _store.update(task_id, mark)
+
+
 def reset(task_id: str) -> None:
-    """Clear the turn count for a session.
+    """Clear the turn count and edit record for a session.
 
     Args:
         task_id: The session or task identifier.
@@ -310,10 +324,12 @@ class NudgesPlugin(HooksPlugin):
             return None
         notes: list[str] = []
         if not is_subagent(kwargs):
-            if tool_name in FILE_EDIT_TOOLS and isinstance(workspace_roots, list):
-                diff_lines = _get_diff_line_count(workspace_roots)
-                if diff_lines > _COMMIT_LINE_THRESHOLD:
-                    notes.append(f"{_COMMIT_REMINDER} ({diff_lines} lines changed)")
+            if tool_name in FILE_EDIT_TOOLS:
+                mark_edited(task_id)
+                if isinstance(workspace_roots, list):
+                    diff_lines = _get_diff_line_count(workspace_roots)
+                    if diff_lines > _COMMIT_LINE_THRESHOLD:
+                        notes.append(f"{_COMMIT_REMINDER} ({diff_lines} lines changed)")
             if isinstance(parameters, dict) and is_wrap_up_skill(tool_name, parameters):
                 count = record_session(task_id)
                 if count is not None and count >= _RETRO_THRESHOLD:
@@ -365,7 +381,7 @@ class NudgesPlugin(HooksPlugin):
         if _contains_correction_signal(message):
             if not is_subagent(kwargs):
                 notes.append(_CORRECTION_REMINDER)
-        elif _contains_info_signal(message) or random.random() < _INFO_REMINDER_CHANCE:
+        elif (_contains_info_signal(message) or random.random() < _INFO_REMINDER_CHANCE) and _store.get(task_id).edited:
             notes.append(_INFO_REMINDER)
         if random.random() < _SIDE_REQUEST_REMINDER_CHANCE:
             notes.append(_SIDE_REQUEST_REMINDER)
