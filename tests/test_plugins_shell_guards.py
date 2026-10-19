@@ -35,26 +35,23 @@ def _pre_shell(command: str, workspace_roots: list[str], agent_id: str | None = 
 
 
 class TestSkillGuard:
-    def test_blocks_read_only_git_in_the_main_session(self) -> None:
-        result = _pre_shell("git status", [])
-        assert result is not None
-        assert result.block is not None
-        assert "git-usage" in result.block
-
+    @pytest.mark.parametrize("agent_id", [None, "a1"])
     @pytest.mark.parametrize("command", ["git status", "git -P log --oneline", "git diff && git rev-parse HEAD"])
-    def test_allows_read_only_git_in_a_subagent(self, command: str) -> None:
-        assert _pre_shell(command, [], agent_id="a1") is None
+    def test_allows_read_only_git_for_everyone(self, command: str, agent_id: str | None) -> None:
+        assert _pre_shell(command, [], agent_id=agent_id) is None
 
+    @pytest.mark.parametrize("agent_id", [None, "a1"])
     @pytest.mark.parametrize("command", ["git status && git commit -m x", "git -C /x commit -m x"])
-    def test_blocks_other_git_in_a_subagent(self, command: str) -> None:
-        result = _pre_shell(command, [], agent_id="a1")
+    def test_blocks_other_git_for_everyone(self, command: str, agent_id: str | None) -> None:
+        result = _pre_shell(command, [], agent_id=agent_id)
         assert result is not None
         assert result.block is not None
         assert "git-usage" in result.block
 
-    def test_allows_git_commit_in_a_subagent_after_the_skill(self) -> None:
-        record_skill("t:a1", "git-usage")
-        assert _pre_shell("git commit -m x", [], agent_id="a1") is None
+    @pytest.mark.parametrize("agent_id", [None, "a1"])
+    def test_allows_git_commit_after_the_skill(self, agent_id: str | None) -> None:
+        record_skill(f"t:{agent_id}" if agent_id else "t", "git-usage")
+        assert _pre_shell("git commit -m x", [], agent_id=agent_id) is None
 
 
 class TestSkillPathInBlock:
@@ -64,7 +61,7 @@ class TestSkillPathInBlock:
         skill.write_text("x")
         monkeypatch.setenv("PI_CODING_AGENT_DIR", str(tmp_path))
         set_protocol(PiProtocol())
-        result = _pre_shell("git status", [])
+        result = _pre_shell("git commit -m x", [])
         assert result is not None
         assert result.block == f"MUST use the `git-usage` skill before running this command - read {skill} first"
 
@@ -73,7 +70,7 @@ class TestSkillPathInBlock:
     ) -> None:
         monkeypatch.setenv("PI_CODING_AGENT_DIR", str(tmp_path))
         set_protocol(PiProtocol())
-        result = _pre_shell("git status", [])
+        result = _pre_shell("git commit -m x", [])
         assert result is not None
         assert result.block == "MUST use the `git-usage` skill before running this command"
 
@@ -83,7 +80,7 @@ class TestSkillPathInBlock:
         skill.parent.mkdir(parents=True)
         skill.write_text("x")
         set_protocol(ClaudeCodeProtocol())
-        result = _pre_shell("git status", [])
+        result = _pre_shell("git commit -m x", [])
         assert result is not None
         assert result.block is not None
         assert str(skill) in result.block

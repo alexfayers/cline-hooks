@@ -38,7 +38,7 @@ def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | N
 
     Args:
         logger: This plugin's hook-scoped child logger.
-        **kwargs: The PreShell dispatch kwargs (command, task_id, workspace_roots, agent_id).
+        **kwargs: The PreShell dispatch kwargs (command, task_id, workspace_roots).
 
     Returns:
         A blocking HookResult for a missing skill, a blocked git push or an oversized search, or None.
@@ -46,7 +46,6 @@ def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | N
     command = cast("str", kwargs.get("command") or "")
     task_id = cast("str", kwargs.get("task_id") or "")
     workspace_roots = cast("list[str]", kwargs.get("workspace_roots") or [])
-    agent_id = kwargs.get("agent_id")
 
     try:
         parsed = bashlex.parse(command)
@@ -54,7 +53,7 @@ def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | N
         return None
     commands = extract_commands(parsed)
 
-    required_skill = required_skill_for([cmd.name for cmd in commands if not (agent_id and is_read_only_git(cmd))])
+    required_skill = required_skill_for([cmd.name for cmd in commands if not is_read_only_git(cmd)])
     if required_skill and not is_skill_called(task_id, required_skill):
         logger.debug("Blocked shell command: missing required skill")
         return HookResult(block=_skill_block_message(required_skill))

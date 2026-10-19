@@ -152,7 +152,7 @@ class CommandRulesPlugin(HooksPlugin):
             CommandRule(
                 command="rm",
                 blocked_flags=frozenset({"-f", "--force"}),
-                message="rm -f is not allowed. MUST drop the -f flag.",
+                message="rm -f is not allowed. MUST drop -f (rm, or rm -r for a directory).",
             ),
             CommandRule(
                 command="git",
@@ -200,10 +200,7 @@ class CommandRulesPlugin(HooksPlugin):
             ),
             CommandRule(
                 command="echo",
-                message=(
-                    "MUST NOT use echo as a standalone command, or use it to pass time while waiting "
-                    "on a background task. MUST output text directly instead of echoing it."
-                ),
+                message="MUST NOT use standalone echo. Make the next real call instead, or end your turn.",
                 validator=_is_standalone,
             ),
         ]
