@@ -752,7 +752,7 @@ class TestPiNormalisation:
         assert isinstance(hook, HookInputPostToolUse | HookInputUserPromptSubmit)
         fields = hook.postToolUse if isinstance(hook, HookInputPostToolUse) else hook.userPromptSubmit
         assert fields is not None
-        assert fields.frontend_kwargs() == {"context_window": 1_000_000, "context_tokens": 210_000}
+        assert fields.frontend_kwargs().items() >= {"context_window": 1_000_000, "context_tokens": 210_000}.items()
 
     @pytest.mark.parametrize("name", ["PostToolUse", "UserPromptSubmit"])
     def test_context_usage_is_unknown_when_the_bridge_omits_it(self, name: str) -> None:
@@ -760,7 +760,15 @@ class TestPiNormalisation:
         assert isinstance(hook, HookInputPostToolUse | HookInputUserPromptSubmit)
         fields = hook.postToolUse if isinstance(hook, HookInputPostToolUse) else hook.userPromptSubmit
         assert fields is not None
-        assert fields.frontend_kwargs() == {"context_window": None, "context_tokens": None}
+        assert fields.frontend_kwargs().items() >= {"context_window": None, "context_tokens": None}.items()
+
+    @pytest.mark.parametrize("name", ["PreToolUse", "PostToolUse"])
+    def test_parent_tool_call_id_comes_from_the_bridge(self, name: str) -> None:
+        hook = _parse("pi", name, PiProtocol, overrides={"parent_tool_call_id": "call-1"})
+        assert isinstance(hook, HookInputPreToolUse | HookInputPostToolUse)
+        fields = hook.preToolUse if isinstance(hook, HookInputPreToolUse) else hook.postToolUse
+        assert fields is not None
+        assert fields.frontend_kwargs()["parent_tool_call_id"] == "call-1"
 
     def test_post_tool_use(self) -> None:
         hook = _parse("pi", "PostToolUse", PiProtocol)

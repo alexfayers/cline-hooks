@@ -30,6 +30,9 @@ DEFAULT_RESEARCH_TRACE_HEADER = (
     "RESEARCH TRACE: MUST cite the lookups behind this turn's claims to the user, in ONE line only."
 )
 
+# Frontends whose main session gets no research trace.
+SUBAGENT_ONLY_TRACE_FRONTENDS = frozenset({"pi"})
+
 # Keyed by FrontendSpec.name; a frontend with no entry gets the default, which
 # assumes nothing about where hook output surfaces.
 RESEARCH_TRACE_HEADERS = {
@@ -160,6 +163,16 @@ def record_research_use(
         return
 
 
+def frontend_name() -> str:
+    """Return the live frontend's name.
+
+    Returns:
+        The name, or "" where the protocol has no frontend spec.
+    """
+    spec = get_protocol().frontend_spec
+    return spec.name if spec else ""
+
+
 def research_trace_header(*, subagent: bool = False) -> str:
     """Return the Stop research-trace instruction header for the live frontend.
 
@@ -171,8 +184,7 @@ def research_trace_header(*, subagent: bool = False) -> str:
         The frontend's header, or DEFAULT_RESEARCH_TRACE_HEADER where it
         declares none, with the report-repeat instruction for a subagent.
     """
-    spec = get_protocol().frontend_spec
-    header = RESEARCH_TRACE_HEADERS.get(spec.name if spec else "", DEFAULT_RESEARCH_TRACE_HEADER)
+    header = RESEARCH_TRACE_HEADERS.get(frontend_name(), DEFAULT_RESEARCH_TRACE_HEADER)
     return header + SUBAGENT_REPORT_SUFFIX if subagent else header
 
 
@@ -272,7 +284,11 @@ class ResearchPlugin(HooksPlugin):
         task_id = kwargs.get("task_id")
         if not isinstance(task_id, str):
             return None
-        trace = format_research_trace(drain_research(task_id), research_trace_header(subagent=is_subagent(kwargs)))
+        records = drain_research(task_id)
+        subagent = is_subagent(kwargs)
+        if frontend_name() in SUBAGENT_ONLY_TRACE_FRONTENDS and not subagent:
+            return None
+        trace = format_research_trace(records, research_trace_header(subagent=subagent))
         if not trace:
             return None
         return HookResult(notes=[trace])

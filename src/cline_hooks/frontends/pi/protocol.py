@@ -43,12 +43,14 @@ def _hook_models() -> Mapping[CanonicalHook, type[HookFields]]:
     from cline_hooks.frontends.copilot.models import CopilotPreCompact  # ruff: ignore[import-outside-top-level]
     from cline_hooks.frontends.pi.models import (  # ruff: ignore[import-outside-top-level]
         PiPostToolUse,
+        PiPreToolUse,
         PiStop,
         PiTaskStart,
         PiUserPromptSubmit,
     )
 
     return {
+        CanonicalHook.PRE_TOOL_USE: PiPreToolUse,
         CanonicalHook.POST_TOOL_USE: PiPostToolUse,
         CanonicalHook.TASK_START: PiTaskStart,
         CanonicalHook.USER_PROMPT_SUBMIT: PiUserPromptSubmit,

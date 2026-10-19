@@ -18,6 +18,7 @@ def _run_extension(
     tmp_path: Path,
     hook_stdout: str,
     tool_input: dict[str, Any],
+    structured_content: object = None,
     *,
     echo_frontend: bool = False,
 ) -> dict[str, Any]:
@@ -34,8 +35,9 @@ def _run_extension(
     script.write_text(TEMPLATE.read_text(encoding="utf-8").replace("__CLINE_HOOK_BINARY__", str(binary)))
     input_file = tmp_path / "input.json"
     input_file.write_text(json.dumps(tool_input), encoding="utf-8")
+    extra = [] if structured_content is None else [json.dumps(structured_content)]
     completed = subprocess.run(
-        ["node", str(HARNESS), str(script), str(input_file)],  # ruff: ignore[start-process-with-partial-path]
+        ["node", str(HARNESS), str(script), str(input_file), *extra],  # ruff: ignore[start-process-with-partial-path]
         capture_output=True,
         text=True,
         check=True,
@@ -55,6 +57,13 @@ def test_plain_text_context_leaves_the_tool_input_alone(tmp_path: Path) -> None:
     result = _run_extension(tmp_path, "REMINDER: plain", {"task": "do it"})
     assert result["input"] == {"task": "do it"}
     assert result["content"][-1]["text"] == "REMINDER: plain"
+
+
+def test_a_note_appended_to_a_result_keeps_its_structured_content(tmp_path: Path) -> None:
+    structured = {"content": [{"type": "text", "text": "done"}], "isError": False}
+    result = _run_extension(tmp_path, "REMINDER: plain", {"task": "do it"}, structured)
+    assert result["content"][-1]["text"] == "REMINDER: plain"
+    assert result["structuredContent"] == structured
 
 
 def test_a_compaction_is_relayed_as_a_compact_task_start(tmp_path: Path) -> None:

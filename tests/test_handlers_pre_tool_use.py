@@ -9,11 +9,12 @@ import git
 import pytest
 
 from cline_hooks.core.plugin import HookResult, HooksPlugin, hookimpl
-from cline_hooks.core.protocol import RawPayload, set_protocol
+from cline_hooks.core.protocol import Protocol, RawPayload, set_protocol
 from cline_hooks.core.response import emit
-from cline_hooks.core.vocabulary import PluginScope
+from cline_hooks.core.vocabulary import CanonicalHook, PluginScope
 from cline_hooks.frontends.claude_code.protocol import ClaudeCodeProtocol
 from cline_hooks.frontends.cline import ClineProtocol
+from cline_hooks.frontends.pi import PiProtocol
 from cline_hooks.handlers.commands import CommandRule
 from cline_hooks.handlers.pre_tool_use import handle_pre_tool_use
 from cline_hooks.plugins.build_tools import BuildToolsSpec
@@ -24,7 +25,7 @@ from cline_hooks.state.skills import record_skill
 from cline_hooks.state.store import TaskStateStore
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Mapping
     import logging
     from pathlib import Path
 
@@ -752,6 +753,52 @@ class TestAttemptCompletionDirtyTreeGuard:
             workspace_roots=[str(tmp_path)],
         )
         assert result is None
+
+
+class TestForwardsFrontendKwargs:
+    def _dispatched_kwargs(self, protocol: Protocol, payload: Mapping[str, object]) -> dict[str, dict[str, object]]:
+        captured: dict[str, dict[str, object]] = {}
+
+        def _fake_collect(_plugins: object, hook_name: str, **kwargs: object) -> object:
+            captured[hook_name] = kwargs
+            return HookResult()
+
+        set_protocol(protocol)
+        hook = cast("HookInputPreToolUse", protocol.parse(RawPayload.from_stdin(json.dumps(payload))))
+        with (
+            patch("cline_hooks.handlers.pre_tool_use.collect_hook_results", side_effect=_fake_collect),
+            patch("builtins.print"),
+            contextlib.suppress(SystemExit),
+        ):
+            handle_pre_tool_use(hook)
+        return captured
+
+    def test_pi_parent_tool_call_id_reaches_the_generic_and_mcp_scopes(self) -> None:
+        payload = {
+            "hook_event_name": "tool_call",
+            "session_id": "task-1",
+            "cwd": "/workspace",
+            "tool_name": "mcp__memory__read_graph",
+            "tool_input": {"project": "global"},
+            "parent_tool_call_id": "call-1",
+        }
+        captured = self._dispatched_kwargs(PiProtocol(), payload)
+        assert captured[CanonicalHook.PRE_TOOL_USE]["parent_tool_call_id"] == "call-1"
+        assert captured[PluginScope.PRE_MCP_TOOL_USE]["parent_tool_call_id"] == "call-1"
+
+    @pytest.mark.parametrize(("tool_name", "dispatched"), [("codemode", True), ("process", False)])
+    def test_pi_codemode_is_dispatched_to_plugins_but_other_unknown_tools_are_not(
+        self, tool_name: str, dispatched: bool
+    ) -> None:
+        payload = {
+            "hook_event_name": "tool_call",
+            "session_id": "task-1",
+            "cwd": "/workspace",
+            "tool_name": tool_name,
+            "tool_input": {"code": "return 1"},
+        }
+        captured = self._dispatched_kwargs(PiProtocol(), payload)
+        assert (CanonicalHook.PRE_TOOL_USE in captured) is dispatched
 
 
 class TestPreShellPluginScope:

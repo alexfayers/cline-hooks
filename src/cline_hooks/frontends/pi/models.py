@@ -7,7 +7,13 @@ from typing import Any
 
 from pydantic import Field, field_validator, model_validator
 
-from cline_hooks.core.models import PostToolUseFields, StopFields, TaskStartFields, UserPromptSubmitFields
+from cline_hooks.core.models import (
+    PostToolUseFields,
+    PreToolUseFields,
+    StopFields,
+    TaskStartFields,
+    UserPromptSubmitFields,
+)
 from cline_hooks.core.payload import Flag, PayloadEnvelope, ToolParams, diff_envelope, line_range
 from cline_hooks.core.vocabulary import TaskSource
 
@@ -52,19 +58,39 @@ class PiTaskStart(TaskStartFields):
         return TaskSource.RESUME if value in _RESUMING_REASONS else value
 
 
-class PiPostToolUse(PostToolUseFields):
-    """Pi's PostToolUse fields; the context usage is as the bridge reports it."""
+class PiPreToolUse(PreToolUseFields):
+    """Pi's PreToolUse fields; `parentToolCallId` names the tool call that made this one, as the bridge reports it."""
 
-    contextWindow: int | None = Field(default=None, validation_alias="context_window")
-    contextTokens: int | None = Field(default=None, validation_alias="context_tokens")
+    parentToolCallId: str | None = Field(default=None, validation_alias="parent_tool_call_id")
 
     def frontend_kwargs(self) -> dict[str, object]:
         """Extra plugin dispatch kwargs a frontend derives from its own payload.
 
         Returns:
-            The model's context window and the tokens in use, each None where the bridge reports none.
+            The parent tool call id, None where the call was made by the agent itself.
         """
-        return {"context_window": self.contextWindow, "context_tokens": self.contextTokens}
+        return {"parent_tool_call_id": self.parentToolCallId}
+
+
+class PiPostToolUse(PostToolUseFields):
+    """Pi's PostToolUse fields; the context usage and parent tool call are as the bridge reports them."""
+
+    contextWindow: int | None = Field(default=None, validation_alias="context_window")
+    contextTokens: int | None = Field(default=None, validation_alias="context_tokens")
+    parentToolCallId: str | None = Field(default=None, validation_alias="parent_tool_call_id")
+
+    def frontend_kwargs(self) -> dict[str, object]:
+        """Extra plugin dispatch kwargs a frontend derives from its own payload.
+
+        Returns:
+            The model's context window, the tokens in use and the parent tool call id, each None where the bridge
+            reports none.
+        """
+        return {
+            "context_window": self.contextWindow,
+            "context_tokens": self.contextTokens,
+            "parent_tool_call_id": self.parentToolCallId,
+        }
 
 
 class PiUserPromptSubmit(UserPromptSubmitFields):
