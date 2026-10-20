@@ -30,6 +30,21 @@ jobs:
       - run: uv sync --locked
       - run: just type-check
 
+  ts-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: extractions/setup-just@v3
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: just ts-type-check
+      - run: just ts-lint
+
   test:
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'blocked') }}
     runs-on: ubuntu-latest
