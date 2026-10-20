@@ -77,7 +77,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("before_agent_start", async (event, ctx) => {
-    const { message } = await runHook(ctx, { hook_event_name: "before_agent_start", prompt: event.prompt });
+    const { message } = await runHook(ctx, { hook_event_name: "before_agent_start", prompt: event.messageType === "user" ? event.prompt : undefined });
     if (message) return { message: { customType: CUSTOM_TYPE, content: message, display: false } };
   });
 
