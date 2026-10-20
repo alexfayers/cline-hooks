@@ -13,6 +13,7 @@ jobs:
   check-dependencies:
     runs-on: ubuntu-latest
     permissions:
+      checks: read
       issues: write
       statuses: write
       pull-requests: write
