@@ -7,30 +7,50 @@ import json
 import sys
 from typing import TYPE_CHECKING, ClassVar, NoReturn
 
+from cline_hooks.core.deferred import deferred
 from cline_hooks.core.frontend import EXACT_MATCH, frontend
 from cline_hooks.core.payload import StandardPayloadProtocol, ToolParams
 from cline_hooks.core.protocol import HookRegistration
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
-from cline_hooks.frontends.kiro.install import KiroInstaller
-from cline_hooks.frontends.kiro.models import (
-    KiroEditParams,
-    KiroReadParams,
-    KiroStopFields,
-    KiroTaskStartFields,
-    KiroUserPromptSubmitFields,
-)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from cline_hooks.core.install import Installer
     from cline_hooks.core.models import HookFields
     from cline_hooks.core.protocol import RawPayload
+
+
+def _installer() -> Installer:
+    from cline_hooks.frontends.kiro.install import KiroInstaller  # ruff: ignore[import-outside-top-level]
+
+    return KiroInstaller()
+
+
+def _hook_models() -> Mapping[CanonicalHook, type[HookFields]]:
+    from cline_hooks.frontends.kiro.models import (  # ruff: ignore[import-outside-top-level]
+        KiroStopFields,
+        KiroTaskStartFields,
+        KiroUserPromptSubmitFields,
+    )
+
+    return {
+        CanonicalHook.TASK_START: KiroTaskStartFields,
+        CanonicalHook.USER_PROMPT_SUBMIT: KiroUserPromptSubmitFields,
+        CanonicalHook.STOP: KiroStopFields,
+    }
+
+
+def _tool_models() -> Mapping[CanonicalTool, type[ToolParams]]:
+    from cline_hooks.frontends.kiro.models import KiroEditParams, KiroReadParams  # ruff: ignore[import-outside-top-level]
+
+    return {CanonicalTool.READ: KiroReadParams, CanonicalTool.EDIT: KiroEditParams}
 
 
 @frontend(
     name="kiro",
     display_name="Kiro",
-    installer=KiroInstaller(),
+    make_installer=_installer,
     detect_priority=EXACT_MATCH,
 )
 class KiroProtocol(StandardPayloadProtocol):
@@ -54,15 +74,8 @@ class KiroProtocol(StandardPayloadProtocol):
         "use_aws": CanonicalTool.SHELL,
         "call_aws": CanonicalTool.SHELL,
     }
-    hook_models: ClassVar[Mapping[CanonicalHook, type[HookFields]]] = {
-        CanonicalHook.TASK_START: KiroTaskStartFields,
-        CanonicalHook.USER_PROMPT_SUBMIT: KiroUserPromptSubmitFields,
-        CanonicalHook.STOP: KiroStopFields,
-    }
-    tool_models: ClassVar[Mapping[CanonicalTool, type[ToolParams]]] = {
-        CanonicalTool.READ: KiroReadParams,
-        CanonicalTool.EDIT: KiroEditParams,
-    }
+    hook_models: ClassVar[Mapping[CanonicalHook, type[HookFields]]] = deferred(_hook_models)
+    tool_models: ClassVar[Mapping[CanonicalTool, type[ToolParams]]] = deferred(_tool_models)
     session_env_keys: ClassVar[tuple[str, ...]] = ("KIRO_SESSION_ID",)
     mcp_prefix: ClassVar[str] = "@"
     mcp_separators: ClassVar[tuple[str, ...]] = ("/",)

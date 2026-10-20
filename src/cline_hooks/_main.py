@@ -5,7 +5,7 @@ import logging
 import sys
 from typing import TYPE_CHECKING, NoReturn
 
-from cline_hooks.core.frontends import FRONTENDS, FRONTENDS_BY_NAME, select_protocol
+from cline_hooks.core.frontends import select_protocol
 from cline_hooks.core.install import binary_names
 from cline_hooks.core.protocol import Protocol, RawPayload, set_protocol
 from cline_hooks.core.registry import HOOK_HANDLERS
@@ -58,6 +58,8 @@ def _build_parser() -> argparse.ArgumentParser:
     Returns:
         The configured argument parser.
     """
+    from cline_hooks.core.frontends import FRONTENDS  # ruff: ignore[import-outside-top-level]
+
     parser = argparse.ArgumentParser(prog=binary_names()[0], description="AI coding assistant lifecycle hooks")
     sub = parser.add_subparsers(dest="command")
 
@@ -175,9 +177,14 @@ def _list_plugins() -> None:
 
 def main() -> NoReturn:
     """Entrypoint - dispatches to install subcommands or hook processing."""
+    if len(sys.argv) == 1:
+        _run_hook()
+
     args = _build_parser().parse_args()
 
     if args.command == "install":
+        from cline_hooks.core.frontends import FRONTENDS_BY_NAME  # ruff: ignore[import-outside-top-level]
+
         frontend = FRONTENDS_BY_NAME.get(args.install_mode or "")
         if frontend is None or frontend.installer is None:
             _build_parser().parse_args(["install", "--help"])

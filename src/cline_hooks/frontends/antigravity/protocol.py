@@ -8,6 +8,7 @@ import json
 import sys
 from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, Self
 
+from cline_hooks.core.deferred import deferred
 from cline_hooks.core.frontend import EXACT_MATCH, frontend
 from cline_hooks.core.payload import (
     PayloadEnvelope,
@@ -18,21 +19,11 @@ from cline_hooks.core.payload import (
 )
 from cline_hooks.core.protocol import HookRegistration
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
-from cline_hooks.frontends.antigravity.install import AntigravityInstaller
-from cline_hooks.frontends.antigravity.models import (
-    AntigravityEditWriteParams,
-    AntigravityEnvelope,
-    AntigravityPostToolUse,
-    AntigravityReadParams,
-    AntigravityShellParams,
-    AntigravityStop,
-    AntigravityWebParams,
-)
-from cline_hooks.frontends.antigravity.transcript import AntigravityTranscriptReader
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from cline_hooks.core.install import Installer
     from cline_hooks.core.models import HookFields, HookInput
     from cline_hooks.core.protocol import RawPayload
     from cline_hooks.core.transcript import TranscriptReader
@@ -48,10 +39,57 @@ _NO_MCP_PREFIX = "\x00"
 _HOOK_EVENT_KEY = "hookEventName"
 
 
+def _installer() -> Installer:
+    from cline_hooks.frontends.antigravity.install import AntigravityInstaller  # ruff: ignore[import-outside-top-level]
+
+    return AntigravityInstaller()
+
+
+def _envelope_model() -> type[PayloadEnvelope]:
+    from cline_hooks.frontends.antigravity.models import AntigravityEnvelope  # ruff: ignore[import-outside-top-level]
+
+    return AntigravityEnvelope
+
+
+def _hook_models() -> Mapping[CanonicalHook, type[HookFields]]:
+    from cline_hooks.frontends.antigravity.models import (  # ruff: ignore[import-outside-top-level]
+        AntigravityPostToolUse,
+        AntigravityStop,
+    )
+
+    return {CanonicalHook.POST_TOOL_USE: AntigravityPostToolUse, CanonicalHook.STOP: AntigravityStop}
+
+
+def _tool_models() -> Mapping[CanonicalTool, type[ToolParams]]:
+    from cline_hooks.frontends.antigravity.models import (  # ruff: ignore[import-outside-top-level]
+        AntigravityEditWriteParams,
+        AntigravityReadParams,
+        AntigravityShellParams,
+        AntigravityWebParams,
+    )
+
+    return {
+        CanonicalTool.SHELL: AntigravityShellParams,
+        CanonicalTool.READ: AntigravityReadParams,
+        CanonicalTool.EDIT: AntigravityEditWriteParams,
+        CanonicalTool.WRITE: AntigravityEditWriteParams,
+        CanonicalTool.WEB_FETCH: AntigravityWebParams,
+        CanonicalTool.WEB_SEARCH: AntigravityWebParams,
+    }
+
+
+def _transcript() -> TranscriptReader:
+    from cline_hooks.frontends.antigravity.transcript import (  # ruff: ignore[import-outside-top-level]
+        AntigravityTranscriptReader,
+    )
+
+    return AntigravityTranscriptReader()
+
+
 @frontend(
     name="antigravity",
     display_name="Antigravity",
-    installer=AntigravityInstaller(),
+    make_installer=_installer,
     detect_priority=EXACT_MATCH,
 )
 class AntigravityProtocol(StandardPayloadProtocol):
@@ -77,20 +115,10 @@ class AntigravityProtocol(StandardPayloadProtocol):
         "search_web": CanonicalTool.WEB_SEARCH,
         "invoke_subagent": CanonicalTool.SPAWN_AGENT,
     }
-    envelope_model: ClassVar[type[PayloadEnvelope]] = AntigravityEnvelope
-    hook_models: ClassVar[Mapping[CanonicalHook, type[HookFields]]] = {
-        CanonicalHook.POST_TOOL_USE: AntigravityPostToolUse,
-        CanonicalHook.STOP: AntigravityStop,
-    }
-    tool_models: ClassVar[Mapping[CanonicalTool, type[ToolParams]]] = {
-        CanonicalTool.SHELL: AntigravityShellParams,
-        CanonicalTool.READ: AntigravityReadParams,
-        CanonicalTool.EDIT: AntigravityEditWriteParams,
-        CanonicalTool.WRITE: AntigravityEditWriteParams,
-        CanonicalTool.WEB_FETCH: AntigravityWebParams,
-        CanonicalTool.WEB_SEARCH: AntigravityWebParams,
-    }
-    transcript: ClassVar[TranscriptReader] = AntigravityTranscriptReader()
+    envelope_model: ClassVar[type[PayloadEnvelope]] = deferred(_envelope_model)
+    hook_models: ClassVar[Mapping[CanonicalHook, type[HookFields]]] = deferred(_hook_models)
+    tool_models: ClassVar[Mapping[CanonicalTool, type[ToolParams]]] = deferred(_tool_models)
+    transcript: ClassVar[TranscriptReader] = deferred(_transcript)
     mcp_prefix: ClassVar[str] = _NO_MCP_PREFIX
     mcp_separators: ClassVar[tuple[str, ...]] = (_NO_MCP_PREFIX,)
     hook_event_key: ClassVar[str] = _HOOK_EVENT_KEY

@@ -11,10 +11,14 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from importlib.metadata import distribution
 import json
+import os
 from pathlib import Path
+import shlex
 import shutil
 import sys
 from typing import TYPE_CHECKING, Any, ClassVar
+
+from cline_hooks.core.frontends import FRONTEND_ENV_KEY
 
 if TYPE_CHECKING:
     from cline_hooks.core.protocol import HookRegistration, Protocol
@@ -80,6 +84,22 @@ def resolve_binary() -> Path:
     return own
 
 
+def binary_of_command(command: str) -> str:
+    """Return the binary path of a hook command, past any leading variable assignments.
+
+    Args:
+        command: A hook command as stored in a config file.
+
+    Returns:
+        The command's last word, or the whole command where it does not split.
+    """
+    try:
+        words = shlex.split(command)
+    except ValueError:
+        return command
+    return words[-1] if words else command
+
+
 class JsonHookInstaller(Installer):
     """Installer for frontends configured by a JSON file of hook events.
 
@@ -91,10 +111,29 @@ class JsonHookInstaller(Installer):
         must_exist: Whether the config file must already exist, rather than
             being created on demand.
         root_key: The config key holding the object of hook events.
+        runs_in_shell: Whether the frontend runs a hook command through a shell,
+            so a leading variable assignment names the frontend to cline-hook.
     """
 
     must_exist: ClassVar[bool] = False
     root_key: ClassVar[str] = "hooks"
+    runs_in_shell: ClassVar[bool] = True
+
+    def command(self, binary: str, protocol_cls: type[Protocol]) -> str:
+        """Build the command a hook entry runs.
+
+        Args:
+            binary: Path to the cline-hook binary.
+            protocol_cls: The frontend's Protocol class.
+
+        Returns:
+            The binary, behind a variable naming the frontend where the frontend
+            runs a shell.
+        """
+        spec = protocol_cls.frontend_spec
+        if spec is None or not self.runs_in_shell or os.name == "nt":
+            return binary
+        return f"{FRONTEND_ENV_KEY}={spec.name} {shlex.quote(binary)}"
 
     @abstractmethod
     def config_path(self, target: str | None) -> Path:
@@ -107,18 +146,18 @@ class JsonHookInstaller(Installer):
             Path to the frontend's hook config file.
         """
 
-    def build_entry(self, binary: Path, registration: HookRegistration) -> dict[str, Any]:
+    def build_entry(self, command: str, registration: HookRegistration) -> dict[str, Any]:
         """Build one hook entry, in the nested "hook group" shape by default.
 
         Args:
-            binary: Path to the cline-hook binary.
+            command: The command the entry runs.
             registration: The hook being installed.
 
         Returns:
             One entry for this hook event's list.
         """
         entry: dict[str, Any] = {
-            "hooks": [{"type": "command", "command": str(binary)}],
+            "hooks": [{"type": "command", "command": command}],
         }
         if registration.matcher is not None:
             entry["matcher"] = registration.matcher
@@ -161,7 +200,7 @@ class JsonHookInstaller(Installer):
             target: The subcommand's positional argument, if it takes one.
             force: Whether to repoint existing entries even where their binary exists.
         """
-        binary = resolve_binary()
+        binary = str(resolve_binary())
         names = binary_names()
         config_path = self.config_path(target)
         config = self._read_config(config_path)
@@ -176,14 +215,17 @@ class JsonHookInstaller(Installer):
                 if not isinstance(entry, dict):
                     continue
                 for handler in self.entry_handlers(entry):
-                    if Path(str(handler.get("command", ""))).name not in names:
+                    current_binary = binary_of_command(str(handler.get("command", "")))
+                    if Path(current_binary).name not in names:
                         continue
                     installed = True
-                    if force or not Path(handler["command"]).exists():
-                        handler["command"] = str(binary)
+                    keep = not force and Path(current_binary).exists()
+                    command = self.command(current_binary if keep else binary, protocol_cls)
+                    if handler["command"] != command:
+                        handler["command"] = command
                         rewritten += 1
             if not installed:
-                current.append(self.build_entry(binary, registration))
+                current.append(self.build_entry(self.command(binary, protocol_cls), registration))
                 added += 1
             existing[registration.native_name] = current
 

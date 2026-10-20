@@ -5,7 +5,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
-from cline_hooks.frontends.cline import ClineInstaller, ClineProtocol
+from cline_hooks.frontends.cline import ClineProtocol
+from cline_hooks.frontends.cline.install import ClineInstaller
 
 if TYPE_CHECKING:
     import pytest
@@ -167,6 +168,7 @@ class TestClineInstaller:
             assert script.is_file()
             content = script.read_text(encoding="utf-8")
             assert "$inputData = [Console]::In.ReadToEnd()" in content
+            assert "$env:CLINE_HOOKS_FRONTEND = 'cline'" in content
 
     def test_windows_skips_user_managed_script(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         script = tmp_path / f"{_HOOKS[0]}.ps1"

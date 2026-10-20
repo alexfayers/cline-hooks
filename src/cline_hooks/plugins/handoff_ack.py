@@ -5,9 +5,6 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import bashlex
-import bashlex.errors
-
 from cline_hooks.core.hook_kwargs import PreShellKwargs, PreToolUseKwargs, TrackToolUseKwargs
 from cline_hooks.core.install import binary_names
 from cline_hooks.core.parameters import SendMessageParameters, ShellParameters, SpawnAgentParameters
@@ -69,6 +66,9 @@ def _parse(command: str) -> list[ParsedCommand]:
     """
     if not command:
         return []
+    import bashlex  # ruff: ignore[import-outside-top-level]
+    import bashlex.errors  # ruff: ignore[import-outside-top-level]
+
     try:
         return extract_commands(bashlex.parse(command))
     except bashlex.errors.ParsingError:

@@ -19,6 +19,7 @@ class CopilotInstaller(JsonHookInstaller):
     """
 
     help: ClassVar[str] = "Install GitHub Copilot hooks into ~/.copilot/hooks/"
+    runs_in_shell: ClassVar[bool] = False
 
     def config_path(self, target: str | None) -> Path:
         """Return cline-hooks' own file in Copilot's hooks directory.
@@ -28,13 +29,13 @@ class CopilotInstaller(JsonHookInstaller):
         """
         return Path.home() / ".copilot" / "hooks" / "cline-hooks.json"
 
-    def build_entry(self, binary: Path, registration: HookRegistration) -> dict[str, Any]:
+    def build_entry(self, command: str, registration: HookRegistration) -> dict[str, Any]:
         """Build one flat Copilot hook entry.
 
         Returns:
             A command entry; Copilot's format carries no matcher.
         """
-        return {"type": "command", "command": str(binary)}
+        return {"type": "command", "command": command}
 
     def entry_handlers(self, entry: dict[str, Any]) -> list[dict[str, Any]]:
         """Return the handler of a flat Copilot entry.

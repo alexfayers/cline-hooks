@@ -11,26 +11,33 @@ from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
 if TYPE_CHECKING:
     import logging
 
-try:
-    from llm_prompts.install import (
-        get_managed_files as _get_managed_files_impl,
-        get_source_for_managed_file as _get_source_impl,
-    )
-except ImportError:
-    _get_managed_files_impl = None
-    _get_source_impl = None
-
 _managed_files: set[str] | None = None
+
+
+def _get_managed_files_impl() -> set[str]:
+    """Return the manifest's managed file paths, or none where llm-prompts is not installed."""
+    try:
+        from llm_prompts.install import get_managed_files  # ruff: ignore[import-outside-top-level]
+    except ImportError:
+        return set()
+    return set(get_managed_files())
+
+
+def _get_source_impl(path: str) -> str | None:
+    """Return the source file for a managed path, or None where llm-prompts is not installed."""
+    try:
+        from llm_prompts.install import get_source_for_managed_file  # ruff: ignore[import-outside-top-level]
+    except ImportError:
+        return None
+    source = get_source_for_managed_file(path)
+    return str(source) if source else None
 
 
 def _get_managed_files() -> set[str]:
     """Return cached set of managed file paths from the manifest."""
     global _managed_files  # ruff: ignore[global-statement]
     if _managed_files is None:
-        if _get_managed_files_impl is not None:
-            _managed_files = _get_managed_files_impl()
-        else:
-            _managed_files = set()
+        _managed_files = _get_managed_files_impl()
     return _managed_files
 
 
@@ -63,12 +70,11 @@ def _managed_source_instruction(path: str) -> str:
         Instruction naming the resolved source file, or a generic instruction
         where the source cannot be resolved.
     """
-    if _get_source_impl is not None:
-        source = None
-        with contextlib.suppress(Exception):
-            source = _get_source_impl(path)
-        if source:
-            return f"MUST edit the source file {source} instead"
+    source = None
+    with contextlib.suppress(Exception):
+        source = _get_source_impl(path)
+    if source:
+        return f"MUST edit the source file {source} instead"
     return "MUST edit the source file instead"
 
 

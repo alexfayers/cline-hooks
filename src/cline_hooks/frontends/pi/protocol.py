@@ -5,35 +5,77 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any, ClassVar, NoReturn
 
+from cline_hooks.core.deferred import deferred
 from cline_hooks.core.frontend import EXACT_MATCH, frontend
 from cline_hooks.core.payload import PayloadEnvelope, StandardPayloadProtocol, ToolParams
 from cline_hooks.core.protocol import HookRegistration, exit_allow, exit_block
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
-from cline_hooks.frontends.copilot.models import CopilotPreCompact
-from cline_hooks.frontends.pi.install import PiInstaller, agent_dir
-from cline_hooks.frontends.pi.models import (
-    PiEditParams,
-    PiEnvelope,
-    PiPostToolUse,
-    PiReadParams,
-    PiStop,
-    PiTaskStart,
-    PiUserPromptSubmit,
-    PiWriteParams,
-)
-from cline_hooks.frontends.pi.transcript import PiTranscriptReader
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
     from pathlib import Path
 
+    from cline_hooks.core.install import Installer
     from cline_hooks.core.models import HookFields
     from cline_hooks.core.protocol import RawPayload
     from cline_hooks.core.transcript import TranscriptReader
 
 
 def _skills_dir() -> Path:
+    from cline_hooks.frontends.pi.install import agent_dir  # ruff: ignore[import-outside-top-level]
+
     return agent_dir() / "skills"
+
+
+def _installer() -> Installer:
+    from cline_hooks.frontends.pi.install import PiInstaller  # ruff: ignore[import-outside-top-level]
+
+    return PiInstaller()
+
+
+def _envelope_model() -> type[PayloadEnvelope]:
+    from cline_hooks.frontends.pi.models import PiEnvelope  # ruff: ignore[import-outside-top-level]
+
+    return PiEnvelope
+
+
+def _hook_models() -> Mapping[CanonicalHook, type[HookFields]]:
+    from cline_hooks.frontends.copilot.models import CopilotPreCompact  # ruff: ignore[import-outside-top-level]
+    from cline_hooks.frontends.pi.models import (  # ruff: ignore[import-outside-top-level]
+        PiPostToolUse,
+        PiStop,
+        PiTaskStart,
+        PiUserPromptSubmit,
+    )
+
+    return {
+        CanonicalHook.POST_TOOL_USE: PiPostToolUse,
+        CanonicalHook.TASK_START: PiTaskStart,
+        CanonicalHook.USER_PROMPT_SUBMIT: PiUserPromptSubmit,
+        CanonicalHook.PRE_COMPACT: CopilotPreCompact,
+        CanonicalHook.STOP: PiStop,
+        CanonicalHook.SUBAGENT_STOP: PiStop,
+    }
+
+
+def _tool_models() -> Mapping[CanonicalTool, type[ToolParams]]:
+    from cline_hooks.frontends.pi.models import (  # ruff: ignore[import-outside-top-level]
+        PiEditParams,
+        PiReadParams,
+        PiWriteParams,
+    )
+
+    return {
+        CanonicalTool.READ: PiReadParams,
+        CanonicalTool.EDIT: PiEditParams,
+        CanonicalTool.WRITE: PiWriteParams,
+    }
+
+
+def _transcript() -> TranscriptReader:
+    from cline_hooks.frontends.pi.transcript import PiTranscriptReader  # ruff: ignore[import-outside-top-level]
+
+    return PiTranscriptReader()
 
 
 def _skill_hint(skills: Sequence[str]) -> str:
@@ -46,7 +88,7 @@ def _skill_hint(skills: Sequence[str]) -> str:
 @frontend(
     name="pi",
     display_name="Pi",
-    installer=PiInstaller(),
+    make_installer=_installer,
     detect_priority=EXACT_MATCH,
     skills_dir=_skills_dir,
     skill_hint=_skill_hint,
@@ -84,21 +126,10 @@ class PiProtocol(StandardPayloadProtocol):
         "get_search_content": CanonicalTool.WEB_FETCH,
         "source_check": CanonicalTool.WEB_SEARCH,
     }
-    envelope_model: ClassVar[type[PayloadEnvelope]] = PiEnvelope
-    hook_models: ClassVar[Mapping[CanonicalHook, type[HookFields]]] = {
-        CanonicalHook.POST_TOOL_USE: PiPostToolUse,
-        CanonicalHook.TASK_START: PiTaskStart,
-        CanonicalHook.USER_PROMPT_SUBMIT: PiUserPromptSubmit,
-        CanonicalHook.PRE_COMPACT: CopilotPreCompact,
-        CanonicalHook.STOP: PiStop,
-        CanonicalHook.SUBAGENT_STOP: PiStop,
-    }
-    tool_models: ClassVar[Mapping[CanonicalTool, type[ToolParams]]] = {
-        CanonicalTool.READ: PiReadParams,
-        CanonicalTool.EDIT: PiEditParams,
-        CanonicalTool.WRITE: PiWriteParams,
-    }
-    transcript: ClassVar[TranscriptReader] = PiTranscriptReader()
+    envelope_model: ClassVar[type[PayloadEnvelope]] = deferred(_envelope_model)
+    hook_models: ClassVar[Mapping[CanonicalHook, type[HookFields]]] = deferred(_hook_models)
+    tool_models: ClassVar[Mapping[CanonicalTool, type[ToolParams]]] = deferred(_tool_models)
+    transcript: ClassVar[TranscriptReader] = deferred(_transcript)
     mcp_prefix: ClassVar[str] = "mcp__"
     mcp_separators: ClassVar[tuple[str, ...]] = ("__", "_")
 

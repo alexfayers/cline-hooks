@@ -7,10 +7,10 @@ from pathlib import Path
 import re
 from typing import TYPE_CHECKING
 
-import bashlex.ast
-
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
+
+    import bashlex.ast
 
 logger = logging.getLogger("hooks.commands")
 
@@ -92,6 +92,8 @@ def _iter_nodes(node: bashlex.ast.node) -> Iterator[bashlex.ast.node]:
     Yields:
         Iterator[bashlex.ast.node]: Every node in the tree.
     """
+    import bashlex.ast  # ruff: ignore[import-outside-top-level]
+
     if not isinstance(node, bashlex.ast.node):
         return
 

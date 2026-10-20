@@ -32,14 +32,14 @@ class KiroInstaller(JsonHookInstaller):
         """
         return Path(target or "")
 
-    def build_entry(self, binary: Path, registration: HookRegistration) -> dict[str, Any]:
+    def build_entry(self, command: str, registration: HookRegistration) -> dict[str, Any]:
         """Build one flat Kiro hook entry.
 
         Returns:
             A command entry, described so it is recognisable in the agent config.
         """
         entry: dict[str, Any] = {
-            "command": str(binary),
+            "command": command,
             "description": f"cline-hooks {registration.native_name}",
         }
         if registration.matcher is not None:

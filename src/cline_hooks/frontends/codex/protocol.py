@@ -7,13 +7,19 @@ from typing import TYPE_CHECKING, NoReturn
 from cline_hooks.core.frontend import frontend
 from cline_hooks.core.protocol import exit_allow, exit_block
 from cline_hooks.frontends.claude_code.protocol import ClaudeCodeHookSpec
-from cline_hooks.frontends.codex.install import CodexInstaller
 
 if TYPE_CHECKING:
+    from cline_hooks.core.install import Installer
     from cline_hooks.core.protocol import RawPayload
 
 
-@frontend(name="codex", display_name="Codex", installer=CodexInstaller())
+def _installer() -> Installer:
+    from cline_hooks.frontends.codex.install import CodexInstaller  # ruff: ignore[import-outside-top-level]
+
+    return CodexInstaller()
+
+
+@frontend(name="codex", display_name="Codex", make_installer=_installer)
 class CodexProtocol(ClaudeCodeHookSpec):
     """Codex hook protocol.
 

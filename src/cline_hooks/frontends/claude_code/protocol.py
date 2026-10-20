@@ -8,6 +8,7 @@ from pathlib import Path
 import sys
 from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, Self
 
+from cline_hooks.core.deferred import deferred
 from cline_hooks.core.frontend import SHAPE_SNIFF, backticked, frontend
 from cline_hooks.core.models import SubagentStartFields
 from cline_hooks.core.payload import (
@@ -17,24 +18,61 @@ from cline_hooks.core.payload import (
 )
 from cline_hooks.core.protocol import HookRegistration, exit_block
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
-from cline_hooks.frontends.claude_code.install import ClaudeCodeInstaller
-from cline_hooks.frontends.claude_code.models import (
-    ClaudeCodeEditWriteParams,
-    ClaudeCodePostToolUse,
-    ClaudeCodeReadParams,
-    ClaudeCodeShellParams,
-    ClaudeCodeStop,
-    ClaudeCodeTaskStart,
-    ClaudeCodeUserPromptSubmit,
-)
-from cline_hooks.frontends.claude_code.transcript import ClaudeCodeTranscriptReader
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
+    from cline_hooks.core.install import Installer
     from cline_hooks.core.models import HookFields
     from cline_hooks.core.protocol import RawPayload
     from cline_hooks.core.transcript import TranscriptReader
+
+
+def _installer() -> Installer:
+    from cline_hooks.frontends.claude_code.install import ClaudeCodeInstaller  # ruff: ignore[import-outside-top-level]
+
+    return ClaudeCodeInstaller()
+
+
+def _hook_models() -> Mapping[CanonicalHook, type[HookFields]]:
+    from cline_hooks.frontends.claude_code.models import (  # ruff: ignore[import-outside-top-level]
+        ClaudeCodePostToolUse,
+        ClaudeCodeStop,
+        ClaudeCodeTaskStart,
+        ClaudeCodeUserPromptSubmit,
+    )
+
+    return {
+        CanonicalHook.POST_TOOL_USE: ClaudeCodePostToolUse,
+        CanonicalHook.TASK_START: ClaudeCodeTaskStart,
+        CanonicalHook.USER_PROMPT_SUBMIT: ClaudeCodeUserPromptSubmit,
+        CanonicalHook.STOP: ClaudeCodeStop,
+        CanonicalHook.SUBAGENT_START: SubagentStartFields,
+        CanonicalHook.SUBAGENT_STOP: ClaudeCodeStop,
+    }
+
+
+def _tool_models() -> Mapping[CanonicalTool, type[ToolParams]]:
+    from cline_hooks.frontends.claude_code.models import (  # ruff: ignore[import-outside-top-level]
+        ClaudeCodeEditWriteParams,
+        ClaudeCodeReadParams,
+        ClaudeCodeShellParams,
+    )
+
+    return {
+        CanonicalTool.READ: ClaudeCodeReadParams,
+        CanonicalTool.EDIT: ClaudeCodeEditWriteParams,
+        CanonicalTool.WRITE: ClaudeCodeEditWriteParams,
+        CanonicalTool.SHELL: ClaudeCodeShellParams,
+    }
+
+
+def _transcript() -> TranscriptReader:
+    from cline_hooks.frontends.claude_code.transcript import (  # ruff: ignore[import-outside-top-level]
+        ClaudeCodeTranscriptReader,
+    )
+
+    return ClaudeCodeTranscriptReader()
 
 
 class ClaudeCodeHookSpec(StandardPayloadProtocol):
@@ -71,20 +109,8 @@ class ClaudeCodeHookSpec(StandardPayloadProtocol):
         "SendMessage": CanonicalTool.SEND_MESSAGE,
     }
     envelope_model: ClassVar[type[PayloadEnvelope]] = PayloadEnvelope
-    hook_models: ClassVar[Mapping[CanonicalHook, type[HookFields]]] = {
-        CanonicalHook.POST_TOOL_USE: ClaudeCodePostToolUse,
-        CanonicalHook.TASK_START: ClaudeCodeTaskStart,
-        CanonicalHook.USER_PROMPT_SUBMIT: ClaudeCodeUserPromptSubmit,
-        CanonicalHook.STOP: ClaudeCodeStop,
-        CanonicalHook.SUBAGENT_START: SubagentStartFields,
-        CanonicalHook.SUBAGENT_STOP: ClaudeCodeStop,
-    }
-    tool_models: ClassVar[Mapping[CanonicalTool, type[ToolParams]]] = {
-        CanonicalTool.READ: ClaudeCodeReadParams,
-        CanonicalTool.EDIT: ClaudeCodeEditWriteParams,
-        CanonicalTool.WRITE: ClaudeCodeEditWriteParams,
-        CanonicalTool.SHELL: ClaudeCodeShellParams,
-    }
+    hook_models: ClassVar[Mapping[CanonicalHook, type[HookFields]]] = deferred(_hook_models)
+    tool_models: ClassVar[Mapping[CanonicalTool, type[ToolParams]]] = deferred(_tool_models)
     mcp_prefix: ClassVar[str] = "mcp__"
     mcp_separators: ClassVar[tuple[str, ...]] = ("__",)
 
@@ -99,7 +125,7 @@ def _skill_hint(skills: Sequence[str]) -> str:
 @frontend(
     name="claude-code",
     display_name="Claude Code",
-    installer=ClaudeCodeInstaller(),
+    make_installer=_installer,
     detect_priority=SHAPE_SNIFF,
     skills_dir=lambda: Path.home() / ".claude" / "skills",
     max_context_chars=10_000,
@@ -114,7 +140,7 @@ class ClaudeCodeProtocol(ClaudeCodeHookSpec):
     - every other event needs additionalContext to actually reach the model.
     """
 
-    transcript: ClassVar[TranscriptReader] = ClaudeCodeTranscriptReader()
+    transcript: ClassVar[TranscriptReader] = deferred(_transcript)
 
     def __init__(self, hook_event_name: str = "Stop") -> None:
         """Store the raw Claude Code hook event name for context injection.

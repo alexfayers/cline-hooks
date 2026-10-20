@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 const BINARY: string = "__CLINE_HOOK_BINARY__";
+const FRONTEND = "pi";
 const CUSTOM_TYPE = "cline-hooks";
 const BLOCK_EXIT_CODE = 2;
 
@@ -25,7 +26,10 @@ function runHook(ctx: ExtensionContext, payload: Record<string, unknown>): Promi
     ...payload,
   });
   return new Promise((resolve) => {
-    const child = spawn(BINARY, [], { stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn(BINARY, [], {
+      stdio: ["pipe", "pipe", "pipe"],
+      env: { ...process.env, CLINE_HOOKS_FRONTEND: FRONTEND },
+    });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk) => (stdout += chunk));

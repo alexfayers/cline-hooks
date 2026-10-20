@@ -198,7 +198,7 @@ class TestFrontendSpecInstall:
             name="test-only",
             display_name="Test Only",
             protocol=_Bare,
-            installer=_Recorder(),  # type: ignore[arg-type]
+            make_installer=_Recorder,  # type: ignore[arg-type]
         )
         spec.install("/somewhere", force=True)
         assert calls == [(_Bare, "/somewhere", True)]

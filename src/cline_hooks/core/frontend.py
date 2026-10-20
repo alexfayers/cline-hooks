@@ -7,6 +7,7 @@ Imports no frontend, so a frontend module can import this one freely;
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import cached_property
 from typing import TYPE_CHECKING, TypeVar
 
 if TYPE_CHECKING:
@@ -56,7 +57,7 @@ class FrontendSpec:
         name: CLI slug for `cline-hook install <name>`, and fixture file stem.
         display_name: Human-readable name, used in generated docs.
         protocol: The frontend's Protocol class.
-        installer: How to install it, or None where it has no install step.
+        make_installer: Builds how to install it, or None where it has no install step.
         detect_priority: Higher runs earlier during detection.
         default: Whether this frontend handles payloads nothing detects.
         skills_dir: Returns where this frontend's installed skills live, or None where unknown.
@@ -67,12 +68,21 @@ class FrontendSpec:
     name: str
     display_name: str
     protocol: type[Protocol]
-    installer: Installer | None = None
+    make_installer: Callable[[], Installer] | None = None
     detect_priority: int = SHAPE_SNIFF
     default: bool = False
     skills_dir: Callable[[], Path] | None = None
     max_context_chars: int | None = None
     skill_hint: Callable[[Sequence[str]], str] = default_skill_hint
+
+    @cached_property
+    def installer(self) -> Installer | None:
+        """How to install this frontend, built on first use.
+
+        Returns:
+            The installer, or None where the frontend has no install step.
+        """
+        return self.make_installer() if self.make_installer is not None else None
 
     def install(self, target: str | None = None, *, force: bool = False) -> None:
         """Run this frontend's install step.
@@ -97,7 +107,7 @@ def frontend(  # ruff: ignore[too-many-arguments]
     *,
     name: str,
     display_name: str,
-    installer: Installer | None = None,
+    make_installer: Callable[[], Installer] | None = None,
     detect_priority: int = SHAPE_SNIFF,
     default: bool = False,
     skills_dir: Callable[[], Path] | None = None,
@@ -109,7 +119,7 @@ def frontend(  # ruff: ignore[too-many-arguments]
     Args:
         name: CLI slug for `cline-hook install <name>`, and fixture file stem.
         display_name: Human-readable name, used in generated docs.
-        installer: How to install it, or None where it has no install step.
+        make_installer: Builds how to install it, or None where it has no install step.
         detect_priority: `EXACT_MATCH` where detection reads an exact signal,
             `SHAPE_SNIFF` where it guesses from a payload's shape.
         default: Whether this frontend handles payloads nothing detects.
@@ -126,7 +136,7 @@ def frontend(  # ruff: ignore[too-many-arguments]
             name=name,
             display_name=display_name,
             protocol=cls,
-            installer=installer,
+            make_installer=make_installer,
             detect_priority=detect_priority,
             default=default,
             skills_dir=skills_dir,

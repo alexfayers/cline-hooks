@@ -7,7 +7,8 @@ from unittest.mock import patch
 
 import pytest
 
-from cline_hooks.frontends.pi import PiInstaller, PiProtocol
+from cline_hooks.frontends.pi import PiProtocol
+from cline_hooks.frontends.pi.install import PiInstaller
 
 if TYPE_CHECKING:
     from collections.abc import Iterator

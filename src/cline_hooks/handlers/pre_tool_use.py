@@ -3,9 +3,6 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-import bashlex
-import bashlex.errors
-
 from cline_hooks.core.outcome import Disposition, Outcome
 from cline_hooks.core.parameters import (
     AttemptCompletionParameters,
@@ -81,6 +78,9 @@ def _pre_shell(hook: HookInputPreToolUse, fields: PreToolUseFields, plugins: lis
     command: str = ShellParameters.build(fields.parameters).command
     if not command:
         return Outcome()
+
+    import bashlex  # ruff: ignore[import-outside-top-level]
+    import bashlex.errors  # ruff: ignore[import-outside-top-level]
 
     try:
         parsed = bashlex.parse(command)

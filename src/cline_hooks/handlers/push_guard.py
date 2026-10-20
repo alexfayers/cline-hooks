@@ -2,9 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import git
-import git.exc
-
 from cline_hooks.config import get_push_block_markers
 
 
@@ -19,6 +16,9 @@ def marker_above_repo(workspace_roots: list[str]) -> str | None:
     markers = get_push_block_markers()
     if not markers:
         return None
+
+    import git  # ruff: ignore[import-outside-top-level]
+    import git.exc  # ruff: ignore[import-outside-top-level]
 
     for root in workspace_roots:
         try:

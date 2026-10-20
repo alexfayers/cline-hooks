@@ -42,6 +42,8 @@ Pi has no command hooks, so `cline-hook install pi` writes a bridge extension
 relays pi's extension events to `cline-hook`, including `session_compact` as a
 `TaskStart` with source `compact`.
 
+A caller can name its frontend in `CLINE_HOOKS_FRONTEND` so `cline-hook` loads only that frontend. The pi extension, the Claude Code, Codex and Kiro hook commands, and Cline's Windows scripts set it. Unset or unknown, it detects the frontend from the payload.
+
 ### List installed plugins
 
 ```bash

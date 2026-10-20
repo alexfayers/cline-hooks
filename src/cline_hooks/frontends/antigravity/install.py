@@ -22,6 +22,7 @@ class AntigravityInstaller(JsonHookInstaller):
 
     help: ClassVar[str] = "Install Antigravity hooks into ~/.gemini/config/hooks.json"
     root_key: ClassVar[str] = "cline-hooks"
+    runs_in_shell: ClassVar[bool] = False
 
     def config_path(self, target: str | None) -> Path:
         """Return Antigravity's user hooks file.
@@ -31,14 +32,14 @@ class AntigravityInstaller(JsonHookInstaller):
         """
         return Path.home() / ".gemini" / "config" / "hooks.json"
 
-    def build_entry(self, binary: Path, registration: HookRegistration) -> dict[str, Any]:
+    def build_entry(self, command: str, registration: HookRegistration) -> dict[str, Any]:
         """Build one Antigravity hook entry in the event's own structure.
 
         Returns:
             A hook group carrying the matcher where the event matches on tool
             name, otherwise a bare handler.
         """
-        handler = {"type": "command", "command": str(binary)}
+        handler = {"type": "command", "command": command}
         if registration.matcher is None:
             return handler
         return {"matcher": registration.matcher, "hooks": [handler]}

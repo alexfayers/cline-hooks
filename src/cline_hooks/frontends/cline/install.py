@@ -9,6 +9,7 @@ import re
 import sys
 from typing import TYPE_CHECKING, ClassVar
 
+from cline_hooks.core.frontends import FRONTEND_ENV_KEY
 from cline_hooks.core.install import InstallArgument, Installer, resolve_binary
 
 if TYPE_CHECKING:
@@ -46,10 +47,11 @@ def _script_binary(script: str) -> str | None:
     return match.group(1).replace("''", "'") if match else None
 
 
-def _powershell_script(binary: Path) -> str:
+def _powershell_script(binary: Path, frontend_name: str) -> str:
     binary_literal = _powershell_literal(str(binary))
     return "\n".join((
         _PS1_HEADER,
+        f"$env:{FRONTEND_ENV_KEY} = {_powershell_literal(frontend_name)}",
         "$inputData = [Console]::In.ReadToEnd()",
         f"$inputData | & {binary_literal}",
         "exit $LASTEXITCODE",
@@ -57,9 +59,9 @@ def _powershell_script(binary: Path) -> str:
     ))
 
 
-def _install_windows(binary: Path, target: Path, hooks: tuple[str, ...], *, force: bool) -> None:
+def _install_windows(binary: Path, target: Path, hooks: tuple[str, ...], frontend_name: str, *, force: bool) -> None:
     linked = 0
-    script = _powershell_script(binary)
+    script = _powershell_script(binary, frontend_name)
     for hook in hooks:
         dest = target / f"{hook}.ps1"
         if dest.exists():
@@ -142,7 +144,7 @@ class ClineInstaller(Installer):
         target_dir.mkdir(parents=True, exist_ok=True)
 
         if _is_windows():
-            _install_windows(binary, target_dir, hooks, force=force)
+            _install_windows(binary, target_dir, hooks, "cline", force=force)
             return
 
         _install_unix(binary, target_dir, hooks, force=force)

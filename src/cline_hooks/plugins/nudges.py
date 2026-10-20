@@ -6,9 +6,6 @@ import random
 import re
 from typing import TYPE_CHECKING
 
-import git
-import git.exc
-
 from cline_hooks.core.plugin import HookResult, HooksPlugin, is_subagent
 from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.state import PluginStateStore
@@ -209,6 +206,9 @@ def _get_diff_line_count(workspace_roots: list[str]) -> int:
     Returns:
         Total diff line count, or 0 if no repo or no diff.
     """
+    import git  # ruff: ignore[import-outside-top-level]
+    import git.exc  # ruff: ignore[import-outside-top-level]
+
     for root in workspace_roots:
         try:
             repo = git.Repo(root)

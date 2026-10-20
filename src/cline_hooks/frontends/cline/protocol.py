@@ -12,20 +12,26 @@ from cline_hooks.core.frontend import EXACT_MATCH, frontend
 from cline_hooks.core.models import HOOK_INPUTS, HookInput
 from cline_hooks.core.protocol import HookRegistration, Protocol
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
-from cline_hooks.frontends.cline.install import ClineInstaller
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from cline_hooks.core.install import Installer
     from cline_hooks.core.protocol import RawPayload
 
 _TOOL_HOOK_KEYS = ("preToolUse", "postToolUse")
 
 
+def _installer() -> Installer:
+    from cline_hooks.frontends.cline.install import ClineInstaller  # ruff: ignore[import-outside-top-level]
+
+    return ClineInstaller()
+
+
 @frontend(
     name="cline",
     display_name="Cline",
-    installer=ClineInstaller(),
+    make_installer=_installer,
     detect_priority=EXACT_MATCH,
     default=True,
 )

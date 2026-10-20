@@ -4,24 +4,36 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar, NoReturn
 
+from cline_hooks.core.deferred import deferred
 from cline_hooks.core.frontend import EXACT_MATCH, frontend
 from cline_hooks.core.protocol import HookRegistration, exit_allow, exit_block
 from cline_hooks.core.vocabulary import CanonicalHook
 from cline_hooks.frontends.claude_code.protocol import ClaudeCodeHookSpec
-from cline_hooks.frontends.copilot.install import CopilotInstaller
-from cline_hooks.frontends.copilot.models import CopilotPreCompact
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from cline_hooks.core.install import Installer
     from cline_hooks.core.models import HookFields
     from cline_hooks.core.protocol import RawPayload
+
+
+def _installer() -> Installer:
+    from cline_hooks.frontends.copilot.install import CopilotInstaller  # ruff: ignore[import-outside-top-level]
+
+    return CopilotInstaller()
+
+
+def _hook_models() -> Mapping[CanonicalHook, type[HookFields]]:
+    from cline_hooks.frontends.copilot.models import CopilotPreCompact  # ruff: ignore[import-outside-top-level]
+
+    return {**ClaudeCodeHookSpec.hook_models, CanonicalHook.PRE_COMPACT: CopilotPreCompact}
 
 
 @frontend(
     name="copilot",
     display_name="GitHub Copilot",
-    installer=CopilotInstaller(),
+    make_installer=_installer,
     detect_priority=EXACT_MATCH,
 )
 class CopilotProtocol(ClaudeCodeHookSpec):
@@ -49,10 +61,7 @@ class CopilotProtocol(ClaudeCodeHookSpec):
         },
         CanonicalHook.PRE_COMPACT: HookRegistration("PreCompact"),
     }
-    hook_models: ClassVar[Mapping[CanonicalHook, type[HookFields]]] = {
-        **ClaudeCodeHookSpec.hook_models,
-        CanonicalHook.PRE_COMPACT: CopilotPreCompact,
-    }
+    hook_models: ClassVar[Mapping[CanonicalHook, type[HookFields]]] = deferred(_hook_models)
 
     @classmethod
     def own_hook_names(cls) -> frozenset[str]:
