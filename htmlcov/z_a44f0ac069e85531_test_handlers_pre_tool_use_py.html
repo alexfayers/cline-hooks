@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_a44f0ac069e85531_test_handlers_push_guard_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.2">coverage.py v7.16.2</a>,
-            created at 2026-10-21 21:07 +0000
+            created at 2026-10-21 22:17 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -765,7 +765,7 @@
     <p class="pln"><span class="n"><a id="t681" href="#t681">681</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t682" href="#t682">682</a></span><span class="t"><span class="key">class</span> <span class="nam">TestRequiredSkillGuardIntegration</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t683" href="#t683">683</a></span><span class="t">    <span class="key">def</span> <span class="nam">test_command_without_recorded_skill_is_blocked</span><span class="op">(</span><span class="nam">self</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t684" href="#t684">684</a></span><span class="t">        <span class="nam">result</span> <span class="op">=</span> <span class="nam">_run</span><span class="op">(</span><span class="str">&quot;execute_command&quot;</span><span class="op">,</span> <span class="op">{</span><span class="str">&quot;command&quot;</span><span class="op">:</span> <span class="str">&quot;git status&quot;</span><span class="op">}</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t684" href="#t684">684</a></span><span class="t">        <span class="nam">result</span> <span class="op">=</span> <span class="nam">_run</span><span class="op">(</span><span class="str">&quot;execute_command&quot;</span><span class="op">,</span> <span class="op">{</span><span class="str">&quot;command&quot;</span><span class="op">:</span> <span class="str">&quot;git commit -m x&quot;</span><span class="op">}</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t685" href="#t685">685</a></span><span class="t">        <span class="key">assert</span> <span class="nam">result</span> <span class="key">is</span> <span class="key">not</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t686" href="#t686">686</a></span><span class="t">        <span class="nam">error</span> <span class="op">=</span> <span class="nam">cast</span><span class="op">(</span><span class="str">&quot;str&quot;</span><span class="op">,</span> <span class="nam">result</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="str">&quot;errorMessage&quot;</span><span class="op">,</span> <span class="str">&quot;&quot;</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t687" href="#t687">687</a></span><span class="t">        <span class="key">assert</span> <span class="str">&quot;git-usage&quot;</span> <span class="key">in</span> <span class="nam">error</span>&nbsp;</span><span class="r"></span></p>
@@ -773,7 +773,7 @@
     <p class="pln"><span class="n"><a id="t689" href="#t689">689</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t690" href="#t690">690</a></span><span class="t">    <span class="key">def</span> <span class="nam">test_command_with_recorded_skill_is_allowed</span><span class="op">(</span><span class="nam">self</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t691" href="#t691">691</a></span><span class="t">        <span class="nam">record_skill</span><span class="op">(</span><span class="str">&quot;task-1&quot;</span><span class="op">,</span> <span class="str">&quot;git-usage&quot;</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t692" href="#t692">692</a></span><span class="t">        <span class="nam">result</span> <span class="op">=</span> <span class="nam">_run</span><span class="op">(</span><span class="str">&quot;execute_command&quot;</span><span class="op">,</span> <span class="op">{</span><span class="str">&quot;command&quot;</span><span class="op">:</span> <span class="str">&quot;git status&quot;</span><span class="op">}</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t692" href="#t692">692</a></span><span class="t">        <span class="nam">result</span> <span class="op">=</span> <span class="nam">_run</span><span class="op">(</span><span class="str">&quot;execute_command&quot;</span><span class="op">,</span> <span class="op">{</span><span class="str">&quot;command&quot;</span><span class="op">:</span> <span class="str">&quot;git commit -m x&quot;</span><span class="op">}</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t693" href="#t693">693</a></span><span class="t">        <span class="key">assert</span> <span class="nam">result</span> <span class="key">is</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t694" href="#t694">694</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t695" href="#t695">695</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -881,7 +881,7 @@
     <p class="run"><span class="n"><a id="t797" href="#t797">797</a></span><span class="t">        <span class="key">assert</span> <span class="str">&quot;blocked by plugin&quot;</span> <span class="key">in</span> <span class="nam">cast</span><span class="op">(</span><span class="str">&quot;str&quot;</span><span class="op">,</span> <span class="nam">result</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="str">&quot;errorMessage&quot;</span><span class="op">,</span> <span class="str">&quot;&quot;</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t798" href="#t798">798</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t799" href="#t799">799</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t800" href="#t800">800</a></span><span class="t"><span class="nam">_RM_F_MESSAGE</span> <span class="op">=</span> <span class="str">&quot;rm -f is not allowed. MUST drop the -f flag.&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t800" href="#t800">800</a></span><span class="t"><span class="nam">_RM_F_MESSAGE</span> <span class="op">=</span> <span class="str">&quot;rm -f is not allowed. MUST drop -f (rm, or rm -r for a directory).&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t801" href="#t801">801</a></span><span class="t"><span class="nam">_TAIL_BUILD_MESSAGE</span> <span class="op">=</span> <span class="str">&quot;MUST NOT filter build output with tail - MUST capture the full output.&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t802" href="#t802">802</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t803" href="#t803">803</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -969,7 +969,7 @@
             <a class="nav" href="z_a44f0ac069e85531_test_handlers_push_guard_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.2">coverage.py v7.16.2</a>,
-            created at 2026-10-21 21:07 +0000
+            created at 2026-10-21 22:17 +0000
         </p>
     </div>
 </footer>

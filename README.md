@@ -55,7 +55,7 @@
 | src/cline\_hooks/frontends/pi/protocol.py               |       42 |        2 |        4 |        2 |     91% |  114, 128 |
 | src/cline\_hooks/frontends/pi/transcript.py             |       51 |        4 |       16 |        2 |     91% |78-79, 87, 96 |
 | src/cline\_hooks/handlers/\_\_init\_\_.py               |        3 |        0 |        0 |        0 |    100% |           |
-| src/cline\_hooks/handlers/commands.py                   |      141 |        5 |       72 |        8 |     94% |96, 139, 143, 147, 192, 201-\>197, 203-\>197, 204-\>203 |
+| src/cline\_hooks/handlers/commands.py                   |      141 |        5 |       72 |        9 |     93% |96, 139, 143, 147, 192, 199-\>197, 201-\>197, 203-\>197, 204-\>203 |
 | src/cline\_hooks/handlers/context\_nudge.py             |        7 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/handlers/git\_context.py               |       44 |        2 |        8 |        0 |     96% |     55-56 |
 | src/cline\_hooks/handlers/herdr\_guard.py               |       79 |        1 |       24 |        1 |     98% |        84 |
@@ -81,7 +81,7 @@
 | src/cline\_hooks/plugins/plan\_handoff.py               |       67 |        1 |       28 |        2 |     97% |144, 153-\>155 |
 | src/cline\_hooks/plugins/research.py                    |      105 |        6 |       32 |        3 |     93% |127, 156-158, 217, 267-\>269, 274 |
 | src/cline\_hooks/plugins/session\_context.py            |       19 |        0 |        6 |        0 |    100% |           |
-| src/cline\_hooks/plugins/shell\_guards.py               |       65 |        2 |       20 |        0 |     98% |     53-54 |
+| src/cline\_hooks/plugins/shell\_guards.py               |       64 |        2 |       20 |        0 |     98% |     52-53 |
 | src/cline\_hooks/plugins/startup\_blocks.py             |       81 |        1 |       20 |        0 |     99% |       145 |
 | src/cline\_hooks/plugins/tool\_guards.py                |       90 |        3 |       36 |        1 |     97% |121-122, 157 |
 | src/cline\_hooks/plugins/tracking.py                    |       36 |        1 |       22 |        3 |     93% |33-\>exit, 63-\>65, 66 |
@@ -145,7 +145,7 @@
 | tests/test\_plugins\_handback\_rescue.py                |       27 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugins\_handoff\_ack.py                    |      300 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugins\_research.py                        |       41 |        0 |        2 |        0 |    100% |           |
-| tests/test\_plugins\_shell\_guards.py                   |      114 |        0 |        0 |        0 |    100% |           |
+| tests/test\_plugins\_shell\_guards.py                   |      112 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugins\_startup\_blocks.py                 |      142 |        0 |        2 |        0 |    100% |           |
 | tests/test\_readme\_matrix.py                           |       40 |        0 |        6 |        0 |    100% |           |
 | tests/test\_registry.py                                 |       49 |        5 |        0 |        0 |     90% |24, 30, 40, 44, 68 |
@@ -158,7 +158,7 @@
 | tests/test\_state\_paths.py                             |        8 |        0 |        0 |        0 |    100% |           |
 | tests/test\_turns.py                                    |       57 |        1 |        6 |        0 |     98% |        22 |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **11373** |  **194** | **1322** |   **97** | **98%** |           |
+| **TOTAL**                                               | **11370** |  **194** | **1322** |   **98** | **98%** |           |
 
 
 ## Setup coverage badge
