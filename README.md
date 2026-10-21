@@ -5,7 +5,7 @@
 | Name                                                    |    Stmts |     Miss |   Branch |   BrPart |   Cover |   Missing |
 |-------------------------------------------------------- | -------: | -------: | -------: | -------: | ------: | --------: |
 | src/cline\_hooks/\_\_init\_\_.py                        |        2 |        0 |        0 |        0 |    100% |           |
-| src/cline\_hooks/\_main.py                              |      127 |       26 |       34 |        5 |     76% |70, 116-118, 127-130, 146-147, 173, 194-209, 213-217 |
+| src/cline\_hooks/\_main.py                              |      130 |       26 |       34 |        5 |     76% |75, 121-123, 132-135, 151-152, 178, 199-214, 218-222 |
 | src/cline\_hooks/config.py                              |        7 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/core/\_\_init\_\_.py                   |        0 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/core/frontend.py                       |       38 |        0 |        4 |        0 |    100% |           |
@@ -55,7 +55,7 @@
 | src/cline\_hooks/frontends/pi/protocol.py               |       42 |        2 |        4 |        2 |     91% |  114, 128 |
 | src/cline\_hooks/frontends/pi/transcript.py             |       51 |        4 |       16 |        2 |     91% |78-79, 87, 96 |
 | src/cline\_hooks/handlers/\_\_init\_\_.py               |        3 |        0 |        0 |        0 |    100% |           |
-| src/cline\_hooks/handlers/commands.py                   |      141 |        5 |       72 |        9 |     93% |96, 139, 143, 147, 192, 199-\>197, 201-\>197, 203-\>197, 204-\>203 |
+| src/cline\_hooks/handlers/commands.py                   |      141 |        5 |       72 |        8 |     94% |96, 139, 143, 147, 192, 201-\>197, 203-\>197, 204-\>203 |
 | src/cline\_hooks/handlers/context\_nudge.py             |        7 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/handlers/git\_context.py               |       44 |        2 |        8 |        0 |     96% |     55-56 |
 | src/cline\_hooks/handlers/herdr\_guard.py               |       79 |        1 |       24 |        1 |     98% |        84 |
@@ -90,7 +90,7 @@
 | src/cline\_hooks/state/finished.py                      |       24 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/state/jsonfile.py                      |       32 |        0 |        6 |        0 |    100% |           |
 | src/cline\_hooks/state/memory.py                        |       21 |        0 |        0 |        0 |    100% |           |
-| src/cline\_hooks/state/paths.py                         |        7 |        0 |        0 |        0 |    100% |           |
+| src/cline\_hooks/state/paths.py                         |        8 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/state/retrospective.py                 |       29 |        0 |        4 |        0 |    100% |           |
 | src/cline\_hooks/state/skills.py                        |       45 |        0 |       10 |        0 |    100% |           |
 | src/cline\_hooks/state/store.py                         |       26 |        0 |        2 |        0 |    100% |           |
@@ -155,9 +155,10 @@
 | tests/test\_skill\_tracker.py                           |       86 |        0 |        8 |        0 |    100% |           |
 | tests/test\_state.py                                    |       67 |        0 |        4 |        0 |    100% |           |
 | tests/test\_state\_jsonfile.py                          |       65 |        0 |        6 |        0 |    100% |           |
+| tests/test\_state\_paths.py                             |        8 |        0 |        0 |        0 |    100% |           |
 | tests/test\_turns.py                                    |       57 |        1 |        6 |        0 |     98% |        22 |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **11361** |  **194** | **1322** |   **98** | **98%** |           |
+| **TOTAL**                                               | **11373** |  **194** | **1322** |   **97** | **98%** |           |
 
 
 ## Setup coverage badge
