@@ -44,6 +44,22 @@ interface InputUpdate {
   message?: string | null;
 }
 
+interface SessionNote {
+  message?: string | null;
+  system_message: string;
+}
+
+function parseSessionNote(output: string): SessionNote | undefined {
+  if (!output.startsWith("{")) return undefined;
+  try {
+    const parsed = JSON.parse(output);
+    if (parsed && typeof parsed.system_message === "string") return parsed;
+  } catch {
+    return undefined;
+  }
+  return undefined;
+}
+
 function parseInputUpdate(output: string): InputUpdate | undefined {
   if (!output.startsWith("{")) return undefined;
   try {
@@ -63,7 +79,10 @@ export default function (pi: ExtensionAPI) {
     pi.sendMessage({ customType: CUSTOM_TYPE, content, display: false }, { deliverAs: "nextTurn" });
 
   pi.on("session_start", async (event, ctx) => {
-    const { message } = await runHook(ctx, { hook_event_name: "session_start", source: event.reason });
+    const { message: output } = await runHook(ctx, { hook_event_name: "session_start", source: event.reason });
+    const note = parseSessionNote(output);
+    if (note) ctx.ui.notify(note.system_message);
+    const message = note ? note.message : output;
     if (message) queueNote(message);
   });
 
