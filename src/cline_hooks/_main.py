@@ -3,42 +3,17 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
-from typing import TYPE_CHECKING, NoReturn
+from typing import NoReturn
 
-from cline_hooks.core.frontends import FRONTENDS, FRONTENDS_BY_NAME, select_protocol
+from cline_hooks.core import log_context
+from cline_hooks.core.dispatch import parse_hook, run_handler
+from cline_hooks.core.frontends import FRONTENDS, FRONTENDS_BY_NAME
 from cline_hooks.core.install import binary_names
-from cline_hooks.core.protocol import Protocol, RawPayload, set_protocol
-from cline_hooks.core.registry import HOOK_HANDLERS
-from cline_hooks.core.response import allow, emit
+from cline_hooks.core.log_context import HookContextFilter
+from cline_hooks.core.protocol import RawPayload
+from cline_hooks.core.response import Response, render
 import cline_hooks.handlers  # ruff: ignore[unused-import]
 from cline_hooks.state.paths import get_data_dir
-
-if TYPE_CHECKING:
-    from cline_hooks.core.models import HookInput
-
-
-class _InvocationContextFilter(logging.Filter):
-    """Stamps every record with the current invocation's frontend and agent."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.frontend = "-"
-        self.agent = "-"
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        """Attach the current invocation context to the record and always allow it through.
-
-        Returns:
-            True, unconditionally.
-        """
-        if self.frontend == "-" or self.agent == "main":
-            record.context = self.frontend
-        else:
-            record.context = f"{self.frontend}/{self.agent}"
-        return True
-
-
-_invocation_filter = _InvocationContextFilter()
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -47,7 +22,7 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s[%(context)s]: %(message)s",
     datefmt="%Y-%m-%dT%H:%M:%S",
 )
-logging.root.handlers[0].addFilter(_invocation_filter)
+logging.root.handlers[0].addFilter(HookContextFilter())
 
 logger = logging.getLogger("hooks")
 
@@ -89,22 +64,31 @@ def _build_parser() -> argparse.ArgumentParser:
         "--clear", action="store_true", required=True, help="Clear every owed and awaited acknowledgement"
     )
 
+    daemon_parser = sub.add_parser("daemon", help="Manage the loopback hook daemon")
+    daemon_sub = daemon_parser.add_subparsers(dest="daemon_mode")
+    daemon_sub.add_parser("serve", help="Run the daemon in the foreground")
+    daemon_sub.add_parser("stop", help="Stop the running daemon")
+    daemon_sub.add_parser("status", help="Check whether the daemon is running")
+
+    service_parser = daemon_sub.add_parser(
+        "service", help="Manage a login-time OS service that keeps the daemon running"
+    )
+    service_sub = service_parser.add_subparsers(dest="service_mode")
+    service_sub.add_parser("install", help="Install and start a service that restarts the daemon on exit")
+    service_sub.add_parser("uninstall", help="Remove the service, if cline-hooks installed it")
+    service_sub.add_parser("status", help="Check whether the service is installed")
+    service_sub.add_parser("stop", help="Stop the daemon through the service supervisor, so it stays stopped")
+
     return parser
 
 
-def _parse_hook(payload: RawPayload) -> tuple[Protocol, HookInput]:
-    """Detect the frontend, configure logging for it, and parse the payload.
-
-    Returns:
-        The detected protocol and the parsed hook input.
-    """
-    proto = select_protocol(payload).from_payload(payload)
-    set_protocol(proto)
-    proto.configure_logging()
-    hook = proto.parse(payload)
-    _invocation_filter.frontend = proto.frontend_spec.name if proto.frontend_spec else "-"
-    _invocation_filter.agent = hook.agentId or hook.agentType or "main"
-    return proto, hook
+def _exit_with(response: Response) -> NoReturn:
+    """Deliver a rendered Response via the command-path transport."""
+    if response.stdout:
+        print(response.stdout, end="")  # ruff: ignore[print]
+    if response.stderr:
+        print(response.stderr, end="", file=sys.stderr)  # ruff: ignore[print]
+    sys.exit(response.exit_code)
 
 
 def _run_hook() -> NoReturn:
@@ -112,22 +96,16 @@ def _run_hook() -> NoReturn:
     logger.debug("=== start ===")
     try:
         payload = RawPayload.from_stdin(input())
-        proto, hook = _parse_hook(payload)
+        proto, hook = parse_hook(payload)
     except Exception:
         logger.exception("Failed to parse hook input")
-        allow()
+        _exit_with(Response())
 
-    if not proto.fires(hook.hookName):
-        logger.debug("Ignoring %s: not a hook %s fires", hook.hookName, type(proto).__name__)
-        allow()
+    proto.configure_logging()
+    log_context.bind(proto, hook)
 
-    handler = HOOK_HANDLERS.get(hook.hookName)
-    if handler is not None:
-        outcome = handler(hook)
-        if outcome is not None:
-            emit(outcome)
-
-    allow()
+    outcome = run_handler(proto, hook)
+    _exit_with(render(outcome, proto))
 
 
 def _list_plugins() -> None:
@@ -173,38 +151,94 @@ def _list_plugins() -> None:
         print("check_pending: clean")  # ruff: ignore[print]
 
 
+def _cmd_install(args: argparse.Namespace) -> NoReturn:
+    frontend = FRONTENDS_BY_NAME.get(args.install_mode or "")
+    if frontend is None or frontend.installer is None:
+        _build_parser().parse_args(["install", "--help"])
+    else:
+        argument = frontend.installer.argument
+        target = getattr(args, argument.name) if argument is not None else None
+        frontend.install(target, force=args.force)
+    sys.exit(0)
+
+
+def _cmd_plugins() -> NoReturn:
+    _list_plugins()
+    sys.exit(0)
+
+
+def _cmd_retro_count(args: argparse.Namespace) -> NoReturn:
+    from cline_hooks.state import retrospective  # ruff: ignore[import-outside-top-level]
+
+    if args.reset:
+        retrospective.reset()
+    else:
+        print(retrospective.get_count())  # ruff: ignore[print]
+    sys.exit(0)
+
+
+def _run_daemon_service(args: argparse.Namespace) -> None:
+    from cline_hooks.daemon import service  # ruff: ignore[import-outside-top-level]
+
+    if args.service_mode == "install":
+        print(service.install())  # ruff: ignore[print]
+    elif args.service_mode == "uninstall":
+        print(service.uninstall())  # ruff: ignore[print]
+    elif args.service_mode == "status":
+        print(service.status())  # ruff: ignore[print]
+    elif args.service_mode == "stop":
+        print(service.stop())  # ruff: ignore[print]
+    else:
+        _build_parser().parse_args(["daemon", "service", "--help"])
+
+
+def _cmd_handoff_ack() -> NoReturn:
+    from cline_hooks.plugins import handoff_ack  # ruff: ignore[import-outside-top-level]
+
+    handoff_ack.clear_acks()
+    sys.exit(0)
+
+
+def _cmd_daemon_service(args: argparse.Namespace) -> None:
+    from cline_hooks.daemon import service  # ruff: ignore[import-outside-top-level]
+
+    try:
+        _run_daemon_service(args)
+    except (service.UnsupportedPlatformError, RuntimeError) as exc:
+        print(str(exc), file=sys.stderr)  # ruff: ignore[print]
+        sys.exit(1)
+
+
+def _cmd_daemon(args: argparse.Namespace) -> NoReturn:
+    from cline_hooks.daemon import lifecycle  # ruff: ignore[import-outside-top-level]
+
+    if args.daemon_mode == "serve":
+        lifecycle.serve()
+    elif args.daemon_mode == "stop":
+        print(lifecycle.stop())  # ruff: ignore[print]
+    elif args.daemon_mode == "status":
+        print(lifecycle.status())  # ruff: ignore[print]
+    elif args.daemon_mode == "service":
+        _cmd_daemon_service(args)
+    else:
+        _build_parser().parse_args(["daemon", "--help"])
+    sys.exit(0)
+
+
 def main() -> NoReturn:
     """Entrypoint - dispatches to install subcommands or hook processing."""
     args = _build_parser().parse_args()
 
     if args.command == "install":
-        frontend = FRONTENDS_BY_NAME.get(args.install_mode or "")
-        if frontend is None or frontend.installer is None:
-            _build_parser().parse_args(["install", "--help"])
-        else:
-            argument = frontend.installer.argument
-            target = getattr(args, argument.name) if argument is not None else None
-            frontend.install(target, force=args.force)
-        sys.exit(0)
-
+        _cmd_install(args)
     if args.command == "plugins":
-        _list_plugins()
-        sys.exit(0)
-
+        _cmd_plugins()
     if args.command == "retro-count":
-        from cline_hooks.state import retrospective  # ruff: ignore[import-outside-top-level]
-
-        if args.reset:
-            retrospective.reset()
-        else:
-            print(retrospective.get_count())  # ruff: ignore[print]
-        sys.exit(0)
-
+        _cmd_retro_count(args)
+    if args.command == "daemon":
+        _cmd_daemon(args)
     if args.command == "handoff-ack":
-        from cline_hooks.plugins import handoff_ack  # ruff: ignore[import-outside-top-level]
-
-        handoff_ack.clear_acks()
-        sys.exit(0)
+        _cmd_handoff_ack()
 
     _run_hook()
 

@@ -1,15 +1,15 @@
-# ruff: file-ignore[print]
 """Kiro exit-code protocol."""
 
 from __future__ import annotations
 
 import json
-import sys
-from typing import TYPE_CHECKING, ClassVar, NoReturn
+from typing import TYPE_CHECKING, ClassVar
 
 from cline_hooks.core.frontend import EXACT_MATCH, frontend
+from cline_hooks.core.outcome import Disposition
 from cline_hooks.core.payload import StandardPayloadProtocol, ToolParams
 from cline_hooks.core.protocol import HookRegistration
+from cline_hooks.core.response import Response
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
 from cline_hooks.frontends.kiro.install import KiroInstaller
 from cline_hooks.frontends.kiro.models import (
@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from cline_hooks.core.models import HookFields
+    from cline_hooks.core.outcome import Outcome
     from cline_hooks.core.protocol import RawPayload
 
 
@@ -79,23 +80,15 @@ class KiroProtocol(StandardPayloadProtocol):
             return False
         return data.get(cls.hook_event_key) in cls.native_hook_names()
 
-    def allow(self, message: str | None = None, *, system_message: str | None = None) -> NoReturn:
-        """Allow via exit 0, context on stdout."""
-        if message is not None:
-            print(message, end="")
-        sys.exit(0)
+    def render(self, outcome: Outcome) -> Response:
+        """Render feedback as Stop's decision JSON, otherwise via the plain exit-code contract.
 
-    def block(self, message: str) -> NoReturn:
-        """Block via exit 2, error on stderr."""
-        print(message, end="", file=sys.stderr)
-        sys.exit(2)
+        Kiro's `Stop` hook only surfaces feedback via decision JSON (see
+        kiro.dev/docs/cli/hooks/#stop), so a plain exit-2 block would be a no-op there.
 
-    def feedback(self, message: str) -> NoReturn:
-        """Continue via exit 0, Stop's decision JSON with message as reason.
-
-        Kiro's `Stop` hook only surfaces feedback through this channel (see
-        kiro.dev/docs/cli/hooks/#stop); it isn't attached to a tool call, so
-        the default exit-2 feedback would be a no-op.
+        Returns:
+            The rendered Response.
         """
-        print(json.dumps({"decision": "block", "reason": message}), end="")
-        sys.exit(0)
+        if outcome.disposition is Disposition.FEEDBACK:
+            return Response(stdout=json.dumps({"decision": "block", "reason": outcome.message or ""}))
+        return super().render(outcome)

@@ -2,17 +2,16 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, NoReturn
+from typing import Any
 
 import pytest
 
+from cline_hooks.core.outcome import Outcome
 from cline_hooks.core.protocol import RawPayload
+from cline_hooks.core.response import render
 from cline_hooks.core.vocabulary import CanonicalHook
 from cline_hooks.frontends.antigravity import AntigravityProtocol
 from cline_hooks.frontends.antigravity.transcript import AntigravityTranscriptReader
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -36,20 +35,15 @@ def _payload(data: dict[str, Any]) -> RawPayload:
     return RawPayload(raw=json.dumps(data), data=data, env={})
 
 
-def _emit(
-    capsys: pytest.CaptureFixture[str],
-    respond: Callable[..., NoReturn],
-    *args: str,
-) -> dict[str, Any]:
-    """Run one of a protocol's output methods and return the response it printed.
+def _render(hook: str, outcome: Outcome) -> dict[str, Any]:
+    """Render an outcome through the Antigravity protocol for one hook.
 
     Returns:
-        The parsed JSON response, having asserted the hook exited 0.
+        The parsed JSON response.
     """
-    with pytest.raises(SystemExit) as excinfo:
-        respond(*args)
-    assert excinfo.value.code == 0
-    return dict(json.loads(capsys.readouterr().out))
+    response = render(outcome, AntigravityProtocol(hook))
+    assert response.exit_code == 0
+    return dict(json.loads(response.stdout))
 
 
 def _transcript(tmp_path: Path, *entries: dict[str, Any]) -> str:
@@ -107,36 +101,24 @@ class TestDetection:
 
 
 class TestOutput:
-    def test_pre_tool_use_allow(self, capsys: pytest.CaptureFixture[str]) -> None:
-        protocol = AntigravityProtocol(CanonicalHook.PRE_TOOL_USE)
-        assert _emit(capsys, protocol.allow) == {"decision": "allow"}
+    def test_pre_tool_use_allow(self) -> None:
+        assert _render(CanonicalHook.PRE_TOOL_USE, Outcome.allow()) == {"decision": "allow"}
 
-    def test_pre_tool_use_allow_carries_context_as_a_reason(self, capsys: pytest.CaptureFixture[str]) -> None:
-        protocol = AntigravityProtocol(CanonicalHook.PRE_TOOL_USE)
-        assert _emit(capsys, protocol.allow, "a note") == {
-            "decision": "allow",
-            "reason": "a note",
-        }
+    def test_pre_tool_use_allow_carries_context_as_a_reason(self) -> None:
+        assert _render(CanonicalHook.PRE_TOOL_USE, Outcome.allow("a note")) == {"decision": "allow", "reason": "a note"}
 
-    def test_pre_tool_use_block_denies(self, capsys: pytest.CaptureFixture[str]) -> None:
-        protocol = AntigravityProtocol(CanonicalHook.PRE_TOOL_USE)
-        assert _emit(capsys, protocol.block, "no") == {
-            "decision": "deny",
-            "reason": "no",
-        }
+    def test_pre_tool_use_block_denies(self) -> None:
+        assert _render(CanonicalHook.PRE_TOOL_USE, Outcome.block("no")) == {"decision": "deny", "reason": "no"}
 
-    def test_post_tool_use_answers_with_an_empty_object(self, capsys: pytest.CaptureFixture[str]) -> None:
-        protocol = AntigravityProtocol(CanonicalHook.POST_TOOL_USE)
-        assert _emit(capsys, protocol.allow, "a note") == {}
-        assert _emit(capsys, protocol.block, "no") == {}
+    def test_post_tool_use_answers_with_an_empty_object(self) -> None:
+        assert _render(CanonicalHook.POST_TOOL_USE, Outcome.allow("a note")) == {}
+        assert _render(CanonicalHook.POST_TOOL_USE, Outcome.block("no")) == {}
 
-    def test_stop_allow_lets_the_loop_end(self, capsys: pytest.CaptureFixture[str]) -> None:
-        protocol = AntigravityProtocol(CanonicalHook.STOP)
-        assert _emit(capsys, protocol.allow) == {"decision": "allow"}
+    def test_stop_allow_lets_the_loop_end(self) -> None:
+        assert _render(CanonicalHook.STOP, Outcome.allow()) == {"decision": "allow"}
 
-    def test_stop_feedback_re_enters_the_loop(self, capsys: pytest.CaptureFixture[str]) -> None:
-        protocol = AntigravityProtocol(CanonicalHook.STOP)
-        assert _emit(capsys, protocol.feedback, "keep going") == {
+    def test_stop_feedback_re_enters_the_loop(self) -> None:
+        assert _render(CanonicalHook.STOP, Outcome.feedback("keep going")) == {
             "decision": "continue",
             "reason": "keep going",
         }

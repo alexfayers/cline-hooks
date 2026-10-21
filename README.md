@@ -108,7 +108,8 @@ The package holds, at most:
 | `extension.ts` | A bridge extension, where the frontend runs extensions rather than hook commands |
 
 A frontend speaking another's payload shape subclasses that frontend's spec
-class and overrides only what differs - all Codex and Copilot are.
+class and overrides only what differs - Copilot does. Codex subclasses
+`ClaudeCodeProtocol` itself, since it also reads Claude Code's output JSON.
 
 Handlers see only the canonical vocabulary, a normalised `HookInput`, and the
 capabilities the active `Protocol` exposes; a hook a frontend does not declare

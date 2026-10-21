@@ -1,0 +1,9 @@
+{
+  "hook_event_name": "UserPromptSubmit",
+  "cwd": "/home/user/project",
+  "session_id": "fixture-session-id",
+  "turn_id": "fixture-turn-id",
+  "transcript_path": "/home/user/.claude/projects/fixture/transcript.jsonl",
+  "prompt": "Add a new test for the parser.",
+  "model": "gpt-5-codex"
+}

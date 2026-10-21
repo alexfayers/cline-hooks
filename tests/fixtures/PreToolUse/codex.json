@@ -1,0 +1,13 @@
+{
+  "hook_event_name": "PreToolUse",
+  "cwd": "/home/user/project",
+  "session_id": "fixture-session-id",
+  "turn_id": "fixture-turn-id",
+  "transcript_path": "/home/user/.claude/projects/fixture/transcript.jsonl",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "ls -la",
+    "description": "List files"
+  },
+  "model": "gpt-5-codex"
+}

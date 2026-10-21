@@ -1,21 +1,21 @@
-# ruff: file-ignore[print]
 """Claude Code exit-code protocol."""
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
-import sys
-from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Self
 
 from cline_hooks.core.frontend import SHAPE_SNIFF, backticked, frontend
 from cline_hooks.core.models import SubagentStartFields
+from cline_hooks.core.outcome import Disposition
 from cline_hooks.core.payload import (
     PayloadEnvelope,
     StandardPayloadProtocol,
     ToolParams,
 )
-from cline_hooks.core.protocol import HookRegistration, exit_block
+from cline_hooks.core.protocol import HookRegistration, with_guard
+from cline_hooks.core.response import Response
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
 from cline_hooks.frontends.claude_code.install import ClaudeCodeInstaller
 from cline_hooks.frontends.claude_code.models import (
@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
     from cline_hooks.core.models import HookFields
+    from cline_hooks.core.outcome import Outcome
     from cline_hooks.core.protocol import RawPayload
     from cline_hooks.core.transcript import TranscriptReader
 
@@ -114,6 +115,7 @@ class ClaudeCodeProtocol(ClaudeCodeHookSpec):
     - every other event needs additionalContext to actually reach the model.
     """
 
+    supported_hooks: ClassVar[Mapping[CanonicalHook, HookRegistration]] = with_guard(ClaudeCodeHookSpec.supported_hooks)
     transcript: ClassVar[TranscriptReader] = ClaudeCodeTranscriptReader()
 
     def __init__(self, hook_event_name: str = "Stop") -> None:
@@ -157,20 +159,6 @@ class ClaudeCodeProtocol(ClaudeCodeHookSpec):
             hook_event_name = payload.data.get(cls.hook_event_key, "Stop")
         return cls(hook_event_name)
 
-    def _print_additional_context(self, message: str) -> None:
-        """Print a hookSpecificOutput.additionalContext payload for the current event."""
-        print(
-            json.dumps(
-                {
-                    "hookSpecificOutput": {
-                        "hookEventName": self._hook_event_name,
-                        "additionalContext": message,
-                    },
-                },
-            ),
-            end="",
-        )
-
     def supports_user_message(self) -> bool:
         """Claude Code surfaces a top-level systemMessage directly to the user.
 
@@ -179,27 +167,16 @@ class ClaudeCodeProtocol(ClaudeCodeHookSpec):
         """
         return True
 
-    def allow(self, message: str | None = None, *, system_message: str | None = None) -> NoReturn:
-        """Continue via exit 0, context in hookSpecificOutput and/or systemMessage."""
-        self._allow_with(message, system_message, None)
+    def supports_updated_input(self) -> bool:
+        """Return True, as Claude Code applies hookSpecificOutput.updatedInput to the tool call."""
+        return True
 
-    def allow_with_input(
-        self,
-        updated_input: Mapping[str, Any],
-        message: str | None = None,
-        *,
-        fallback_message: str | None = None,
-        system_message: str | None = None,
-    ) -> NoReturn:
-        """Continue via exit 0, replacing the tool input through hookSpecificOutput.updatedInput."""
-        self._allow_with(message, system_message, updated_input)
-
-    def _allow_with(
+    def _payload(
         self,
         message: str | None,
         system_message: str | None,
         updated_input: Mapping[str, Any] | None,
-    ) -> NoReturn:
+    ) -> dict[str, Any]:
         payload: dict[str, Any] = {}
         if system_message is not None:
             payload["systemMessage"] = system_message
@@ -210,15 +187,18 @@ class ClaudeCodeProtocol(ClaudeCodeHookSpec):
             specific["additionalContext"] = message
         if specific:
             payload["hookSpecificOutput"] = {"hookEventName": self._hook_event_name, **specific}
-        if payload:
-            print(json.dumps(payload), end="")
-        sys.exit(0)
+        return payload
 
-    def block(self, message: str) -> NoReturn:
-        """Block via exit 2, error on stderr, as Claude Code's hooks docs describe."""
-        exit_block(message)
+    def render(self, outcome: Outcome) -> Response:
+        """Render the outcome via Claude Code's hookSpecificOutput/systemMessage contract.
 
-    def feedback(self, message: str) -> NoReturn:
-        """Continue via exit 0, non-error context in hookSpecificOutput."""
-        self._print_additional_context(message)
-        sys.exit(0)
+        Returns:
+            The rendered Response.
+        """
+        if outcome.disposition is Disposition.BLOCK:
+            return super().render(outcome)
+        if outcome.disposition is Disposition.FEEDBACK:
+            payload = self._payload(outcome.message or "", None, None)
+        else:
+            payload = self._payload(outcome.labelled_message, outcome.user_message or None, outcome.updated_input)
+        return Response(stdout=json.dumps(payload) if payload else "")

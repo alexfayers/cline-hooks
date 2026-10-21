@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
@@ -45,6 +45,12 @@ class Outcome:
     def message(self) -> str | None:
         """The notes joined for display, or None if there are none."""
         return "\n\n".join(self.notes) or None
+
+    @property
+    def labelled_message(self) -> str | None:
+        """The joined notes prefixed with `label`, or None if there are none."""
+        message = self.message
+        return f"{self.label}: {message}" if message is not None and self.label else message
 
     @classmethod
     def allow(
@@ -101,6 +107,15 @@ class Outcome:
             A FEEDBACK Outcome.
         """
         return cls(Disposition.FEEDBACK, notes=(message,), label=label)
+
+    def without_input_update(self) -> Outcome:
+        """Drop the input update, showing the fallback notes after the labelled notes instead.
+
+        Returns:
+            An Outcome with no `updated_input`, whose notes carry the fallback context.
+        """
+        notes = tuple(note for note in (self.labelled_message, *self.fallback_notes) if note)
+        return replace(self, notes=notes, label="", updated_input=None, fallback_notes=())
 
     def merge(self, other: Outcome) -> Outcome:
         """Combine this outcome with a later contributor's outcome.

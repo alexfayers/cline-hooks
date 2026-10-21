@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-import sys
-from typing import TYPE_CHECKING, ClassVar, NoReturn, get_args
+from typing import TYPE_CHECKING, ClassVar, get_args
 
 from pydantic import BaseModel, model_validator
 
@@ -46,12 +45,6 @@ class _ConcreteProtocol(StandardPayloadProtocol):
     @classmethod
     def detect(cls, payload: RawPayload) -> bool:
         return False
-
-    def allow(self, message: str | None = None, *, system_message: str | None = None) -> NoReturn:
-        sys.exit(0)
-
-    def block(self, message: str) -> NoReturn:
-        sys.exit(2)
 
 
 class _BaseSpec(_ConcreteProtocol):
