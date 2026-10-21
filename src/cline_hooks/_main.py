@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+from logging.handlers import RotatingFileHandler
 import sys
 from typing import TYPE_CHECKING, NoReturn
 
@@ -40,10 +41,14 @@ class _InvocationContextFilter(logging.Filter):
 
 _invocation_filter = _InvocationContextFilter()
 
+_LOG_MAX_BYTES = 10 * 1024 * 1024
+_LOG_BACKUP_COUNT = 3
+
 logging.basicConfig(
     level=logging.DEBUG,
-    filename=get_data_dir() / "cline-hooks.log",
-    filemode="a",
+    handlers=[
+        RotatingFileHandler(get_data_dir() / "cline-hooks.log", maxBytes=_LOG_MAX_BYTES, backupCount=_LOG_BACKUP_COUNT)
+    ],
     format="%(asctime)s %(levelname)s %(name)s[%(context)s]: %(message)s",
     datefmt="%Y-%m-%dT%H:%M:%S",
 )
