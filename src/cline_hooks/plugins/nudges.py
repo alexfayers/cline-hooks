@@ -35,8 +35,6 @@ class _TurnsState:
 
 _store: PluginStateStore[_TurnsState] = PluginStateStore("turns-state.json", _TurnsState)
 
-_SCOPE_CHECK_THRESHOLD = 80
-_REMINDER_INTERVAL = 40
 _AGENT_NUDGE_THRESHOLD = 50
 
 
@@ -55,22 +53,6 @@ def increment(task_id: str) -> int:
         return state.count
 
     return _store.update(task_id, bump)
-
-
-def should_remind(turn_count: int) -> bool:
-    """Check whether the current turn count should trigger a scope reminder.
-
-    Triggers at the threshold, then every REMINDER_INTERVAL turns after.
-
-    Args:
-        turn_count: The current turn count.
-
-    Returns:
-        True if a scope-check reminder should be shown.
-    """
-    if turn_count < _SCOPE_CHECK_THRESHOLD:
-        return False
-    return (turn_count - _SCOPE_CHECK_THRESHOLD) % _REMINDER_INTERVAL == 0
 
 
 def should_nudge_agents(turn_count: int, agent_count: int) -> bool:
@@ -173,13 +155,6 @@ _INFO_PATTERNS: list[re.Pattern[str]] = [
         r"\bremember (to|this|that|how)\b",
     ]
 ]
-
-_SCOPE_CHECK_REMINDER = (
-    "SESSION LENGTH CHECK: This session has reached {turns} user turns. "
-    "MUST pause and assess: is this still one coherent change, or has scope crept? "
-    "Where multiple unrelated changes have accumulated, MUST commit what's done, note remaining work as TODOs, "
-    "and suggest splitting into a new session."
-)
 
 # Update prompts/shared/rules/hooks.md if this correction reminder changes.
 _CORRECTION_REMINDER = (
@@ -382,8 +357,6 @@ class NudgesPlugin(HooksPlugin):
             return None
         notes: list[str] = []
         turn_count = increment(task_id)
-        if should_remind(turn_count):
-            notes.append(_SCOPE_CHECK_REMINDER.format(turns=turn_count))
         if should_nudge_agents(turn_count, agent_use_count(task_id)):
             notes.append(_AGENT_NUDGE_REMINDER.format(turns=turn_count))
         hour = local_now().hour
