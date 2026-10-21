@@ -76,7 +76,7 @@
 | src/cline\_hooks/plugins/handback\_rescue.py            |       22 |        0 |        8 |        0 |    100% |           |
 | src/cline\_hooks/plugins/handoff\_ack.py                |      144 |        2 |       56 |        1 |     98% |74-75, 276-\>278 |
 | src/cline\_hooks/plugins/managed\_files.py              |       53 |        3 |       18 |        1 |     94% | 31, 48-49 |
-| src/cline\_hooks/plugins/nudges.py                      |      157 |       18 |       64 |        5 |     87% |219-225, 237-249, 310-\>312, 335, 340-\>342, 362, 382 |
+| src/cline\_hooks/plugins/nudges.py                      |      148 |       18 |       60 |        5 |     86% |194-200, 212-224, 285-\>287, 310, 315-\>317, 337, 357 |
 | src/cline\_hooks/plugins/persistence.py                 |       23 |        0 |        8 |        0 |    100% |           |
 | src/cline\_hooks/plugins/plan\_handoff.py               |       67 |        1 |       28 |        2 |     97% |144, 153-\>155 |
 | src/cline\_hooks/plugins/research.py                    |      105 |        6 |       32 |        3 |     93% |127, 156-158, 217, 267-\>269, 274 |
@@ -155,9 +155,9 @@
 | tests/test\_skill\_tracker.py                           |       86 |        0 |        8 |        0 |    100% |           |
 | tests/test\_state.py                                    |       67 |        0 |        4 |        0 |    100% |           |
 | tests/test\_state\_jsonfile.py                          |       65 |        0 |        6 |        0 |    100% |           |
-| tests/test\_turns.py                                    |      104 |        1 |       12 |        1 |     98% |       164 |
+| tests/test\_turns.py                                    |       57 |        1 |        6 |        0 |     98% |        22 |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **11417** |  **194** | **1332** |   **99** | **98%** |           |
+| **TOTAL**                                               | **11361** |  **194** | **1322** |   **98** | **98%** |           |
 
 
 ## Setup coverage badge
