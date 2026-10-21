@@ -52,7 +52,7 @@
 | src/cline\_hooks/frontends/pi/\_\_init\_\_.py           |        3 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/frontends/pi/install.py                |       25 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/frontends/pi/models.py                 |       54 |        1 |        2 |        1 |     96% |       127 |
-| src/cline\_hooks/frontends/pi/protocol.py               |       38 |        2 |        2 |        1 |     92% |  114, 119 |
+| src/cline\_hooks/frontends/pi/protocol.py               |       42 |        2 |        4 |        2 |     91% |  114, 128 |
 | src/cline\_hooks/frontends/pi/transcript.py             |       51 |        4 |       16 |        2 |     91% |78-79, 87, 96 |
 | src/cline\_hooks/handlers/\_\_init\_\_.py               |        3 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/handlers/commands.py                   |      141 |        5 |       72 |        8 |     94% |96, 139, 143, 147, 192, 201-\>197, 203-\>197, 204-\>203 |
@@ -133,7 +133,7 @@
 | tests/test\_memory\_tracker.py                          |       66 |        0 |        4 |        0 |    100% |           |
 | tests/test\_models.py                                   |      108 |        0 |        4 |        0 |    100% |           |
 | tests/test\_models\_kiro.py                             |      213 |        0 |        2 |        0 |    100% |           |
-| tests/test\_pi\_extension.py                            |       31 |        0 |        0 |        0 |    100% |           |
+| tests/test\_pi\_extension.py                            |       35 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plan.py                                     |       45 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugin.py                                   |      168 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugin\_entry\_points.py                    |       80 |        0 |        2 |        0 |    100% |           |
@@ -150,14 +150,14 @@
 | tests/test\_readme\_matrix.py                           |       40 |        0 |        6 |        0 |    100% |           |
 | tests/test\_registry.py                                 |       49 |        5 |        0 |        0 |     90% |24, 30, 40, 44, 68 |
 | tests/test\_research\_tracker.py                        |       50 |        0 |        0 |        0 |    100% |           |
-| tests/test\_response.py                                 |      230 |        0 |        0 |        0 |    100% |           |
+| tests/test\_response.py                                 |      239 |        0 |        0 |        0 |    100% |           |
 | tests/test\_retrospective\_tracker.py                   |       78 |        0 |       10 |        0 |    100% |           |
 | tests/test\_skill\_tracker.py                           |       86 |        0 |        8 |        0 |    100% |           |
 | tests/test\_state.py                                    |       67 |        0 |        4 |        0 |    100% |           |
 | tests/test\_state\_jsonfile.py                          |       65 |        0 |        6 |        0 |    100% |           |
 | tests/test\_turns.py                                    |      104 |        1 |       12 |        1 |     98% |       164 |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **11400** |  **194** | **1330** |   **97** | **98%** |           |
+| **TOTAL**                                               | **11417** |  **194** | **1332** |   **98** | **98%** |           |
 
 
 ## Setup coverage badge
