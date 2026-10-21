@@ -114,9 +114,19 @@ class PiProtocol(StandardPayloadProtocol):
             return False
         return data.get(cls.hook_event_key) in cls.native_hook_names()
 
+    def supports_user_message(self) -> bool:
+        """Pi surfaces a user message through the bridge extension.
+
+        Returns:
+            True, since the bridge relays it to `ctx.ui.notify`.
+        """
+        return True
+
     def allow(self, message: str | None = None, *, system_message: str | None = None) -> NoReturn:
-        """Allow via exit 0, context on stdout."""
-        exit_allow(message)
+        """Allow via exit 0, context on stdout, or JSON when there is a user message."""
+        if system_message is None:
+            exit_allow(message)
+        exit_allow(json.dumps({"message": message, "system_message": system_message}))
 
     def allow_with_input(
         self,

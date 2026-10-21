@@ -304,3 +304,15 @@ class TestEmitInputUpdate:
     def test_feedback_ignores_the_updated_input(self) -> None:
         outcome = Outcome.feedback("trace").merge(Outcome.allow(updated_input={"task": "new"}))
         assert _capture_emit(outcome) == {"cancel": True, "errorMessage": "trace"}
+
+
+class TestPiProtocol:
+    def test_supports_user_message_true(self) -> None:
+        assert PiProtocol().supports_user_message() is True
+
+    def test_allow_emits_context_and_user_text_as_json(self) -> None:
+        buf = StringIO()
+        with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
+            PiProtocol().allow("ctx text", system_message="user text")
+        assert exc.value.code == 0
+        assert json.loads(buf.getvalue()) == {"message": "ctx text", "system_message": "user text"}

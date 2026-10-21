@@ -18,7 +18,8 @@ def _run_extension(tmp_path: Path, hook_stdout: str, tool_input: dict[str, Any])
     binary = tmp_path / "cline-hook"
     binary.write_text(
         f"#!/bin/sh\ncase \"$(cat)\" in *'\"hook_event_name\":\"tool_call\"'*) printf '%s' '{hook_stdout}';;"
-        ' *\'"source":"compact"\'*) printf recap;; esac\n',
+        ' *\'"source":"compact"\'*) printf recap;;'
+        ' *\'"source":"startup"\'*) printf \'%s\' \'{"message":"ctx","system_message":"hello user"}\';; esac\n',
         encoding="utf-8",
     )
     binary.chmod(0o755)
@@ -50,4 +51,10 @@ def test_plain_text_context_leaves_the_tool_input_alone(tmp_path: Path) -> None:
 
 
 def test_a_compaction_is_relayed_as_a_compact_task_start(tmp_path: Path) -> None:
-    assert _run_extension(tmp_path, "", {"task": "do it"})["queued"] == ["recap"]
+    assert _run_extension(tmp_path, "", {"task": "do it"})["queued"][-1] == "recap"
+
+
+def test_a_session_start_user_message_is_shown_and_its_context_queued(tmp_path: Path) -> None:
+    result = _run_extension(tmp_path, "", {"task": "do it"})
+    assert result["notified"] == ["hello user"]
+    assert "ctx" in result["queued"]
