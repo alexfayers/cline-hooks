@@ -681,7 +681,7 @@ class TestLargeFileReadGuard:
 
 class TestRequiredSkillGuardIntegration:
     def test_command_without_recorded_skill_is_blocked(self) -> None:
-        result = _run("execute_command", {"command": "git status"})
+        result = _run("execute_command", {"command": "git commit -m x"})
         assert result is not None
         error = cast("str", result.get("errorMessage", ""))
         assert "git-usage" in error
@@ -689,7 +689,7 @@ class TestRequiredSkillGuardIntegration:
 
     def test_command_with_recorded_skill_is_allowed(self) -> None:
         record_skill("task-1", "git-usage")
-        result = _run("execute_command", {"command": "git status"})
+        result = _run("execute_command", {"command": "git commit -m x"})
         assert result is None
 
 
@@ -797,7 +797,7 @@ class TestPreShellPluginScope:
         assert "blocked by plugin" in cast("str", result.get("errorMessage", ""))
 
 
-_RM_F_MESSAGE = "rm -f is not allowed. MUST drop the -f flag."
+_RM_F_MESSAGE = "rm -f is not allowed. MUST drop -f (rm, or rm -r for a directory)."
 _TAIL_BUILD_MESSAGE = "MUST NOT filter build output with tail - MUST capture the full output."
 
 
