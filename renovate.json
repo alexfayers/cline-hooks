@@ -6,6 +6,7 @@
     "group:allNonMajor"
   ],
   "minimumReleaseAge": "3 days",
+  "groupSingleUpdates": true,
   "prConcurrentLimit": 4,
   "automerge": true,
   "platformAutomerge": true,
@@ -27,7 +28,6 @@
       "matchManagers": [
         "!github-actions"
       ],
-      "groupName": "major updates",
       "groupSlug": "major-updates",
       "addLabels": [
         "needs-review"
