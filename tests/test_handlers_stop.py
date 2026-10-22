@@ -362,6 +362,12 @@ class TestResearchTraceByAgent:
         assert "https://example.com/docs" in output
         assert "FULL" not in output
 
+    def test_pi_main_session_gets_no_trace_so_it_is_not_prompted_for_another_turn(self) -> None:
+        record_research("native-1", "WebFetch", "https://example.com/docs")
+        output = _run_payload(_NATIVE_STOP["pi"])
+        assert "RESEARCH TRACE" not in output
+        assert get_research("native-1") == []
+
     def test_pi_subagent_is_told_to_repeat_its_report(self) -> None:
         record_research("native-1:1a2b3c4d", "WebFetch", "https://example.com/docs")
         output = _run_payload({**_NATIVE_STOP["pi"], "session_name": "worker#1a2b3c4d"})

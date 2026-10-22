@@ -21,6 +21,8 @@ logger = logging.getLogger("hooks.ResearchPlugin")
 
 RESEARCH_TRACE_CAP = 15
 
+SUBAGENT_ONLY_TRACE_FRONTENDS = frozenset({"pi"})
+
 SUBAGENT_REPORT_SUFFIX = (
     " If your reply is a report or result, repeat it in FULL and append the sources line at the end - "
     "never reply with only the sources line."
@@ -271,6 +273,10 @@ class ResearchPlugin(HooksPlugin):
             return None
         task_id = kwargs.get("task_id")
         if not isinstance(task_id, str):
+            return None
+        spec = get_protocol().frontend_spec
+        if spec and spec.name in SUBAGENT_ONLY_TRACE_FRONTENDS and not is_subagent(kwargs):
+            drain_research(task_id)
             return None
         trace = format_research_trace(drain_research(task_id), research_trace_header(subagent=is_subagent(kwargs)))
         if not trace:

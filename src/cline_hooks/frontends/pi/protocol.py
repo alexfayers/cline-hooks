@@ -15,6 +15,7 @@ from cline_hooks.frontends.pi.models import (
     PiEditParams,
     PiEnvelope,
     PiPostToolUse,
+    PiPreToolUse,
     PiReadParams,
     PiStop,
     PiTaskStart,
@@ -78,6 +79,7 @@ class PiProtocol(StandardPayloadProtocol):
     }
     envelope_model: ClassVar[type[PayloadEnvelope]] = PiEnvelope
     hook_models: ClassVar[Mapping[CanonicalHook, type[HookFields]]] = {
+        CanonicalHook.PRE_TOOL_USE: PiPreToolUse,
         CanonicalHook.POST_TOOL_USE: PiPostToolUse,
         CanonicalHook.TASK_START: PiTaskStart,
         CanonicalHook.USER_PROMPT_SUBMIT: PiUserPromptSubmit,

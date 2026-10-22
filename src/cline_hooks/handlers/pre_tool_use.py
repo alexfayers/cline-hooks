@@ -132,6 +132,7 @@ def _pre_mcp(hook: HookInputPreToolUse, fields: PreToolUseFields, plugins: list[
         agent_type=hook.agentType,
         agent_id=hook.agentId,
         is_teammate=hook.isTeammate,
+        **fields.frontend_kwargs(),
     )
 
 
@@ -199,6 +200,7 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> Outcome:
         agent_type=hook.agentType,
         agent_id=hook.agentId,
         is_teammate=hook.isTeammate,
+        **hook.preToolUse.frontend_kwargs(),
     )
 
     handler = TOOL_HANDLERS.get((CanonicalHook.PRE_TOOL_USE, tool_name))

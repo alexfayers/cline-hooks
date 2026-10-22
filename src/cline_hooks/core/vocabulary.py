@@ -21,6 +21,7 @@ class CanonicalTool(StrEnum):
     WEB_FETCH = "web_fetch"
     WEB_SEARCH = "web_search"
     SEND_MESSAGE = "send_message"
+    CODEMODE = "codemode"
 
 
 class CanonicalHook(StrEnum):

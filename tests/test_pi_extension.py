@@ -48,6 +48,7 @@ def test_plain_text_context_leaves_the_tool_input_alone(tmp_path: Path) -> None:
     result = _run_extension(tmp_path, "REMINDER: plain", {"task": "do it"})
     assert result["input"] == {"task": "do it"}
     assert result["content"][-1]["text"] == "REMINDER: plain"
+    assert result["structuredContent"] == {"ok": True}
 
 
 def test_a_compaction_is_relayed_as_a_compact_task_start(tmp_path: Path) -> None:

@@ -128,7 +128,12 @@ export default function (pi: ExtensionAPI) {
     });
     const notes = [pendingToolContext.get(event.toolCallId), message].filter(Boolean).join("\n\n");
     pendingToolContext.delete(event.toolCallId);
-    if (notes) return { content: [...event.content, { type: "text" as const, text: notes }] };
+    if (notes) {
+      return {
+        content: [...event.content, { type: "text" as const, text: notes }],
+        ...(event.structuredContent !== undefined && { structuredContent: event.structuredContent }),
+      };
+    }
   });
 
   pi.on("session_before_compact", async (event, ctx) => {
