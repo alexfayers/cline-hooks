@@ -19,6 +19,7 @@ class CopilotInstaller(JsonHookInstaller):
     """
 
     help: ClassVar[str] = "Install GitHub Copilot hooks into ~/.copilot/hooks/"
+    runs_in_shell: ClassVar[bool] = False
 
     def config_path(self, target: str | None) -> Path:
         """Return cline-hooks' own file in Copilot's hooks directory.

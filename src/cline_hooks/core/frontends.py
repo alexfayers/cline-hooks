@@ -14,7 +14,7 @@ from cline_hooks.core.frontend import REGISTERED_FRONTENDS, FrontendSpec
 import cline_hooks.frontends
 
 if TYPE_CHECKING:
-    from cline_hooks.core.protocol import Protocol, RawPayload
+    from cline_hooks.core.protocol import Protocol
 
 
 def _discover() -> tuple[FrontendSpec, ...]:
@@ -52,19 +52,3 @@ DETECTION_ORDER: tuple[FrontendSpec, ...] = tuple(
 )
 DEFAULT_FRONTEND: FrontendSpec = _default_frontend()
 DEFAULT_PROTOCOL: type[Protocol] = DEFAULT_FRONTEND.protocol
-
-
-def select_protocol(payload: RawPayload) -> type[Protocol]:
-    """Return the frontend protocol class that detects this payload, or the default.
-
-    Args:
-        payload: The raw hook invocation data.
-
-    Returns:
-        The first protocol in detection order to claim the payload, else the
-        default frontend's protocol.
-    """
-    for spec in DETECTION_ORDER:
-        if spec.protocol.detect(payload):
-            return spec.protocol
-    return DEFAULT_PROTOCOL

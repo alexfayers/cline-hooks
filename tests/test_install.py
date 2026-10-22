@@ -41,6 +41,10 @@ def _patch_script_name(name: str) -> Iterator[None]:
         yield
 
 
+def _cmd(spec: FrontendSpec, binary: str) -> str:
+    return f"CLINE_HOOKS_FRONTEND={spec.name} {binary}" if spec.name in {"claude-code", "codex", "kiro"} else binary
+
+
 _JSON_FRONTENDS = [spec for spec in FRONTENDS if isinstance(spec.installer, JsonHookInstaller)]
 
 
@@ -148,7 +152,7 @@ class TestJsonHookInstallers:
         _seed(spec, home)
         config = _install(spec, home)
         for event in config[_installer(spec).root_key]:
-            assert _EXPECTED_BINARY in _commands(spec, config, event)
+            assert _cmd(spec, _EXPECTED_BINARY) in _commands(spec, config, event)
 
     def test_preserves_unrelated_config_keys(self, spec: FrontendSpec, home: Path) -> None:
         _seed(spec, home, {"other": "value"})
@@ -166,7 +170,7 @@ class TestJsonHookInstallers:
         config = _install(spec, home)
         commands = _commands(spec, config, event)
         assert "/other/tool" in commands
-        assert _EXPECTED_BINARY in commands
+        assert _cmd(spec, _EXPECTED_BINARY) in commands
 
     def test_idempotent_when_already_installed(self, spec: FrontendSpec, home: Path) -> None:
         _seed(spec, home)
@@ -174,7 +178,7 @@ class TestJsonHookInstallers:
         spec.install(target)
         config = _install(spec, home)
         event = _first_event(spec)
-        assert _commands(spec, config, event).count(_EXPECTED_BINARY) == 1
+        assert _commands(spec, config, event).count(_cmd(spec, _EXPECTED_BINARY)) == 1
 
     def test_rewrites_a_stale_cline_hook_path(self, spec: FrontendSpec, home: Path) -> None:
         installer = _installer(spec)
@@ -184,7 +188,7 @@ class TestJsonHookInstallers:
         _seed(spec, home, {installer.root_key: {event: [other_env]}})
 
         config = _install(spec, home)
-        assert _commands(spec, config, event) == [_EXPECTED_BINARY]
+        assert _commands(spec, config, event) == [_cmd(spec, _EXPECTED_BINARY)]
 
     def test_leaves_a_cline_hook_path_that_still_exists(self, spec: FrontendSpec, home: Path) -> None:
         installer = _installer(spec)
@@ -196,7 +200,7 @@ class TestJsonHookInstallers:
         _seed(spec, home, {installer.root_key: {event: [installer.build_entry(working, registration)]}})
 
         config = _install(spec, home)
-        assert _commands(spec, config, event) == [str(working)]
+        assert _commands(spec, config, event) == [_cmd(spec, str(working))]
 
     def test_force_rewrites_a_cline_hook_path_that_still_exists(self, spec: FrontendSpec, home: Path) -> None:
         installer = _installer(spec)
@@ -209,7 +213,7 @@ class TestJsonHookInstallers:
 
         spec.install(_target_for(spec, home), force=True)
         config = json.loads(config_path.read_text(encoding="utf-8"))
-        assert _commands(spec, config, event) == [_EXPECTED_BINARY]
+        assert _commands(spec, config, event) == [_cmd(spec, _EXPECTED_BINARY)]
 
     def test_rewrite_keeps_the_entry_s_other_fields(self, spec: FrontendSpec, home: Path) -> None:
         installer = _installer(spec)
@@ -259,7 +263,7 @@ class TestKiroInstaller:
         _seed(spec, home, {"name": "test-agent", "tools": ["*"]})
         config = _install(spec, home)
         entry = config["hooks"]["preToolUse"][0]
-        assert entry["command"] == _EXPECTED_BINARY
+        assert entry["command"] == _cmd(spec, _EXPECTED_BINARY)
         assert entry["description"] == "cline-hooks preToolUse"
         assert entry["matcher"] == "*"
         assert "matcher" not in config["hooks"]["agentSpawn"][0]

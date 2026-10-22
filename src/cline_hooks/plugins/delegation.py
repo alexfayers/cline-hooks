@@ -6,9 +6,6 @@ import contextlib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-import bashlex
-import bashlex.errors
-
 from cline_hooks.config import agent_teams_enabled
 from cline_hooks.core.hook_kwargs import PreShellKwargs, PreToolUseKwargs
 from cline_hooks.core.plugin import HookResult, HooksPlugin, is_subagent
@@ -147,6 +144,8 @@ def _is_read_only_command(command: str) -> bool:
     """
     if ">" in command:
         return False
+    import bashlex.errors  # ruff: ignore[import-outside-top-level]
+
     commands: list[ParsedCommand] = []
     with contextlib.suppress(bashlex.errors.ParsingError):
         commands = extract_commands(bashlex.parse(command))

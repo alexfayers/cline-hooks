@@ -25,7 +25,7 @@ function runHook(ctx: ExtensionContext, payload: Record<string, unknown>): Promi
     ...payload,
   });
   return new Promise((resolve) => {
-    const child = spawn(BINARY, [], { stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn(BINARY, [], { env: { ...process.env, CLINE_HOOKS_FRONTEND: "pi" } });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk) => (stdout += chunk));

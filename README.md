@@ -44,6 +44,8 @@ relays pi's extension events to `cline-hook`, including `session_compact` as a
 
 State files and the log live in the platform data directory. Set `CLINE_HOOKS_DATA_DIR` to use another.
 
+Set `CLINE_HOOKS_FRONTEND` to a frontend name to load only that frontend. Unset, `cline-hook` detects it from the payload.
+
 ### List installed plugins
 
 ```bash

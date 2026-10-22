@@ -7,14 +7,18 @@ Imports no frontend, so a frontend module can import this one freely;
 from __future__ import annotations
 
 from dataclasses import dataclass
+import importlib
+import pkgutil
 from typing import TYPE_CHECKING, TypeVar
+
+import cline_hooks.frontends
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
 
     from cline_hooks.core.install import Installer
-    from cline_hooks.core.protocol import Protocol
+    from cline_hooks.core.protocol import Protocol, RawPayload
 
 _ProtocolT = TypeVar("_ProtocolT", bound="type[Protocol]")
 
@@ -22,6 +26,8 @@ _ProtocolT = TypeVar("_ProtocolT", bound="type[Protocol]")
 # payloads belonging to a frontend with an exact signal.
 EXACT_MATCH = 10
 SHAPE_SNIFF = 0
+
+FRONTEND_ENV_KEY = "CLINE_HOOKS_FRONTEND"
 
 
 @dataclass(frozen=True)
@@ -113,3 +119,20 @@ def frontend(  # ruff: ignore[too-many-arguments]
         return cls
 
     return decorator
+
+
+def select_protocol(payload: RawPayload) -> type[Protocol]:
+    """Return the protocol of the frontend the environment names, else the one that detects this payload.
+
+    Returns:
+        The protocol, or the default frontend's where nothing claims the payload.
+    """
+    name = payload.env.get(FRONTEND_ENV_KEY, "")
+    package = name.replace("-", "_")
+    if package in {module.name for module in pkgutil.iter_modules(cline_hooks.frontends.__path__)}:
+        importlib.import_module(f"cline_hooks.frontends.{package}")
+        if name in REGISTERED_FRONTENDS:
+            return REGISTERED_FRONTENDS[name].protocol
+    from cline_hooks.core.frontends import DEFAULT_PROTOCOL, DETECTION_ORDER  # ruff: ignore[import-outside-top-level]
+
+    return next((spec.protocol for spec in DETECTION_ORDER if spec.protocol.detect(payload)), DEFAULT_PROTOCOL)
