@@ -3,8 +3,8 @@ name: Dependencies
 on:
   pull_request_target:
     types: [opened, edited, synchronize, closed, reopened]
-  schedule:
-    - cron: '*/15 * * * *'
+  issues:
+    types: [closed, reopened]
   workflow_dispatch:
   repository_dispatch:
     types: [dependencies-recheck]
