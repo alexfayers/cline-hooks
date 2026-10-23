@@ -11,9 +11,10 @@ import pytest
 from cline_hooks.core.plugin import HookResult, HooksPlugin, hookimpl
 from cline_hooks.core.protocol import RawPayload, set_protocol
 from cline_hooks.core.response import emit
-from cline_hooks.core.vocabulary import PluginScope
+from cline_hooks.core.vocabulary import CanonicalHook, PluginScope
 from cline_hooks.frontends.claude_code.protocol import ClaudeCodeProtocol
 from cline_hooks.frontends.cline import ClineProtocol
+from cline_hooks.frontends.pi import PiProtocol
 from cline_hooks.handlers.commands import CommandRule
 from cline_hooks.handlers.pre_tool_use import handle_pre_tool_use
 from cline_hooks.plugins.build_tools import BuildToolsSpec
@@ -752,6 +753,23 @@ class TestAttemptCompletionDirtyTreeGuard:
             workspace_roots=[str(tmp_path)],
         )
         assert result is None
+
+
+@pytest.mark.parametrize(
+    ("tool_name", "scopes"),
+    [
+        ("mcp__x__y", {CanonicalHook.PRE_TOOL_USE, PluginScope.PRE_MCP_TOOL_USE}),
+        ("codemode", {CanonicalHook.PRE_TOOL_USE}),
+        ("process", set()),
+    ],
+)
+def test_pi_tool_calls_reach_plugins_with_a_parent_id(tool_name: str, scopes: set[str], mocker: MockerFixture) -> None:
+    collect = mocker.patch("cline_hooks.handlers.pre_tool_use.collect_hook_results", return_value=HookResult())
+    payload = {"hook_event_name": "tool_call", "session_id": "t", "tool_name": tool_name, "parent_tool_call_id": "c1"}
+    set_protocol(PiProtocol())
+    handle_pre_tool_use(cast("HookInputPreToolUse", PiProtocol().parse(RawPayload.from_stdin(json.dumps(payload)))))
+    assert {call.args[1] for call in collect.call_args_list} == scopes
+    assert all(call.kwargs["parent_tool_call_id"] == "c1" for call in collect.call_args_list)
 
 
 class TestPreShellPluginScope:
