@@ -22,6 +22,7 @@ class CanonicalTool(StrEnum):
     WEB_SEARCH = "web_search"
     SEND_MESSAGE = "send_message"
     CODEMODE = "codemode"
+    BOOKKEEPING = "bookkeeping"
 
 
 class CanonicalHook(StrEnum):
@@ -65,7 +66,8 @@ FILE_READ_TOOLS = frozenset({CanonicalTool.READ})
 SKILL_TOOLS = frozenset({CanonicalTool.SKILL})
 AGENT_SPAWN_TOOLS = frozenset({CanonicalTool.SPAWN_AGENT})
 MESSAGE_TOOLS = frozenset({CanonicalTool.SEND_MESSAGE})
+BOOKKEEPING_TOOLS = frozenset({CanonicalTool.BOOKKEEPING})
 PLAN_EXIT_TOOLS = frozenset({CanonicalTool.PLAN_EXIT, CanonicalTool.PLAN_MODE_RESPOND})
-KNOWN_TOOLS = frozenset(CanonicalTool)
+KNOWN_TOOLS = frozenset(CanonicalTool) - BOOKKEEPING_TOOLS
 
 NO_RESET_TASK_START_SOURCES = frozenset({TaskSource.RESUME, TaskSource.COMPACT})

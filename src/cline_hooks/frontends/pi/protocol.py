@@ -76,6 +76,10 @@ class PiProtocol(StandardPayloadProtocol):
         "fetch_content": CanonicalTool.WEB_FETCH,
         "get_search_content": CanonicalTool.WEB_FETCH,
         "source_check": CanonicalTool.WEB_SEARCH,
+        "tower_do": CanonicalTool.BOOKKEEPING,
+        "tower_do_patch": CanonicalTool.BOOKKEEPING,
+        "tower_do_status": CanonicalTool.BOOKKEEPING,
+        "tower_do_talk": CanonicalTool.BOOKKEEPING,
     }
     envelope_model: ClassVar[type[PayloadEnvelope]] = PiEnvelope
     hook_models: ClassVar[Mapping[CanonicalHook, type[HookFields]]] = {

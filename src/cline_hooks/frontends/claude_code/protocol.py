@@ -69,6 +69,11 @@ class ClaudeCodeHookSpec(StandardPayloadProtocol):
         "WebFetch": CanonicalTool.WEB_FETCH,
         "WebSearch": CanonicalTool.WEB_SEARCH,
         "SendMessage": CanonicalTool.SEND_MESSAGE,
+        "TaskCreate": CanonicalTool.BOOKKEEPING,
+        "TaskUpdate": CanonicalTool.BOOKKEEPING,
+        "TaskList": CanonicalTool.BOOKKEEPING,
+        "TaskGet": CanonicalTool.BOOKKEEPING,
+        "ToolSearch": CanonicalTool.BOOKKEEPING,
     }
     envelope_model: ClassVar[type[PayloadEnvelope]] = PayloadEnvelope
     hook_models: ClassVar[Mapping[CanonicalHook, type[HookFields]]] = {
