@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+import pytest
+
 from cline_hooks.core.plugin import HookResult
 from cline_hooks.core.vocabulary import CanonicalHook
 from cline_hooks.plugins.context_usage import (
@@ -100,3 +102,13 @@ class TestSubagentStopReset:
         should_nudge_context("t:a", _BAND_SIZE)
         ContextUsagePlugin().on_hook(CanonicalHook.SUBAGENT_STOP, logger=logging.getLogger("test"), task_id="t:a")
         assert should_nudge_context("t:a", _BAND_SIZE) is False
+
+
+class TestTaskStartReset:
+    @pytest.mark.parametrize(("source", "renudges"), [("compact", True), ("clear", True), ("resume", False)])
+    def test_only_a_context_dropping_source_resets_the_bands(self, source: str, renudges: bool) -> None:
+        should_nudge_context("t", CONTEXT_REDUCED_THRESHOLD)
+        ContextUsagePlugin().on_hook(
+            CanonicalHook.TASK_START, logger=logging.getLogger("test"), task_id="t", source=source
+        )
+        assert should_nudge_context("t", _BAND_SIZE) is renudges

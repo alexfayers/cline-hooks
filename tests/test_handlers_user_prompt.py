@@ -563,7 +563,7 @@ class TestContextNudge:
         result = _run_with_transcript(_JUST_ABOVE_SEVERE)
         assert result is not None
         context = cast("str", result.get("contextModification", ""))
-        assert "badly degraded" in context
+        assert "Context budget exhausted" in context
         assert f"{_JUST_ABOVE_SEVERE:,}" in context
 
     def test_reduced_nudge_does_not_refire_within_same_band(self) -> None:
@@ -574,13 +574,13 @@ class TestContextNudge:
         if second is not None:
             assert "Accuracy degrading" not in cast("str", second.get("contextModification", ""))
 
-    def test_next_band_in_same_tier_omits_boundary_text(self) -> None:
+    def test_next_band_in_same_tier_repeats_the_tier_text(self) -> None:
         _run_with_transcript(_JUST_ABOVE_REDUCED)
         result = _run_with_transcript(_NEXT_BAND_AFTER_REDUCED)
         assert result is not None
         context = cast("str", result.get("contextModification", ""))
-        assert "Accuracy degrading" not in context
-        assert "CONTEXT STATUS" in context
+        assert "Accuracy degrading" in context
+        assert f"{_NEXT_BAND_AFTER_REDUCED:,}" in context
 
     def test_info_note_fires_once_per_band(self) -> None:
         first = _run_with_transcript(_BELOW_REDUCED)
@@ -615,7 +615,7 @@ class TestContextNudgeWindow:
             contextlib.suppress(SystemExit),
         ):
             handle_user_prompt_submit(cast("HookInputUserPromptSubmit", hook))
-        assert "210,000 / 1,000,000 tokens (21.0%)" in cast("str", json.loads(output[0])["contextModification"])
+        assert "210,000 / 500,000 tokens (42.0%)" in cast("str", json.loads(output[0])["contextModification"])
 
 
 class TestPlanHandoffNudge:

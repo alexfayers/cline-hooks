@@ -216,11 +216,11 @@ class TestHandleTaskStart:
             self._run(_task_start([str(tmp_path)], source="compact"))
         assert has_agent_use("task-1")
 
-    def test_context_band_preserved_on_compact(self, tmp_path: Path) -> None:
+    def test_context_band_reset_on_compact(self, tmp_path: Path) -> None:
         should_nudge_context("task-1", 210_000)
         with patch("cline_hooks.plugins.session_context.get_git_context", return_value=None):
             self._run(_task_start([str(tmp_path)], source="compact"))
-        assert should_nudge_context("task-1", 210_000) is False
+        assert should_nudge_context("task-1", 210_000) is True
 
     def test_turns_preserved_on_compact(self, tmp_path: Path) -> None:
         increment("task-1")
