@@ -8,7 +8,7 @@ from pathlib import Path
 import sys
 from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, Self
 
-from cline_hooks.core.frontend import SHAPE_SNIFF, backticked, frontend
+from cline_hooks.core.frontend import SHAPE_SNIFF, frontend
 from cline_hooks.core.models import SubagentStartFields
 from cline_hooks.core.payload import (
     PayloadEnvelope,
@@ -30,7 +30,7 @@ from cline_hooks.frontends.claude_code.models import (
 from cline_hooks.frontends.claude_code.transcript import ClaudeCodeTranscriptReader
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Mapping
 
     from cline_hooks.core.models import HookFields
     from cline_hooks.core.protocol import RawPayload
@@ -89,13 +89,6 @@ class ClaudeCodeHookSpec(StandardPayloadProtocol):
     mcp_separators: ClassVar[tuple[str, ...]] = ("__",)
 
 
-def _skill_hint(skills: Sequence[str]) -> str:
-    return (
-        f"Skills that may fit this task: {backticked(skills)}. "
-        "If one applies, load it with the Skill tool before you start. Ignore any that don't fit."
-    )
-
-
 @frontend(
     name="claude-code",
     display_name="Claude Code",
@@ -103,7 +96,6 @@ def _skill_hint(skills: Sequence[str]) -> str:
     detect_priority=SHAPE_SNIFF,
     skills_dir=lambda: Path.home() / ".claude" / "skills",
     max_context_chars=10_000,
-    skill_hint=_skill_hint,
 )
 class ClaudeCodeProtocol(ClaudeCodeHookSpec):
     """Claude Code exit-code protocol.

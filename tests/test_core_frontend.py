@@ -67,26 +67,6 @@ class TestFrontendDecorator:
             REGISTERED_FRONTENDS.clear()
             REGISTERED_FRONTENDS.update(before)
 
-    def test_the_skill_hint_defaults_to_a_note_for_the_spawner_and_reaches_the_spec(self) -> None:
-        before = dict(REGISTERED_FRONTENDS)
-        try:
-
-            @frontend(name="test-only", display_name="Test Only")
-            class _Default(_Bare):
-                pass
-
-            @frontend(name="test-hinted", display_name="Test Hinted", skill_hint="+".join)
-            class _Hinted(_Bare):
-                pass
-
-            assert REGISTERED_FRONTENDS["test-only"].skill_hint(["tdd", "git-tidy"]) == (
-                "Skills that may fit this subagent: `tdd`, `git-tidy`. Consider naming them in its task."
-            )
-            assert REGISTERED_FRONTENDS["test-hinted"].skill_hint(["tdd", "git-tidy"]) == "tdd+git-tidy"
-        finally:
-            REGISTERED_FRONTENDS.clear()
-            REGISTERED_FRONTENDS.update(before)
-
     def test_the_context_cap_defaults_to_none_and_reaches_the_spec(self) -> None:
         before = dict(REGISTERED_FRONTENDS)
         try:

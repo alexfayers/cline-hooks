@@ -24,7 +24,7 @@ from cline_hooks.frontends.pi.models import (
 from cline_hooks.frontends.pi.transcript import PiTranscriptReader
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Mapping
     from pathlib import Path
 
     from cline_hooks.core.models import HookFields
@@ -36,20 +36,12 @@ def _skills_dir() -> Path:
     return agent_dir() / "skills"
 
 
-def _skill_hint(skills: Sequence[str]) -> str:
-    named = ", ".join(f"`{skill}` (`{_skills_dir() / skill / 'SKILL.md'}`)" for skill in skills)
-    return (
-        f"Skills that may fit this task: {named}. If one applies, read it before you start. Ignore any that don't fit."
-    )
-
-
 @frontend(
     name="pi",
     display_name="Pi",
     installer=PiInstaller(),
     detect_priority=EXACT_MATCH,
     skills_dir=_skills_dir,
-    skill_hint=_skill_hint,
 )
 class PiProtocol(StandardPayloadProtocol):
     """Pi exit-code protocol: exit 0 + stdout for context, exit 2 + stderr to block.
