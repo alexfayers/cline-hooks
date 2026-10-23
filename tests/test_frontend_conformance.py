@@ -6,12 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from cline_hooks.core.frontend import FrontendSpec
+from cline_hooks.core.frontend import FrontendSpec, select_protocol
 from cline_hooks.core.frontends import (
     DETECTION_ORDER,
     FRONTENDS,
     FRONTENDS_BY_NAME,
-    select_protocol,
 )
 from cline_hooks.core.install import Installer
 from cline_hooks.core.payload import StandardPayloadProtocol

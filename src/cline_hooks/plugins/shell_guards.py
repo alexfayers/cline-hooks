@@ -3,9 +3,6 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING, cast
 
-import bashlex
-import bashlex.errors
-
 from cline_hooks.core.plugin import HookResult, HooksPlugin
 from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.vocabulary import CanonicalHook, PluginScope
@@ -46,6 +43,8 @@ def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | N
     command = cast("str", kwargs.get("command") or "")
     task_id = cast("str", kwargs.get("task_id") or "")
     workspace_roots = cast("list[str]", kwargs.get("workspace_roots") or [])
+
+    import bashlex.errors  # ruff: ignore[import-outside-top-level]
 
     try:
         parsed = bashlex.parse(command)

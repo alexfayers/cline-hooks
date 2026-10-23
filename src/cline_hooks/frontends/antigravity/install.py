@@ -22,6 +22,7 @@ class AntigravityInstaller(JsonHookInstaller):
 
     help: ClassVar[str] = "Install Antigravity hooks into ~/.gemini/config/hooks.json"
     root_key: ClassVar[str] = "cline-hooks"
+    runs_in_shell: ClassVar[bool] = False
 
     def config_path(self, target: str | None) -> Path:
         """Return Antigravity's user hooks file.

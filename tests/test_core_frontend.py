@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import subprocess
+import sys
 from typing import NoReturn
 
 import pytest
@@ -182,3 +184,21 @@ class TestFrontendSpecInstall:
         )
         spec.install("/somewhere", force=True)
         assert calls == [(_Bare, "/somewhere", True)]
+
+
+_SELECT = """
+import sys
+from cline_hooks.core.frontend import select_protocol
+from cline_hooks.core.protocol import RawPayload
+print(select_protocol(RawPayload.from_stdin('{"hook_event_name": "tool_call"}')).__name__, *sys.modules)
+"""
+
+
+@pytest.mark.parametrize(("name", "imports_all"), [("pi", False), ("no-such-frontend", True)])
+def test_select_protocol_imports_only_the_named_frontend(
+    name: str, imports_all: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("CLINE_HOOKS_FRONTEND", name)
+    out = subprocess.run([sys.executable, "-c", _SELECT], capture_output=True, text=True, check=True)
+    assert out.stdout.startswith("PiProtocol")
+    assert ("cline_hooks.frontends.kiro" in out.stdout.split()) is imports_all

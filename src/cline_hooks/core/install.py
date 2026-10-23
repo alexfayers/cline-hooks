@@ -11,10 +11,13 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from importlib.metadata import distribution
 import json
+import os
 from pathlib import Path
 import shutil
 import sys
 from typing import TYPE_CHECKING, Any, ClassVar
+
+from cline_hooks.core.frontend import FRONTEND_ENV_KEY
 
 if TYPE_CHECKING:
     from cline_hooks.core.protocol import HookRegistration, Protocol
@@ -91,10 +94,23 @@ class JsonHookInstaller(Installer):
         must_exist: Whether the config file must already exist, rather than
             being created on demand.
         root_key: The config key holding the object of hook events.
+        runs_in_shell: Whether the frontend runs hook commands through a shell.
     """
 
     must_exist: ClassVar[bool] = False
     root_key: ClassVar[str] = "hooks"
+    runs_in_shell: ClassVar[bool] = True
+
+    def command(self, binary: str, protocol_cls: type[Protocol]) -> str:
+        """Build the command a hook entry runs.
+
+        Returns:
+            The binary, prefixed with the frontend variable where a shell runs it.
+        """
+        spec = protocol_cls.frontend_spec
+        if spec is None or not self.runs_in_shell or os.name == "nt":
+            return binary
+        return f"{FRONTEND_ENV_KEY}={spec.name} {binary}"
 
     @abstractmethod
     def config_path(self, target: str | None) -> Path:
@@ -176,14 +192,19 @@ class JsonHookInstaller(Installer):
                 if not isinstance(entry, dict):
                     continue
                 for handler in self.entry_handlers(entry):
-                    if Path(str(handler.get("command", ""))).name not in names:
+                    old = str(handler.get("command", "")).removeprefix(self.command("", protocol_cls))
+                    if Path(old).name not in names:
                         continue
                     installed = True
-                    if force or not Path(handler["command"]).exists():
-                        handler["command"] = str(binary)
+                    command = self.command(old if not force and Path(old).exists() else str(binary), protocol_cls)
+                    if handler["command"] != command:
+                        handler["command"] = command
                         rewritten += 1
             if not installed:
-                current.append(self.build_entry(binary, registration))
+                new_entry = self.build_entry(binary, registration)
+                for handler in self.entry_handlers(new_entry):
+                    handler["command"] = self.command(str(binary), protocol_cls)
+                current.append(new_entry)
                 added += 1
             existing[registration.native_name] = current
 

@@ -6,7 +6,7 @@ import subprocess
 import sys
 from typing import TYPE_CHECKING
 
-from cline_hooks.core.frontends import select_protocol
+from cline_hooks.core.frontend import select_protocol
 from cline_hooks.core.models import HookInputPreToolUse, HookInputTaskStart
 import cline_hooks.core.protocol as protocol_module
 from cline_hooks.core.protocol import RawPayload, set_protocol
