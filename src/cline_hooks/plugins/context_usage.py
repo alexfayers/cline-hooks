@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from cline_hooks.core.plugin import HookResult, HooksPlugin, is_subagent
 from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.state import PluginStateStore
-from cline_hooks.core.vocabulary import NO_RESET_TASK_START_SOURCES, CanonicalHook
+from cline_hooks.core.vocabulary import CanonicalHook, TaskSource
 from cline_hooks.handlers.context_nudge import with_team_clause
 
 if TYPE_CHECKING:
@@ -16,16 +16,14 @@ _BAND_SIZE = 10_000
 
 CONTEXT_REDUCED_THRESHOLD = 300_000
 CONTEXT_DEGRADED_THRESHOLD = 500_000
-_BOUNDARIES: tuple[int, ...] = (CONTEXT_REDUCED_THRESHOLD, CONTEXT_DEGRADED_THRESHOLD)
 _PERCENT = 100
 
 
 @dataclass
 class _ContextState:
-    """Per-session context-token banding and degradation-boundary record."""
+    """Per-session record of the highest context-token band already nudged."""
 
     band: int | None = None
-    boundary: int = 0
 
 
 _store: PluginStateStore[_ContextState] = PluginStateStore("context-state.json", _ContextState)
@@ -71,33 +69,8 @@ def should_nudge_context(task_id: str, token_count: int) -> bool:
     return _store.update(task_id, decide)
 
 
-def crossed_boundary(task_id: str, token_count: int) -> int | None:
-    """Return the degradation boundary newly crossed by this token count, or None.
-
-    Fires once per boundary per session: later calls at or above a boundary
-    already announced return None.
-
-    Args:
-        task_id: The session or task identifier.
-        token_count: The current context token count.
-
-    Returns:
-        The boundary just crossed, or None if no new boundary was reached.
-    """
-
-    def decide(state: _ContextState) -> int | None:
-        newly_crossed = [b for b in _BOUNDARIES if token_count >= b > state.boundary]
-        if not newly_crossed:
-            return None
-        boundary = max(newly_crossed)
-        state.boundary = boundary
-        return boundary
-
-    return _store.update(task_id, decide)
-
-
 def reset(task_id: str) -> None:
-    """Clear the nudged-band and boundary record for a session.
+    """Clear the nudged-band record for a session.
 
     Args:
         task_id: The session or task identifier.
@@ -117,8 +90,8 @@ _CONTEXT_NUDGE_REDUCED = (
 )
 
 _CONTEXT_NUDGE_SEVERE = (
-    "{status} Accuracy badly degraded. MUST push back on new work - record current state in memory "
-    "and hand off to a fresh session unless told to continue."
+    "{status} Context budget exhausted. MUST stop new work, record current state in memory, "
+    "and compact or hand off now."
 )
 
 _CONTEXT_NUDGE_REDUCED_SUBAGENT = (
@@ -128,18 +101,19 @@ _CONTEXT_NUDGE_REDUCED_SUBAGENT = (
 )
 
 _CONTEXT_NUDGE_SEVERE_SUBAGENT = (
-    "{status} Accuracy badly degraded. MUST push back on new work - report your state to your "
-    "caller/lead and ask to be replaced."
+    "{status} Context budget exhausted. MUST stop, report your state to your caller/lead, and ask to be replaced."
 )
 
 
 def _status(token_count: int, context_window: int | None) -> str:
-    """Return the status sentence, with the window and percent when the window is known."""
+    """Return the status sentence, with the budget and percent when the window is known.
+
+    The budget is the window, capped at the degraded threshold, so a larger window is not revealed.
+    """
     if not context_window or context_window <= 0:
         return _CONTEXT_STATUS.format(tokens=token_count)
-    return _CONTEXT_STATUS_WINDOW.format(
-        tokens=token_count, window=context_window, percent=token_count / context_window * _PERCENT
-    )
+    budget = min(context_window, CONTEXT_DEGRADED_THRESHOLD)
+    return _CONTEXT_STATUS_WINDOW.format(tokens=token_count, window=budget, percent=token_count / budget * _PERCENT)
 
 
 def context_note(
@@ -148,9 +122,8 @@ def context_note(
     """Return the context-usage nudge for the current token count, or None.
 
     Fires at most once per 10k-token band, from whichever call site reaches
-    that band first. The longer per-tier text is appended only on the note
-    that first crosses into that tier; later same-tier notes stay short. A
-    subagent or teammate cannot address the human user directly, so its tier
+    that band first. Every note carries the text of the tier the token count
+    is in. A subagent or teammate cannot address the human user directly, so its tier
     text points it at its caller/lead instead, and skips the team-stop clause
     that only makes sense from the main agent.
 
@@ -160,20 +133,20 @@ def context_note(
         is_subagent: Whether this hook fired for a subagent/teammate rather
             than the main agent.
         context_window: The model's context window in tokens, when the
-            frontend reports it. Shown in the note.
+            frontend reports it. The note shows usage against it, capped at
+            the degraded threshold.
 
     Returns:
         The nudge text, or None when nothing should fire this check.
     """
     if not should_nudge_context(task_id, token_count):
         return None
-    boundary = crossed_boundary(task_id, token_count)
     status = _status(token_count, context_window)
-    if boundary == CONTEXT_DEGRADED_THRESHOLD:
+    if token_count >= CONTEXT_DEGRADED_THRESHOLD:
         if is_subagent:
             return _CONTEXT_NUDGE_SEVERE_SUBAGENT.format(status=status)
         return with_team_clause(_CONTEXT_NUDGE_SEVERE.format(status=status), task_id)
-    if boundary == CONTEXT_REDUCED_THRESHOLD:
+    if token_count >= CONTEXT_REDUCED_THRESHOLD:
         if is_subagent:
             return _CONTEXT_NUDGE_REDUCED_SUBAGENT.format(status=status)
         return with_team_clause(_CONTEXT_NUDGE_REDUCED.format(status=status), task_id)
@@ -211,7 +184,7 @@ class ContextUsagePlugin(HooksPlugin):
         if hook_name == CanonicalHook.TASK_START:
             task_id = kwargs.get("task_id")
             source = kwargs.get("source")
-            if isinstance(task_id, str) and source not in NO_RESET_TASK_START_SOURCES:
+            if isinstance(task_id, str) and source != TaskSource.RESUME:
                 reset(task_id)
             return None
         if hook_name in {CanonicalHook.TASK_COMPLETE, CanonicalHook.SUBAGENT_STOP}:

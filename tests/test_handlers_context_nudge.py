@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from cline_hooks.plugins.context_usage import (
     _BAND_SIZE,
     CONTEXT_DEGRADED_THRESHOLD,
@@ -36,7 +38,7 @@ class TestContextNote:
     def test_severe_note_on_first_crossing(self) -> None:
         note = context_note("task-1", _JUST_ABOVE_SEVERE)
         assert note is not None
-        assert "badly degraded" in note
+        assert "Context budget exhausted" in note
         assert f"{_JUST_ABOVE_SEVERE:,}" in note
 
     def test_reduced_note_does_not_refire_within_same_band(self) -> None:
@@ -45,19 +47,27 @@ class TestContextNote:
         second = context_note("task-1", _SAME_BAND_AS_REDUCED)
         assert second is None
 
-    def test_next_band_in_same_tier_omits_boundary_text(self) -> None:
-        context_note("task-1", _JUST_ABOVE_REDUCED)
-        note = context_note("task-1", _NEXT_BAND_AFTER_REDUCED)
+    @pytest.mark.parametrize(
+        ("token_count", "directive"),
+        [
+            (_NEXT_BAND_AFTER_REDUCED, "MUST ask the user"),
+            (CONTEXT_DEGRADED_THRESHOLD - 1, "MUST ask the user"),
+            (_JUST_ABOVE_SEVERE + _BAND_SIZE, "Context budget exhausted"),
+            (CONTEXT_DEGRADED_THRESHOLD, "Context budget exhausted"),
+        ],
+    )
+    def test_every_note_in_a_tier_carries_the_tier_directive(self, token_count: int, directive: str) -> None:
+        context_note("task-1", 0)
+        note = context_note("task-1", token_count)
         assert note is not None
-        assert "Accuracy degrading" not in note
-        assert "CONTEXT STATUS" in note
-        assert f"{_NEXT_BAND_AFTER_REDUCED:,}" in note
+        assert directive in note
+        assert "No action needed yet" not in note
 
     def test_crossing_into_severe_after_reduced_gets_severe_text(self) -> None:
         context_note("task-1", _JUST_ABOVE_REDUCED)
         note = context_note("task-1", _JUST_ABOVE_SEVERE)
         assert note is not None
-        assert "badly degraded" in note
+        assert "Context budget exhausted" in note
 
     def test_team_clause_appended_when_agent_used(self) -> None:
         record_agent_use("task-1", "Agent")
@@ -75,7 +85,7 @@ class TestContextNoteWindow:
     def test_info_note_shows_tokens_window_and_percent(self) -> None:
         note = context_note("task-1", 210_000, context_window=1_000_000)
         assert note is not None
-        assert "210,000 / 1,000,000 tokens (21.0%)" in note
+        assert "210,000 / 500,000 tokens (42.0%)" in note
 
     def test_unknown_window_keeps_the_plain_wording(self) -> None:
         note = context_note("task-1", 210_000, context_window=None)
@@ -97,7 +107,7 @@ class TestContextNoteWindow:
     def test_subagent_note_shows_window_too(self) -> None:
         note = context_note("task-1:sub-1", _JUST_ABOVE_REDUCED, is_subagent=True, context_window=1_000_000)
         assert note is not None
-        assert "310,000 / 1,000,000 tokens (31.0%)" in note
+        assert "310,000 / 500,000 tokens (62.0%)" in note
         assert "report your state to your caller/lead" in note
 
 

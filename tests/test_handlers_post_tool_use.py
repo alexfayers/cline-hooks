@@ -158,7 +158,7 @@ class TestPostToolUseContextWindow:
         assert isinstance(hook, HookInputPostToolUse)
         result = _run(hook)
         assert result is not None
-        assert "210,000 / 1,000,000 tokens (21.0%)" in cast("str", result.get("contextModification", ""))
+        assert "210,000 / 500,000 tokens (42.0%)" in cast("str", result.get("contextModification", ""))
 
 
 class TestPostToolUseContextNudgeSubagent:
