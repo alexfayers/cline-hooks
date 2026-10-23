@@ -1,3 +1,7 @@
+---
+roles: lead, worker
+---
+
 # Auto-reinstall
 
 When you edit steering files, skills, or workflow source files, `llm-prompts update` runs automatically via the auto-reinstall hook. You do not need to run it manually.
