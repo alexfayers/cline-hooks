@@ -8,8 +8,8 @@ import pytest
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.protocol import get_protocol, set_protocol
 from cline_hooks.frontends.pi.protocol import PiProtocol
-from cline_hooks.plugins.startup_blocks import StartupBlocksPlugin
-from cline_hooks.plugins.tool_usage import TOP_TOOLS, ToolUsagePlugin
+from cline_hooks.plugins.startup_blocks import StartupBlocksPlugin, block_header
+from cline_hooks.plugins.tool_usage import _TOOL_HINTS, TOP_TOOLS, ToolUsagePlugin
 from cline_hooks.state.tool_usage import top_tools
 
 if TYPE_CHECKING:
@@ -40,10 +40,14 @@ def start(task_id: str = "next", source: str = "startup") -> list[str]:
     ).notes
 
 
+def injected() -> str:
+    [note] = start()
+    assert note.startswith(block_header("MCP tools this user often calls"))
+    return note.split("\n\n", 1)[1]
+
+
 def note_for(*names: str) -> str:
-    assert PiProtocol.frontend_spec is not None
-    assert PiProtocol.frontend_spec.tool_hint is not None
-    return PiProtocol.frontend_spec.tool_hint(names)
+    return _TOOL_HINTS["pi"](names)
 
 
 @pytest.mark.usefixtures("pi")
@@ -59,7 +63,7 @@ class TestStartupBlock:
             use(f"s-{tool}", "srv", tool)
         use("s1", "send_mail", "read_inbox")
 
-        assert start() == [note_for("mcp__send_mail__read_inbox", "mcp__srv__IssueGetItem", "mcp__srv__read_graph")]
+        assert injected() == note_for("mcp__send_mail__read_inbox", "mcp__srv__IssueGetItem", "mcp__srv__read_graph")
 
     def test_names_are_sorted_and_only_the_highest_scoring_are_listed(self) -> None:
         names = [f"tool_{index:02d}" for index in range(TOP_TOOLS + 1)]
@@ -68,7 +72,7 @@ class TestStartupBlock:
         for name in names[1:]:
             use(f"second-{name}", "srv", name)
 
-        assert start() == [note_for(*(f"mcp__srv__{name}" for name in names[1:]))]
+        assert injected() == note_for(*(f"mcp__srv__{name}" for name in names[1:]))
 
     def test_a_tight_budget_drops_the_lowest_scoring_names_before_the_block(self) -> None:
         use("s1", "srv", "aaa")
@@ -93,11 +97,11 @@ class TestStartupBlock:
         assert top_tools("pi", 5, time.time()) == ["mcp__srv__thrice", "mcp__srv__twice", "mcp__srv__once"]
 
 
-def test_a_frontend_with_no_tool_hint_gets_no_block_and_records_nothing(use_plugins: Callable[..., None]) -> None:
+def test_a_frontend_without_a_tool_hint_gets_no_block_and_records_nothing(use_plugins: Callable[..., None]) -> None:
     use_plugins(StartupBlocksPlugin(), ToolUsagePlugin())
     spec = get_protocol().frontend_spec
     assert spec is not None
-    assert spec.tool_hint is None
+    assert spec.name not in _TOOL_HINTS
     use("s1", "memory", "read_graph")
 
     assert start() == []

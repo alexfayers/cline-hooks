@@ -62,7 +62,6 @@ class FrontendSpec:
         skills_dir: Returns where this frontend's installed skills live, or None where unknown.
         max_context_chars: The most characters of hook context this frontend takes at session start, or None.
         skill_hint: Words a suggestion of skills for a subagent, in this frontend's own way of loading one.
-        tool_hint: Words a list of MCP tool names in this frontend's way of calling them, or None.
     """
 
     name: str
@@ -74,7 +73,6 @@ class FrontendSpec:
     skills_dir: Callable[[], Path] | None = None
     max_context_chars: int | None = None
     skill_hint: Callable[[Sequence[str]], str] = default_skill_hint
-    tool_hint: Callable[[Sequence[str]], str] | None = None
 
     def install(self, target: str | None = None, *, force: bool = False) -> None:
         """Run this frontend's install step.
@@ -105,7 +103,6 @@ def frontend(  # ruff: ignore[too-many-arguments]
     skills_dir: Callable[[], Path] | None = None,
     max_context_chars: int | None = None,
     skill_hint: Callable[[Sequence[str]], str] = default_skill_hint,
-    tool_hint: Callable[[Sequence[str]], str] | None = None,
 ) -> Callable[[_ProtocolT], _ProtocolT]:
     """Register the decorated Protocol class as a supported frontend.
 
@@ -119,7 +116,6 @@ def frontend(  # ruff: ignore[too-many-arguments]
         skills_dir: Returns where this frontend's installed skills live, or None where unknown.
         max_context_chars: The most characters of hook context this frontend takes at session start, or None.
         skill_hint: Words a suggestion of skills for a subagent, in this frontend's own way of loading one.
-        tool_hint: Words a list of MCP tool names in this frontend's way of calling them, or None.
 
     Returns:
         A decorator that registers the decorated class and returns it unchanged.
@@ -136,7 +132,6 @@ def frontend(  # ruff: ignore[too-many-arguments]
             skills_dir=skills_dir,
             max_context_chars=max_context_chars,
             skill_hint=skill_hint,
-            tool_hint=tool_hint,
         )
         existing = REGISTERED_FRONTENDS.get(name)
         if existing is not None and existing.protocol is not cls:

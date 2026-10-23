@@ -38,13 +38,28 @@ class _SeenTools:
 _seen = PluginStateStore("tool-usage-seen.json", _SeenTools)
 
 
+def _claude_code_hint(names: Sequence[str]) -> str:
+    return (
+        "MCP tools this user often calls (not a full list). "
+        f"Add these to your one ToolSearch `select:` call: `{','.join(names)}`."
+    )
+
+
+def _pi_hint(names: Sequence[str]) -> str:
+    calls = ", ".join(f"`tools.{name}`" for name in names)
+    return f"MCP tools this user often calls (not a full list): {calls}"
+
+
+_TOOL_HINTS: dict[str, Callable[[Sequence[str]], str]] = {"claude-code": _claude_code_hint, "pi": _pi_hint}
+
+
 def _live_hint() -> tuple[Callable[[Sequence[str]], str], str, type[StandardPayloadProtocol]] | None:
     """Return the live frontend's tool hint, name and protocol, or None where it has no tool hint."""
     protocol = type(get_protocol())
     spec = protocol.frontend_spec
-    if spec is None or spec.tool_hint is None or not issubclass(protocol, StandardPayloadProtocol):
+    if spec is None or spec.name not in _TOOL_HINTS or not issubclass(protocol, StandardPayloadProtocol):
         return None
-    return spec.tool_hint, spec.name, protocol
+    return _TOOL_HINTS[spec.name], spec.name, protocol
 
 
 def _is_write_tool(tool_name: str) -> bool:
@@ -81,7 +96,14 @@ class ToolUsagePlugin(HooksPlugin):
         live = _live_hint()
         if live is None or not (names := top_tools(live[1], TOP_TOOLS, time.time())):
             return []
-        return [StartupBlock(title="", replaces="", body=lambda room: _body(live[0], names, room), order=BLOCK_ORDER)]
+        return [
+            StartupBlock(
+                title="MCP tools this user often calls",
+                replaces="search for the MCP tools this user calls most",
+                body=lambda room: _body(live[0], names, room),
+                order=BLOCK_ORDER,
+            )
+        ]
 
     def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
         """Record the first use of each read-only MCP tool in a session.

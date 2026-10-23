@@ -173,7 +173,6 @@ class MyPlugin(HooksPlugin):
    tool's complete input as it should run. Claude Code and Pi apply it. Other
    frontends show `HookResult.fallback_notes` instead. A frontend's
    `skill_hint` words a skill suggestion in its own way of loading a skill.
-   `tool_hint` does the same for MCP tool names.
 
 2. Register it as an entry point in your `pyproject.toml`:
 
