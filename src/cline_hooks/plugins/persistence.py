@@ -11,8 +11,8 @@ if TYPE_CHECKING:
     import logging
 
 _FAILURE_PERSIST_NOTE = (
-    "A tool just failed. When you fix this, MUST persist what went wrong and the fix "
-    "to memory (and to rules/skills where it reveals a missing process step)."
+    "A tool just failed. Where the failure was your own mistake and you have fixed it, MUST persist the mistake "
+    "and the fix to memory (and propose a rule/skill change where it reveals a missing process step)."
 )
 
 _MEMORY_WARNING = (
