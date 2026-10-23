@@ -12,9 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: just
+      - uses: alexfayers/llm-prompts/.github/actions/setup-just@main
       - uses: astral-sh/setup-uv@v10.3.0
         with:
           enable-cache: true
@@ -32,9 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: just
+      - uses: alexfayers/llm-prompts/.github/actions/setup-just@main
       - uses: astral-sh/setup-uv@v10.3.0
         with:
           enable-cache: true
@@ -56,9 +52,7 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v7
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: just
+      - uses: alexfayers/llm-prompts/.github/actions/setup-just@main
       - uses: astral-sh/setup-uv@v10.3.0
         with:
           enable-cache: true
