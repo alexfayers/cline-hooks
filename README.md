@@ -51,11 +51,11 @@
 | src/cline\_hooks/frontends/kiro/protocol.py             |       35 |        0 |        4 |        0 |    100% |           |
 | src/cline\_hooks/frontends/pi/\_\_init\_\_.py           |        3 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/frontends/pi/install.py                |       25 |        0 |        2 |        0 |    100% |           |
-| src/cline\_hooks/frontends/pi/models.py                 |       54 |        1 |        2 |        1 |     96% |       127 |
+| src/cline\_hooks/frontends/pi/models.py                 |       54 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/frontends/pi/protocol.py               |       42 |        2 |        4 |        2 |     91% |  114, 128 |
 | src/cline\_hooks/frontends/pi/transcript.py             |       51 |        4 |       16 |        2 |     91% |78-79, 87, 96 |
 | src/cline\_hooks/handlers/\_\_init\_\_.py               |        3 |        0 |        0 |        0 |    100% |           |
-| src/cline\_hooks/handlers/commands.py                   |      141 |        5 |       72 |        8 |     94% |96, 139, 143, 147, 192, 201-\>197, 203-\>197, 204-\>203 |
+| src/cline\_hooks/handlers/commands.py                   |      141 |        5 |       72 |        9 |     93% |96, 139, 143, 147, 192, 199-\>197, 201-\>197, 203-\>197, 204-\>203 |
 | src/cline\_hooks/handlers/context\_nudge.py             |        7 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/handlers/git\_context.py               |       44 |        2 |        8 |        0 |     96% |     55-56 |
 | src/cline\_hooks/handlers/herdr\_guard.py               |       79 |        1 |       24 |        1 |     98% |        84 |
@@ -76,7 +76,7 @@
 | src/cline\_hooks/plugins/handback\_rescue.py            |       22 |        0 |        8 |        0 |    100% |           |
 | src/cline\_hooks/plugins/handoff\_ack.py                |      144 |        2 |       56 |        1 |     98% |74-75, 276-\>278 |
 | src/cline\_hooks/plugins/managed\_files.py              |       53 |        3 |       18 |        1 |     94% | 31, 48-49 |
-| src/cline\_hooks/plugins/nudges.py                      |      148 |       18 |       60 |        5 |     86% |194-200, 212-224, 285-\>287, 310, 315-\>317, 337, 357 |
+| src/cline\_hooks/plugins/nudges.py                      |      155 |       12 |       62 |        5 |     90% |208-214, 229, 237, 299-\>301, 324, 329-\>333, 353, 373 |
 | src/cline\_hooks/plugins/persistence.py                 |       23 |        0 |        8 |        0 |    100% |           |
 | src/cline\_hooks/plugins/plan\_handoff.py               |       67 |        1 |       28 |        2 |     97% |144, 153-\>155 |
 | src/cline\_hooks/plugins/research.py                    |      105 |        6 |       32 |        3 |     93% |127, 156-158, 217, 267-\>269, 274 |
@@ -123,7 +123,7 @@
 | tests/test\_handlers\_search\_scope.py                  |      166 |        0 |        2 |        0 |    100% |           |
 | tests/test\_handlers\_stop.py                           |      338 |        0 |        4 |        0 |    100% |           |
 | tests/test\_handlers\_task\_lifecycle.py                |      333 |        7 |       10 |        4 |     97% |92-97, 141, 263-\>exit, 281-\>exit, 299-\>exit |
-| tests/test\_handlers\_user\_prompt.py                   |      388 |        6 |       20 |        7 |     97% |137, 347-\>exit, 438-439, 530-\>exit, 546-\>exit, 596-\>exit, 640, 667, 685, 703-\>exit, 722-\>exit |
+| tests/test\_handlers\_user\_prompt.py                   |      408 |        6 |       20 |        7 |     97% |139, 351-\>exit, 442-443, 574-\>exit, 590-\>exit, 640-\>exit, 684, 711, 729, 747-\>exit, 766-\>exit |
 | tests/test\_hook\_kwargs.py                             |       64 |        0 |        0 |        0 |    100% |           |
 | tests/test\_install.py                                  |      228 |        0 |       12 |        0 |    100% |           |
 | tests/test\_install\_cline.py                           |      107 |        0 |        6 |        0 |    100% |           |
@@ -158,7 +158,7 @@
 | tests/test\_state\_paths.py                             |        8 |        0 |        0 |        0 |    100% |           |
 | tests/test\_turns.py                                    |       57 |        1 |        6 |        0 |     98% |        22 |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **11370** |  **194** | **1322** |   **97** | **98%** |           |
+| **TOTAL**                                               | **11397** |  **187** | **1324** |   **97** | **98%** |           |
 
 
 ## Setup coverage badge
