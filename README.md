@@ -84,6 +84,7 @@
 | src/cline\_hooks/plugins/shell\_guards.py               |       63 |        2 |       20 |        0 |     98% |     51-52 |
 | src/cline\_hooks/plugins/startup\_blocks.py             |       81 |        1 |       20 |        0 |     99% |       145 |
 | src/cline\_hooks/plugins/tool\_guards.py                |       90 |        3 |       36 |        1 |     97% |121-122, 157 |
+| src/cline\_hooks/plugins/tool\_usage.py                 |       70 |        1 |       16 |        0 |     99% |        42 |
 | src/cline\_hooks/plugins/tracking.py                    |       36 |        1 |       22 |        3 |     93% |33-\>exit, 63-\>65, 66 |
 | src/cline\_hooks/state/\_\_init\_\_.py                  |        0 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/state/agents.py                        |       32 |        0 |        2 |        0 |    100% |           |
@@ -94,9 +95,10 @@
 | src/cline\_hooks/state/retrospective.py                 |       29 |        0 |        4 |        0 |    100% |           |
 | src/cline\_hooks/state/skills.py                        |       45 |        0 |       10 |        0 |    100% |           |
 | src/cline\_hooks/state/store.py                         |       26 |        0 |        2 |        0 |    100% |           |
+| src/cline\_hooks/state/tool\_usage.py                   |       19 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/state/workspace.py                     |       24 |        0 |        6 |        0 |    100% |           |
 | tests/\_\_init\_\_.py                                   |        0 |        0 |        0 |        0 |    100% |           |
-| tests/conftest.py                                       |      140 |        1 |       12 |        0 |     99% |       144 |
+| tests/conftest.py                                       |      144 |        1 |       12 |        0 |     99% |       146 |
 | tests/test\_agents\_tracker.py                          |       71 |        0 |        4 |        0 |    100% |           |
 | tests/test\_bookkeeping\_tools.py                       |       11 |        0 |        0 |        0 |    100% |           |
 | tests/test\_config.py                                   |       26 |        0 |        0 |        0 |    100% |           |
@@ -147,6 +149,7 @@
 | tests/test\_plugins\_research.py                        |       41 |        0 |        2 |        0 |    100% |           |
 | tests/test\_plugins\_shell\_guards.py                   |      112 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugins\_startup\_blocks.py                 |      142 |        0 |        2 |        0 |    100% |           |
+| tests/test\_plugins\_tool\_usage.py                     |       68 |        0 |        8 |        0 |    100% |           |
 | tests/test\_readme\_matrix.py                           |       40 |        0 |        6 |        0 |    100% |           |
 | tests/test\_registry.py                                 |       49 |        5 |        0 |        0 |     90% |24, 30, 40, 44, 68 |
 | tests/test\_research\_tracker.py                        |       50 |        0 |        0 |        0 |    100% |           |
@@ -156,9 +159,10 @@
 | tests/test\_state.py                                    |       67 |        0 |        4 |        0 |    100% |           |
 | tests/test\_state\_jsonfile.py                          |       65 |        0 |        6 |        0 |    100% |           |
 | tests/test\_state\_paths.py                             |        8 |        0 |        0 |        0 |    100% |           |
+| tests/test\_state\_tool\_usage.py                       |       20 |        0 |        4 |        0 |    100% |           |
 | tests/test\_turns.py                                    |       57 |        1 |        6 |        0 |     98% |        22 |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **11433** |  **186** | **1326** |   **94** | **98%** |           |
+| **TOTAL**                                               | **11614** |  **187** | **1354** |   **94** | **98%** |           |
 
 
 ## Setup coverage badge
