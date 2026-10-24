@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_a44f0ac069e85531_test_handlers_user_prompt_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.2">coverage.py v7.16.2</a>,
-            created at 2026-10-24 17:15 +0000
+            created at 2026-10-24 17:19 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -300,11 +300,11 @@
     <p class="run"><span class="n"><a id="t216" href="#t216">216</a></span><span class="t">            <span class="nam">self</span><span class="op">.</span><span class="nam">_run</span><span class="op">(</span><span class="nam">_task_start</span><span class="op">(</span><span class="op">[</span><span class="nam">str</span><span class="op">(</span><span class="nam">tmp_path</span><span class="op">)</span><span class="op">]</span><span class="op">,</span> <span class="nam">source</span><span class="op">=</span><span class="str">&quot;compact&quot;</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t217" href="#t217">217</a></span><span class="t">        <span class="key">assert</span> <span class="nam">has_agent_use</span><span class="op">(</span><span class="str">&quot;task-1&quot;</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t218" href="#t218">218</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t219" href="#t219">219</a></span><span class="t">    <span class="key">def</span> <span class="nam">test_context_band_preserved_on_compact</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="nam">tmp_path</span><span class="op">:</span> <span class="nam">Path</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t219" href="#t219">219</a></span><span class="t">    <span class="key">def</span> <span class="nam">test_context_band_reset_on_compact</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="nam">tmp_path</span><span class="op">:</span> <span class="nam">Path</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t220" href="#t220">220</a></span><span class="t">        <span class="nam">should_nudge_context</span><span class="op">(</span><span class="str">&quot;task-1&quot;</span><span class="op">,</span> <span class="num">210_000</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t221" href="#t221">221</a></span><span class="t">        <span class="key">with</span> <span class="nam">patch</span><span class="op">(</span><span class="str">&quot;cline_hooks.plugins.session_context.get_git_context&quot;</span><span class="op">,</span> <span class="nam">return_value</span><span class="op">=</span><span class="key">None</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t222" href="#t222">222</a></span><span class="t">            <span class="nam">self</span><span class="op">.</span><span class="nam">_run</span><span class="op">(</span><span class="nam">_task_start</span><span class="op">(</span><span class="op">[</span><span class="nam">str</span><span class="op">(</span><span class="nam">tmp_path</span><span class="op">)</span><span class="op">]</span><span class="op">,</span> <span class="nam">source</span><span class="op">=</span><span class="str">&quot;compact&quot;</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t223" href="#t223">223</a></span><span class="t">        <span class="key">assert</span> <span class="nam">should_nudge_context</span><span class="op">(</span><span class="str">&quot;task-1&quot;</span><span class="op">,</span> <span class="num">210_000</span><span class="op">)</span> <span class="key">is</span> <span class="key">False</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t223" href="#t223">223</a></span><span class="t">        <span class="key">assert</span> <span class="nam">should_nudge_context</span><span class="op">(</span><span class="str">&quot;task-1&quot;</span><span class="op">,</span> <span class="num">210_000</span><span class="op">)</span> <span class="key">is</span> <span class="key">True</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t224" href="#t224">224</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t225" href="#t225">225</a></span><span class="t">    <span class="key">def</span> <span class="nam">test_turns_preserved_on_compact</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="nam">tmp_path</span><span class="op">:</span> <span class="nam">Path</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t226" href="#t226">226</a></span><span class="t">        <span class="nam">increment</span><span class="op">(</span><span class="str">&quot;task-1&quot;</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
@@ -654,7 +654,7 @@
             <a class="nav" href="z_a44f0ac069e85531_test_handlers_user_prompt_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.2">coverage.py v7.16.2</a>,
-            created at 2026-10-24 17:15 +0000
+            created at 2026-10-24 17:19 +0000
         </p>
     </div>
 </footer>

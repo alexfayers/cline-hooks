@@ -70,7 +70,7 @@
 | src/cline\_hooks/plugins/\_\_init\_\_.py                |        0 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/plugins/build\_tools.py                |       24 |        1 |        4 |        0 |     96% |        24 |
 | src/cline\_hooks/plugins/command\_rules.py              |       71 |        9 |       24 |        5 |     83% |29-\>23, 32-36, 78, 80-82, 134 |
-| src/cline\_hooks/plugins/context\_usage.py              |      102 |        1 |       38 |        1 |     99% |       229 |
+| src/cline\_hooks/plugins/context\_usage.py              |       91 |        1 |       36 |        1 |     98% |       202 |
 | src/cline\_hooks/plugins/delegation.py                  |       73 |        2 |       28 |        2 |     96% |  153, 185 |
 | src/cline\_hooks/plugins/ecosystem.py                   |       52 |        1 |       14 |        1 |     97% |44, 133-\>135 |
 | src/cline\_hooks/plugins/handback\_rescue.py            |       22 |        0 |        8 |        0 |    100% |           |
@@ -100,7 +100,7 @@
 | tests/test\_agents\_tracker.py                          |       71 |        0 |        4 |        0 |    100% |           |
 | tests/test\_bookkeeping\_tools.py                       |       11 |        0 |        0 |        0 |    100% |           |
 | tests/test\_config.py                                   |       26 |        0 |        0 |        0 |    100% |           |
-| tests/test\_context.py                                  |       61 |        0 |        0 |        0 |    100% |           |
+| tests/test\_context.py                                  |       68 |        0 |        0 |        0 |    100% |           |
 | tests/test\_core\_frontend.py                           |      130 |        4 |        6 |        0 |     97% |27, 30, 33, 36 |
 | tests/test\_core\_outcome.py                            |       88 |        0 |        0 |        0 |    100% |           |
 | tests/test\_core\_parameters.py                         |       73 |        0 |        0 |        0 |    100% |           |
@@ -114,7 +114,7 @@
 | tests/test\_frontend\_normalisation.py                  |      363 |        0 |        4 |        0 |    100% |           |
 | tests/test\_frontend\_pi\_transcript.py                 |       39 |        0 |        4 |        0 |    100% |           |
 | tests/test\_handlers\_commands.py                       |       68 |        0 |        0 |        0 |    100% |           |
-| tests/test\_handlers\_context\_nudge.py                 |       94 |        0 |        0 |        0 |    100% |           |
+| tests/test\_handlers\_context\_nudge.py                 |       95 |        0 |        0 |        0 |    100% |           |
 | tests/test\_handlers\_git\_context.py                   |       42 |        0 |        2 |        0 |    100% |           |
 | tests/test\_handlers\_post\_tool\_use.py                |      488 |        9 |       24 |        6 |     97% |405, 413, 518-519, 525-526, 559-560, 714 |
 | tests/test\_handlers\_pre\_compact.py                   |       19 |        0 |        0 |        0 |    100% |           |
@@ -158,7 +158,7 @@
 | tests/test\_state\_paths.py                             |        8 |        0 |        0 |        0 |    100% |           |
 | tests/test\_turns.py                                    |       57 |        1 |        6 |        0 |     98% |        22 |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **11436** |  **186** | **1328** |   **94** | **98%** |           |
+| **TOTAL**                                               | **11433** |  **186** | **1326** |   **94** | **98%** |           |
 
 
 ## Setup coverage badge
