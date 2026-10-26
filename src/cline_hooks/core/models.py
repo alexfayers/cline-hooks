@@ -126,6 +126,10 @@ class TaskCompleteFields(HookFields):
     """Fields specific to TaskComplete hooks."""
 
 
+class WindDownFields(HookFields):
+    """Fields specific to AgentIdle and SessionEnd hooks."""
+
+
 class UserPromptSubmitFields(HookFields):
     """Fields specific to UserPromptSubmit hooks."""
 
@@ -260,6 +264,22 @@ class HookInputStop(HookInput):
 
     stop: StopFields | None = None
     hookName: str = "Stop"
+
+
+@hook_input(CanonicalHook.AGENT_IDLE)
+class HookInputAgentIdle(HookInput):
+    """Hook input for AgentIdle events: the agent ended its turn."""
+
+    agentIdle: WindDownFields | None = None
+    hookName: str = "AgentIdle"
+
+
+@hook_input(CanonicalHook.SESSION_END)
+class HookInputSessionEnd(HookInput):
+    """Hook input for SessionEnd events: the whole session is ending."""
+
+    sessionEnd: WindDownFields | None = None
+    hookName: str = "SessionEnd"
 
 
 @hook_input(CanonicalHook.SUBAGENT_START)

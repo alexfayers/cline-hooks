@@ -61,6 +61,7 @@ class PiProtocol(StandardPayloadProtocol):
         CanonicalHook.USER_PROMPT_SUBMIT: HookRegistration("before_agent_start"),
         CanonicalHook.PRE_COMPACT: HookRegistration("session_before_compact"),
         CanonicalHook.STOP: HookRegistration("agent_end"),
+        CanonicalHook.AGENT_IDLE: HookRegistration("agent_settled"),
         CanonicalHook.SUBAGENT_STOP: HookRegistration("session_shutdown"),
     }
     tool_map: ClassVar[Mapping[str, CanonicalTool]] = {

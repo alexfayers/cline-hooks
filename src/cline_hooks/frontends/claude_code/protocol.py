@@ -53,6 +53,7 @@ class ClaudeCodeHookSpec(StandardPayloadProtocol):
         CanonicalHook.STOP: HookRegistration("Stop"),
         CanonicalHook.SUBAGENT_START: HookRegistration("SubagentStart"),
         CanonicalHook.SUBAGENT_STOP: HookRegistration("SubagentStop"),
+        CanonicalHook.SESSION_END: HookRegistration("SessionEnd"),
     }
     tool_map: ClassVar[Mapping[str, CanonicalTool]] = {
         "Bash": CanonicalTool.SHELL,
