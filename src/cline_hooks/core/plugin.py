@@ -15,7 +15,7 @@ import pluggy
 import cline_hooks.plugins as _plugins_pkg
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator, Mapping, Sequence
+    from collections.abc import Callable, Generator, Mapping, Sequence
 
 logger = logging.getLogger("hooks.plugin_loader")
 
@@ -380,7 +380,7 @@ def get_plugin_manager() -> pluggy.PluginManager:
 
 
 @contextmanager
-def plugins_override(plugins: Sequence[HooksPlugin]) -> Iterator[None]:
+def plugins_override(plugins: Sequence[HooksPlugin]) -> Generator[None, None, None]:
     """Make load_plugins() and get_plugin_manager() see exactly these plugins, restoring the previous state on exit.
 
     Args:
