@@ -145,8 +145,12 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("session_shutdown", async (event, ctx) => {
-    if (event.reason === "reload" || !process.env.PI_HERDSMAN_RUN_ID) return;
+    if (event.reason === "reload") return;
     await runHook(ctx, { hook_event_name: "session_shutdown", reason: event.reason });
+  });
+
+  pi.on("agent_settled", async (_event, ctx) => {
+    await runHook(ctx, { hook_event_name: "agent_settled" });
   });
 
   pi.on("agent_end", async (_event, ctx) => {
