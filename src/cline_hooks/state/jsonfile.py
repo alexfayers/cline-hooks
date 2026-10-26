@@ -8,7 +8,7 @@ import json
 from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Generator
     from pathlib import Path
 
 
@@ -29,7 +29,7 @@ def read_json[StateT](path: Path, default: StateT) -> StateT:
 
 
 @contextmanager
-def updated_json[StateT](path: Path, default: StateT) -> Iterator[StateT]:
+def updated_json[StateT](path: Path, default: StateT) -> Generator[StateT, None, None]:
     """Yield a state file's contents under an exclusive lock, writing them back on exit.
 
     The lock is held across the read, the caller's mutation and the atomic write, so

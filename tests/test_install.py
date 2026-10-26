@@ -13,7 +13,7 @@ from cline_hooks.core.frontends import FRONTENDS, FRONTENDS_BY_NAME
 from cline_hooks.core.install import JsonHookInstaller, resolve_binary
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Generator, Iterator
 
 _FAKE_PYTHON = str(Path("/fake/bin/python"))
 _EXPECTED_BINARY = str(Path(_FAKE_PYTHON).parent / "cline-hook")
@@ -31,7 +31,7 @@ def _distribution_with_script(name: str) -> MagicMock:
 
 
 @contextmanager
-def _patch_script_name(name: str) -> Iterator[None]:
+def _patch_script_name(name: str) -> Generator[None, None, None]:
     """Patch the installed distribution to declare a console script called `name`.
 
     Yields:
