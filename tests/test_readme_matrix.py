@@ -8,7 +8,8 @@ from cline_hooks.core.plugin import _package_plugins, list_extension_points
 from cline_hooks.core.vocabulary import CanonicalHook
 import cline_hooks.plugins
 
-_README_PATH = Path(__file__).parent.parent / "README.md"
+_FRONTENDS_DOC_PATH = Path(__file__).parent.parent / "docs" / "frontends.md"
+_PLUGINS_DOC_PATH = Path(__file__).parent.parent / "docs" / "plugins.md"
 _MATRIX_START = "<!-- HOOK_MATRIX_START -->"
 _MATRIX_END = "<!-- HOOK_MATRIX_END -->"
 _EXTENSION_POINTS_START = "<!-- EXTENSION_POINTS_START -->"
@@ -56,23 +57,23 @@ def _generate_extension_points_table() -> str:
 
 class TestReadmeHookMatrix:
     def test_committed_matrix_matches_supported_hooks(self) -> None:
-        readme = _README_PATH.read_text(encoding="utf-8")
+        doc = _FRONTENDS_DOC_PATH.read_text(encoding="utf-8")
         match = re.search(
             rf"{re.escape(_MATRIX_START)}\n(.*?)\n{re.escape(_MATRIX_END)}",
-            readme,
+            doc,
             re.DOTALL,
         )
-        assert match is not None, "README is missing the hook-matrix markers"
+        assert match is not None, "docs/frontends.md is missing the hook-matrix markers"
         assert match.group(1) == _generate_hook_matrix()
 
 
 class TestReadmeExtensionPoints:
     def test_committed_table_matches_published_extension_points(self) -> None:
-        readme = _README_PATH.read_text(encoding="utf-8")
+        doc = _PLUGINS_DOC_PATH.read_text(encoding="utf-8")
         match = re.search(
             rf"{re.escape(_EXTENSION_POINTS_START)}\n(.*?)\n{re.escape(_EXTENSION_POINTS_END)}",
-            readme,
+            doc,
             re.DOTALL,
         )
-        assert match is not None, "README is missing the extension-points markers"
+        assert match is not None, "docs/plugins.md is missing the extension-points markers"
         assert match.group(1) == _generate_extension_points_table()

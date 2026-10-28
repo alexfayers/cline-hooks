@@ -31,8 +31,8 @@ Common types used in this repo: `feat`, `fix`, `refactor`, `docs`, `style`, `cho
 `main` is protected - it can't be pushed to directly. Push your branch and open
 a PR; squash or rebase merge only.
 
-Adding a frontend or plugin? See the README's "Adding a frontend" and
-"Plugins" sections first.
+Adding a frontend or plugin? See [docs/frontends.md](docs/frontends.md) and
+[docs/plugins.md](docs/plugins.md) first.
 
 ## PR titles and descriptions
 
