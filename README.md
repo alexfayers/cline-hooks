@@ -1,6 +1,6 @@
 # cline-hooks
 
-One `cline-hook` command that runs lifecycle hooks for AI coding assistants: Cline, Antigravity, Claude Code, Codex, GitHub Copilot, Kiro and Pi. Bundled and installed plugins can add notes to a session or block a tool call.
+One `cline-hook` command that runs lifecycle hooks for AI coding assistants: Antigravity, Claude Code, Codex, Kiro and Pi. Bundled and installed plugins can add notes to a session or block a tool call.
 
 ## Install
 
@@ -26,7 +26,7 @@ cline-hook install codex
 cline-hook install pi
 ```
 
-Cline and Kiro take a path: `cline-hook install cline ~/Documents/Cline/Hooks`, `cline-hook install kiro ~/.kiro/agents/my-agent.json`. `cline-hook install --help` lists every assistant. Add `--force` to repoint entries whose binary still exists.
+Kiro takes a path: `cline-hook install kiro ~/.kiro/agents/my-agent.json`. `cline-hook install --help` lists every assistant. Add `--force` to repoint entries whose binary still exists.
 
 Other commands:
 

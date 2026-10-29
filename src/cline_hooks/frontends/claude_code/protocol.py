@@ -40,9 +40,9 @@ if TYPE_CHECKING:
 class ClaudeCodeHookSpec(StandardPayloadProtocol):
     """Claude Code's hook payload spec: its event names, tool names, field shapes.
 
-    Held apart from `ClaudeCodeProtocol` so Codex and GitHub Copilot can
-    inherit the payload shape alone, not Claude Code's output channel,
-    transcript format, or direct-to-user channel.
+    Held apart from `ClaudeCodeProtocol` so Codex can inherit the payload
+    shape alone, not Claude Code's output channel, transcript format, or
+    direct-to-user channel.
     """
 
     supported_hooks: ClassVar[Mapping[CanonicalHook, HookRegistration]] = {
@@ -99,6 +99,7 @@ class ClaudeCodeHookSpec(StandardPayloadProtocol):
     display_name="Claude Code",
     installer=ClaudeCodeInstaller(),
     detect_priority=SHAPE_SNIFF,
+    default=True,
     skills_dir=lambda: Path.home() / ".claude" / "skills",
     max_context_chars=10_000,
 )

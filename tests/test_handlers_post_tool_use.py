@@ -11,7 +11,6 @@ from cline_hooks.core.plugin import HookResult, HooksPlugin, hookimpl
 from cline_hooks.core.protocol import RawPayload, set_protocol
 from cline_hooks.core.response import emit
 from cline_hooks.frontends.claude_code import ClaudeCodeProtocol
-from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.frontends.pi import PiProtocol
 from cline_hooks.handlers.post_tool_use import handle_post_tool_use
 from cline_hooks.plugins.build_tools import BuildToolsPlugin
@@ -23,6 +22,7 @@ from cline_hooks.plugins.research import ResearchPlugin, get_research
 from cline_hooks.state.agents import agent_use_count, record_agent_start, record_agent_use
 from cline_hooks.state.memory import record_memory_write
 from cline_hooks.state.retrospective import get_count, record_session
+from tests.conftest import CanonicalProtocol
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 
 
 def parse_data(raw: str) -> HookInput:
-    return ClineProtocol().parse(RawPayload.from_stdin(raw))
+    return CanonicalProtocol().parse(RawPayload.from_stdin(raw))
 
 
 _BASE = {

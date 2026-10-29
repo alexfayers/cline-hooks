@@ -2,18 +2,21 @@ from __future__ import annotations
 
 from contextlib import ExitStack
 from dataclasses import dataclass, field
+import json
 import logging
 import os
 from pathlib import Path
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, ClassVar, NoReturn
 
 import pytest
 
-from cline_hooks.core.frontends import DEFAULT_PROTOCOL
+from cline_hooks.core.frontend import FrontendSpec
+from cline_hooks.core.models import HOOK_INPUTS, HookInput
 from cline_hooks.core.plugin import HooksPlugin, _plugin_cache, hookspec, plugins_override
-from cline_hooks.core.protocol import get_protocol, set_protocol
+from cline_hooks.core.protocol import HookRegistration, Protocol, RawPayload, get_protocol, set_protocol
 from cline_hooks.core.transcript import TranscriptReader
+from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
 import cline_hooks.plugins.context_usage as context_usage_module
 import cline_hooks.plugins.delegation as delegation_module
 import cline_hooks.plugins.handoff_ack as handoff_ack_module
@@ -31,9 +34,43 @@ import cline_hooks.state.tool_usage as tool_usage_module
 import cline_hooks.state.workspace as workspace_module
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator
+    from collections.abc import Callable, Iterator, Mapping
 
     from pytest_mock import MockerFixture
+
+
+class CanonicalProtocol(Protocol):
+    """Test double that parses payloads already in the canonical shape and answers in JSON."""
+
+    supported_hooks: ClassVar[Mapping[CanonicalHook, HookRegistration]] = {
+        hook: HookRegistration(hook.value) for hook in CanonicalHook
+    }
+    tool_map: ClassVar[Mapping[str, CanonicalTool]] = {
+        "new_task": CanonicalTool.SPAWN_AGENT,
+        "subagent": CanonicalTool.SPAWN_AGENT,
+    }
+
+    @classmethod
+    def detect(cls, payload: RawPayload) -> bool:
+        return payload.data is not None and "hookName" in payload.data
+
+    def parse(self, payload: RawPayload) -> HookInput:
+        data: dict[str, Any] = payload.data if payload.data is not None else json.loads(payload.raw)
+        return HOOK_INPUTS.get(data.get("hookName", ""), HookInput).build(data)
+
+    def allow(self, message: str | None = None, *, system_message: str | None = None) -> NoReturn:
+        result: dict[str, object] = {"cancel": False}
+        if message is not None:
+            result["contextModification"] = message
+        print(json.dumps(result), end="")
+        sys.exit(0)
+
+    def block(self, message: str) -> NoReturn:
+        print(json.dumps({"cancel": True, "errorMessage": message}), end="")
+        sys.exit(0)
+
+
+CanonicalProtocol.frontend_spec = FrontendSpec(name="canonical", display_name="Canonical", protocol=CanonicalProtocol)
 
 
 @dataclass
@@ -184,7 +221,7 @@ def isolate_state_files(mocker: MockerFixture, tmp_path: Path) -> None:
     mocker.patch.object(tool_usage_module, "_USAGE_PATH", tmp_path / "tool-usage.json")
     mocker.patch.object(tool_usage_plugin_module._seen, "_path", tmp_path / "tool-usage-seen.json")
     mocker.patch.dict(os.environ, {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": ""})
-    set_protocol(DEFAULT_PROTOCOL())
+    set_protocol(CanonicalProtocol())
 
 
 @pytest.fixture(autouse=True)

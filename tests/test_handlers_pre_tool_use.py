@@ -13,7 +13,6 @@ from cline_hooks.core.protocol import RawPayload, set_protocol
 from cline_hooks.core.response import emit
 from cline_hooks.core.vocabulary import CanonicalHook, PluginScope
 from cline_hooks.frontends.claude_code.protocol import ClaudeCodeProtocol
-from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.frontends.pi import PiProtocol
 from cline_hooks.handlers.commands import CommandRule
 from cline_hooks.handlers.pre_tool_use import handle_pre_tool_use
@@ -23,6 +22,7 @@ from cline_hooks.plugins.managed_files import _is_managed_path
 from cline_hooks.plugins.tool_guards import ToolGuardsPlugin, _starts_with_emoji
 from cline_hooks.state.skills import record_skill
 from cline_hooks.state.store import TaskStateStore
+from tests.conftest import CanonicalProtocol
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 
 
 def parse_data(raw: str) -> HookInput:
-    return ClineProtocol().parse(RawPayload.from_stdin(raw))
+    return CanonicalProtocol().parse(RawPayload.from_stdin(raw))
 
 
 _BASE = {

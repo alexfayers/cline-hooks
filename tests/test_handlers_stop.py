@@ -11,7 +11,6 @@ from cline_hooks.core.models import HookInputStop, HookInputSubagentStop, StopFi
 from cline_hooks.core.plugin import HookResult, HooksPlugin
 from cline_hooks.core.protocol import set_protocol
 from cline_hooks.frontends.claude_code import ClaudeCodeProtocol
-from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.frontends.kiro import KiroProtocol
 from cline_hooks.handlers.stop import handle_stop, handle_subagent_stop
 from cline_hooks.plugins.nudges import _contains_dismissal_signal
@@ -28,6 +27,7 @@ from cline_hooks.state.memory import has_memory_writes, record_memory_write
 from cline_hooks.state.skills import is_skill_called, record_skill
 from cline_hooks.state.store import TaskStateStore
 from cline_hooks.state.workspace import record_workspace, should_note_workspace_change
+from tests.conftest import CanonicalProtocol
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -97,7 +97,7 @@ def _run_cc(hook: HookInputStop) -> dict[str, object]:
         ):
             handle_stop(hook)
     finally:
-        set_protocol(ClineProtocol())
+        set_protocol(CanonicalProtocol())
     return cast("dict[str, object]", json.loads(output[0]))
 
 
@@ -280,18 +280,18 @@ class TestHandleStopKiro:
             ):
                 handle_stop(_stop())
         finally:
-            set_protocol(ClineProtocol())
+            set_protocol(CanonicalProtocol())
         result = cast("dict[str, str]", json.loads(output[0]))
         assert "Sources: " in result["reason"]
         assert "No narration" in result["reason"]
 
     def test_a_frontend_that_declares_nothing_gets_the_neutral_header(self) -> None:
         """The base header assumes nothing about where hook output surfaces."""
-        set_protocol(ClineProtocol())
+        set_protocol(CanonicalProtocol())
         try:
             header = research_trace_header()
         finally:
-            set_protocol(ClineProtocol())
+            set_protocol(CanonicalProtocol())
         assert "MUST cite the lookups" in header
         assert "raw output" not in header
 
@@ -300,7 +300,7 @@ class TestHandleStopKiro:
         try:
             kiro_header = research_trace_header()
         finally:
-            set_protocol(ClineProtocol())
+            set_protocol(CanonicalProtocol())
         cline_header = research_trace_header()
         assert kiro_header != cline_header
 
@@ -328,7 +328,7 @@ class TestHandleStopClaudeCode:
             ):
                 handle_stop(_stop())
         finally:
-            set_protocol(ClineProtocol())
+            set_protocol(CanonicalProtocol())
         assert exc.value.code == 0
         assert output == []
 
@@ -343,7 +343,7 @@ class TestHandleStopClaudeCode:
             ):
                 handle_stop(_stop(stop_hook_active=True))
         finally:
-            set_protocol(ClineProtocol())
+            set_protocol(CanonicalProtocol())
         assert exc.value.code == 0
         assert get_research("task-1") != []
 
@@ -475,7 +475,7 @@ class TestHandleSubagentStopClaudeCode:
             ):
                 handle_subagent_stop(_subagent_stop())
         finally:
-            set_protocol(ClineProtocol())
+            set_protocol(CanonicalProtocol())
         assert exc.value.code == 0
         assert output == []
 

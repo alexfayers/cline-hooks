@@ -25,11 +25,7 @@ _DETECT_ENV: dict[str, dict[str, str]] = {"claude-code": {"CLAUDECODE": "1"}}
 
 # Frontends whose payloads are shaped exactly like another frontend's, so they
 # cannot be told apart by shape alone.
-_SHAPE_SOURCE: dict[str, str] = {"codex": "claude-code", "copilot": "claude-code"}
-
-# A borrowed-shape frontend is handled by the frontend it borrows from, except
-# for an event only it can have fired.
-_ROUTE_EXCEPTIONS: dict[tuple[str, str], str] = {("copilot", "PreCompact"): "copilot"}
+_SHAPE_SOURCE: dict[str, str] = {"codex": "claude-code"}
 
 
 def _fixture_hooks(name: str) -> list[str]:
@@ -50,18 +46,6 @@ def _fixture_owner(spec: FrontendSpec) -> str:
     if _fixture_hooks(spec.name):
         return spec.name
     return _SHAPE_SOURCE.get(spec.name, spec.name)
-
-
-def _expected_route(name: str, canonical_hook: str) -> str:
-    """Return the frontend that should handle one fixture's payload.
-
-    Returns:
-        The name of the frontend `select_protocol` is expected to pick.
-    """
-    exception = _ROUTE_EXCEPTIONS.get((name, canonical_hook))
-    if exception is not None:
-        return exception
-    return _SHAPE_SOURCE.get(name, name)
 
 
 def _payload_for(name: str, canonical_hook: str) -> RawPayload:
@@ -161,13 +145,13 @@ class TestBorrowedShapeFrontends:
     """Frontends whose payloads are shaped exactly like another frontend's.
 
     Detection falls through to the frontend they borrow from, which parses
-    them the same way - except for an event only they can have fired.
+    them the same way.
     """
 
     @pytest.mark.parametrize(("name", "canonical_hook"), _ALL_FIXTURE_PAIRS)
     def test_every_payload_routes_to_the_frontend_that_should_handle_it(self, name: str, canonical_hook: str) -> None:
         payload = _payload_for(name, canonical_hook)
-        expected = FRONTENDS_BY_NAME[_expected_route(name, canonical_hook)]
+        expected = FRONTENDS_BY_NAME[_SHAPE_SOURCE.get(name, name)]
         assert select_protocol(payload) is expected.protocol
 
     @pytest.mark.parametrize("name", sorted(_SHAPE_SOURCE))
@@ -175,20 +159,8 @@ class TestBorrowedShapeFrontends:
         spec = FRONTENDS_BY_NAME[name]
         source = FRONTENDS_BY_NAME[_SHAPE_SOURCE[name]]
         for canonical_hook in _fixture_hooks(_fixture_owner(spec)):
-            if _ROUTE_EXCEPTIONS.get((name, canonical_hook)):
-                continue
             payload = _payload_for(_fixture_owner(spec), canonical_hook)
             assert source.protocol().parse(payload).model_dump() == spec.protocol().parse(payload).model_dump()
-
-    def test_an_own_event_carries_fields_its_shape_source_would_drop(self) -> None:
-        payload = _payload_for("copilot", "PreCompact")
-        copilot = FRONTENDS_BY_NAME["copilot"].protocol
-        claude_code = FRONTENDS_BY_NAME["claude-code"].protocol
-        assert copilot().parse(payload).model_dump()["preCompact"] == {
-            "conversationLength": 10,
-            "estimatedTokens": 1000,
-        }
-        assert "preCompact" not in claude_code().parse(payload).model_dump()
 
 
 class TestRegistry:

@@ -9,12 +9,12 @@ from cline_hooks.core.frontend import EXACT_MATCH, frontend
 from cline_hooks.core.payload import PayloadEnvelope, StandardPayloadProtocol, ToolParams
 from cline_hooks.core.protocol import HookRegistration, exit_allow, exit_block
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
-from cline_hooks.frontends.copilot.models import CopilotPreCompact
 from cline_hooks.frontends.pi.install import PiInstaller, agent_dir
 from cline_hooks.frontends.pi.models import (
     PiEditParams,
     PiEnvelope,
     PiPostToolUse,
+    PiPreCompact,
     PiPreToolUse,
     PiReadParams,
     PiStop,
@@ -87,7 +87,7 @@ class PiProtocol(StandardPayloadProtocol):
         CanonicalHook.POST_TOOL_USE: PiPostToolUse,
         CanonicalHook.TASK_START: PiTaskStart,
         CanonicalHook.USER_PROMPT_SUBMIT: PiUserPromptSubmit,
-        CanonicalHook.PRE_COMPACT: CopilotPreCompact,
+        CanonicalHook.PRE_COMPACT: PiPreCompact,
         CanonicalHook.STOP: PiStop,
         CanonicalHook.SUBAGENT_STOP: PiStop,
     }

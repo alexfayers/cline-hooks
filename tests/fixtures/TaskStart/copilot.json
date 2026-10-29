@@ -1,6 +1,0 @@
-{
-  "hook_event_name": "SessionStart",
-  "cwd": "/home/user/project",
-  "session_id": "fixture-session-id",
-  "source": "startup"
-}

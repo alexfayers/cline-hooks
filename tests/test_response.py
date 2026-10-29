@@ -10,7 +10,6 @@ import pytest
 from cline_hooks.core.outcome import Outcome
 from cline_hooks.core.response import allow, block, emit, feedback
 from cline_hooks.frontends.claude_code import ClaudeCodeProtocol
-from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.frontends.kiro import KiroProtocol
 from cline_hooks.frontends.pi.protocol import PiProtocol
 
@@ -37,51 +36,6 @@ def _capture_feedback(message: str) -> dict[str, object]:
         feedback(message)
     assert exc.value.code == 0
     return cast("dict[str, object]", json.loads(buf.getvalue()))
-
-
-class TestClineProtocol:
-    def test_allow_no_message(self) -> None:
-        proto = ClineProtocol()
-        buf = StringIO()
-        with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
-            proto.allow()
-        assert exc.value.code == 0
-        assert json.loads(buf.getvalue()) == {"cancel": False}
-
-    def test_allow_with_message(self) -> None:
-        proto = ClineProtocol()
-        buf = StringIO()
-        with patch("sys.stdout", buf), pytest.raises(SystemExit):
-            proto.allow("ctx")
-        assert json.loads(buf.getvalue())["contextModification"] == "ctx"
-
-    def test_supports_user_message_false(self) -> None:
-        assert ClineProtocol().supports_user_message() is False
-
-    def test_allow_ignores_system_message(self) -> None:
-        proto = ClineProtocol()
-        buf = StringIO()
-        with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
-            proto.allow(system_message="user text")
-        assert exc.value.code == 0
-        assert json.loads(buf.getvalue()) == {"cancel": False}
-
-    def test_block(self) -> None:
-        proto = ClineProtocol()
-        buf = StringIO()
-        with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
-            proto.block("oops")
-        assert exc.value.code == 0
-        result = json.loads(buf.getvalue())
-        assert result == {"cancel": True, "errorMessage": "oops"}
-
-    def test_feedback_defaults_to_block(self) -> None:
-        proto = ClineProtocol()
-        buf = StringIO()
-        with patch("sys.stdout", buf), pytest.raises(SystemExit) as exc:
-            proto.feedback("oops")
-        assert exc.value.code == 0
-        assert json.loads(buf.getvalue()) == {"cancel": True, "errorMessage": "oops"}
 
 
 class TestKiroProtocol:
