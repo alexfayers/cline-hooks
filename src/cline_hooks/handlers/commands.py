@@ -60,21 +60,128 @@ _READ_ONLY_GIT_SUBCOMMANDS = frozenset({
     "cat-file",
     "describe",
     "shortlog",
+    "grep",
+    "ls-tree",
+    "ls-remote",
+    "for-each-ref",
+    "show-ref",
+    "name-rev",
+    "diff-tree",
+    "diff-index",
+    "diff-files",
 })
+_BRANCH_LIST_FLAGS = frozenset({
+    "--list",
+    "-l",
+    "--contains",
+    "--no-contains",
+    "--merged",
+    "--no-merged",
+    "--points-at",
+})
+_BRANCH_DISPLAY_FLAGS = frozenset({
+    "--show-current",
+    "--all",
+    "--remotes",
+    "--verbose",
+    "--ignore-case",
+    "--column",
+    "--no-column",
+    "--color",
+    "--no-color",
+    "--no-abbrev",
+})
+_BRANCH_DISPLAY_FLAG_PREFIXES = ("--abbrev=", "--sort=", "--format=")
+_BRANCH_SHORT_FLAGS = re.compile(r"-[arvil]+")
+_TAG_FLAGS = _BRANCH_LIST_FLAGS | _BRANCH_DISPLAY_FLAGS | {"-i"}
+_STASH_REFLOG_FLAGS = frozenset({
+    "-p",
+    "--patch",
+    "--stat",
+    "--oneline",
+    "--name-only",
+    "--name-status",
+    "--numstat",
+    "--shortstat",
+    "--no-patch",
+    "--abbrev-commit",
+    "--no-abbrev-commit",
+    "--all",
+})
+_COUNT_FLAG = re.compile(r"-n\d*")
 
 
 _GIT_OPTIONS_TAKING_A_VALUE = frozenset({"-C", "-c", "--git-dir", "--work-tree", "--namespace"})
 
 
-def _git_subcommand(words: list[str]) -> str | None:
-    """Return the first `git` word that is not a global option or its value."""
-    remaining = iter(words)
-    for word in remaining:
+def _split_git_words(words: list[str]) -> tuple[str | None, list[str]]:
+    """Split the words after `git` into its subcommand and the words after it.
+
+    Returns:
+        The subcommand (None if absent) and the words after it.
+    """
+    remaining = iter(enumerate(words))
+    for index, word in remaining:
         if word in _GIT_OPTIONS_TAKING_A_VALUE:
             next(remaining, None)
         elif not word.startswith("-"):
-            return word
-    return None
+            return word, words[index + 1 :]
+    return None, []
+
+
+def _is_branch_listing(words: list[str]) -> bool:
+    """Check that `git branch` words only list branches.
+
+    Returns:
+        bool: True if every flag is a listing or display flag and any argument is a listing filter.
+    """
+    flags = [word for word in words if word.startswith("-")]
+    short = [flag for flag in flags if _BRANCH_SHORT_FLAGS.fullmatch(flag)]
+    listing = any(flag in _BRANCH_LIST_FLAGS for flag in flags) or any("l" in flag for flag in short)
+    known = all(
+        flag in _BRANCH_LIST_FLAGS | _BRANCH_DISPLAY_FLAGS or flag.startswith(_BRANCH_DISPLAY_FLAG_PREFIXES)
+        for flag in flags
+        if flag not in short
+    )
+    return known and (listing or len(flags) == len(words))
+
+
+def _flags_known(words: list[str], known: frozenset[str] | set[str], prefixes: tuple[str, ...] = ()) -> bool:
+    """Check that every flag is listed, starts with a listed prefix or is a `-n<count>` flag.
+
+    Returns:
+        bool: True if no flag falls outside those.
+    """
+    return all(
+        word in known or word.startswith(prefixes) or _COUNT_FLAG.fullmatch(word)
+        for word in words
+        if word.startswith("-")
+    )
+
+
+def _is_tag_listing(words: list[str]) -> bool:
+    """Check that `git tag` words only list tags; a pattern or ref needs `-l` or `--list`.
+
+    Returns:
+        bool: True if every flag is a listing flag and any argument comes with `-l` or `--list`.
+    """
+    flags = [word for word in words if word.startswith("-")]
+    return _flags_known(words, _TAG_FLAGS, _BRANCH_DISPLAY_FLAG_PREFIXES) and (
+        len(flags) == len(words) or "-l" in flags or "--list" in flags
+    )
+
+
+def _is_stash_or_reflog_listing(subcommand: str, words: list[str]) -> bool:
+    """Check that `git stash` or `git reflog` words only show entries.
+
+    Returns:
+        bool: True for `stash list`, `stash show` and bare or `show` `reflog`, with only known flags.
+    """
+    if subcommand == "reflog" and not words:
+        return True
+    if not words or words[0] not in {"stash": {"list", "show"}, "reflog": {"show"}}[subcommand]:
+        return False
+    return _flags_known(words[1:], _STASH_REFLOG_FLAGS, ("--date=",))
 
 
 def is_read_only_git(cmd: ParsedCommand) -> bool:
@@ -83,7 +190,16 @@ def is_read_only_git(cmd: ParsedCommand) -> bool:
     Returns:
         bool: True if the command is `git` whose subcommand is read-only.
     """
-    return cmd.name == "git" and _git_subcommand(cmd.words) in _READ_ONLY_GIT_SUBCOMMANDS
+    if cmd.name != "git":
+        return False
+    subcommand, words = _split_git_words(cmd.words)
+    if subcommand == "branch":
+        return _is_branch_listing(words)
+    if subcommand == "tag":
+        return _is_tag_listing(words)
+    if subcommand in {"stash", "reflog"}:
+        return _is_stash_or_reflog_listing(subcommand, words)
+    return subcommand in _READ_ONLY_GIT_SUBCOMMANDS
 
 
 def _iter_nodes(node: bashlex.ast.node) -> Iterator[bashlex.ast.node]:
