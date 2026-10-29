@@ -681,6 +681,10 @@ class TestLargeFileReadGuard:
 
 
 class TestRequiredSkillGuardIntegration:
+    @pytest.fixture(autouse=True)
+    def outside_a_repo(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.chdir(tmp_path)
+
     def test_command_without_recorded_skill_is_blocked(self) -> None:
         result = _run("execute_command", {"command": "git commit -m x"})
         assert result is not None
