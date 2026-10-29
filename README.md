@@ -48,7 +48,7 @@
 | src/cline\_hooks/frontends/pi/protocol.py               |       38 |        1 |        4 |        1 |     95% |       112 |
 | src/cline\_hooks/frontends/pi/transcript.py             |       51 |        4 |       16 |        2 |     91% |78-79, 87, 96 |
 | src/cline\_hooks/handlers/\_\_init\_\_.py               |        3 |        0 |        0 |        0 |    100% |           |
-| src/cline\_hooks/handlers/commands.py                   |      174 |        5 |       84 |        9 |     95% |214, 257, 261, 265, 310, 317-\>315, 319-\>315, 321-\>315, 322-\>321 |
+| src/cline\_hooks/handlers/commands.py                   |      174 |        5 |       84 |        8 |     95% |214, 257, 261, 265, 310, 319-\>315, 321-\>315, 322-\>321 |
 | src/cline\_hooks/handlers/context\_nudge.py             |        7 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/handlers/git\_context.py               |       44 |        2 |        8 |        0 |     96% |     55-56 |
 | src/cline\_hooks/handlers/herdr\_guard.py               |       79 |        1 |       24 |        1 |     98% |        84 |
@@ -66,6 +66,7 @@
 | src/cline\_hooks/plugins/context\_usage.py              |       91 |        1 |       36 |        1 |     98% |       202 |
 | src/cline\_hooks/plugins/delegation.py                  |       73 |        2 |       28 |        2 |     96% |  153, 185 |
 | src/cline\_hooks/plugins/ecosystem.py                   |       52 |        1 |       14 |        1 |     97% |44, 133-\>135 |
+| src/cline\_hooks/plugins/fixup\_guard.py                |       58 |        2 |       14 |        0 |     97% |     61-62 |
 | src/cline\_hooks/plugins/handback\_rescue.py            |       22 |        0 |        8 |        0 |    100% |           |
 | src/cline\_hooks/plugins/handoff\_ack.py                |      143 |        2 |       56 |        1 |     98% |73-74, 275-\>277 |
 | src/cline\_hooks/plugins/managed\_files.py              |       52 |        4 |       14 |        0 |     94% |20, 32, 47-48 |
@@ -114,7 +115,7 @@
 | tests/test\_handlers\_git\_context.py                   |       42 |        0 |        2 |        0 |    100% |           |
 | tests/test\_handlers\_post\_tool\_use.py                |      488 |        9 |       24 |        6 |     97% |405, 413, 518-519, 525-526, 559-560, 714 |
 | tests/test\_handlers\_pre\_compact.py                   |       19 |        0 |        0 |        0 |    100% |           |
-| tests/test\_handlers\_pre\_tool\_use.py                 |      519 |        0 |       14 |        0 |    100% |           |
+| tests/test\_handlers\_pre\_tool\_use.py                 |      522 |        0 |       14 |        0 |    100% |           |
 | tests/test\_handlers\_push\_guard.py                    |       28 |        0 |        0 |        0 |    100% |           |
 | tests/test\_handlers\_search\_scope.py                  |      166 |        0 |        2 |        0 |    100% |           |
 | tests/test\_handlers\_stop.py                           |      343 |        0 |        4 |        0 |    100% |           |
@@ -137,6 +138,7 @@
 | tests/test\_plugins\_command\_rules.py                  |       25 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugins\_delegation.py                      |       70 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugins\_ecosystem.py                       |      112 |        0 |        2 |        0 |    100% |           |
+| tests/test\_plugins\_fixup\_guard.py                    |       58 |        0 |        2 |        0 |    100% |           |
 | tests/test\_plugins\_handback\_rescue.py                |       27 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugins\_handoff\_ack.py                    |      300 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugins\_research.py                        |       41 |        0 |        2 |        0 |    100% |           |
@@ -156,7 +158,7 @@
 | tests/test\_turns.py                                    |       57 |        1 |        6 |        0 |     98% |        22 |
 | tests/test\_uninstall.py                                |       46 |        0 |        0 |        0 |    100% |           |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **11351** |  **180** | **1338** |   **94** | **98%** |           |
+| **TOTAL**                                               | **11470** |  **182** | **1354** |   **93** | **98%** |           |
 
 
 ## Setup coverage badge
