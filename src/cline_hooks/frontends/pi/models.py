@@ -9,6 +9,7 @@ from pydantic import Field, field_validator, model_validator
 
 from cline_hooks.core.models import (
     PostToolUseFields,
+    PreCompactFields,
     PreToolUseFields,
     StopFields,
     TaskStartFields,
@@ -22,6 +23,13 @@ _RESUMING_REASONS = frozenset({"reload", "fork"})
 
 # pi-subagents names a child session `<agent type>#<first 8 hex chars of its agent id>`.
 _SUBAGENT_SESSION_NAME = re.compile(r"(?P<agent_type>.+)#(?P<agent_id>[0-9a-f]{8})")
+
+
+class PiPreCompact(PreCompactFields):
+    """Pi's PreCompact fields; snake_case counters alias the camelCase names."""
+
+    conversationLength: int = Field(default=0, validation_alias="conversation_length")
+    estimatedTokens: int = Field(default=0, validation_alias="estimated_tokens")
 
 
 class PiEnvelope(PayloadEnvelope):

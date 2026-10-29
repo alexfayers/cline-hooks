@@ -18,7 +18,6 @@ from cline_hooks.core.models import (
 from cline_hooks.core.plugin import HookResult, HooksPlugin, UserFacingNote
 from cline_hooks.core.protocol import set_protocol
 from cline_hooks.frontends.claude_code import ClaudeCodeProtocol
-from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.frontends.kiro import KiroProtocol
 from cline_hooks.handlers.git_context import get_dirty_count
 from cline_hooks.handlers.task_lifecycle import (
@@ -39,6 +38,7 @@ from cline_hooks.state.memory import has_memory_writes, record_memory_write
 from cline_hooks.state.skills import is_skill_called, record_skill
 from cline_hooks.state.store import TaskBlockEvent, TaskStateStore
 from cline_hooks.state.workspace import record_workspace, should_note_workspace_change
+from tests.conftest import CanonicalProtocol
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -336,7 +336,7 @@ class TestHandleTaskStart:
             ):
                 raw = self._run_raw(_task_start([str(tmp_path)]))
         finally:
-            set_protocol(ClineProtocol())
+            set_protocol(CanonicalProtocol())
         payload = json.loads(raw)
         assert payload["systemMessage"] == "USER TEXT"
 
@@ -355,7 +355,7 @@ class TestHandleTaskStart:
             ):
                 raw = self._run_raw(_task_start([str(tmp_path)]))
         finally:
-            set_protocol(ClineProtocol())
+            set_protocol(CanonicalProtocol())
         assert "USER TEXT" not in raw
         assert "systemMessage" not in raw
 
@@ -374,7 +374,7 @@ class TestHandleTaskStart:
             ):
                 raw = self._run_raw(_task_start([str(tmp_path)]))
         finally:
-            set_protocol(ClineProtocol())
+            set_protocol(CanonicalProtocol())
         payload = json.loads(raw)
         note = "cline-hooks plugin problems:\n- FakePlugin failed to load and is ignored"
         assert payload["systemMessage"] == note

@@ -6,11 +6,9 @@
 
 | Assistant | Writes to |
 |-----------|-----------|
-| Cline | A `cline-hook` link (a script on Windows) per hook in the directory you give |
 | Antigravity | `~/.gemini/config/hooks.json` |
 | Claude Code | `~/.claude/settings.json` |
 | Codex | `~/.codex/hooks.json` |
-| GitHub Copilot | `~/.copilot/hooks/cline-hooks.json` |
 | Kiro | The agent config you give, which must already exist |
 | Pi | `~/.pi/agent/extensions/cline-hooks.ts` (or under `$PI_CODING_AGENT_DIR`) |
 
@@ -23,19 +21,19 @@ Pi has no command hooks, so its extension relays Pi's events to `cline-hook`, wi
 The canonical hooks each frontend fires, with its native name for each. `tests/test_readme_matrix.py` fails if this table drifts from `Protocol.supported_hooks`.
 
 <!-- HOOK_MATRIX_START -->
-| Canonical hook | Antigravity | Claude Code | Cline | Codex | GitHub Copilot | Kiro | Pi |
-|---|---|---|---|---|---|---|---|
-| PreToolUse | `PreToolUse` | `PreToolUse` | `PreToolUse` | `PreToolUse` | `PreToolUse` | `preToolUse` | `tool_call` |
-| PostToolUse | `PostToolUse` | `PostToolUse` | `PostToolUse` | `PostToolUse` | `PostToolUse` | `postToolUse` | `tool_result` |
-| TaskStart | - | `SessionStart` | `TaskStart` | `SessionStart` | `SessionStart` | `agentSpawn` | `session_start` |
-| TaskResume | - | - | `TaskResume` | - | - | - | - |
-| TaskCancel | - | - | `TaskCancel` | - | - | - | - |
-| TaskComplete | - | - | `TaskComplete` | - | - | - | - |
-| UserPromptSubmit | - | `UserPromptSubmit` | `UserPromptSubmit` | `UserPromptSubmit` | `UserPromptSubmit` | `userPromptSubmit` | `before_agent_start` |
-| PreCompact | - | - | `PreCompact` | - | `PreCompact` | - | `session_before_compact` |
-| Stop | `Stop` | `Stop` | `Stop` | `Stop` | `Stop` | `stop` | `agent_end` |
-| SubagentStart | - | `SubagentStart` | - | `SubagentStart` | - | - | - |
-| SubagentStop | - | `SubagentStop` | - | `SubagentStop` | `SubagentStop` | - | `session_shutdown` |
+| Canonical hook | Antigravity | Claude Code | Codex | Kiro | Pi |
+|---|---|---|---|---|---|
+| PreToolUse | `PreToolUse` | `PreToolUse` | `PreToolUse` | `preToolUse` | `tool_call` |
+| PostToolUse | `PostToolUse` | `PostToolUse` | `PostToolUse` | `postToolUse` | `tool_result` |
+| TaskStart | - | `SessionStart` | `SessionStart` | `agentSpawn` | `session_start` |
+| TaskResume | - | - | - | - | - |
+| TaskCancel | - | - | - | - | - |
+| TaskComplete | - | - | - | - | - |
+| UserPromptSubmit | - | `UserPromptSubmit` | `UserPromptSubmit` | `userPromptSubmit` | `before_agent_start` |
+| PreCompact | - | - | - | - | `session_before_compact` |
+| Stop | `Stop` | `Stop` | `Stop` | `stop` | `agent_end` |
+| SubagentStart | - | `SubagentStart` | `SubagentStart` | - | - |
+| SubagentStop | - | `SubagentStop` | `SubagentStop` | - | `session_shutdown` |
 <!-- HOOK_MATRIX_END -->
 
 ## Adding a frontend
@@ -76,7 +74,7 @@ The package holds, at most:
 | `extension.ts` | A bridge extension, where the frontend runs extensions rather than hook commands |
 
 A frontend speaking another's payload shape subclasses that frontend's spec
-class and overrides only what differs - all Codex and Copilot are.
+class and overrides only what differs - Codex is one.
 
 Handlers see only the canonical vocabulary, a normalised `HookInput`, and the
 capabilities the active `Protocol` exposes. A hook a frontend does not declare

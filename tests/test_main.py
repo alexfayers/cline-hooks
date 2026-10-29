@@ -17,15 +17,18 @@ from cline_hooks._main import (
 from cline_hooks.core.frontends import FRONTENDS, FRONTENDS_BY_NAME
 from cline_hooks.core.plugin import HooksPlugin, hookimpl
 from cline_hooks.core.vocabulary import CanonicalHook
-from tests.conftest import GreeterOwner
+from tests.conftest import CanonicalProtocol, GreeterOwner
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
     from cline_hooks.core.frontend import FrontendSpec
+    from cline_hooks.core.protocol import Protocol
 
 
-def _run(payload: dict[str, object], env: dict[str, str] | None = None) -> list[str]:
+def _run(
+    payload: dict[str, object], env: dict[str, str] | None = None, protocol: type[Protocol] = CanonicalProtocol
+) -> list[str]:
     """Feed one payload through the entry point and capture what it printed.
 
     Returns:
@@ -36,6 +39,7 @@ def _run(payload: dict[str, object], env: dict[str, str] | None = None) -> list[
         patch("builtins.input", return_value=json.dumps(payload)),
         patch("builtins.print", side_effect=lambda s, **kw: output.append(str(s))),
         patch.dict("os.environ", env or {}, clear=True),
+        patch("cline_hooks._main.select_protocol", return_value=protocol),
         pytest.raises(SystemExit),
     ):
         _run_hook()
@@ -66,9 +70,7 @@ class TestHookDispatchGating:
             "conversation_length": 10,
             "estimated_tokens": 1000,
         }
-        with patch("cline_hooks._main.select_protocol", return_value=claude_code) as select:
-            output = _run(payload)
-        assert select.called
+        output = _run(payload, protocol=claude_code)
         assert output == []
 
     def test_an_unknown_event_name_is_ignored(self) -> None:
@@ -100,24 +102,30 @@ class TestInvocationContextFilter:
         assert _invocation_filter.agent == "agent-7"
 
     def test_uses_the_detected_frontends_name(self) -> None:
-        _run(_TASK_START_PAYLOAD)
-        assert _invocation_filter.frontend == "cline"
+        payload: dict[str, object] = {
+            "hook_event_name": "SessionStart",
+            "session_id": "task-1",
+            "cwd": "/workspace",
+            "source": "startup",
+        }
+        _run(payload, protocol=FRONTENDS_BY_NAME["claude-code"].protocol)
+        assert _invocation_filter.frontend == "claude-code"
 
     def test_context_omits_the_agent_when_main(self) -> None:
         context_filter = _InvocationContextFilter()
-        context_filter.frontend = "cline"
+        context_filter.frontend = "claude-code"
         context_filter.agent = "main"
         record = logging.LogRecord("hooks", logging.INFO, __file__, 1, "msg", (), None)
         context_filter.filter(record)
-        assert record.context == "cline"  # type: ignore[attr-defined]
+        assert record.context == "claude-code"  # type: ignore[attr-defined]
 
     def test_context_includes_the_agent_when_not_main(self) -> None:
         context_filter = _InvocationContextFilter()
-        context_filter.frontend = "cline"
+        context_filter.frontend = "claude-code"
         context_filter.agent = "general-purpose"
         record = logging.LogRecord("hooks", logging.INFO, __file__, 1, "msg", (), None)
         context_filter.filter(record)
-        assert record.context == "cline/general-purpose"  # type: ignore[attr-defined]
+        assert record.context == "claude-code/general-purpose"  # type: ignore[attr-defined]
 
     def test_context_is_just_a_dash_before_the_frontend_is_known(self) -> None:
         context_filter = _InvocationContextFilter()

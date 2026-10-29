@@ -17,11 +17,11 @@ from cline_hooks.core.plugin import HookResult, HooksPlugin, hookimpl
 from cline_hooks.core.protocol import RawPayload
 from cline_hooks.core.response import emit
 from cline_hooks.core.vocabulary import CanonicalHook
-from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.handlers.post_tool_use import handle_post_tool_use
 from cline_hooks.handlers.task_lifecycle import handle_task_resume, handle_task_start
 from cline_hooks.plugins.ecosystem import EcosystemPlugin, ToolingNote
 from cline_hooks.state.workspace import record_workspace
+from tests.conftest import CanonicalProtocol
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -92,7 +92,7 @@ def _run_post_tool_use(roots: list[str]) -> str:
             "result": None,
         },
     }
-    hook = ClineProtocol().parse(RawPayload.from_stdin(json.dumps(payload)))
+    hook = CanonicalProtocol().parse(RawPayload.from_stdin(json.dumps(payload)))
     assert isinstance(hook, HookInputPostToolUse)
     output: list[str] = []
     with patch("builtins.print", side_effect=lambda s, **kw: output.append(s)), contextlib.suppress(SystemExit):

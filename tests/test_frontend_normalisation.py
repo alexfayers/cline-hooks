@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -16,9 +15,7 @@ from cline_hooks.core.models import (
 from cline_hooks.core.protocol import Protocol, RawPayload
 from cline_hooks.frontends.antigravity.protocol import AntigravityProtocol
 from cline_hooks.frontends.claude_code.protocol import ClaudeCodeProtocol
-from cline_hooks.frontends.cline.protocol import ClineProtocol
 from cline_hooks.frontends.codex.protocol import CodexProtocol
-from cline_hooks.frontends.copilot.protocol import CopilotProtocol
 from cline_hooks.frontends.kiro.protocol import KiroProtocol
 from cline_hooks.frontends.pi.protocol import PiProtocol
 
@@ -36,20 +33,6 @@ _CLAUDE_CODE_ENVELOPE: dict[str, Any] = {
 }
 _KIRO_ENVELOPE: dict[str, Any] = {
     "taskId": "fixture-session-id",
-    "workspaceRoots": ["/home/user/project"],
-    "transcriptPath": "",
-    "agentType": "",
-    "agentId": None,
-}
-_COPILOT_ENVELOPE: dict[str, Any] = {
-    "taskId": "fixture-session-id",
-    "workspaceRoots": ["/home/user/project"],
-    "transcriptPath": "",
-    "agentType": "",
-    "agentId": None,
-}
-_CLINE_ENVELOPE: dict[str, Any] = {
-    "taskId": "fixture-task-1",
     "workspaceRoots": ["/home/user/project"],
     "transcriptPath": "",
     "agentType": "",
@@ -384,181 +367,6 @@ class TestKiroNormalisation:
             "taskId": "kiro-env-session",
             "hookName": "Stop",
             "stop": {"stopHookActive": False},
-        }
-
-
-class TestClineNormalisation:
-    def test_pre_tool_use(self) -> None:
-        hook = _parse("cline", "PreToolUse", ClineProtocol)
-        assert hook.model_dump() == {
-            **_CLINE_ENVELOPE,
-            "hookName": "PreToolUse",
-            "preToolUse": {
-                "toolName": "execute_command",
-                "parameters": {"command": "ls -la"},
-            },
-        }
-
-    def test_post_tool_use(self) -> None:
-        hook = _parse("cline", "PostToolUse", ClineProtocol)
-        assert hook.model_dump() == {
-            **_CLINE_ENVELOPE,
-            "hookName": "PostToolUse",
-            "postToolUse": {
-                "toolName": "execute_command",
-                "parameters": {"command": "ls -la"},
-                "success": True,
-                "executionTimeMs": 42,
-                "result": "file1\nfile2",
-            },
-        }
-
-    def test_task_start(self) -> None:
-        hook = _parse("cline", "TaskStart", ClineProtocol)
-        assert hook.model_dump() == {
-            **_CLINE_ENVELOPE,
-            "hookName": "TaskStart",
-            "taskStart": {
-                "task": "Add a new test for the parser.",
-                "source": "startup",
-            },
-        }
-
-    def test_task_resume(self) -> None:
-        hook = _parse("cline", "TaskResume", ClineProtocol)
-        assert hook.model_dump() == {
-            **_CLINE_ENVELOPE,
-            "hookName": "TaskResume",
-            "taskResume": {"task": "Add a new test for the parser."},
-        }
-
-    def test_task_cancel(self) -> None:
-        hook = _parse("cline", "TaskCancel", ClineProtocol)
-        assert hook.model_dump() == {
-            **_CLINE_ENVELOPE,
-            "hookName": "TaskCancel",
-            "taskCancel": {},
-        }
-
-    def test_task_complete(self) -> None:
-        hook = _parse("cline", "TaskComplete", ClineProtocol)
-        assert hook.model_dump() == {
-            **_CLINE_ENVELOPE,
-            "hookName": "TaskComplete",
-            "taskComplete": {},
-        }
-
-    def test_user_prompt_submit(self) -> None:
-        hook = _parse("cline", "UserPromptSubmit", ClineProtocol)
-        assert hook.model_dump() == {
-            **_CLINE_ENVELOPE,
-            "hookName": "UserPromptSubmit",
-            "userPromptSubmit": {"userMessage": "Add a new test for the parser."},
-        }
-
-    def test_pre_compact(self) -> None:
-        hook = _parse("cline", "PreCompact", ClineProtocol)
-        assert hook.model_dump() == {
-            **_CLINE_ENVELOPE,
-            "hookName": "PreCompact",
-            "preCompact": {"conversationLength": 42, "estimatedTokens": 128000},
-        }
-
-    def test_stop(self) -> None:
-        hook = _parse("cline", "Stop", ClineProtocol)
-        assert hook.model_dump() == {
-            **_CLINE_ENVELOPE,
-            "transcriptPath": "/home/user/.cline/tasks/fixture-task-1/ui_messages.json",
-            "hookName": "Stop",
-            "stop": {"stopHookActive": False},
-        }
-
-    def test_tools_new_task(self) -> None:
-        hook = _parse("cline", "tools/NewTask", ClineProtocol)
-        assert hook.model_dump() == {
-            **_CLINE_ENVELOPE,
-            "hookName": "PreToolUse",
-            "preToolUse": {
-                "toolName": "spawn_agent",
-                "parameters": {"context": "spawn a subagent"},
-            },
-        }
-
-
-class TestCopilotNormalisation:
-    def test_pre_tool_use(self) -> None:
-        hook = _parse("copilot", "PreToolUse", CopilotProtocol)
-        assert hook.model_dump() == {
-            **_COPILOT_ENVELOPE,
-            "hookName": "PreToolUse",
-            "preToolUse": {"toolName": "example_tool", "parameters": {}},
-        }
-
-    def test_post_tool_use(self) -> None:
-        hook = _parse("copilot", "PostToolUse", CopilotProtocol)
-        assert hook.model_dump() == {
-            **_COPILOT_ENVELOPE,
-            "hookName": "PostToolUse",
-            "postToolUse": {
-                "toolName": "example_tool",
-                "parameters": {},
-                "success": True,
-                "executionTimeMs": 0,
-                "result": None,
-            },
-        }
-
-    def test_task_start(self) -> None:
-        hook = _parse("copilot", "TaskStart", CopilotProtocol)
-        assert hook.model_dump() == {
-            **_COPILOT_ENVELOPE,
-            "hookName": "TaskStart",
-            "taskStart": {"task": "", "source": "startup"},
-        }
-
-    def test_user_prompt_submit(self) -> None:
-        hook = _parse("copilot", "UserPromptSubmit", CopilotProtocol)
-        assert hook.model_dump() == {
-            **_COPILOT_ENVELOPE,
-            "hookName": "UserPromptSubmit",
-            "userPromptSubmit": {"userMessage": "Add a new test for the parser."},
-        }
-
-    def test_stop(self) -> None:
-        hook = _parse("copilot", "Stop", CopilotProtocol)
-        assert hook.model_dump() == {
-            **_COPILOT_ENVELOPE,
-            "hookName": "Stop",
-            "stop": {"stopHookActive": False},
-        }
-
-    def test_pre_compact(self) -> None:
-        hook = _parse("copilot", "PreCompact", CopilotProtocol)
-        assert hook.model_dump() == {
-            **_COPILOT_ENVELOPE,
-            "hookName": "PreCompact",
-            "preCompact": {"conversationLength": 10, "estimatedTokens": 1000},
-        }
-
-    def test_pre_tool_use_bash_inherits_claude_code_tool_map(self) -> None:
-        hook = _parse("copilot", "tools/Bash", CopilotProtocol)
-        assert hook.model_dump() == {
-            **_COPILOT_ENVELOPE,
-            "hookName": "PreToolUse",
-            "preToolUse": {
-                "toolName": "execute_command",
-                "parameters": {"command": "ls -la"},
-            },
-        }
-
-    def test_pre_compact_session_id_falls_back_to_cwd_hash(self) -> None:
-        hook = _parse("copilot", "PreCompact", CopilotProtocol, overrides={"session_id": ""})
-        expected_task_id = hashlib.sha256(b"/home/user/project").hexdigest()[:16]
-        assert hook.model_dump() == {
-            **_COPILOT_ENVELOPE,
-            "taskId": expected_task_id,
-            "hookName": "PreCompact",
-            "preCompact": {"conversationLength": 10, "estimatedTokens": 1000},
         }
 
 
@@ -986,14 +794,9 @@ class TestFrontendAsymmetries:
         assert claude_code_hook.preToolUse is not None
         assert claude_code_hook.preToolUse.parameters == {"command": "ls -la"}
 
-    def test_cline_native_duration_normalises_where_kiro_payload_carries_none(
+    def test_kiro_duration_normalises_to_zero_where_payload_carries_none(
         self,
     ) -> None:
-        cline_hook = _parse("cline", "PostToolUse", ClineProtocol)
-        assert isinstance(cline_hook, HookInputPostToolUse)
-        assert cline_hook.postToolUse is not None
-        assert cline_hook.postToolUse.executionTimeMs == 42
-
         kiro_hook = _parse("kiro", "PostToolUse", KiroProtocol)
         assert isinstance(kiro_hook, HookInputPostToolUse)
         assert kiro_hook.postToolUse is not None

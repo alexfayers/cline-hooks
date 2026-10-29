@@ -19,11 +19,11 @@ from cline_hooks.core.models import (
 )
 from cline_hooks.core.protocol import RawPayload
 from cline_hooks.core.vocabulary import CanonicalHook
-from cline_hooks.frontends.cline import ClineProtocol
+from tests.conftest import CanonicalProtocol
 
 
 def parse_data(raw: str) -> HookInput:
-    return ClineProtocol().parse(RawPayload.from_stdin(raw))
+    return CanonicalProtocol().parse(RawPayload.from_stdin(raw))
 
 
 BASE_FIELDS = {

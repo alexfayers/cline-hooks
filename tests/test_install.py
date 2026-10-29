@@ -249,7 +249,6 @@ class TestNestedEntryFrontends:
         [
             ("claude-code", (".claude", "settings.json")),
             ("codex", (".codex", "hooks.json")),
-            ("copilot", (".copilot", "hooks", "cline-hooks.json")),
         ],
     )
     def test_config_path(self, name: str, expected: tuple[str, ...], home: Path) -> None:
@@ -313,14 +312,6 @@ class TestAntigravityInstaller:
         spec.install(None)
         config = _install(spec, home)
         assert config["cline-hooks"]["Stop"] == [{"type": "command", "command": _EXPECTED_BINARY}]
-
-
-class TestCopilotInstaller:
-    def test_entries_are_flat_command_objects(self, home: Path) -> None:
-        spec = FRONTENDS_BY_NAME["copilot"]
-        config = _install(spec, home)
-        for entry in config["hooks"].values():
-            assert entry[0] == {"type": "command", "command": _EXPECTED_BINARY}
 
 
 class TestResolveBinary:

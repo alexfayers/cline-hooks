@@ -7,11 +7,10 @@ import sys
 from typing import TYPE_CHECKING
 
 from cline_hooks.core.frontend import select_protocol
-from cline_hooks.core.models import HookInputPreToolUse, HookInputTaskStart
+from cline_hooks.core.models import HookInputTaskStart
 import cline_hooks.core.protocol as protocol_module
 from cline_hooks.core.protocol import RawPayload, set_protocol
 from cline_hooks.frontends.claude_code import ClaudeCodeProtocol
-from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.frontends.kiro import KiroProtocol
 
 if TYPE_CHECKING:
@@ -50,17 +49,6 @@ class TestDispatch:
         hook = _dispatch(data)
         assert isinstance(hook, HookInputTaskStart)
         assert isinstance(protocol_module._active_protocol, KiroProtocol)
-
-    def test_cline_sets_cline_protocol(self) -> None:
-        data = json.dumps({
-            "hookName": "PreToolUse",
-            "taskId": "t1",
-            "workspaceRoots": [],
-            "preToolUse": {"toolName": "read_file", "parameters": {}},
-        })
-        hook = _dispatch(data)
-        assert isinstance(hook, HookInputPreToolUse)
-        assert isinstance(protocol_module._active_protocol, ClineProtocol)
 
     def test_claude_code_stop_sets_claude_code_protocol(self) -> None:
         data = json.dumps({"hook_event_name": "Stop", "cwd": "/project"})

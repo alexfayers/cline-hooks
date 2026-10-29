@@ -10,7 +10,6 @@ import pytest
 
 from cline_hooks.core.plugin import HooksPlugin, load_plugins
 from cline_hooks.core.protocol import RawPayload, get_protocol
-from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.frontends.pi import PiProtocol
 from cline_hooks.handlers.post_tool_use import handle_post_tool_use
 from cline_hooks.handlers.user_prompt import (
@@ -31,14 +30,14 @@ from cline_hooks.plugins.nudges import (
 )
 from cline_hooks.plugins.plan_handoff import record_plan_exit
 from cline_hooks.state.agents import record_agent_use
-from tests.conftest import StubTranscript
+from tests.conftest import CanonicalProtocol, StubTranscript
 
 if TYPE_CHECKING:
     from cline_hooks.core.models import HookInput, HookInputPostToolUse, HookInputUserPromptSubmit
 
 
 def parse_data(raw: str) -> HookInput:
-    return ClineProtocol().parse(RawPayload.from_stdin(raw))
+    return CanonicalProtocol().parse(RawPayload.from_stdin(raw))
 
 
 _BELOW_REDUCED = CONTEXT_REDUCED_THRESHOLD // 2

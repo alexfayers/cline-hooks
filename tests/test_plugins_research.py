@@ -6,9 +6,9 @@ from typing import TYPE_CHECKING, Any
 from cline_hooks.core.models import HookInput, HookInputPostToolUse
 from cline_hooks.core.plugin import HooksPlugin, hookimpl
 from cline_hooks.core.protocol import RawPayload
-from cline_hooks.frontends.cline import ClineProtocol
 from cline_hooks.handlers.post_tool_use import handle_post_tool_use
 from cline_hooks.plugins.research import ResearchPlugin, get_research
+from tests.conftest import CanonicalProtocol
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -32,7 +32,7 @@ def _post_tool_use(tool_name: str, parameters: dict[str, object]) -> None:
             "result": None,
         },
     }
-    hook: HookInput = ClineProtocol().parse(RawPayload.from_stdin(json.dumps(data)))
+    hook: HookInput = CanonicalProtocol().parse(RawPayload.from_stdin(json.dumps(data)))
     assert isinstance(hook, HookInputPostToolUse)
     handle_post_tool_use(hook)
 

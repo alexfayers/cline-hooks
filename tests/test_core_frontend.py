@@ -138,9 +138,9 @@ class TestNativeToolName:
 
     def test_uses_the_frontends_own_name_where_it_has_one(self) -> None:
         claude_code = FRONTENDS_BY_NAME["claude-code"].protocol
-        cline = FRONTENDS_BY_NAME["cline"].protocol
+        pi = FRONTENDS_BY_NAME["pi"].protocol
         assert claude_code.native_tool_name(CanonicalTool.SPAWN_AGENT) == "Task"
-        assert cline.native_tool_name(CanonicalTool.SPAWN_AGENT) == "new_task"
+        assert pi.native_tool_name(CanonicalTool.SPAWN_AGENT) == "delegate_agent"
         assert claude_code.native_tool_name(CanonicalTool.SHELL) == "Bash"
 
     def test_canonical_name_stands_in_for_a_tool_the_frontend_never_renames(
