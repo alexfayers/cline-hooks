@@ -13,6 +13,7 @@ from cline_hooks.core.registry import HOOK_HANDLERS
 from cline_hooks.core.response import allow, emit
 import cline_hooks.handlers  # ruff: ignore[unused-import]
 from cline_hooks.state.paths import get_data_dir
+from cline_hooks.uninstall import uninstall_cline, uninstall_copilot
 
 if TYPE_CHECKING:
     from cline_hooks.core.models import HookInput
@@ -81,6 +82,12 @@ def _build_parser() -> argparse.ArgumentParser:
         frontend_parser.add_argument(
             "--force", action="store_true", help="Repoint existing cline-hook entries even where their binary exists"
         )
+
+    uninstall_parser = sub.add_parser("uninstall", help="Remove hooks older versions installed for retired frontends")
+    uninstall_sub = uninstall_parser.add_subparsers(dest="uninstall_mode", required=True)
+    cline_parser = uninstall_sub.add_parser("cline", help="Remove Cline hooks (symlinks/scripts)")
+    cline_parser.add_argument("target_dir", help="Directory the Cline hooks were installed into")
+    uninstall_sub.add_parser("copilot", help="Remove GitHub Copilot hooks from ~/.copilot/hooks/")
 
     sub.add_parser("plugins", help="List installed plugins")
 
@@ -197,6 +204,13 @@ def main() -> NoReturn:
             argument = frontend.installer.argument
             target = getattr(args, argument.name) if argument is not None else None
             frontend.install(target, force=args.force)
+        sys.exit(0)
+
+    if args.command == "uninstall":
+        if args.uninstall_mode == "cline":
+            uninstall_cline(args.target_dir)
+        else:
+            uninstall_copilot()
         sys.exit(0)
 
     if args.command == "plugins":
