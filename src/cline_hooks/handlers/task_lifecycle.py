@@ -23,6 +23,7 @@ from cline_hooks.state.workspace import reset as reset_workspace
 
 if TYPE_CHECKING:
     from cline_hooks.core.models import (
+        HookInput,
         HookInputSubagentStart,
         HookInputTaskCancel,
         HookInputTaskComplete,
@@ -108,6 +109,14 @@ def handle_subagent_start(hook: HookInputSubagentStart) -> None:
         is_teammate=hook.isTeammate,
     )
     allow("\n\n".join(result.notes) or None, prefix="")
+
+
+@hook_handler(CanonicalHook.AGENT_IDLE)
+@hook_handler(CanonicalHook.SESSION_END)
+def handle_session_wind_down(hook: HookInput) -> None:
+    """Handle AgentIdle and SessionEnd hook events."""
+    collect_hook_results(load_plugins(), hook.hookName, task_id=hook.stateKey, workspace_roots=hook.workspaceRoots)
+    allow()
 
 
 @hook_handler(CanonicalHook.TASK_RESUME)

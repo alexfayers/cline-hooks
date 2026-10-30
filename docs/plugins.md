@@ -15,6 +15,7 @@ Plugins add custom command rules, build tool detection, research tools, ecosyste
 - Context usage notes
 - Nudges for commit size, retrospectives, persistence to memory, delegation and plan handoff
 - Handoff acknowledgement between sessions
+- Checkout lock: one editing session per file and per git working tree
 - Tracking of skill loads, memory writes, agent spawns and MCP tool use
 
 ## Creating a plugin

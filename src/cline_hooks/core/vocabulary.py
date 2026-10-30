@@ -37,8 +37,10 @@ class CanonicalHook(StrEnum):
     USER_PROMPT_SUBMIT = "UserPromptSubmit"
     PRE_COMPACT = "PreCompact"
     STOP = "Stop"
+    AGENT_IDLE = "AgentIdle"
     SUBAGENT_START = "SubagentStart"
     SUBAGENT_STOP = "SubagentStop"
+    SESSION_END = "SessionEnd"
 
 
 class PluginScope(StrEnum):
