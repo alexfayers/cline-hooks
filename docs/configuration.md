@@ -17,4 +17,5 @@
 | `cline-hook install <assistant> [target] [--force]` | Registers the hooks. |
 | `cline-hook plugins` | Lists loaded plugins, the extension points each owns and contributes to, and whether the plugin set validates. |
 | `cline-hook retro-count --get` / `--reset` | Prints or resets the count of sessions since the last retrospective. |
+| `cline-hook unlock [path]` | Drops the session's file and working tree locks, or only the lock on `path`. |
 | `cline-hook handoff-ack --clear` | Releases sessions blocked on a handoff acknowledgement. |

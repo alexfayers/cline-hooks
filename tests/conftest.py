@@ -17,6 +17,7 @@ from cline_hooks.core.plugin import HooksPlugin, _plugin_cache, hookspec, plugin
 from cline_hooks.core.protocol import HookRegistration, Protocol, RawPayload, get_protocol, set_protocol
 from cline_hooks.core.transcript import TranscriptReader
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
+import cline_hooks.plugins.checkout_lock as checkout_lock_module
 import cline_hooks.plugins.context_usage as context_usage_module
 import cline_hooks.plugins.delegation as delegation_module
 import cline_hooks.plugins.handoff_ack as handoff_ack_module
@@ -218,6 +219,7 @@ def isolate_state_files(mocker: MockerFixture, tmp_path: Path) -> None:
     mocker.patch.object(workspace_module, "_STATE_PATH", tmp_path / "workspace-state.json")
     mocker.patch.object(delegation_module._store, "_path", tmp_path / "delegation-state.json")
     mocker.patch.object(handoff_ack_module._store, "_path", tmp_path / "handoff-ack-state.json")
+    mocker.patch.object(checkout_lock_module, "_LOCKS_PATH", tmp_path / "checkout-locks.json")
     mocker.patch.object(tool_usage_module, "_USAGE_PATH", tmp_path / "tool-usage.json")
     mocker.patch.object(tool_usage_plugin_module._seen, "_path", tmp_path / "tool-usage-seen.json")
     mocker.patch.dict(os.environ, {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": ""})
