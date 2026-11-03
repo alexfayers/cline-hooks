@@ -6,6 +6,7 @@ import random
 import re
 from typing import TYPE_CHECKING
 
+from cline_hooks.core.parameters import ShellParameters
 from cline_hooks.core.plugin import HookResult, HooksPlugin, is_subagent
 from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.state import PluginStateStore
@@ -13,8 +14,11 @@ from cline_hooks.core.timing import local_now
 from cline_hooks.core.vocabulary import (
     FILE_EDIT_TOOLS,
     NO_RESET_TASK_START_SOURCES,
+    SHELL_TOOLS,
     CanonicalHook,
+    PluginScope,
 )
+from cline_hooks.plugins.delegation import is_read_only_command
 from cline_hooks.state.agents import agent_use_count
 from cline_hooks.state.retrospective import record_session
 from cline_hooks.state.skills import is_wrap_up_skill
@@ -83,6 +87,18 @@ def mark_edited(task_id: str) -> None:
         state.edited = True
 
     _store.update(task_id, mark)
+
+
+def has_edited(task_id: str) -> bool:
+    """Check whether a session has made a file edit.
+
+    Args:
+        task_id: The session or task identifier.
+
+    Returns:
+        True if the session has edited a file.
+    """
+    return _store.get(task_id).edited
 
 
 def reset(task_id: str) -> None:
@@ -264,6 +280,21 @@ def _contains_info_signal(message: str) -> bool:
     return any(pattern.search(message) for pattern in _INFO_PATTERNS)
 
 
+def _mark_shell_edit(task_id: str, tool_name: str, parameters: object) -> None:
+    """Record an edit when a shell tool call runs a command that is not read-only.
+
+    Args:
+        task_id: The session or task identifier.
+        tool_name: The tool name as reported by the frontend.
+        parameters: The tool parameters.
+    """
+    if tool_name not in SHELL_TOOLS or not isinstance(parameters, dict):
+        return
+    command = ShellParameters.build(parameters).command
+    if isinstance(command, str) and not is_read_only_command(command):
+        mark_edited(task_id)
+
+
 class NudgesPlugin(HooksPlugin):
     """Assorted reminders: commit size, retrospective, dismissals, and prompt nudges."""
 
@@ -280,6 +311,12 @@ class NudgesPlugin(HooksPlugin):
         """
         if hook_name == CanonicalHook.POST_TOOL_USE:
             return self._post_tool_use(logger, kwargs)
+        if hook_name == PluginScope.TOOL_FAILED:
+            task_id = kwargs.get("task_id")
+            tool_name = kwargs.get("tool_name")
+            if isinstance(task_id, str) and isinstance(tool_name, str) and not is_subagent(kwargs):
+                _mark_shell_edit(task_id, tool_name, kwargs.get("parameters"))
+            return None
         if hook_name == CanonicalHook.STOP:
             return self._stop(logger, kwargs)
         if hook_name == CanonicalHook.USER_PROMPT_SUBMIT:
@@ -326,6 +363,8 @@ class NudgesPlugin(HooksPlugin):
                     diff_lines = _get_diff_line_count(workspace_roots)
                     if diff_lines > _COMMIT_LINE_THRESHOLD:
                         notes.append(f"{_COMMIT_REMINDER} ({diff_lines} lines changed)")
+            else:
+                _mark_shell_edit(task_id, tool_name, parameters)
             if isinstance(parameters, dict) and is_wrap_up_skill(tool_name, parameters):
                 count = record_session(task_id)
                 if count is not None and count >= _RETRO_THRESHOLD:

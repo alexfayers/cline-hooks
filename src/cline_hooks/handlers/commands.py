@@ -112,6 +112,10 @@ _COUNT_FLAG = re.compile(r"-n\d*")
 
 
 _GIT_OPTIONS_TAKING_A_VALUE = frozenset({"-C", "-c", "--git-dir", "--work-tree", "--namespace"})
+_GH_OPTIONS_TAKING_A_VALUE = frozenset({"-R", "--repo", "--hostname"})
+_READ_ONLY_GH_ACTIONS = frozenset({"view", "list", "diff", "checks", "status"})
+_SED_ADDRESS = r"(?:\d+|\$|/[^/\\]*/)"
+_SED_PRINT_SCRIPT = re.compile(rf"(?:{_SED_ADDRESS}(?:,{_SED_ADDRESS})?)?p")
 
 
 def _split_git_words(words: list[str]) -> tuple[str | None, list[str]]:
@@ -120,9 +124,18 @@ def _split_git_words(words: list[str]) -> tuple[str | None, list[str]]:
     Returns:
         The subcommand (None if absent) and the words after it.
     """
+    return _split_subcommand(words, _GIT_OPTIONS_TAKING_A_VALUE)
+
+
+def _split_subcommand(words: list[str], options_taking_a_value: frozenset[str]) -> tuple[str | None, list[str]]:
+    """Split the words after a command into its subcommand and the words after it.
+
+    Returns:
+        The subcommand (None if absent) and the words after it.
+    """
     remaining = iter(enumerate(words))
     for index, word in remaining:
-        if word in _GIT_OPTIONS_TAKING_A_VALUE:
+        if word in options_taking_a_value:
             next(remaining, None)
         elif not word.startswith("-"):
             return word, words[index + 1 :]
@@ -184,6 +197,15 @@ def _is_stash_or_reflog_listing(subcommand: str, words: list[str]) -> bool:
     return _flags_known(words[1:], _STASH_REFLOG_FLAGS, ("--date=",))
 
 
+def _is_remote_listing(words: list[str]) -> bool:
+    """Check whether `git remote` words only list or show remotes.
+
+    Returns:
+        True if the words are empty, only verbose flags, or a `show`/`get-url` query.
+    """
+    return all(word in {"-v", "--verbose"} for word in words) or words[0] in {"show", "get-url"}
+
+
 def is_read_only_git(cmd: ParsedCommand) -> bool:
     """Check if a command is a read-only `git` subcommand, after any global options.
 
@@ -193,13 +215,44 @@ def is_read_only_git(cmd: ParsedCommand) -> bool:
     if cmd.name != "git":
         return False
     subcommand, words = _split_git_words(cmd.words)
+    if any(word == "--output" or word.startswith("--output=") for word in words):
+        return False
     if subcommand == "branch":
         return _is_branch_listing(words)
     if subcommand == "tag":
         return _is_tag_listing(words)
+    if subcommand == "remote":
+        return _is_remote_listing(words)
     if subcommand in {"stash", "reflog"}:
         return _is_stash_or_reflog_listing(subcommand, words)
     return subcommand in _READ_ONLY_GIT_SUBCOMMANDS
+
+
+def is_print_only_sed(cmd: ParsedCommand) -> bool:
+    """Check if a command is `sed -n` with a print-only script and no flags after it.
+
+    Returns:
+        bool: True if the command can only print lines of its input.
+    """
+    if cmd.name != "sed":
+        return False
+    match cmd.words:
+        case ["-n", "-e", script, *files] | ["-n" | "-ne", script, *files]:
+            return _SED_PRINT_SCRIPT.fullmatch(script) is not None and not any(word.startswith("-") for word in files)
+        case _:
+            return False
+
+
+def is_read_only_gh(cmd: ParsedCommand) -> bool:
+    """Check if a command is a read-only `gh` query, after any global options.
+
+    Returns:
+        bool: True if the command is `gh status` or a view, list, diff, checks or status action.
+    """
+    if cmd.name != "gh":
+        return False
+    group, words = _split_subcommand(cmd.words, _GH_OPTIONS_TAKING_A_VALUE)
+    return group == "status" or bool(words and words[0] in _READ_ONLY_GH_ACTIONS)
 
 
 def _iter_nodes(node: bashlex.ast.node) -> Iterator[bashlex.ast.node]:

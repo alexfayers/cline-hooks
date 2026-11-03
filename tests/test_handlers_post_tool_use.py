@@ -15,7 +15,7 @@ from cline_hooks.frontends.pi import PiProtocol
 from cline_hooks.handlers.post_tool_use import handle_post_tool_use
 from cline_hooks.plugins.build_tools import BuildToolsPlugin
 from cline_hooks.plugins.context_usage import context_note
-from cline_hooks.plugins.nudges import _RETRO_THRESHOLD, NudgesPlugin
+from cline_hooks.plugins.nudges import _RETRO_THRESHOLD, NudgesPlugin, mark_edited
 from cline_hooks.plugins.persistence import PersistencePlugin
 from cline_hooks.plugins.plan_handoff import consume_plan_nudge, record_plan_exit
 from cline_hooks.plugins.research import ResearchPlugin, get_research
@@ -503,20 +503,120 @@ class TestClaudeCodeMcpResearchIntegration:
 
 
 class TestMemoryWarningOnSessionEnd:
-    def test_warns_when_no_memory_writes(self) -> None:
+    def test_warns_when_no_memory_writes(self, use_plugins: Callable[..., None]) -> None:
+        use_plugins(NudgesPlugin(), PersistencePlugin())
+        with patch("cline_hooks.plugins.nudges._get_diff_line_count", return_value=0):
+            _run(_make_hook("replace_in_file"))
         hook = _make_hook("use_skill", parameters={"skill": "session-end"})
         result = _run(hook)
         assert result is not None
         context = str(result.get("contextModification", ""))
         assert "No memory writes" in context
 
-    def test_no_warning_when_memory_written(self) -> None:
-        record_memory_write("task-1", "create_entities")
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "git apply fix.patch",
+            "sed -i s/a/b/ f.py",
+            "env MODE=x sed -i s/a/b/ f.py",
+            "sed -ni 1,5p f.py",
+            "sed -n --in-place 1p f.py",
+            "sed -n 1,5w out.txt f.py",
+            "sed -n 's/a/b/w out.txt' f.py",
+            "sed -n -f script.sed f.py",
+            "sed -n -e 1,5w out.txt f.py",
+            "sed -n -e 1,5p -i f.py",
+            "{ echo hi; } > f.py",
+            "echo hi 2>err.txt",
+            "git status 2>&1 > f.py",
+            "echo $((1 + 2)) > f.py",
+            "sed -n 1e f.py",
+            "find . -name '*.tmp' -delete",
+            "find . -exec rm {} +",
+            "fd -x rm",
+            "fd --exec=rm",
+            "git diff --output=patch",
+            "git log --output patch",
+            "echo hi >f.py",
+            "echo '>' > f.py",
+        ],
+    )
+    def test_warns_after_shell_only_edit(self, use_plugins: Callable[..., None], command: str) -> None:
+        use_plugins(NudgesPlugin(), PersistencePlugin())
+        _run(_make_hook("execute_command", parameters={"command": command}))
+        result = _run(_make_hook("use_skill", parameters={"skill": "session-end"}))
+        assert "No memory writes" in str((result or {}).get("contextModification", ""))
+
+    def test_warns_after_failed_shell_edit(self, use_plugins: Callable[..., None]) -> None:
+        use_plugins(NudgesPlugin(), PersistencePlugin())
+        _run(_make_hook("execute_command", success=False, parameters={"command": "sed -i s/a/b/ f.py; false"}))
+        result = _run(_make_hook("use_skill", parameters={"skill": "session-end"}))
+        assert "No memory writes" in str((result or {}).get("contextModification", ""))
+
+    def test_no_warning_without_main_agent_edits(self, use_plugins: Callable[..., None]) -> None:
+        use_plugins(NudgesPlugin(), PersistencePlugin())
+        _run(_make_hook("read_file"))
+        _run(_make_hook("execute_command", parameters={"command": "git status"}))
+        _run(_make_hook("execute_command", parameters={"command": "git -C . status"}))
+        _run(_make_hook("execute_command", parameters={"command": "gh pr view 1"}))
+        _run(_make_hook("execute_command", parameters={"command": "gh status"}))
+        _run(_make_hook("execute_command", parameters={"command": "git remote -v"}))
+        result = _run(_make_hook("use_skill", parameters={"skill": "session-end"}))
+        assert "No memory writes" not in str((result or {}).get("contextModification", ""))
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "gh --repo owner/project pr view 1",
+            "env -0",
+            "env MODE=x",
+            "env -u HOME ls",
+            "sed -n 1,5p f.py",
+            "sed -n '$p' f.py",
+            "sed -n '/foo/p' f.py",
+            "sed -n -e 1,5p f.py",
+            "sed -ne 1,5p f.py",
+            "git status 2>/dev/null",
+            "git status 2>&1",
+            "ls &>/dev/null",
+            "git status # note >",
+            "grep '>' f.py",
+            'echo "a > b"',
+        ],
+    )
+    def test_read_only_commands_are_not_edits(self, use_plugins: Callable[..., None], command: str) -> None:
+        use_plugins(NudgesPlugin(), PersistencePlugin())
+        _run(_make_hook("execute_command", parameters={"command": command}))
+        result = _run(_make_hook("use_skill", parameters={"skill": "session-end"}))
+        assert "No memory writes" not in str((result or {}).get("contextModification", ""))
+
+    def test_malformed_command_is_not_an_edit(self, use_plugins: Callable[..., None]) -> None:
+        use_plugins(NudgesPlugin(), PersistencePlugin())
+        _run(_make_hook("execute_command", parameters={"command": 123}))
+        result = _run(_make_hook("use_skill", parameters={"skill": "session-end"}))
+        assert "No memory writes" not in str((result or {}).get("contextModification", ""))
+
+    @pytest.mark.parametrize("command", ["echo $((1 + 2))", "case x in a) echo hi;; esac"])
+    def test_syntax_the_shell_parser_lacks_is_not_an_edit(self, use_plugins: Callable[..., None], command: str) -> None:
+        use_plugins(NudgesPlugin(), PersistencePlugin())
+        _run(_make_hook("execute_command", parameters={"command": command}))
+        result = _run(_make_hook("use_skill", parameters={"skill": "session-end"}))
+        assert "No memory writes" not in str((result or {}).get("contextModification", ""))
+
+    def test_no_warning_in_subagent(self, use_plugins: Callable[..., None]) -> None:
+        use_plugins(NudgesPlugin(), PersistencePlugin())
+        mark_edited("task-1:sub-1")
         hook = _make_hook("use_skill", parameters={"skill": "session-end"})
+        hook.agentId = "sub-1"
         result = _run(hook)
-        if result is not None:
-            context = str(result.get("contextModification", ""))
-            assert "No memory writes" not in context
+        assert "No memory writes" not in str((result or {}).get("contextModification", ""))
+
+    def test_no_warning_when_memory_written(self, use_plugins: Callable[..., None]) -> None:
+        use_plugins(NudgesPlugin(), PersistencePlugin())
+        mark_edited("task-1")
+        record_memory_write("task-1", "create_entities")
+        result = _run(_make_hook("use_skill", parameters={"skill": "session-end"}))
+        assert "No memory writes" not in str((result or {}).get("contextModification", ""))
 
     def test_no_warning_for_non_session_end_skill(self) -> None:
         hook = _make_hook("use_skill", parameters={"skill": "git-usage"})
@@ -562,6 +662,7 @@ class TestRetrospectiveCounter:
     def test_memory_warning_and_reminder_coexist(self) -> None:
         for i in range(_RETRO_THRESHOLD - 1):
             record_session(f"seed-{i}")
+        mark_edited("task-1")
         result = _run(_make_hook("use_skill", parameters={"skill": "session-end"}))
         assert result is not None
         context = str(result.get("contextModification", ""))
@@ -638,6 +739,7 @@ class TestPluginNoteDoesNotTruncateLaterChecks:
         assert "COMMIT REMINDER" in context
 
     def test_plugin_note_does_not_suppress_memory_warning(self) -> None:
+        mark_edited("task-1")
         hook = _make_hook("use_skill", parameters={"skill": "session-end"})
         with patch(
             "cline_hooks.handlers.post_tool_use.load_plugins",
