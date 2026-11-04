@@ -489,6 +489,8 @@ class TestTimeNote:
         context = cast("str", result.get("contextModification", ""))
         assert not context.startswith("REMINDER: ")
         assert context.index("TIME:") < context.index("CORRECTION DETECTED")
+        assert "silently" in context
+        assert "ONLY" in context
 
 
 class TestSideRequestReminder:

@@ -167,10 +167,12 @@ _INFO_PATTERNS: list[re.Pattern[str]] = [
     ]
 ]
 
-# Update prompts/shared/rules/hooks.md if this correction reminder changes.
 _CORRECTION_REMINDER = (
     "CORRECTION DETECTED: The user is correcting your behavior. "
-    "MUST persist the correction to memory now, then ASK whether they want a rule or skill change for it."
+    "MUST persist the correction to memory silently, without mentioning it in the reply. "
+    "MUST apply it and reply briefly. "
+    "MUST ask about a rule or skill change ONLY where the correction is a repeatable behaviour "
+    "that would apply to every user."
 )
 
 _AGENT_NUDGE_REMINDER = (
