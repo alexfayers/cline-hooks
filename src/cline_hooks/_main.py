@@ -103,6 +103,10 @@ def _build_parser() -> argparse.ArgumentParser:
         "--clear", action="store_true", required=True, help="Clear every owed and awaited acknowledgement"
     )
 
+    unlock_parser = sub.add_parser("unlock", help="Drop this session's checkout locks")
+    unlock_parser.add_argument("path", nargs="?", help="Unlock only this file, default every lock the session holds")
+    unlock_parser.add_argument("--session", required=True, help="The session whose locks are dropped")
+
     return parser
 
 
@@ -187,7 +191,7 @@ def _list_plugins() -> None:
         print("check_pending: clean")  # ruff: ignore[print]
 
 
-def main() -> NoReturn:
+def main() -> NoReturn:  # ruff: ignore[too-many-branches]
     """Entrypoint - dispatches to install subcommands or hook processing."""
     if len(sys.argv) == 1:
         _run_hook()
@@ -230,6 +234,12 @@ def main() -> NoReturn:
         from cline_hooks.plugins import handoff_ack  # ruff: ignore[import-outside-top-level]
 
         handoff_ack.clear_acks()
+        sys.exit(0)
+
+    if args.command == "unlock":
+        from cline_hooks.plugins.checkout_lock import release  # ruff: ignore[import-outside-top-level]
+
+        release(args.session, args.path)
         sys.exit(0)
 
     _run_hook()
