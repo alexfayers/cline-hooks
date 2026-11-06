@@ -108,8 +108,8 @@ _RETRO_REMINDER = (
 
 _LATE_NIGHT_START = 22
 _EARLY_MORNING_END = 6
-_INFO_REMINDER_CHANCE = 0.25
-_SIDE_REQUEST_REMINDER_CHANCE = 0.15
+_INFO_REMINDER_CHANCE = 0.05
+_SIDE_REQUEST_REMINDER_CHANCE = 0.05
 
 _DISMISSAL_PATTERNS: list[re.Pattern[str]] = [
     re.compile(p, re.IGNORECASE)
@@ -179,15 +179,10 @@ _AGENT_NUDGE_REMINDER = (
     "rather than work sequentially."
 )
 
-_INFO_REMINDER = (
-    "REMINDER: Has the user said anything that should be persisted?\n"
-    "MUST check: new information, preferences, decisions -> persist to memory."
-)
+_INFO_REMINDER = "REMINDER: Persist to memory any new information, preferences or decisions."
 
 _SIDE_REQUEST_REMINDER = (
-    "REMINDER: MUST scan recent turns for any side-request the user raised that hasn't been "
-    "tracked yet (a task/ entity in memory + a checklist entry), per the todos rule. "
-    "A prose acknowledgment ('I'll get to that after') does not count as tracked."
+    "REMINDER: Track any untracked user side-request (task/ entity + checklist entry), per the todos rule."
 )
 
 _LATE_EARLY_WARNING = "You're working late/early. MUST double-check before committing or making major changes."
