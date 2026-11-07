@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from cline_hooks.core.plugin import HookResult, HooksPlugin, is_subagent
 from cline_hooks.core.vocabulary import CanonicalHook, PluginScope
+from cline_hooks.plugins.nudges import has_edited
 from cline_hooks.state.memory import has_memory_writes
 from cline_hooks.state.skills import is_session_end_skill
 
@@ -20,6 +21,19 @@ _MEMORY_WARNING = (
     "You MUST persist your work to memory NOW before completing. "
     "Knowledge not persisted is permanently lost."
 )
+
+
+def _owes_memory_write(task_id: str, kwargs: dict[str, object]) -> bool:
+    """Check whether a main-agent session has edited files without writing memory.
+
+    Args:
+        task_id: The session or task identifier.
+        kwargs: The raw keyword arguments passed to on_hook.
+
+    Returns:
+        True if the session edited files, wrote no memory, and is not a subagent.
+    """
+    return not is_subagent(kwargs) and has_edited(task_id) and not has_memory_writes(task_id)
 
 
 class PersistencePlugin(HooksPlugin):
@@ -50,7 +64,7 @@ class PersistencePlugin(HooksPlugin):
                 and isinstance(parameters, dict)
                 and isinstance(task_id, str)
                 and is_session_end_skill(tool_name, parameters)
-                and not has_memory_writes(task_id)
+                and _owes_memory_write(task_id, kwargs)
             ):
                 logger.debug("Fired no-memory-writes warning at session end")
                 return HookResult(notes=[_MEMORY_WARNING])

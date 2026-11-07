@@ -6,6 +6,7 @@ import random
 import re
 from typing import TYPE_CHECKING
 
+from cline_hooks.core.parameters import ShellParameters
 from cline_hooks.core.plugin import HookResult, HooksPlugin, is_subagent
 from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.state import PluginStateStore
@@ -13,8 +14,10 @@ from cline_hooks.core.timing import local_now
 from cline_hooks.core.vocabulary import (
     FILE_EDIT_TOOLS,
     NO_RESET_TASK_START_SOURCES,
+    SHELL_TOOLS,
     CanonicalHook,
 )
+from cline_hooks.plugins.delegation import is_read_only_command
 from cline_hooks.state.agents import agent_use_count
 from cline_hooks.state.retrospective import record_session
 from cline_hooks.state.skills import is_wrap_up_skill
@@ -83,6 +86,18 @@ def mark_edited(task_id: str) -> None:
         state.edited = True
 
     _store.update(task_id, mark)
+
+
+def has_edited(task_id: str) -> bool:
+    """Check whether a session has made a file edit.
+
+    Args:
+        task_id: The session or task identifier.
+
+    Returns:
+        True if the session has edited a file.
+    """
+    return _store.get(task_id).edited
 
 
 def reset(task_id: str) -> None:
@@ -170,7 +185,10 @@ _INFO_PATTERNS: list[re.Pattern[str]] = [
 # Update prompts/shared/rules/hooks.md if this correction reminder changes.
 _CORRECTION_REMINDER = (
     "CORRECTION DETECTED: The user is correcting your behavior. "
-    "MUST persist the correction to memory now, then ASK whether they want a rule or skill change for it."
+    "MUST persist the correction to memory silently, without mentioning it in the reply. "
+    "MUST apply it and reply briefly. "
+    "MUST ask about a rule or skill change ONLY where the correction is a repeatable behaviour "
+    "that would apply to every user."
 )
 
 _AGENT_NUDGE_REMINDER = (
@@ -329,6 +347,12 @@ class NudgesPlugin(HooksPlugin):
                     diff_lines = _get_diff_line_count(workspace_roots)
                     if diff_lines > _COMMIT_LINE_THRESHOLD:
                         notes.append(f"{_COMMIT_REMINDER} ({diff_lines} lines changed)")
+            elif (
+                tool_name in SHELL_TOOLS
+                and isinstance(parameters, dict)
+                and not is_read_only_command(ShellParameters.build(parameters).command)
+            ):
+                mark_edited(task_id)
             if isinstance(parameters, dict) and is_wrap_up_skill(tool_name, parameters):
                 count = record_session(task_id)
                 if count is not None and count >= _RETRO_THRESHOLD:

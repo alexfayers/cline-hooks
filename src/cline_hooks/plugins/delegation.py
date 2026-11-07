@@ -132,7 +132,7 @@ def _is_read_only_single(cmd: ParsedCommand) -> bool:
     return cmd.name in _READ_ONLY_COMMANDS
 
 
-def _is_read_only_command(command: str) -> bool:
+def is_read_only_command(command: str) -> bool:
     """Check whether a shell command line only reads state.
 
     A redirect (`>`) is treated as mutating even though bashlex's parsed form
@@ -142,6 +142,8 @@ def _is_read_only_command(command: str) -> bool:
     Returns:
         True if every parsed command in the line is read-only.
     """
+    if not command:
+        return True
     if ">" in command:
         return False
     import bashlex.errors  # ruff: ignore[import-outside-top-level]
@@ -183,7 +185,7 @@ class DelegationPlugin(HooksPlugin):
             shell_kwargs = PreShellKwargs.build(kwargs)
             if is_subagent(kwargs) or has_agent_use(shell_kwargs.task_id):
                 return None
-            if not shell_kwargs.command or _is_read_only_command(shell_kwargs.command):
+            if is_read_only_command(shell_kwargs.command):
                 return None
             task_id = shell_kwargs.task_id
         else:
