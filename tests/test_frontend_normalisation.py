@@ -636,6 +636,30 @@ class TestPiNormalisation:
             "subagentStop": {"stopHookActive": False},
         }
 
+    @pytest.mark.parametrize("tool_name", ["process", "background_command"])
+    def test_background_command_start_is_a_shell_command(self, tool_name: str) -> None:
+        hook = _parse(
+            "pi",
+            "PreToolUse",
+            PiProtocol,
+            overrides={"tool_name": tool_name, "tool_input": {"action": "start", "command": "just build"}},
+        )
+        assert isinstance(hook, HookInputPreToolUse)
+        assert hook.preToolUse is not None
+        assert hook.preToolUse.toolName == "execute_command"
+        assert hook.preToolUse.parameters["command"] == "just build"
+
+    def test_process_list_has_no_shell_command(self) -> None:
+        hook = _parse(
+            "pi",
+            "PreToolUse",
+            PiProtocol,
+            overrides={"tool_name": "process", "tool_input": {"action": "list"}},
+        )
+        assert isinstance(hook, HookInputPreToolUse)
+        assert hook.preToolUse is not None
+        assert not hook.preToolUse.parameters.get("command")
+
     def test_tools_read_converts_offset_and_limit_to_a_line_range(self) -> None:
         hook = _parse("pi", "tools/Read", PiProtocol)
         assert hook.model_dump() == {

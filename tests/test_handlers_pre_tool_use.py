@@ -764,7 +764,7 @@ class TestAttemptCompletionDirtyTreeGuard:
     [
         ("mcp__x__y", {CanonicalHook.PRE_TOOL_USE, PluginScope.PRE_MCP_TOOL_USE}),
         ("codemode", {CanonicalHook.PRE_TOOL_USE}),
-        ("process", set()),
+        ("process", {CanonicalHook.PRE_TOOL_USE}),
     ],
 )
 def test_pi_tool_calls_reach_plugins_with_a_parent_id(tool_name: str, scopes: set[str], mocker: MockerFixture) -> None:
