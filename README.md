@@ -45,7 +45,7 @@
 | src/cline\_hooks/frontends/pi/\_\_init\_\_.py           |        3 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/frontends/pi/install.py                |       25 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/frontends/pi/models.py                 |       62 |        0 |        2 |        0 |    100% |           |
-| src/cline\_hooks/frontends/pi/protocol.py               |       38 |        1 |        4 |        1 |     95% |       113 |
+| src/cline\_hooks/frontends/pi/protocol.py               |       38 |        1 |        4 |        1 |     95% |       115 |
 | src/cline\_hooks/frontends/pi/transcript.py             |       51 |        4 |       16 |        2 |     91% |78-79, 87, 96 |
 | src/cline\_hooks/handlers/\_\_init\_\_.py               |        3 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/handlers/commands.py                   |      174 |        5 |       84 |        9 |     95% |214, 257, 261, 265, 310, 317-\>315, 319-\>315, 321-\>315, 322-\>321 |
@@ -54,7 +54,7 @@
 | src/cline\_hooks/handlers/herdr\_guard.py               |       79 |        1 |       24 |        1 |     98% |        84 |
 | src/cline\_hooks/handlers/post\_tool\_use.py            |       44 |        2 |       12 |        2 |     93% |   54, 120 |
 | src/cline\_hooks/handlers/pre\_compact.py               |       14 |        1 |        2 |        1 |     88% |        22 |
-| src/cline\_hooks/handlers/pre\_tool\_use.py             |       66 |        6 |       18 |        3 |     89% |80, 86-88, 164, 179 |
+| src/cline\_hooks/handlers/pre\_tool\_use.py             |       66 |        7 |       18 |        3 |     88% |86-88, 164, 179, 184-185 |
 | src/cline\_hooks/handlers/push\_guard.py                |       22 |        0 |       10 |        0 |    100% |           |
 | src/cline\_hooks/handlers/search\_scope.py              |      168 |        3 |       74 |        1 |     98% |248, 264-265 |
 | src/cline\_hooks/handlers/stop.py                       |       41 |        0 |       12 |        0 |    100% |           |
@@ -109,7 +109,7 @@
 | tests/test\_frontend\_antigravity.py                    |       96 |        0 |        0 |        0 |    100% |           |
 | tests/test\_frontend\_claude\_code\_transcript.py       |      143 |        0 |        0 |        0 |    100% |           |
 | tests/test\_frontend\_conformance.py                    |      100 |        1 |       14 |        1 |     98% |        88 |
-| tests/test\_frontend\_normalisation.py                  |      297 |        0 |        4 |        0 |    100% |           |
+| tests/test\_frontend\_normalisation.py                  |      309 |        0 |        4 |        0 |    100% |           |
 | tests/test\_frontend\_pi\_transcript.py                 |       39 |        0 |        4 |        0 |    100% |           |
 | tests/test\_handlers\_commands.py                       |       68 |        0 |        0 |        0 |    100% |           |
 | tests/test\_handlers\_context\_nudge.py                 |       95 |        0 |        0 |        0 |    100% |           |
@@ -160,7 +160,7 @@
 | tests/test\_turns.py                                    |       57 |        1 |        6 |        0 |     98% |        22 |
 | tests/test\_uninstall.py                                |       46 |        0 |        0 |        0 |    100% |           |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **11722** |  **184** | **1404** |  **100** | **98%** |           |
+| **TOTAL**                                               | **11734** |  **185** | **1404** |  **100** | **98%** |           |
 
 
 ## Setup coverage badge
