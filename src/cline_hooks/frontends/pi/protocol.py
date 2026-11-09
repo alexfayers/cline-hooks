@@ -68,6 +68,8 @@ class PiProtocol(StandardPayloadProtocol):
         "delegate_agent": CanonicalTool.SPAWN_AGENT,
         "continue_agent": CanonicalTool.SPAWN_AGENT,
         "bash": CanonicalTool.SHELL,
+        "process": CanonicalTool.SHELL,
+        "background_command": CanonicalTool.SHELL,
         "read": CanonicalTool.READ,
         "edit": CanonicalTool.EDIT,
         "write": CanonicalTool.WRITE,
