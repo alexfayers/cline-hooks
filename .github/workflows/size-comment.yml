@@ -1,0 +1,14 @@
+name: Size comment
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+jobs:
+  comment:
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: write
+    uses: alexfayers/llm-prompts/.github/workflows/size-comment.yml@main

@@ -8,6 +8,4 @@ permissions: {}
 
 jobs:
   relay:
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "Review events from forks get a read-only token, so project automation reruns from this run's workflow_run event"
+    uses: alexfayers/llm-prompts/.github/workflows/pr-review.yml@main

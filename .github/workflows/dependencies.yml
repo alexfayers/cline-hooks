@@ -5,19 +5,20 @@ on:
     types: [opened, edited, synchronize, closed, reopened]
   issues:
     types: [closed, reopened]
+  workflow_run:
+    workflows: [PR review]
+    types: [completed]
   workflow_dispatch:
   repository_dispatch:
     types: [dependencies-recheck]
 
 jobs:
   check-dependencies:
-    runs-on: ubuntu-latest
     permissions:
       checks: read
       issues: write
       statuses: write
       pull-requests: write
-    steps:
-      - uses: alexfayers/llm-prompts/.github/actions/check-dependencies@main
-        with:
-          projects-token: ${{ secrets.PROJECTS_TOKEN }}
+    uses: alexfayers/llm-prompts/.github/workflows/dependencies.yml@main
+    secrets:
+      PROJECTS_TOKEN: ${{ secrets.PROJECTS_TOKEN }}
