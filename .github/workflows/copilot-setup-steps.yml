@@ -1,0 +1,29 @@
+name: Copilot setup steps
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+  pull_request:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: Clone sibling repos into .deps
+        run: |
+          echo '.deps/' >> .git/info/exclude
+          for repo in llm-prompts mcp-memory; do
+            git clone --quiet "https://github.com/alexfayers/$repo" ".deps/$repo" || continue
+          done
+      # Test-only: the central review file exists only on llm-prompts PR 388, not on main yet.
+      - name: Check out the llm-prompts PR branch that holds the central review file
+        run: |
+          git -C .deps/llm-prompts fetch --quiet origin "+refs/heads/alexfayers/contribute/copilot-review:refs/remotes/pr/388"
+          git -C .deps/llm-prompts checkout --quiet refs/remotes/pr/388

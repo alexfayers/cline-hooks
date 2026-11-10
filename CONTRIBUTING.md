@@ -41,3 +41,7 @@ Adding a frontend or plugin? See [docs/frontends.md](docs/frontends.md) and
 - State WHAT changed and WHY, not HOW.
 - No restating the diff, no process commentary, no filler.
 - List a PR that must merge first as a `Depends on <PR URL>` line; the `check-dependencies` check fails until it merges and re-checks when that PR closes.
+
+## Release checks
+
+- Before each release, a maintainer reads every workflow file by hand and confirms it has a `name:` line.
