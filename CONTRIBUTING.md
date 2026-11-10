@@ -46,3 +46,7 @@ Adding a frontend or plugin? See [docs/frontends.md](docs/frontends.md) and
 
 - `.github/instructions/review.instructions.md` is mirrored byte-for-byte from `alexfayers/llm-prompts` (canonical), so change it there first. The `Review instructions parity` check fails when it differs.
 - During the trial, Copilot approvals do not count toward `min-reviews` labels.
+
+## Release checks
+
+- Before each release, a maintainer reads every workflow file by hand and confirms it has a `name:` line.

@@ -27,3 +27,8 @@ jobs:
                   echo "$number $branch $sha" >> "$dir/PRS.txt"
               done || true
           done
+      # Test-only: the central review file exists only on llm-prompts PR 388, not on main yet.
+      - name: Check out the llm-prompts PR branch that holds the central review file
+        run: |
+          git -C .deps/llm-prompts fetch --quiet origin "+refs/heads/alexfayers/contribute/copilot-review:refs/remotes/pr/388"
+          git -C .deps/llm-prompts checkout --quiet refs/remotes/pr/388
