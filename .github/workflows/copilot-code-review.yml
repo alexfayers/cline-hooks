@@ -1,0 +1,29 @@
+name: Copilot code review setup
+
+on:
+  workflow_dispatch:
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: Prefetch sibling repos and their open same-repo PR heads
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo '.deps/' >> .git/info/exclude
+          for repo in llm-prompts mcp-memory; do
+            dir=".deps/$repo"
+            git clone --quiet "https://github.com/alexfayers/$repo" "$dir" || continue
+            : > "$dir/PRS.txt"
+            gh api "repos/alexfayers/$repo/pulls?state=open&per_page=100" --paginate \
+              --jq '.[] | select(.head.repo.full_name == .base.repo.full_name) | "\(.number) \(.head.ref) \(.head.sha)"' |
+              while read -r number branch sha; do
+                git -C "$dir" fetch --quiet origin "+refs/pull/$number/head:refs/remotes/pr/$number" &&
+                  echo "$number $branch $sha" >> "$dir/PRS.txt"
+              done || true
+          done

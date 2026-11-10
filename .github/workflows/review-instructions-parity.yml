@@ -1,0 +1,24 @@
+name: Review instructions parity
+
+on:
+  pull_request_target:
+    paths:
+      - .github/instructions/review.instructions.md
+
+permissions:
+  contents: read
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compare with the canonical copy in alexfayers/llm-prompts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          FILE: .github/instructions/review.instructions.md
+        run: |
+          gh api -H 'Accept: application/vnd.github.raw+json' "repos/$HEAD_REPO/contents/$FILE?ref=$HEAD_SHA" > mirror.md
+          curl -fsSL "https://raw.githubusercontent.com/alexfayers/llm-prompts/main/$FILE" > canonical.md
+          cmp mirror.md canonical.md
