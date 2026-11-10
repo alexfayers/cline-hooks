@@ -41,3 +41,8 @@ Adding a frontend or plugin? See [docs/frontends.md](docs/frontends.md) and
 - State WHAT changed and WHY, not HOW.
 - No restating the diff, no process commentary, no filler.
 - List a PR that must merge first as a `Depends on <PR URL>` line; the `check-dependencies` check fails until it merges and re-checks when that PR closes.
+
+## Copilot review
+
+- The four files under `.github/instructions` (`review`, `python`, `typescript` and `prompts`) are copies of the central files in `alexfayers/llm-prompts`, updated by the bot PR `bot/copilot-review-rules`. Edit them there. The `Review instructions parity` check fails when a copy differs.
+- Copilot approvals do not count toward `min-reviews` labels.

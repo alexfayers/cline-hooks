@@ -1,0 +1,14 @@
+name: Hide outdated Copilot reviews
+
+on:
+  workflow_run:
+    workflows: [PR review]
+    types: [completed]
+
+permissions: {}
+
+jobs:
+  hide:
+    permissions:
+      pull-requests: write
+    uses: alexfayers/llm-prompts/.github/workflows/hide-outdated-copilot-reviews.yml@main
