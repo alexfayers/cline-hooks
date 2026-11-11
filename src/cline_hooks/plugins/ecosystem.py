@@ -128,7 +128,11 @@ class EcosystemPlugin(HooksPlugin):
             record_workspace(task_id, workspace_roots)
             notes = resolve_tooling_notes(workspace_roots)
             return HookResult(notes=notes) if notes else None
-        if hook_name == CanonicalHook.POST_TOOL_USE and should_note_workspace_change(task_id, workspace_roots):
+        if (
+            hook_name == CanonicalHook.POST_TOOL_USE
+            and not kwargs.get("parent_tool_call_id")
+            and should_note_workspace_change(task_id, workspace_roots)
+        ):
             notes = resolve_tooling_notes(workspace_roots)
             if notes:
                 return HookResult(notes=[f"Working directory changed to {workspace_roots[0]}. " + "\n\n".join(notes)])

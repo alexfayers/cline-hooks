@@ -200,6 +200,8 @@ class ContextUsagePlugin(HooksPlugin):
         task_id = kwargs.get("task_id")
         if not isinstance(task_id, str):
             return None
+        if hook_name == CanonicalHook.POST_TOOL_USE and kwargs.get("parent_tool_call_id"):
+            return None
         token_count = _token_count(kwargs)
         if token_count is None:
             return None

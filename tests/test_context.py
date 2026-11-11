@@ -88,6 +88,21 @@ class TestTeammateWording:
         assert "caller/lead" in result.notes[0]
 
 
+class TestNestedToolCalls:
+    def test_nested_call_gets_no_note_and_leaves_the_band_for_the_outer_call(
+        self, stub_transcript: Callable[..., StubTranscript]
+    ) -> None:
+        stub_transcript(tokens=_BAND_SIZE)
+        plugin = ContextUsagePlugin()
+        kwargs = {"task_id": "t", "transcript_path": "/tmp/transcript.jsonl"}
+        nested = plugin.on_hook(
+            CanonicalHook.POST_TOOL_USE, logger=logging.getLogger("test"), parent_tool_call_id="outer", **kwargs
+        )
+        outer = plugin.on_hook(CanonicalHook.POST_TOOL_USE, logger=logging.getLogger("test"), **kwargs)
+        assert nested is None
+        assert isinstance(outer, HookResult)
+
+
 class TestSubagentStopReset:
     def test_resets_subagent_scope_and_keeps_parent(self) -> None:
         should_nudge_context("t", _BAND_SIZE)
