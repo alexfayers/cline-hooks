@@ -15,8 +15,7 @@ from cline_hooks.core.install import JsonHookInstaller, resolve_binary
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator
 
-_FAKE_PYTHON = str(Path("/fake/bin/python"))
-_EXPECTED_BINARY = str(Path(_FAKE_PYTHON).parent / "cline-hook")
+_EXPECTED_BINARY = str(Path("/fake/bin/cline-hook"))
 
 
 def _distribution_with_script(name: str) -> MagicMock:
@@ -78,7 +77,7 @@ def home(tmp_path: Path) -> Iterator[Path]:
         The fake home directory.
     """
     with (
-        patch("cline_hooks.core.install.sys.executable", _FAKE_PYTHON),
+        patch("cline_hooks.core.install.resolve_user_binary", return_value=Path(_EXPECTED_BINARY)),
         patch.object(Path, "home", return_value=tmp_path),
     ):
         yield tmp_path
@@ -189,6 +188,28 @@ class TestJsonHookInstallers:
 
         config = _install(spec, home)
         assert _commands(spec, config, event) == [_cmd(spec, _EXPECTED_BINARY)]
+
+    def test_repoints_a_cline_hook_path_in_a_venv_without_force(self, spec: FrontendSpec, home: Path) -> None:
+        installer = _installer(spec)
+        event = _first_event(spec)
+        registration = next(iter(spec.protocol.supported_hooks.values()))
+        venv_binary = home / "project" / ".venv" / "bin" / "cline-hook"
+        venv_binary.parent.mkdir(parents=True)
+        venv_binary.write_text("", encoding="utf-8")
+        (home / "project" / ".venv" / "pyvenv.cfg").write_text("", encoding="utf-8")
+        _seed(spec, home, {installer.root_key: {event: [installer.build_entry(venv_binary, registration)]}})
+
+        config = _install(spec, home)
+        assert _commands(spec, config, event) == [_cmd(spec, _EXPECTED_BINARY)]
+
+    def test_writes_nothing_where_there_is_no_user_wide_install(self, spec: FrontendSpec, home: Path) -> None:
+        config_path = _seed(spec, home, {"other": "value"})
+        with (
+            patch("cline_hooks.core.install.resolve_user_binary", return_value=None),
+            pytest.raises(SystemExit),
+        ):
+            spec.install(_target_for(spec, home))
+        assert json.loads(config_path.read_text(encoding="utf-8")) == {"other": "value"}
 
     def test_leaves_a_cline_hook_path_that_still_exists(self, spec: FrontendSpec, home: Path) -> None:
         installer = _installer(spec)
@@ -315,59 +336,25 @@ class TestAntigravityInstaller:
 
 
 class TestResolveBinary:
-    def test_prefers_an_existing_windows_executable(self, tmp_path: Path) -> None:
-        scripts_dir = tmp_path / "Scripts"
-        scripts_dir.mkdir()
-        exe = scripts_dir / "cline-hook.exe"
-        exe.write_text("", encoding="utf-8")
-        with patch("cline_hooks.core.install.sys.executable", str(scripts_dir / "python.exe")):
-            assert resolve_binary() == exe
+    def test_returns_the_user_wide_binary(self) -> None:
+        with patch("cline_hooks.core.install.resolve_user_binary", return_value=Path(_EXPECTED_BINARY)) as resolve:
+            assert resolve_binary() == Path(_EXPECTED_BINARY)
+        resolve.assert_called_once_with("cline-hook")
 
-    def test_falls_back_to_the_unsuffixed_name(self, tmp_path: Path) -> None:
-        with patch("cline_hooks.core.install.sys.executable", str(tmp_path / "python")):
-            assert resolve_binary() == tmp_path / "cline-hook"
-
-    def test_takes_the_name_from_the_distribution_console_script(self, tmp_path: Path) -> None:
+    def test_takes_the_name_from_the_distribution_console_script(self) -> None:
+        renamed = Path("/fake/bin/renamed-hook")
         with (
             _patch_script_name("renamed-hook"),
-            patch("cline_hooks.core.install.sys.executable", str(tmp_path / "python")),
+            patch("cline_hooks.core.install.resolve_user_binary", return_value=renamed) as resolve,
         ):
-            assert resolve_binary() == tmp_path / "renamed-hook"
+            resolve_binary()
+        resolve.assert_called_once_with("renamed-hook")
 
-    def test_prefers_an_existing_windows_executable_of_the_derived_name(self, tmp_path: Path) -> None:
-        cmd = tmp_path / "renamed-hook.cmd"
-        cmd.write_text("", encoding="utf-8")
-        with (
-            _patch_script_name("renamed-hook"),
-            patch("cline_hooks.core.install.sys.executable", str(tmp_path / "python.exe")),
-        ):
-            assert resolve_binary() == cmd
-
-    def test_prefers_the_path_link_to_the_running_binary(self, tmp_path: Path) -> None:
-        scripts_dir = tmp_path / "scripts"
-        scripts_dir.mkdir()
-        binary = scripts_dir / "cline-hook"
-        binary.write_text("", encoding="utf-8")
-        link = tmp_path / "bin" / "cline-hook"
-        link.parent.mkdir()
-        link.symlink_to(binary)
-        with (
-            patch("cline_hooks.core.install.sys.executable", str(scripts_dir / "python")),
-            patch("cline_hooks.core.install.shutil.which", return_value=str(link)),
-        ):
-            assert resolve_binary() == link
-
-    def test_ignores_a_path_binary_from_another_install(self, tmp_path: Path) -> None:
-        scripts_dir = tmp_path / "scripts"
-        scripts_dir.mkdir()
-        (scripts_dir / "cline-hook").write_text("", encoding="utf-8")
-        other = tmp_path / "other-cline-hook"
-        other.write_text("", encoding="utf-8")
-        with (
-            patch("cline_hooks.core.install.sys.executable", str(scripts_dir / "python")),
-            patch("cline_hooks.core.install.shutil.which", return_value=str(other)),
-        ):
-            assert resolve_binary() == scripts_dir / "cline-hook"
+    def test_exits_where_there_is_no_user_wide_install(self, capsys: pytest.CaptureFixture[str]) -> None:
+        with pytest.raises(SystemExit) as excinfo:
+            resolve_binary()
+        assert excinfo.value.code == 1
+        assert "cline-hook" in capsys.readouterr().err
 
 
 class TestEveryFrontendIsInstallable:

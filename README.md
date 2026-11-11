@@ -26,7 +26,7 @@ cline-hook install codex
 cline-hook install pi
 ```
 
-Kiro takes a path: `cline-hook install kiro ~/.kiro/agents/my-agent.json`. `cline-hook install --help` lists every assistant. Add `--force` to repoint entries whose binary still exists.
+Kiro takes a path: `cline-hook install kiro ~/.kiro/agents/my-agent.json`. `cline-hook install --help` lists every assistant. Add `--force` to repoint entries whose binary still exists. Install writes the user-wide `cline-hook` path, never one inside a virtual environment.
 
 Other commands:
 
