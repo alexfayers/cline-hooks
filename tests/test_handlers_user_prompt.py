@@ -306,6 +306,24 @@ class TestHandleUserPromptSubmit:
             result = _run("Can you implement this feature?")
         _assert_time_only(result)
 
+    def test_neutral_message_with_moderate_random_no_reminder(self) -> None:
+        mark_edited("task-1")
+        with (
+            patch("cline_hooks.plugins.nudges.random.random", return_value=0.1),
+            patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(12)),
+        ):
+            result = _run("Can you implement this feature?")
+        _assert_time_only(result)
+
+    def test_side_request_reminder_names_the_todos_rule(self) -> None:
+        with (
+            patch("cline_hooks.plugins.nudges.random.random", return_value=0.0),
+            patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(12)),
+        ):
+            result = _run("Can you implement this feature?")
+        assert result is not None
+        assert "todos rule" in cast("str", result.get("contextModification", ""))
+
     def test_late_night_adds_warning(self) -> None:
         with (
             patch("cline_hooks.plugins.nudges.random.random", return_value=1.0),
