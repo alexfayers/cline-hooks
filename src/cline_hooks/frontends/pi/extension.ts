@@ -71,14 +71,43 @@ function parseInputUpdate(output: string): InputUpdate | undefined {
   return undefined;
 }
 
+interface Delivery {
+  rootId: string;
+  epoch: number;
+  open: boolean;
+  notes: Set<string>;
+}
+
 export default function (pi: ExtensionAPI) {
-  const pendingToolContext = new Map<string, string>();
+  const deliveries = new Map<string, Delivery>();
+  let epoch = 0;
   let stopHookActive = false;
 
   const queueNote = (content: string) =>
     pi.sendMessage({ customType: CUSTOM_TYPE, content, display: false }, { deliverAs: "nextTurn" });
 
+  const deliveryFor = (id: string, parentId?: string): Delivery => {
+    let delivery = deliveries.get(id);
+    if (!delivery) {
+      delivery = (parentId && deliveries.get(parentId)) || { rootId: id, epoch, open: true, notes: new Set() };
+      deliveries.set(id, delivery);
+    }
+    return delivery;
+  };
+
+  const addNote = (delivery: Delivery, message: string) => {
+    if (delivery.epoch !== epoch || delivery.notes.has(message)) return;
+    delivery.notes.add(message);
+    if (!delivery.open) queueNote(message);
+  };
+
+  const resetDeliveries = () => {
+    deliveries.clear();
+    epoch += 1;
+  };
+
   pi.on("session_start", async (event, ctx) => {
+    resetDeliveries();
     const { message: output } = await runHook(ctx, { hook_event_name: "session_start", source: event.reason });
     const note = parseSessionNote(output);
     if (note) ctx.ui.notify(note.system_message);
@@ -103,7 +132,12 @@ export default function (pi: ExtensionAPI) {
     if (message) return { message: { customType: CUSTOM_TYPE, content: message, display: false } };
   });
 
+  pi.on("tool_execution_start", async (event) => {
+    deliveryFor(event.toolCallId, event.parentToolCallId);
+  });
+
   pi.on("tool_call", async (event, ctx) => {
+    const delivery = deliveryFor(event.toolCallId, event.parentToolCallId);
     const outcome = await runHook(ctx, {
       hook_event_name: "tool_call",
       tool_name: event.toolName,
@@ -114,10 +148,11 @@ export default function (pi: ExtensionAPI) {
     const update = parseInputUpdate(outcome.message);
     if (update) Object.assign(event.input, update.updated_input);
     const message = update ? update.message : outcome.message;
-    if (message) pendingToolContext.set(event.toolCallId, message);
+    if (message) addNote(delivery, message);
   });
 
   pi.on("tool_result", async (event, ctx) => {
+    const delivery = deliveryFor(event.toolCallId, event.parentToolCallId);
     const result = event.content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("\n");
     const { message } = await runHook(ctx, {
       hook_event_name: "tool_result",
@@ -126,14 +161,21 @@ export default function (pi: ExtensionAPI) {
       parent_tool_call_id: event.parentToolCallId,
       tool_response: { success: !event.isError, result },
     });
-    const notes = [pendingToolContext.get(event.toolCallId), message].filter(Boolean).join("\n\n");
-    pendingToolContext.delete(event.toolCallId);
-    if (notes) {
+    if (message) addNote(delivery, message);
+    if (delivery.rootId !== event.toolCallId) return;
+    delivery.open = false;
+    if (delivery.notes.size) {
       return {
-        content: [...event.content, { type: "text" as const, text: notes }],
+        content: [...event.content, { type: "text" as const, text: [...delivery.notes].join("\n\n") }],
         ...(event.structuredContent !== undefined && { structuredContent: event.structuredContent }),
       };
     }
+  });
+
+  pi.on("tool_execution_end", async (event) => {
+    const delivery = deliveries.get(event.toolCallId);
+    if (delivery?.rootId === event.toolCallId) delivery.open = false;
+    deliveries.delete(event.toolCallId);
   });
 
   pi.on("session_before_compact", async (event, ctx) => {
@@ -145,6 +187,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("session_shutdown", async (event, ctx) => {
+    resetDeliveries();
     if (event.reason === "reload") return;
     await runHook(ctx, { hook_event_name: "session_shutdown", reason: event.reason });
   });

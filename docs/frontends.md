@@ -14,7 +14,7 @@
 
 Re-running an install only repoints entries whose binary is missing. `--force` repoints all of them. Pi's extension is always repointed.
 
-Pi has no command hooks, so its extension relays Pi's events to `cline-hook`, with `session_compact` sent as a `TaskStart` with source `compact`.
+Pi has no command hooks, so its extension relays Pi's events to `cline-hook`, with `session_compact` sent as a `TaskStart` with source `compact`. Reminders produced by tool calls nested in a script are delivered on the script's own result.
 
 ## Hook support matrix
 
