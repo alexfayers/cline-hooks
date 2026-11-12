@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 from typing import TYPE_CHECKING
 
 from cline_hooks.core.plugin import HooksPlugin, hookimpl, hookspec
-from cline_hooks.handlers.commands import CommandRule
+from cline_hooks.handlers.commands import CommandRule, _split_git_words
 from cline_hooks.plugins.build_tools import all_build_commands
 
 if TYPE_CHECKING:
@@ -33,6 +34,85 @@ def validate_git_commit_message(cmd: ParsedCommand, _all: list[ParsedCommand]) -
             message = flag[10:]
             return "\n" in message
 
+    return False
+
+
+_MESSAGE_FLAG = re.compile(r"-[a-zA-Z]*m")
+_INLINE_MESSAGE_FLAG = re.compile(r"-[a-zA-Z]*m(.+)", re.DOTALL)
+_CHECK_NOUN = r"(?:tests?|builds?|checks?|ci|lint|type-?check|suite|pipeline)"
+_AUXILIARY = r"(?:(?:is|are|was|were|has|have|had|been|now|all|currently|still|already|finally|again)\s+)*"
+_DETERMINER = r"(?:the|a|our|this|these|every|both|all)"
+_SUCCESS_WORD = r"(?:pass(?:es|ed|ing)?|green|succeed(?:s|ed)?|successful(?:ly)?)"
+_PASS_CLAIM = re.compile(
+    rf"\s*(?:{_DETERMINER}\s+(?:\w+\s+){{0,2}})?"
+    rf"(?:{_CHECK_NOUN}\s+{_AUXILIARY}{_SUCCESS_WORD}|(?:everything|all)\s+{_AUXILIARY}(?:green|passing|passes|passed))"
+    r"(?![\w-])",
+    re.IGNORECASE,
+)
+_CLAUSE_BOUNDARY = re.compile(r"[:;,()\[\]\n]|[.!?](?=\s|$)|\s[-|/&\u2013\u2014]+\s|&&|\|\|")
+
+
+def _commit_messages(cmd: ParsedCommand) -> list[str]:
+    """Return the `-m` and `--message` values of a `git commit`, else an empty list."""
+    subcommand, subcommand_words = _split_git_words(cmd.words)
+    if subcommand != "commit":
+        return []
+    messages: list[str] = []
+    words = iter(subcommand_words)
+    for word in words:
+        if word.startswith("--message="):
+            messages.append(word.removeprefix("--message="))
+        elif word == "--message" or _MESSAGE_FLAG.fullmatch(word):
+            messages.append(next(words, ""))
+        elif not word.startswith("--") and (inline := _INLINE_MESSAGE_FLAG.fullmatch(word)):
+            messages.append(inline.group(1))
+    return messages
+
+
+_TEST_NAME = re.compile(
+    r"\btest_\w+|\w::test\w*"
+    r"|\b(?:it|test|describe)(?:\.\w+)*\s*(?:(?:\([^()]*\)|`[^`]*`)\s*)?\(\s*[\"'`]"
+)
+
+
+def validate_git_commit_test_name(cmd: ParsedCommand, _all: list[ParsedCommand]) -> bool:
+    """Check if a git commit message lists a test name.
+
+    Returns:
+        bool: True if the message is invalid (contains a test name).
+    """
+    return any(_TEST_NAME.search(message) for message in _commit_messages(cmd))
+
+
+def validate_git_commit_pass_claim(cmd: ParsedCommand, _all: list[ParsedCommand]) -> bool:
+    """Check if a git commit message claims that the build, tests, checks or CI pass.
+
+    Returns:
+        bool: True if the message is invalid (contains a pass claim).
+    """
+    return any(
+        _PASS_CLAIM.match(clause) for message in _commit_messages(cmd) for clause in _CLAUSE_BOUNDARY.split(message)
+    )
+
+
+_FILE_MESSAGE_FLAG = re.compile(r"-[^-mCctuS]*F")
+
+
+def validate_git_commit_file_message(cmd: ParsedCommand, _all: list[ParsedCommand]) -> bool:
+    """Check if a git commit reads its message from a file.
+
+    Returns:
+        bool: True if the commit uses -F or --file.
+    """
+    subcommand, subcommand_words = _split_git_words(cmd.words)
+    if subcommand != "commit":
+        return False
+    words = iter(subcommand_words)
+    for word in words:
+        if word == "--message" or _MESSAGE_FLAG.fullmatch(word):
+            next(words, "")
+        elif word == "--file" or word.startswith("--file=") or _FILE_MESSAGE_FLAG.match(word):
+            return True
     return False
 
 
@@ -158,6 +238,21 @@ class CommandRulesPlugin(HooksPlugin):
                 command="git",
                 message="Commit messages MUST be single-line with no body.",
                 validator=validate_git_commit_message,
+            ),
+            CommandRule(
+                command="git",
+                message="MUST NOT read the commit message from a file (-F, --file) - MUST use an inline message.",
+                validator=validate_git_commit_file_message,
+            ),
+            CommandRule(
+                command="git",
+                message="A commit message MUST NOT claim that the build, tests, checks or CI pass.",
+                validator=validate_git_commit_pass_claim,
+            ),
+            CommandRule(
+                command="git",
+                message="A commit message MUST NOT list test names.",
+                validator=validate_git_commit_test_name,
             ),
             CommandRule(
                 command="cat",
