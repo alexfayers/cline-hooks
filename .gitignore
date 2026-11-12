@@ -16,3 +16,4 @@ requirements/
 .memory-tracker-state.json
 .skill-state.json
 node_modules/
+.deps/
