@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_a44f0ac069e85531_test_agents_tracker_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.17.2">coverage.py v7.17.2</a>,
-            created at 2026-11-12 12:40 +0000
+            created at 2026-11-12 14:50 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -313,7 +313,7 @@
     <p class="run"><span class="n"><a id="t229" href="#t229">229</a></span><span class="t"><span class="op">@</span><span class="nam">pytest</span><span class="op">.</span><span class="nam">fixture</span><span class="op">(</span><span class="nam">autouse</span><span class="op">=</span><span class="key">True</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t230" href="#t230">230</a></span><span class="t"><span class="key">def</span> <span class="nam">no_cline_hook_on_path</span><span class="op">(</span><span class="nam">mocker</span><span class="op">:</span> <span class="nam">MockerFixture</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t231" href="#t231">231</a></span><span class="t">    <span class="str">&quot;&quot;&quot;Keep install tests from finding a real cline-hook on the PATH.&quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t232" href="#t232">232</a></span><span class="t">    <span class="nam">mocker</span><span class="op">.</span><span class="nam">patch</span><span class="op">(</span><span class="str">&quot;cline_hooks.core.install.shutil.which&quot;</span><span class="op">,</span> <span class="nam">return_value</span><span class="op">=</span><span class="key">None</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t232" href="#t232">232</a></span><span class="t">    <span class="nam">mocker</span><span class="op">.</span><span class="nam">patch</span><span class="op">(</span><span class="str">&quot;cline_hooks.core.install.resolve_user_binary&quot;</span><span class="op">,</span> <span class="nam">return_value</span><span class="op">=</span><span class="key">None</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t233" href="#t233">233</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t234" href="#t234">234</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t235" href="#t235">235</a></span><span class="t"><span class="nam">FAKE_HOME</span> <span class="op">=</span> <span class="nam">Path</span><span class="op">(</span><span class="str">&quot;/fake/home&quot;</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
@@ -429,7 +429,7 @@
             <a class="nav" href="z_a44f0ac069e85531_test_agents_tracker_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.17.2">coverage.py v7.17.2</a>,
-            created at 2026-11-12 12:40 +0000
+            created at 2026-11-12 14:50 +0000
         </p>
     </div>
 </footer>
