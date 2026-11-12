@@ -73,3 +73,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: alexfayers/llm-prompts/.github/actions/pr-template@main
+
+  prompt-checks:
+    permissions:
+      contents: read
+    uses: alexfayers/llm-prompts/.github/workflows/prompt-checks.yml@main
+    with:
+      prompts-root: src/cline_hooks/prompts
