@@ -10,6 +10,7 @@ Plugins add custom command rules, build tool detection, research tools, ecosyste
 - Shell command rules and guards, such as `rm -f`, commit messages and the push block
 - Fixup guard: blocks a new commit that overlaps an unpushed one
 - Skill guard: blocks a command or edit until its required skill, or a skill part file such as `git-usage/tidy.md`, was read
+- File structure note: a new file that brings its folder from 7 to 8 files prompts a note to use a short-named area subfolder, except at the repo root
 - Per-tool guards and edit blocks for files managed by llm-prompts
 - Research lookups and the research trace at `Stop`
 - Ecosystem tooling notes and startup blocks
