@@ -5,6 +5,7 @@
 | `CLINE_HOOKS_DATA_DIR` | Where state files and `cline-hooks.log` live. Defaults to the platform data directory. The log rotates at 10 MB and keeps 3 backups. |
 | `CLINE_HOOKS_FRONTEND` | Assistant name to load. Unset, it is detected from the payload. |
 | `CLINE_HOOKS_PUSH_BLOCK_MARKERS` | Comma-separated file or directory names. `git push` is blocked in a repo that has one of them at or above its root. Empty by default. |
+| `CLINE_HOOKS_DEV_BIN_DIR` | Directory searched first for `cline-hook` when installing, even if it is a virtual environment. Prints a warning when used. Unset, installs use only binaries outside virtual environments. |
 | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | Any non-empty value turns on the delegation nudges. |
 | `PI_CODING_AGENT_DIR` | Pi's agent directory, used by `install pi`. Defaults to `~/.pi/agent`. |
 | `HERDR_PANE_ID` | Read by the handoff acknowledgement plugin to find the session's own Herdr pane. |

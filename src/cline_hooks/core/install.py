@@ -13,11 +13,11 @@ from importlib.metadata import distribution
 import json
 import os
 from pathlib import Path
-import shutil
 import sys
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from cline_hooks.core.frontend import FRONTEND_ENV_KEY
+from cline_hooks.core.user_install import is_venv_scripts_dir, resolve_user_binary
 
 if TYPE_CHECKING:
     from cline_hooks.core.protocol import HookRegistration, Protocol
@@ -68,19 +68,17 @@ def binary_names() -> tuple[str, ...]:
 
 
 def resolve_binary() -> Path:
-    """Resolve the path to the cline-hook binary.
+    """Resolve the path to the user-wide cline-hook binary.
 
     Returns:
-        Path to the binary, preferring the PATH link to the running binary, then
-        existing files.
+        Path to the binary found outside any virtual environment.
     """
-    scripts_dir = Path(sys.executable).parent
-    candidates = tuple(scripts_dir / name for name in binary_names())
-    own = next((candidate for candidate in candidates if candidate.exists()), candidates[0])
-    linked = shutil.which(binary_names()[0])
-    if linked and Path(linked).resolve() == own.resolve():
-        return Path(linked)
-    return own
+    name = binary_names()[0]
+    binary = resolve_user_binary(name)
+    if binary is None:
+        print(f"error: no user-wide {name} found on PATH. Install cline-hooks as a tool first.", file=sys.stderr)
+        sys.exit(1)
+    return binary
 
 
 class JsonHookInstaller(Installer):
@@ -88,7 +86,8 @@ class JsonHookInstaller(Installer):
 
     Merges an entry per registered hook into the object under `root_key`,
     preserving entries from other sources and pointing existing cline-hook entries
-    whose binary is missing, or all of them when forced, at the resolved binary.
+    whose binary is missing or inside a virtual environment, or all of them when forced,
+    at the resolved binary.
 
     Attributes:
         must_exist: Whether the config file must already exist, rather than
@@ -175,7 +174,7 @@ class JsonHookInstaller(Installer):
         Args:
             protocol_cls: The frontend's Protocol class.
             target: The subcommand's positional argument, if it takes one.
-            force: Whether to repoint existing entries even where their binary exists.
+            force: Whether to repoint existing entries even where their binary exists outside a virtual environment.
         """
         binary = resolve_binary()
         names = binary_names()
@@ -196,7 +195,8 @@ class JsonHookInstaller(Installer):
                     if Path(old).name not in names:
                         continue
                     installed = True
-                    command = self.command(old if not force and Path(old).exists() else str(binary), protocol_cls)
+                    keep = not force and Path(old).exists() and not is_venv_scripts_dir(Path(old).parent)
+                    command = self.command(old if keep else str(binary), protocol_cls)
                     if handler["command"] != command:
                         handler["command"] = command
                         rewritten += 1

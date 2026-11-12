@@ -12,8 +12,7 @@ from cline_hooks.frontends.pi import PiInstaller, PiProtocol
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-_FAKE_PYTHON = str(Path("/fake/bin/python"))
-_EXPECTED_BINARY = str(Path(_FAKE_PYTHON).parent / "cline-hook")
+_EXPECTED_BINARY = str(Path("/fake/bin/cline-hook"))
 
 
 @pytest.fixture
@@ -25,7 +24,7 @@ def home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     """
     monkeypatch.delenv("PI_CODING_AGENT_DIR", raising=False)
     with (
-        patch("cline_hooks.core.install.sys.executable", _FAKE_PYTHON),
+        patch("cline_hooks.core.install.resolve_user_binary", return_value=Path(_EXPECTED_BINARY)),
         patch.object(Path, "home", return_value=tmp_path),
     ):
         yield tmp_path
@@ -65,6 +64,14 @@ class TestPiInstaller:
         assert f"const BINARY: string = {json.dumps(_EXPECTED_BINARY)};" in content
         assert "__CLINE_HOOK_BINARY__" not in content
 
+    def test_writes_nothing_where_there_is_no_user_wide_install(self, home: Path) -> None:
+        with (
+            patch("cline_hooks.core.install.resolve_user_binary", return_value=None),
+            pytest.raises(SystemExit),
+        ):
+            _install()
+        assert not PiInstaller().extension_path().exists()
+
     def test_relays_every_registered_hook(self, home: Path) -> None:
         content = _install()
         for registration in PiProtocol.supported_hooks.values():
@@ -96,6 +103,14 @@ class TestPiInstaller:
         working.parent.mkdir()
         working.write_text("", encoding="utf-8")
         _seed_embedded_binary(working)
+        assert f"const BINARY: string = {json.dumps(_EXPECTED_BINARY)};" in _install()
+
+    def test_repoints_an_embedded_binary_in_a_venv(self, home: Path) -> None:
+        venv_binary = home / "project" / ".venv" / "bin" / "cline-hook"
+        venv_binary.parent.mkdir(parents=True)
+        venv_binary.write_text("", encoding="utf-8")
+        (home / "project" / ".venv" / "pyvenv.cfg").write_text("", encoding="utf-8")
+        _seed_embedded_binary(venv_binary)
         assert f"const BINARY: string = {json.dumps(_EXPECTED_BINARY)};" in _install()
 
     def test_replaces_an_embedded_binary_that_is_gone(self, home: Path) -> None:

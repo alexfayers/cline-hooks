@@ -229,7 +229,7 @@ def isolate_state_files(mocker: MockerFixture, tmp_path: Path) -> None:
 @pytest.fixture(autouse=True)
 def no_cline_hook_on_path(mocker: MockerFixture) -> None:
     """Keep install tests from finding a real cline-hook on the PATH."""
-    mocker.patch("cline_hooks.core.install.shutil.which", return_value=None)
+    mocker.patch("cline_hooks.core.install.resolve_user_binary", return_value=None)
 
 
 FAKE_HOME = Path("/fake/home")
