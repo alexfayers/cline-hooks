@@ -28,6 +28,16 @@ class TestExtractCommands:
         commands = extract_commands(bashlex.parse("find . -maxdepth 2 -name x"))
         assert commands[0].words == [".", "-maxdepth", "2", "-name", "x"]
 
+    def test_skips_leading_variable_assignments(self) -> None:
+        commands = extract_commands(bashlex.parse("GIT_SEQUENCE_EDITOR=: git rebase -i x"))
+        assert [(cmd.name, cmd.words) for cmd in commands] == [("git", ["rebase", "-i", "x"])]
+
+    def test_skips_leading_redirects(self) -> None:
+        commands = extract_commands(bashlex.parse("GIT_EDITOR=true >log git commit -m x"))
+        assert [(cmd.name, cmd.words, cmd.redirect_outputs) for cmd in commands] == [
+            ("git", ["commit", "-m", "x"], ["log"])
+        ]
+
 
 class TestIsGitPush:
     def test_detects_git_push(self) -> None:
