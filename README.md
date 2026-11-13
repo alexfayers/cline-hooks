@@ -49,7 +49,7 @@
 | src/cline\_hooks/frontends/pi/protocol.py               |       38 |        1 |        4 |        1 |     95% |       115 |
 | src/cline\_hooks/frontends/pi/transcript.py             |       51 |        4 |       16 |        2 |     91% |78-79, 87, 96 |
 | src/cline\_hooks/handlers/\_\_init\_\_.py               |        3 |        0 |        0 |        0 |    100% |           |
-| src/cline\_hooks/handlers/commands.py                   |      199 |        7 |       94 |       11 |     94% |238, 253, 267, 310, 314, 318, 363, 370-\>368, 372-\>368, 374-\>368, 375-\>374 |
+| src/cline\_hooks/handlers/commands.py                   |      199 |        7 |       94 |       10 |     94% |238, 253, 267, 310, 314, 318, 363, 372-\>368, 374-\>368, 375-\>374 |
 | src/cline\_hooks/handlers/context\_nudge.py             |        7 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/handlers/git\_context.py               |       44 |        2 |        8 |        0 |     96% |     55-56 |
 | src/cline\_hooks/handlers/herdr\_guard.py               |       79 |        1 |       24 |        1 |     98% |        84 |
@@ -77,7 +77,8 @@
 | src/cline\_hooks/plugins/plan\_handoff.py               |       67 |        1 |       28 |        2 |     97% |144, 153-\>155 |
 | src/cline\_hooks/plugins/research.py                    |      110 |        6 |       34 |        3 |     94% |129, 158-160, 219, 269-\>271, 276 |
 | src/cline\_hooks/plugins/session\_context.py            |       19 |        0 |        6 |        0 |    100% |           |
-| src/cline\_hooks/plugins/shell\_guards.py               |       63 |        0 |       20 |        0 |    100% |           |
+| src/cline\_hooks/plugins/shell\_guards.py               |       38 |        0 |       10 |        0 |    100% |           |
+| src/cline\_hooks/plugins/skill\_guard.py                |       44 |        0 |       12 |        0 |    100% |           |
 | src/cline\_hooks/plugins/startup\_blocks.py             |       81 |        1 |       20 |        0 |     99% |       145 |
 | src/cline\_hooks/plugins/tool\_guards.py                |       90 |        3 |       36 |        1 |     97% |121-122, 157 |
 | src/cline\_hooks/plugins/tool\_usage.py                 |       70 |        1 |       16 |        0 |     99% |        42 |
@@ -146,7 +147,8 @@
 | tests/test\_plugins\_handoff\_ack.py                    |      304 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugins\_nested\_calls.py                   |       49 |        0 |        2 |        0 |    100% |           |
 | tests/test\_plugins\_research.py                        |       41 |        0 |        2 |        0 |    100% |           |
-| tests/test\_plugins\_shell\_guards.py                   |      116 |        0 |        0 |        0 |    100% |           |
+| tests/test\_plugins\_shell\_guards.py                   |       63 |        0 |        0 |        0 |    100% |           |
+| tests/test\_plugins\_skill\_guard.py                    |       58 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugins\_startup\_blocks.py                 |      142 |        0 |        2 |        0 |    100% |           |
 | tests/test\_plugins\_tool\_usage.py                     |       68 |        0 |        8 |        0 |    100% |           |
 | tests/test\_readme\_matrix.py                           |       41 |        0 |        6 |        0 |    100% |           |
@@ -163,7 +165,7 @@
 | tests/test\_uninstall.py                                |       46 |        0 |        0 |        0 |    100% |           |
 | tests/test\_user\_install.py                            |       53 |        0 |        4 |        0 |    100% |           |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **12155** |  **174** | **1460** |  **101** | **98%** |           |
+| **TOTAL**                                               | **12179** |  **174** | **1462** |  **100** | **98%** |           |
 
 
 ## Setup coverage badge
