@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import os
+from pathlib import Path
+import re
 from typing import TYPE_CHECKING, cast
 
+from cline_hooks.core.hook_kwargs import PreToolUseKwargs
+from cline_hooks.core.parameters import FileEditParameters
 from cline_hooks.core.plugin import HookResult, HooksPlugin
-from cline_hooks.core.vocabulary import CanonicalHook, PluginScope
+from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool, PluginScope
 from cline_hooks.handlers.commands import ParsedCommand, extract_commands, is_read_only_git, is_tidy_rebase
 from cline_hooks.state.skills import _SKILL_REQUIREMENTS, installed_skill_file, is_skill_called, required_skill_for
 
@@ -30,9 +35,14 @@ _SHELL_PART_REQUIREMENTS: tuple[tuple[Callable[[ParsedCommand], bool], str], ...
     (_is_llm_prompts_setup, _SETUP_PART),
     (_is_contribute_write, "llm-prompts/contribute.md"),
 )
+_EDIT_PART_REQUIREMENTS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"(?:^|/)prompts/[\w-]+/(?:rules|skills|workflows|agents)/"), "llm-prompts/edit.md"),
+    (re.compile(r"(?:^|/)llm-prompts/config\.toml$"), _SETUP_PART),
+)
 _GUARDED_KEYS = frozenset({
     *_SKILL_REQUIREMENTS.values(),
     *(part for _, part in _SHELL_PART_REQUIREMENTS),
+    *(part for _, part in _EDIT_PART_REQUIREMENTS),
 })
 
 
@@ -80,6 +90,32 @@ def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | N
     return None
 
 
+def _pre_edit_guard(logger: logging.Logger, **kwargs: object) -> HookResult | None:
+    """Block an edit or write to a prompt source or llm-prompts config before its skill part was read.
+
+    Args:
+        logger: This plugin's hook-scoped child logger.
+        **kwargs: The PreToolUse dispatch kwargs (tool_name, parameters, task_id, workspace_roots).
+
+    Returns:
+        A blocking HookResult for a missing skill part, or None.
+    """
+    kw = PreToolUseKwargs.build(kwargs)
+    if kw.tool_name not in {CanonicalTool.EDIT, CanonicalTool.WRITE}:
+        return None
+    path = FileEditParameters.build(kw.parameters).path
+    if not isinstance(path, str) or not path:
+        return None
+    base = kw.workspace_roots[0] if kw.workspace_roots else os.getcwd()  # ruff: ignore[os-getcwd]
+    resolved = os.path.normpath(Path(base) / Path(path).expanduser())
+    parts = [part for pattern, part in _EDIT_PART_REQUIREMENTS if pattern.search(resolved)]
+    missing = _missing(kw.task_id, None, parts)
+    if missing:
+        logger.debug("Blocked edit: missing required skill part")
+        return HookResult(block=_block_message(missing, f"editing {path}"))
+    return None
+
+
 def _task_resume_guard(logger: logging.Logger, **kwargs: object) -> HookResult | None:
     """Re-nudge any skill named in this task's recorded block reasons.
 
@@ -100,10 +136,10 @@ def _task_resume_guard(logger: logging.Logger, **kwargs: object) -> HookResult |
 
 
 class SkillGuardPlugin(HooksPlugin):
-    """Bundled plugin blocking commands until their required skill or skill part was read."""
+    """Bundled plugin blocking commands and edits until their required skill or skill part was read."""
 
     def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
-        """Dispatch PreShell and TaskResume events to the skill guards.
+        """Dispatch PreShell, PreToolUse and TaskResume events to the skill guards.
 
         Args:
             hook_name: The hook or plugin-scope name.
@@ -115,6 +151,8 @@ class SkillGuardPlugin(HooksPlugin):
         """
         if hook_name == PluginScope.PRE_SHELL:
             return _pre_shell_guard(logger, **kwargs)
+        if hook_name == CanonicalHook.PRE_TOOL_USE:
+            return _pre_edit_guard(logger, **kwargs)
         if hook_name == CanonicalHook.TASK_RESUME:
             return _task_resume_guard(logger, **kwargs)
         return None

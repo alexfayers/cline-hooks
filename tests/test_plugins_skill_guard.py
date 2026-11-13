@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from cline_hooks.core.protocol import set_protocol
-from cline_hooks.core.vocabulary import PluginScope
+from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool, PluginScope
 from cline_hooks.frontends.antigravity.protocol import AntigravityProtocol
 from cline_hooks.frontends.claude_code.protocol import ClaudeCodeProtocol
 from cline_hooks.frontends.codex.protocol import CodexProtocol
@@ -128,6 +128,17 @@ def pi_skills(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return tmp_path / "skills"
 
 
+def _pre_edit(path: object, workspace_roots: list[str] | None = None) -> HookResult | None:
+    return SkillGuardPlugin().on_hook(
+        CanonicalHook.PRE_TOOL_USE,
+        logger=logging.getLogger("test"),
+        task_id="t",
+        tool_name=CanonicalTool.EDIT,
+        parameters={"path": path},
+        workspace_roots=workspace_roots or [],
+    )
+
+
 TIDY_REBASE = "GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash main"
 
 
@@ -177,3 +188,44 @@ class TestSkillPartGuard:
     @pytest.mark.parametrize("command", ["llm-prompts update", "llm-prompts contribute list"])
     def test_routine_llm_prompts_commands_are_allowed(self, pi_skills: Path, command: str) -> None:
         assert _pre_shell(command) is None
+
+    @pytest.mark.parametrize(
+        ("path", "part"),
+        [
+            ("src/llm_prompts/prompts/shared/rules/git.md", "edit.md"),
+            ("/h/.config/llm-prompts/config.toml", "setup.md"),
+        ],
+    )
+    def test_prompt_source_and_config_edits_need_their_part(self, pi_skills: Path, path: str, part: str) -> None:
+        result = _pre_edit(path)
+        assert result is not None
+        assert result.block == (
+            f"MUST use the `llm-prompts/{part}` skill part before editing {path}"
+            f" - read {pi_skills / 'llm-prompts' / part} first"
+        )
+
+    @pytest.mark.parametrize(
+        ("path", "cwd", "part"),
+        [
+            ("rules/example.md", "/src/llm_prompts/prompts/shared", "edit.md"),
+            ("../skills/x/SKILL.md", "/src/llm_prompts/prompts/shared/rules", "edit.md"),
+            ("config.toml", "/h/.config/llm-prompts", "setup.md"),
+        ],
+    )
+    def test_relative_edits_resolve_against_the_working_directory(
+        self, pi_skills: Path, path: str, cwd: str, part: str
+    ) -> None:
+        result = _pre_edit(path, [cwd])
+        assert result is not None
+        assert result.block is not None
+        assert f"`llm-prompts/{part}`" in result.block
+
+    def test_relative_edit_elsewhere_is_allowed(self, pi_skills: Path) -> None:
+        assert _pre_edit("config.toml", ["/work/app"]) is None
+
+    @pytest.mark.parametrize("path", [None, 5])
+    def test_edit_without_a_string_path_is_allowed(self, pi_skills: Path, path: object) -> None:
+        assert _pre_edit(path) is None
+
+    def test_other_edits_are_allowed(self, pi_skills: Path) -> None:
+        assert _pre_edit("src/app/rules.py") is None
