@@ -3,34 +3,62 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
 from cline_hooks.core.plugin import HookResult, HooksPlugin
-from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.vocabulary import CanonicalHook, PluginScope
-from cline_hooks.handlers.commands import extract_commands, is_read_only_git
-from cline_hooks.state.skills import _SKILL_REQUIREMENTS, is_skill_called, required_skill_for
+from cline_hooks.handlers.commands import ParsedCommand, extract_commands, is_read_only_git, is_tidy_rebase
+from cline_hooks.state.skills import _SKILL_REQUIREMENTS, installed_skill_file, is_skill_called, required_skill_for
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     import logging
 
 
-def _skill_block_message(skill: str) -> str:
-    message = f"MUST use the `{skill}` skill before running this command"
-    spec = get_protocol().frontend_spec
-    if spec is not None and spec.skills_dir is not None:
-        skill_file = spec.skills_dir() / skill / "SKILL.md"
-        if skill_file.is_file():
-            return f"{message} - read {skill_file} first"
-    return message
+_SETUP_PART = "llm-prompts/setup.md"
+
+
+def _is_llm_prompts_setup(cmd: ParsedCommand) -> bool:
+    """Return True if a command runs `llm-prompts setup` or `llm-prompts install`."""
+    return cmd.name == "llm-prompts" and cmd.args[:1] in (["setup"], ["install"])
+
+
+def _is_contribute_write(cmd: ParsedCommand) -> bool:
+    """Return True if a command runs `llm-prompts contribute sync` or `llm-prompts contribute update`."""
+    return cmd.name == "llm-prompts" and cmd.args[:2] in (["contribute", "sync"], ["contribute", "update"])
+
+
+_SHELL_PART_REQUIREMENTS: tuple[tuple[Callable[[ParsedCommand], bool], str], ...] = (
+    (is_tidy_rebase, "git-usage/tidy.md"),
+    (_is_llm_prompts_setup, _SETUP_PART),
+    (_is_contribute_write, "llm-prompts/contribute.md"),
+)
+_GUARDED_KEYS = frozenset({
+    *_SKILL_REQUIREMENTS.values(),
+    *(part for _, part in _SHELL_PART_REQUIREMENTS),
+})
+
+
+def _missing(task_id: str, skill: str | None, parts: list[str]) -> list[str]:
+    """Return the required skill and installed parts not yet read, in order."""
+    keys = [*([skill] if skill else []), *(part for part in parts if installed_skill_file(part))]
+    return [key for key in dict.fromkeys(keys) if not is_skill_called(task_id, key)]
+
+
+def _block_message(keys: list[str], action: str) -> str:
+    """Return the block naming each missing skill or part, and its installed file."""
+    labels = " and ".join(f"the `{key}` skill part" if "/" in key else f"the `{key}` skill" for key in keys)
+    message = f"MUST use {labels} before {action}"
+    files = [str(file) for key in keys if (file := installed_skill_file(key))]
+    return f"{message} - read {' and '.join(files)} first" if files else message
 
 
 def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | None:
-    """Block a shell command missing a required skill.
+    """Block a shell command missing a required skill or skill part.
 
     Args:
         logger: This plugin's hook-scoped child logger.
         **kwargs: The PreShell dispatch kwargs (command, task_id).
 
     Returns:
-        A blocking HookResult for a missing skill, or None.
+        A blocking HookResult for a missing skill or part, or None.
     """
     command = cast("str", kwargs.get("command") or "")
     task_id = cast("str", kwargs.get("task_id") or "")
@@ -43,10 +71,12 @@ def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | N
         return None
     commands = extract_commands(parsed)
 
-    required_skill = required_skill_for([cmd.name for cmd in commands if not is_read_only_git(cmd)])
-    if required_skill and not is_skill_called(task_id, required_skill):
-        logger.debug("Blocked shell command: missing required skill")
-        return HookResult(block=_skill_block_message(required_skill))
+    skill = required_skill_for([cmd.name for cmd in commands if not is_read_only_git(cmd)])
+    parts = [part for matches, part in _SHELL_PART_REQUIREMENTS for cmd in commands if matches(cmd)]
+    missing = _missing(task_id, skill, parts)
+    if missing:
+        logger.debug("Blocked shell command: missing required skill or part")
+        return HookResult(block=_block_message(missing, "running this command"))
     return None
 
 
@@ -61,7 +91,7 @@ def _task_resume_guard(logger: logging.Logger, **kwargs: object) -> HookResult |
         A HookResult carrying the re-nudge note, or None if nothing pends.
     """
     block_reasons = cast("list[str]", kwargs.get("block_reasons") or [])
-    pending_skills = {skill for reason in block_reasons for skill in _SKILL_REQUIREMENTS.values() if skill in reason}
+    pending_skills = {key for reason in block_reasons for key in _GUARDED_KEYS if f"`{key}`" in reason}
     if not pending_skills:
         return None
     skills_list = ", ".join(f"`{s}`" for s in sorted(pending_skills))
@@ -70,7 +100,7 @@ def _task_resume_guard(logger: logging.Logger, **kwargs: object) -> HookResult |
 
 
 class SkillGuardPlugin(HooksPlugin):
-    """Bundled plugin blocking commands until their required skill was read."""
+    """Bundled plugin blocking commands until their required skill or skill part was read."""
 
     def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
         """Dispatch PreShell and TaskResume events to the skill guards.

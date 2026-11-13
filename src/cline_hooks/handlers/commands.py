@@ -255,6 +255,19 @@ def is_read_only_gh(cmd: ParsedCommand) -> bool:
     return group == "status" or bool(words and words[0] in _READ_ONLY_GH_ACTIONS)
 
 
+_TIDY_REBASE_FLAGS = frozenset({"-i", "--interactive", "--autosquash"})
+
+
+def is_tidy_rebase(cmd: ParsedCommand) -> bool:
+    """Check if a command is a `git rebase` that rewrites history interactively or by autosquash.
+
+    Returns:
+        bool: True if the command is `git rebase` with `-i`, `--interactive` or `--autosquash`.
+    """
+    subcommand, words = _split_git_words(cmd.words)
+    return cmd.name == "git" and subcommand == "rebase" and not _TIDY_REBASE_FLAGS.isdisjoint(words)
+
+
 def _iter_nodes(node: bashlex.ast.node) -> Iterator[bashlex.ast.node]:
     """Recursively yield all nodes in a bashlex AST.
 
