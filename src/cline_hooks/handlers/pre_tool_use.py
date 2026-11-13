@@ -83,7 +83,7 @@ def _pre_shell(hook: HookInputPreToolUse, fields: PreToolUseFields, plugins: lis
 
     try:
         parsed = bashlex.parse(command)
-    except bashlex.errors.ParsingError:
+    except (bashlex.errors.ParsingError, NotImplementedError):
         logger.debug("Failed to parse command (unsupported shell syntax): %s", command)
         return Outcome()
 

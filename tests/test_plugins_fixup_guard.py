@@ -9,6 +9,7 @@ import pytest
 
 from cline_hooks.core.vocabulary import PluginScope
 from cline_hooks.plugins.fixup_guard import FixupGuardPlugin, _repo_state
+from tests.conftest import UNSUPPORTED_SYNTAX
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
@@ -42,6 +43,11 @@ def test_blocks_a_commit_overlapping_an_unpushed_commit_and_names_it(repo_state:
     assert "--fixup=<sha>" in str(result.block)
     assert "# new-feature" in str(result.block)
     repo_state.assert_called_once_with("/work", False)
+
+
+@pytest.mark.parametrize("command", UNSUPPORTED_SYNTAX)
+def test_allows_a_commit_line_bashlex_cannot_parse(repo_state: MagicMock, command: str) -> None:
+    assert _guard(f"{command}; git commit -m tweak") is None
 
 
 @pytest.mark.parametrize("command", ["git commit -am tweak", "git add feature.txt && git commit -m tweak"])

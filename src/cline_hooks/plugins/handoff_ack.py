@@ -70,7 +70,7 @@ def _parse(command: str) -> list[ParsedCommand]:
 
     try:
         return extract_commands(bashlex.parse(command))
-    except bashlex.errors.ParsingError:
+    except (bashlex.errors.ParsingError, NotImplementedError):
         return []
 
 
