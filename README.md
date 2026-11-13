@@ -49,7 +49,7 @@
 | src/cline\_hooks/frontends/pi/protocol.py               |       38 |        1 |        4 |        1 |     95% |       115 |
 | src/cline\_hooks/frontends/pi/transcript.py             |       51 |        4 |       16 |        2 |     91% |78-79, 87, 96 |
 | src/cline\_hooks/handlers/\_\_init\_\_.py               |        3 |        0 |        0 |        0 |    100% |           |
-| src/cline\_hooks/handlers/commands.py                   |      200 |        6 |       92 |        9 |     95% |238, 253, 280, 324, 328, 372, 381-\>377, 383-\>377, 384-\>383 |
+| src/cline\_hooks/handlers/commands.py                   |      200 |        6 |       92 |       10 |     95% |238, 253, 280, 324, 328, 372, 379-\>377, 381-\>377, 383-\>377, 384-\>383 |
 | src/cline\_hooks/handlers/context\_nudge.py             |        7 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/handlers/git\_context.py               |       44 |        2 |        8 |        0 |     96% |     55-56 |
 | src/cline\_hooks/handlers/herdr\_guard.py               |       79 |        1 |       24 |        1 |     98% |        84 |
@@ -90,7 +90,7 @@
 | src/cline\_hooks/state/memory.py                        |       21 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/state/paths.py                         |        8 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/state/retrospective.py                 |       29 |        0 |        4 |        0 |    100% |           |
-| src/cline\_hooks/state/skills.py                        |       74 |        0 |       18 |        0 |    100% |           |
+| src/cline\_hooks/state/skills.py                        |       95 |        0 |       26 |        0 |    100% |           |
 | src/cline\_hooks/state/store.py                         |       26 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/state/tool\_usage.py                   |       19 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/state/workspace.py                     |       24 |        0 |        6 |        0 |    100% |           |
@@ -116,7 +116,7 @@
 | tests/test\_handlers\_commands.py                       |       77 |        0 |        0 |        0 |    100% |           |
 | tests/test\_handlers\_context\_nudge.py                 |       95 |        0 |        0 |        0 |    100% |           |
 | tests/test\_handlers\_git\_context.py                   |       42 |        0 |        2 |        0 |    100% |           |
-| tests/test\_handlers\_post\_tool\_use.py                |      582 |        7 |       22 |        5 |     98% |473, 481, 693-694, 727-728, 884 |
+| tests/test\_handlers\_post\_tool\_use.py                |      595 |        7 |       22 |        5 |     98% |511, 519, 731-732, 765-766, 922 |
 | tests/test\_handlers\_pre\_compact.py                   |       19 |        0 |        0 |        0 |    100% |           |
 | tests/test\_handlers\_pre\_tool\_use.py                 |      526 |        0 |       14 |        0 |    100% |           |
 | tests/test\_handlers\_push\_guard.py                    |       28 |        0 |        0 |        0 |    100% |           |
@@ -165,7 +165,7 @@
 | tests/test\_uninstall.py                                |       46 |        0 |        0 |        0 |    100% |           |
 | tests/test\_user\_install.py                            |       53 |        0 |        4 |        0 |    100% |           |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **12367** |  **169** | **1484** |   **97** | **98%** |           |
+| **TOTAL**                                               | **12401** |  **169** | **1492** |   **98** | **98%** |           |
 
 
 ## Setup coverage badge
