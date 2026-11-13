@@ -49,7 +49,7 @@
 | src/cline\_hooks/frontends/pi/protocol.py               |       38 |        1 |        4 |        1 |     95% |       115 |
 | src/cline\_hooks/frontends/pi/transcript.py             |       51 |        4 |       16 |        2 |     91% |78-79, 87, 96 |
 | src/cline\_hooks/handlers/\_\_init\_\_.py               |        3 |        0 |        0 |        0 |    100% |           |
-| src/cline\_hooks/handlers/commands.py                   |      199 |        7 |       94 |       10 |     94% |238, 253, 267, 310, 314, 318, 363, 372-\>368, 374-\>368, 375-\>374 |
+| src/cline\_hooks/handlers/commands.py                   |      196 |        6 |       92 |       10 |     94% |238, 253, 267, 311, 315, 359, 366-\>364, 368-\>364, 370-\>364, 371-\>370 |
 | src/cline\_hooks/handlers/context\_nudge.py             |        7 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/handlers/git\_context.py               |       44 |        2 |        8 |        0 |     96% |     55-56 |
 | src/cline\_hooks/handlers/herdr\_guard.py               |       79 |        1 |       24 |        1 |     98% |        84 |
@@ -113,7 +113,7 @@
 | tests/test\_frontend\_conformance.py                    |      100 |        1 |       14 |        1 |     98% |        88 |
 | tests/test\_frontend\_normalisation.py                  |      309 |        0 |        4 |        0 |    100% |           |
 | tests/test\_frontend\_pi\_transcript.py                 |       39 |        0 |        4 |        0 |    100% |           |
-| tests/test\_handlers\_commands.py                       |       71 |        0 |        0 |        0 |    100% |           |
+| tests/test\_handlers\_commands.py                       |       77 |        0 |        0 |        0 |    100% |           |
 | tests/test\_handlers\_context\_nudge.py                 |       95 |        0 |        0 |        0 |    100% |           |
 | tests/test\_handlers\_git\_context.py                   |       42 |        0 |        2 |        0 |    100% |           |
 | tests/test\_handlers\_post\_tool\_use.py                |      582 |        7 |       22 |        5 |     98% |473, 481, 693-694, 727-728, 884 |
@@ -165,7 +165,7 @@
 | tests/test\_uninstall.py                                |       46 |        0 |        0 |        0 |    100% |           |
 | tests/test\_user\_install.py                            |       53 |        0 |        4 |        0 |    100% |           |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **12179** |  **174** | **1462** |  **100** | **98%** |           |
+| **TOTAL**                                               | **12182** |  **173** | **1460** |  **100** | **98%** |           |
 
 
 ## Setup coverage badge
