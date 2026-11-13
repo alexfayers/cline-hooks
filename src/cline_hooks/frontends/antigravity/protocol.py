@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 import json
+from pathlib import Path
 import sys
 from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, Self
 
@@ -53,6 +54,7 @@ _HOOK_EVENT_KEY = "hookEventName"
     display_name="Antigravity",
     installer=AntigravityInstaller(),
     detect_priority=EXACT_MATCH,
+    skills_dir=lambda: Path.home() / ".gemini" / "config" / "skills",
 )
 class AntigravityProtocol(StandardPayloadProtocol):
     """Antigravity JSON stdout protocol.

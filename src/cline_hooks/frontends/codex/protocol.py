@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, NoReturn
 
 from cline_hooks.core.frontend import frontend
@@ -13,7 +14,12 @@ if TYPE_CHECKING:
     from cline_hooks.core.protocol import RawPayload
 
 
-@frontend(name="codex", display_name="Codex", installer=CodexInstaller())
+@frontend(
+    name="codex",
+    display_name="Codex",
+    installer=CodexInstaller(),
+    skills_dir=lambda: Path.home() / ".codex" / "skills",
+)
 class CodexProtocol(ClaudeCodeHookSpec):
     """Codex hook protocol.
 

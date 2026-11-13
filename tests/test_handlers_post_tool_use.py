@@ -11,6 +11,7 @@ from cline_hooks.core.plugin import HookResult, HooksPlugin, hookimpl
 from cline_hooks.core.protocol import RawPayload, set_protocol
 from cline_hooks.core.response import emit
 from cline_hooks.frontends.claude_code import ClaudeCodeProtocol
+from cline_hooks.frontends.kiro.protocol import KiroProtocol
 from cline_hooks.frontends.pi import PiProtocol
 from cline_hooks.handlers.post_tool_use import handle_post_tool_use
 from cline_hooks.plugins.build_tools import BuildToolsPlugin
@@ -72,6 +73,17 @@ def _make_hook(  # ruff: ignore[too-many-arguments, too-many-positional-argument
     hook = parse_data(json.dumps(data))
     assert isinstance(hook, HookInputPostToolUse)
     return hook
+
+
+@pytest.fixture
+def installed_tidy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Install `git-usage/tidy.md` under the active frontend's skills directory and return its path."""
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    set_protocol(KiroProtocol())
+    part = tmp_path / "home" / ".kiro" / "skills" / "git-usage" / "tidy.md"
+    part.parent.mkdir(parents=True)
+    part.write_text("x")
+    return part
 
 
 def _run(hook: HookInputPostToolUse) -> dict[str, object] | None:
@@ -259,6 +271,23 @@ class TestSkillDetectionViaRead:
             _run(hook)
         mock_record.assert_called_once_with("task-1", "git-usage")
 
+    def test_skill_part_read_records_the_part(self, installed_tidy: Path) -> None:
+        hook = _make_hook("read_file", parameters={"path": str(installed_tidy)})
+        with patch("cline_hooks.plugins.tracking.record_skill") as mock_record:
+            _run(hook)
+        mock_record.assert_called_once_with("task-1", "git-usage/tidy.md")
+
+    def test_read_of_a_part_outside_the_installed_skills_does_not_record(
+        self, installed_tidy: Path, tmp_path: Path
+    ) -> None:
+        decoy = tmp_path / "project" / "git-usage" / "tidy.md"
+        decoy.parent.mkdir(parents=True)
+        decoy.write_text("x")
+        hook = _make_hook("read_file", parameters={"path": str(decoy)})
+        with patch("cline_hooks.plugins.tracking.record_skill") as mock_record:
+            _run(hook)
+        mock_record.assert_not_called()
+
     def test_non_skill_read_does_not_record(self) -> None:
         hook = _make_hook("read_file", parameters={"path": "/home/user/project/README.md"})
         with patch("cline_hooks.plugins.tracking.record_skill") as mock_record:
@@ -307,6 +336,45 @@ class TestSkillDetectionViaShellCommand:
         with patch("cline_hooks.plugins.tracking.record_skill") as mock_record:
             _run(hook)
         mock_record.assert_called_once_with("task-1", "git-usage")
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "sed -n '1,200p' {part}",
+            "cat < {part}",
+            "cat ~/.kiro/skills/git-usage/tidy.md",
+            'cat "$HOME/.kiro/skills/git-usage/tidy.md"',
+            "cd {skills} && cat git-usage/tidy.md",
+        ],
+    )
+    def test_shell_read_of_a_skill_part_records_the_part(self, command: str, installed_tidy: Path) -> None:
+        command = command.format(part=installed_tidy, skills=installed_tidy.parent.parent)
+        hook = _make_hook("execute_command", parameters={"command": command})
+        with patch("cline_hooks.plugins.tracking.record_skill") as mock_record:
+            _run(hook)
+        mock_record.assert_called_once_with("task-1", "git-usage/tidy.md")
+
+    @pytest.mark.parametrize("command", ["cat git-usage/tidy.md", "cat ./git-usage/tidy.md"])
+    def test_shell_read_of_a_part_outside_the_installed_skills_does_not_record(
+        self, command: str, installed_tidy: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        decoy = tmp_path / "project" / "git-usage" / "tidy.md"
+        decoy.parent.mkdir(parents=True)
+        decoy.write_text("x")
+        monkeypatch.chdir(tmp_path / "project")
+        hook = _make_hook("execute_command", parameters={"command": command})
+        with patch("cline_hooks.plugins.tracking.record_skill") as mock_record:
+            _run(hook)
+        mock_record.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "command", ["echo /tmp/skills/git-usage/SKILL.md", "cat /tmp/skills/git-usage/SKILL.md.bak"]
+    )
+    def test_mentioning_or_backing_up_a_skill_file_does_not_record(self, command: str) -> None:
+        hook = _make_hook("execute_command", parameters={"command": command})
+        with patch("cline_hooks.plugins.tracking.record_skill") as mock_record:
+            _run(hook)
+        mock_record.assert_not_called()
 
     def test_sed_skill_md_records_skill(self) -> None:
         hook = _make_hook(

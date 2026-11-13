@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 import sys
 from typing import TYPE_CHECKING, ClassVar, NoReturn
 
@@ -32,6 +33,7 @@ if TYPE_CHECKING:
     display_name="Kiro",
     installer=KiroInstaller(),
     detect_priority=EXACT_MATCH,
+    skills_dir=lambda: Path.home() / ".kiro" / "skills",
 )
 class KiroProtocol(StandardPayloadProtocol):
     """Kiro exit-code protocol: exit 0 + stdout for allow, exit 2 + stderr for block."""

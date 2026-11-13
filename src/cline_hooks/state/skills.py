@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import logging
-import re
+import os
+from pathlib import Path, PurePosixPath
 from typing import Any, cast
 
 from cline_hooks.core.parameters import ReadParameters, ShellParameters, SkillParameters
+from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.vocabulary import SHELL_TOOLS, CanonicalTool
+from cline_hooks.handlers.commands import extract_commands
+from cline_hooks.handlers.search_scope import effective_cwd
 from cline_hooks.state.jsonfile import discard_key, discard_prefix, read_json, updated_json
 from cline_hooks.state.paths import get_data_dir
 
@@ -16,7 +20,7 @@ _SKILL_REQUIREMENTS: dict[str, str] = {
     "cr": "cr",
 }
 
-_SKILL_MD_PATH = re.compile(r"([\w.-]+)/SKILL\.md\b")
+_FILE_READERS = frozenset({"cat", "sed", "head", "tail", "less", "more", "bat", "nl", "tac", "awk"})
 
 _WRAP_UP_SKILLS = frozenset({"session-end", "handoff"})
 
@@ -28,7 +32,7 @@ def record_skill(task_id: str, skill_name: str) -> None:
 
     Args:
         task_id: The session or task identifier.
-        skill_name: The name of the skill that was called.
+        skill_name: The skill name or `<skill>/<part>.md` key.
     """
     with updated_json(_STATE_PATH, cast("dict[str, list[str]]", {})) as data:
         skills = set(data.get(task_id, []))
@@ -41,13 +45,43 @@ def is_skill_called(task_id: str, skill_name: str) -> bool:
 
     Args:
         task_id: The session or task identifier.
-        skill_name: The skill name to check.
+        skill_name: The skill name or `<skill>/<part>.md` key.
 
     Returns:
         True if the skill has been called for the task.
     """
     data: dict[str, list[str]] = read_json(_STATE_PATH, {})
     return skill_name in data.get(task_id, [])
+
+
+def installed_skill_file(key: str) -> Path | None:
+    """Return the installed file for a skill name or `<skill>/<part>.md` key, or None where it is not installed."""
+    spec = get_protocol().frontend_spec
+    if spec is None or spec.skills_dir is None:
+        return None
+    path = spec.skills_dir() / (key if "/" in key else f"{key}/SKILL.md")
+    return path if path.is_file() else None
+
+
+def skill_key(path: str, cwd: str = ".") -> str | None:
+    """Return the skill name for a SKILL.md path, or `<skill>/<part>.md` for the installed copy of a skill part.
+
+    Args:
+        path: The file path read.
+        cwd: The directory a relative path is read from.
+
+    Returns:
+        The skill name or part key, or None for any other file, including a part file outside the installed skills.
+    """
+    file_path = PurePosixPath(path)
+    if file_path.name == "SKILL.md":
+        return file_path.parent.name
+    key = f"{file_path.parent.name}/{file_path.name}"
+    installed = installed_skill_file(key) if file_path.suffix == ".md" else None
+    if installed is None:
+        return None
+    read = (Path(cwd) / Path(os.path.expandvars(path)).expanduser()).resolve()
+    return key if read == installed.resolve() else None
 
 
 def required_skill_for(command_names: list[str]) -> str | None:
@@ -66,15 +100,31 @@ def required_skill_for(command_names: list[str]) -> str | None:
 
 
 def skills_in_command(command: str) -> list[str]:
-    """Return skill names referenced by SKILL.md paths inside a shell command.
+    """Return skill names and part keys referenced by skill file paths that a shell command reads.
 
     Args:
         command: The shell command string.
 
     Returns:
-        Skill names whose SKILL.md is read by the command (e.g. via cat/sed).
+        Skill names and `<skill>/<part>.md` keys of skill files that file-reading commands (e.g. cat/sed) open.
     """
-    return _SKILL_MD_PATH.findall(command)
+    if not command:
+        return []
+    import bashlex  # ruff: ignore[import-outside-top-level]
+    import bashlex.errors  # ruff: ignore[import-outside-top-level]
+
+    try:
+        commands = extract_commands(bashlex.parse(command))
+    except (bashlex.errors.ParsingError, NotImplementedError):
+        return []
+    session_cwd = str(Path.cwd())
+    return [
+        key
+        for index, cmd in enumerate(commands)
+        if cmd.name in _FILE_READERS
+        for path in [*cmd.args, *cmd.redirect_inputs]
+        if (key := skill_key(path, effective_cwd(commands, index, session_cwd)))
+    ]
 
 
 def reset(task_id: str) -> None:
