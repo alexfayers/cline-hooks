@@ -49,7 +49,7 @@
 | src/cline\_hooks/frontends/pi/protocol.py               |       38 |        1 |        4 |        1 |     95% |       115 |
 | src/cline\_hooks/frontends/pi/transcript.py             |       51 |        4 |       16 |        2 |     91% |78-79, 87, 96 |
 | src/cline\_hooks/handlers/\_\_init\_\_.py               |        3 |        0 |        0 |        0 |    100% |           |
-| src/cline\_hooks/handlers/commands.py                   |      174 |        5 |       84 |        9 |     95% |214, 257, 261, 265, 310, 317-\>315, 319-\>315, 321-\>315, 322-\>321 |
+| src/cline\_hooks/handlers/commands.py                   |      174 |        5 |       84 |        8 |     95% |214, 257, 261, 265, 310, 319-\>315, 321-\>315, 322-\>321 |
 | src/cline\_hooks/handlers/context\_nudge.py             |        7 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/handlers/git\_context.py               |       44 |        2 |        8 |        0 |     96% |     55-56 |
 | src/cline\_hooks/handlers/herdr\_guard.py               |       79 |        1 |       24 |        1 |     98% |        84 |
@@ -72,7 +72,7 @@
 | src/cline\_hooks/plugins/handback\_rescue.py            |       22 |        0 |        8 |        0 |    100% |           |
 | src/cline\_hooks/plugins/handoff\_ack.py                |      143 |        0 |       56 |        1 |     99% | 275-\>277 |
 | src/cline\_hooks/plugins/managed\_files.py              |       52 |        4 |       14 |        0 |     94% |20, 32, 47-48 |
-| src/cline\_hooks/plugins/nudges.py                      |      154 |       12 |       62 |        5 |     90% |200-206, 223, 231, 293-\>295, 318, 323-\>327, 347, 367 |
+| src/cline\_hooks/plugins/nudges.py                      |      154 |       12 |       62 |        5 |     90% |202-208, 225, 233, 295-\>297, 320, 325-\>329, 349, 369 |
 | src/cline\_hooks/plugins/persistence.py                 |       23 |        0 |        8 |        0 |    100% |           |
 | src/cline\_hooks/plugins/plan\_handoff.py               |       67 |        1 |       28 |        2 |     97% |144, 153-\>155 |
 | src/cline\_hooks/plugins/research.py                    |      110 |        6 |       34 |        3 |     94% |129, 158-160, 219, 269-\>271, 276 |
@@ -122,7 +122,7 @@
 | tests/test\_handlers\_search\_scope.py                  |      166 |        0 |        2 |        0 |    100% |           |
 | tests/test\_handlers\_stop.py                           |      343 |        0 |        4 |        0 |    100% |           |
 | tests/test\_handlers\_task\_lifecycle.py                |      333 |        7 |       10 |        4 |     97% |92-97, 141, 263-\>exit, 281-\>exit, 299-\>exit |
-| tests/test\_handlers\_user\_prompt.py                   |      417 |        6 |       20 |        7 |     97% |138, 368-\>exit, 459-460, 591-\>exit, 607-\>exit, 657-\>exit, 701, 728, 746, 764-\>exit, 783-\>exit |
+| tests/test\_handlers\_user\_prompt.py                   |      419 |        6 |       20 |        7 |     97% |138, 368-\>exit, 459-460, 593-\>exit, 609-\>exit, 659-\>exit, 703, 730, 748, 766-\>exit, 785-\>exit |
 | tests/test\_hook\_kwargs.py                             |       64 |        0 |        0 |        0 |    100% |           |
 | tests/test\_install.py                                  |      217 |        0 |       10 |        0 |    100% |           |
 | tests/test\_install\_pi.py                              |       73 |        0 |        2 |        0 |    100% |           |
@@ -163,7 +163,7 @@
 | tests/test\_uninstall.py                                |       46 |        0 |        0 |        0 |    100% |           |
 | tests/test\_user\_install.py                            |       53 |        0 |        4 |        0 |    100% |           |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **11962** |  **173** | **1422** |   **99** | **98%** |           |
+| **TOTAL**                                               | **11964** |  **173** | **1422** |   **98** | **98%** |           |
 
 
 ## Setup coverage badge
