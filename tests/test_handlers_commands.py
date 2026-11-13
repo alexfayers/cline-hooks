@@ -5,6 +5,7 @@ import pytest
 
 from cline_hooks.handlers.commands import (
     ParsedCommand,
+    _split_git_words,
     contains_comment,
     extract_commands,
     extract_replacement_blocks,
@@ -99,6 +100,13 @@ class TestIsReadOnlyGit:
             ("git reflog expire --all", False),
             ("git reflog delete HEAD@{1}", False),
             ("git reflog show --expire=now", False),
+            ("git remote", True),
+            ("git remote -v", True),
+            ("git remote show origin", True),
+            ("git remote get-url origin", True),
+            ("git remote add origin url", False),
+            ("git remote remove origin", False),
+            ("git remote set-url origin url", False),
             ("git name-rev HEAD", True),
             ("git diff-tree HEAD", True),
             ("git -C /x", False),
@@ -108,6 +116,11 @@ class TestIsReadOnlyGit:
     )
     def test_matches_only_read_only_git_subcommands(self, command: str, expected: bool) -> None:
         assert is_read_only_git(extract_commands(bashlex.parse(command))[0]) is expected
+
+
+class TestSplitGitWords:
+    def test_skips_global_options_before_the_subcommand(self) -> None:
+        assert _split_git_words(["-C", "/x", "-c", "a=b", "status", "-s"]) == ("status", ["-s"])
 
 
 class TestExtractReplacementBlocks:

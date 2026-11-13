@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import contextlib
 from dataclasses import dataclass
+import re
+import shlex
 from typing import TYPE_CHECKING
 
 from cline_hooks.config import agent_teams_enabled
@@ -16,7 +18,7 @@ from cline_hooks.core.vocabulary import (
     CanonicalHook,
     PluginScope,
 )
-from cline_hooks.handlers.commands import extract_commands
+from cline_hooks.handlers.commands import extract_commands, is_print_only_sed, is_read_only_gh, is_read_only_git
 from cline_hooks.state.agents import has_agent_use
 
 if TYPE_CHECKING:
@@ -83,7 +85,6 @@ _READ_ONLY_COMMANDS = frozenset({
     "which",
     "echo",
     "date",
-    "env",
     "printenv",
     "jq",
     "diff",
@@ -91,17 +92,13 @@ _READ_ONLY_COMMANDS = frozenset({
     "df",
     "cd",
 })
-_READ_ONLY_GIT_SUBCOMMANDS = frozenset({
-    "status",
-    "log",
-    "diff",
-    "show",
-    "branch",
-    "blame",
-    "remote",
-    "rev-parse",
-    "ls-files",
-})
+_QUOTED_TEXT = re.compile(r"\\.|'[^']*'|\"(?:\\.|[^\"\\])*\"")
+_NON_FILE_OUTPUT = re.compile(r"(?:^|\s)#[^\n]*|\d*>&\d+-?|&?\d*>>?\s*/dev/null(?=$|[\s;&|)])")
+_ENV_OPTIONS_TAKING_A_VALUE = frozenset({"-u", "--unset", "-C", "--chdir"})
+_MUTATING_FLAGS = {
+    "find": frozenset({"-delete", "-exec", "-execdir", "-ok", "-okdir", "-fprint", "-fprint0", "-fprintf", "-fls"}),
+    "fd": frozenset({"-x", "--exec", "-X", "--exec-batch"}),
+}
 
 _DELEGATION_NUDGE = (
     "DELEGATION CHECK: An agent team is enabled and this session is about to do work "
@@ -111,38 +108,54 @@ _DELEGATION_NUDGE = (
 )
 
 
-def _is_read_only_git(cmd: ParsedCommand) -> bool:
-    """Check whether a parsed `git` invocation only reads repo state.
+def _env_wrapped_command(words: list[str]) -> list[str]:
+    """Drop the options and assignments `env` takes before the command it runs.
 
     Returns:
-        True if the first non-flag argument is a known read-only subcommand.
+        The wrapped command and its arguments, empty if `env` only prints the environment.
     """
-    subcommand = cmd.args[0] if cmd.args else None
-    return subcommand in _READ_ONLY_GIT_SUBCOMMANDS
+    remaining = iter(words)
+    for word in remaining:
+        if word in _ENV_OPTIONS_TAKING_A_VALUE:
+            next(remaining, None)
+        elif not (word.startswith("-") or "=" in word):
+            return [word, *remaining]
+    return []
 
 
 def _is_read_only_single(cmd: ParsedCommand) -> bool:
     """Check whether a single parsed command only reads state.
 
     Returns:
-        True if the command name (or, for git, its subcommand) is read-only.
+        True if the command name (or, for git and gh, its subcommand; for sed, its script) is read-only
+        and it carries no flag that runs or writes.
     """
     if cmd.name == "git":
-        return _is_read_only_git(cmd)
-    return cmd.name in _READ_ONLY_COMMANDS
+        return is_read_only_git(cmd)
+    if cmd.name == "gh":
+        return is_read_only_gh(cmd)
+    if cmd.name == "sed":
+        return is_print_only_sed(cmd)
+    if cmd.name == "env":
+        wrapped = _env_wrapped_command(cmd.words)
+        return not wrapped or is_read_only_command(shlex.join(wrapped))
+    option_names = {word.partition("=")[0] for word in cmd.words}
+    return cmd.name in _READ_ONLY_COMMANDS and _MUTATING_FLAGS.get(cmd.name, frozenset()).isdisjoint(option_names)
 
 
-def _is_read_only_command(command: str) -> bool:
+def is_read_only_command(command: str) -> bool:
     """Check whether a shell command line only reads state.
 
-    A redirect (`>`) is treated as mutating even though bashlex's parsed form
+    An unquoted redirect (`>`) to a file is treated as mutating even though bashlex's parsed form
     hides it, and an unparseable or empty command is treated as read-only so a
     classification failure never falsely fires the nudge.
 
     Returns:
         True if every parsed command in the line is read-only.
     """
-    if ">" in command:
+    if not command:
+        return True
+    if ">" in _NON_FILE_OUTPUT.sub(" ", _QUOTED_TEXT.sub("", command)):
         return False
     import bashlex.errors  # ruff: ignore[import-outside-top-level]
 
@@ -183,7 +196,7 @@ class DelegationPlugin(HooksPlugin):
             shell_kwargs = PreShellKwargs.build(kwargs)
             if is_subagent(kwargs) or has_agent_use(shell_kwargs.task_id):
                 return None
-            if not shell_kwargs.command or _is_read_only_command(shell_kwargs.command):
+            if is_read_only_command(shell_kwargs.command):
                 return None
             task_id = shell_kwargs.task_id
         else:

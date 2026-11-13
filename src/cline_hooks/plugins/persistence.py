@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from cline_hooks.core.plugin import HookResult, HooksPlugin, is_subagent
 from cline_hooks.core.vocabulary import CanonicalHook, PluginScope
+from cline_hooks.plugins.nudges import has_edited
 from cline_hooks.state.memory import has_memory_writes
 from cline_hooks.state.skills import is_session_end_skill
 
@@ -36,22 +37,18 @@ class PersistencePlugin(HooksPlugin):
         Returns:
             A HookResult carrying the relevant nudge, or None.
         """
+        if is_subagent(kwargs):
+            return None
         if hook_name == PluginScope.TOOL_FAILED:
-            if is_subagent(kwargs):
-                return None
             logger.debug("Fired persist-to-memory nudge after tool failure")
             return HookResult(notes=[_FAILURE_PERSIST_NOTE])
         if hook_name == CanonicalHook.POST_TOOL_USE:
             tool_name = kwargs.get("tool_name")
             parameters = kwargs.get("parameters")
             task_id = kwargs.get("task_id")
-            if (
-                isinstance(tool_name, str)
-                and isinstance(parameters, dict)
-                and isinstance(task_id, str)
-                and is_session_end_skill(tool_name, parameters)
-                and not has_memory_writes(task_id)
-            ):
+            if not (isinstance(tool_name, str) and isinstance(parameters, dict) and isinstance(task_id, str)):
+                return None
+            if is_session_end_skill(tool_name, parameters) and has_edited(task_id) and not has_memory_writes(task_id):
                 logger.debug("Fired no-memory-writes warning at session end")
                 return HookResult(notes=[_MEMORY_WARNING])
         return None
