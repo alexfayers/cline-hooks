@@ -8,7 +8,7 @@ Plugins add custom command rules, build tool detection, research tools, ecosyste
 
 - Build tool detection and build failure alerts
 - Shell command rules and guards, such as `rm -f`, commit messages and the push block
-- Skill guard: blocks a command until its required skill was read
+- Skill guard: blocks a command until its required skill, or a skill part file such as `git-usage/tidy.md`, was read
 - Fixup guard: blocks a new commit that overlaps an unpushed one
 - Per-tool guards and edit blocks for files managed by llm-prompts
 - Research lookups and the research trace at `Stop`

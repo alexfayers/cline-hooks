@@ -463,6 +463,19 @@ class TestHandleTaskResume:
         assert "REQUIRED" in context
         assert "`git-usage`" in context
 
+    def test_block_reason_naming_a_part_re_nudges_only_that_part(self, tmp_path: Path) -> None:
+        store = TaskStateStore(tmp_path / "state.json")
+        store.record_block(
+            "task-1",
+            "execute_command",
+            "MUST use the `git-usage/tidy.md` skill part before running this command",
+        )
+        with patch("cline_hooks.plugins.session_context.get_git_context", return_value=None):
+            result = self._run(_task_resume([str(tmp_path)]), store=store)
+        context = cast("str", result["contextModification"])
+        assert "`git-usage/tidy.md`" in context
+        assert "`git-usage`" not in context
+
     def test_block_reason_without_skill_mention_is_not_re_nudged(self, tmp_path: Path) -> None:
         store = TaskStateStore(tmp_path / "state.json")
         store.record_block("task-1", "execute_command", "some unrelated block reason")
