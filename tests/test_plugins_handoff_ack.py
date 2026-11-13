@@ -9,6 +9,7 @@ import pytest
 
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool, PluginScope
 from cline_hooks.plugins.handoff_ack import HandoffAckPlugin, clear_acks
+from tests.conftest import UNSUPPORTED_SYNTAX
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
@@ -100,6 +101,11 @@ def _peer(body: str) -> str:
 
 def _arm(target: str = OLD_PANE, task_id: str = "t") -> None:
     _prompt(_handoff_prompt(target), task_id)
+
+
+@pytest.mark.parametrize("command", UNSUPPORTED_SYNTAX)
+def test_allows_a_command_bashlex_cannot_parse(command: str) -> None:
+    assert _pre_shell(command) is None
 
 
 class TestNewSessionBlock:

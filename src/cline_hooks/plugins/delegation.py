@@ -147,7 +147,7 @@ def _is_read_only_command(command: str) -> bool:
     import bashlex.errors  # ruff: ignore[import-outside-top-level]
 
     commands: list[ParsedCommand] = []
-    with contextlib.suppress(bashlex.errors.ParsingError):
+    with contextlib.suppress(bashlex.errors.ParsingError, NotImplementedError):
         commands = extract_commands(bashlex.parse(command))
     if not commands:
         return True

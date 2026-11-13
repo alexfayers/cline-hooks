@@ -58,7 +58,7 @@ def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | N
 
     try:
         commands = extract_commands(bashlex.parse(command))
-    except bashlex.errors.ParsingError:
+    except (bashlex.errors.ParsingError, NotImplementedError):
         return None
     session_cwd = workspace_roots[0] if workspace_roots else os.getcwd()  # ruff: ignore[os-getcwd]
     adds = any(cmd.name == "git" and "add" in cmd.args for cmd in commands)

@@ -15,6 +15,7 @@ from cline_hooks.core.install import binary_names
 from cline_hooks.core.plugin import HookResult, plugins_override
 from cline_hooks.core.vocabulary import CanonicalTool
 from cline_hooks.plugins.checkout_lock import LOCK_TTL_SECONDS, CheckoutLockPlugin, _git_dir_of
+from tests.conftest import UNSUPPORTED_SYNTAX
 
 COMMIT = "git commit -m x"
 WRITE = "echo hi > a.txt"
@@ -49,6 +50,11 @@ def _edit(root: Path, session: str, name: str) -> HookResult | None:
 
 def _shell(root: Path, session: str, command: str) -> HookResult | None:
     return _fire("PreShell", root, session, tool_name=CanonicalTool.SHELL, command=command)
+
+
+@pytest.mark.parametrize("command", UNSUPPORTED_SYNTAX)
+def test_allows_a_command_bashlex_cannot_parse(primary: Path, command: str) -> None:
+    assert _shell(primary, "s1", command) is None
 
 
 @pytest.mark.parametrize(

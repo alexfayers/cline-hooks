@@ -12,6 +12,7 @@ from cline_hooks.frontends.claude_code.protocol import ClaudeCodeProtocol
 from cline_hooks.frontends.pi.protocol import PiProtocol
 from cline_hooks.plugins.shell_guards import ShellGuardsPlugin
 from cline_hooks.state.skills import record_skill
+from tests.conftest import UNSUPPORTED_SYNTAX
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -32,6 +33,11 @@ def _pre_shell(command: str, workspace_roots: list[str], agent_id: str | None = 
         workspace_roots=workspace_roots,
         agent_id=agent_id,
     )
+
+
+@pytest.mark.parametrize("command", UNSUPPORTED_SYNTAX)
+def test_allows_a_command_bashlex_cannot_parse(command: str) -> None:
+    assert _pre_shell(command, []) is None
 
 
 class TestSkillGuard:

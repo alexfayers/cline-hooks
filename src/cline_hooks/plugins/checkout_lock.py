@@ -148,7 +148,7 @@ def _pre_shell(kwargs: PreShellKwargs) -> HookResult | None:
 
     try:
         commands = extract_commands(bashlex.parse(kwargs.command))
-    except bashlex.errors.ParsingError:
+    except (bashlex.errors.ParsingError, NotImplementedError):
         return None
     for index, command in enumerate(commands):
         base = effective_cwd(commands, index, _base(kwargs.workspace_roots))

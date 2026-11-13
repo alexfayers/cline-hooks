@@ -48,7 +48,7 @@ def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | N
 
     try:
         parsed = bashlex.parse(command)
-    except bashlex.errors.ParsingError:
+    except (bashlex.errors.ParsingError, NotImplementedError):
         return None
     commands = extract_commands(parsed)
 

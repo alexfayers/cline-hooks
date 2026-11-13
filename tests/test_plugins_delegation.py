@@ -9,6 +9,7 @@ from cline_hooks.core.plugin import HookResult
 from cline_hooks.core.vocabulary import CanonicalHook, PluginScope
 from cline_hooks.plugins.delegation import DelegationPlugin
 from cline_hooks.state.agents import record_agent_use
+from tests.conftest import UNSUPPORTED_SYNTAX
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
@@ -127,6 +128,14 @@ class TestShellCommands:
         ["ls -la", "git status", "rg foo", "ls && git log", ""],
     )
     def test_silent_for_read_only_or_empty_command(self, mocker: MockerFixture, command: str) -> None:
+        _enable(mocker)
+        result = DelegationPlugin().on_hook(
+            PluginScope.PRE_SHELL, logger=logging.getLogger("test"), **_pre_shell(command)
+        )
+        assert result is None
+
+    @pytest.mark.parametrize("command", UNSUPPORTED_SYNTAX)
+    def test_silent_for_command_bashlex_cannot_parse(self, mocker: MockerFixture, command: str) -> None:
         _enable(mocker)
         result = DelegationPlugin().on_hook(
             PluginScope.PRE_SHELL, logger=logging.getLogger("test"), **_pre_shell(command)

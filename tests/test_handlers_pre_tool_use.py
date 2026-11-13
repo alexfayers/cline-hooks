@@ -22,7 +22,7 @@ from cline_hooks.plugins.managed_files import _is_managed_path
 from cline_hooks.plugins.tool_guards import ToolGuardsPlugin, _starts_with_emoji
 from cline_hooks.state.skills import record_skill
 from cline_hooks.state.store import TaskStateStore
-from tests.conftest import CanonicalProtocol
+from tests.conftest import UNSUPPORTED_SYNTAX, CanonicalProtocol
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -244,6 +244,12 @@ class TestCommandRules:
     def test_safe_command_allowed(self) -> None:
         result = _run("execute_command", {"command": "ls -la"})
         assert result is None
+
+
+class TestUnsupportedShellSyntax:
+    @pytest.mark.parametrize("command", UNSUPPORTED_SYNTAX)
+    def test_command_bashlex_cannot_parse_is_allowed(self, command: str) -> None:
+        assert _run("execute_command", {"command": command}) is None
 
 
 class TestEchoTrueBlock:
