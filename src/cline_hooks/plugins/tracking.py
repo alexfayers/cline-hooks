@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any
 
 from cline_hooks.core.hook_kwargs import TrackToolUseKwargs
@@ -9,7 +8,7 @@ from cline_hooks.core.plugin import HooksPlugin
 from cline_hooks.core.vocabulary import SHELL_TOOLS, CanonicalTool, PluginScope
 from cline_hooks.state.agents import has_agent_start, is_agent_tool, record_agent_use
 from cline_hooks.state.memory import is_memory_write, record_memory_write
-from cline_hooks.state.skills import record_skill, skills_in_command
+from cline_hooks.state.skills import record_skill, skill_key, skills_in_command
 
 if TYPE_CHECKING:
     import logging
@@ -20,8 +19,8 @@ if TYPE_CHECKING:
 def _record_skill_use(task_id: str, tool_name: str, parameters: dict[str, Any]) -> None:
     """Record any skill loaded by a tool call.
 
-    Skills load via the canonical skill tool, a read of a SKILL.md file, or a
-    shell command that reads one.
+    Skills load via the canonical skill tool, a read of a SKILL.md or skill part file,
+    or a shell command that reads one.
 
     Args:
         task_id: The session or task identifier.
@@ -34,10 +33,8 @@ def _record_skill_use(task_id: str, tool_name: str, parameters: dict[str, Any]) 
             record_skill(task_id, skill_name)
     elif tool_name == CanonicalTool.READ:
         path = ReadParameters.build(parameters).path
-        if path:
-            file_path = PurePosixPath(path)
-            if file_path.name == "SKILL.md":
-                record_skill(task_id, file_path.parent.name)
+        if path and (key := skill_key(path)):
+            record_skill(task_id, key)
     elif tool_name in SHELL_TOOLS:
         for skill_name in skills_in_command(str(ShellParameters.build(parameters).command)):
             record_skill(task_id, skill_name)
