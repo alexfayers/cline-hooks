@@ -354,6 +354,44 @@ class TestSkillDetectionViaShellCommand:
             _run(hook)
         mock_record.assert_called_once_with("task-1", "git-usage/tidy.md")
 
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "sed -n p -e q {part}",
+            "sed -ne p {part}",
+            "sed -f script.sed {part}",
+            "awk -f script.awk {part}",
+            "cat -e {part}",
+        ],
+    )
+    def test_shell_read_of_a_skill_part_after_a_program_option_records_it(
+        self, command: str, installed_tidy: Path
+    ) -> None:
+        hook = _make_hook("execute_command", parameters={"command": command.format(part=installed_tidy)})
+        with patch("cline_hooks.plugins.tracking.record_skill") as mock_record:
+            _run(hook)
+        mock_record.assert_called_once_with("task-1", "git-usage/tidy.md")
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "sed 's#{part}#x#' notes.txt",
+            "sed -n -e 's#{part}#x#' notes.txt",
+            "sed -es#{part}#x# notes.txt",
+            "awk -v x=1 '{{print \"{part}\"}}' notes.txt",
+            "sed -n -e '# {skill}' notes.txt",
+            "awk '# {skill}' notes.txt",
+            "sed -n -f {part} notes.txt",
+            "awk -f {part} notes.txt",
+        ],
+    )
+    def test_skill_part_inside_a_sed_or_awk_program_does_not_record(self, command: str, installed_tidy: Path) -> None:
+        formatted = command.format(part=installed_tidy, skill=installed_tidy.with_name("SKILL.md"))
+        hook = _make_hook("execute_command", parameters={"command": formatted})
+        with patch("cline_hooks.plugins.tracking.record_skill") as mock_record:
+            _run(hook)
+        mock_record.assert_not_called()
+
     @pytest.mark.parametrize("command", ["cat git-usage/tidy.md", "cat ./git-usage/tidy.md"])
     def test_shell_read_of_a_part_outside_the_installed_skills_does_not_record(
         self, command: str, installed_tidy: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

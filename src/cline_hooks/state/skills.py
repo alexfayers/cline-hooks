@@ -3,7 +3,8 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path, PurePosixPath
-from typing import Any, cast
+import re
+from typing import TYPE_CHECKING, Any, cast
 
 from cline_hooks.core.parameters import ReadParameters, ShellParameters, SkillParameters
 from cline_hooks.core.protocol import get_protocol
@@ -13,6 +14,9 @@ from cline_hooks.handlers.search_scope import effective_cwd
 from cline_hooks.state.jsonfile import discard_key, discard_prefix, read_json, updated_json
 from cline_hooks.state.paths import get_data_dir
 
+if TYPE_CHECKING:
+    from cline_hooks.handlers.commands import ParsedCommand
+
 logger = logging.getLogger("hooks.state.skills")
 
 _SKILL_REQUIREMENTS: dict[str, str] = {
@@ -21,6 +25,11 @@ _SKILL_REQUIREMENTS: dict[str, str] = {
 }
 
 _FILE_READERS = frozenset({"cat", "sed", "head", "tail", "less", "more", "bat", "nl", "tac", "awk"})
+
+_PROGRAM_READERS = frozenset({"sed", "awk"})
+_PROGRAM_OPTION = re.compile(r"-[nrEszu]*[ef]|--expression|--file")
+_ATTACHED_PROGRAM_OPTION = re.compile(r"-[nrEszu]*[ef].+|--(?:expression|file)=.+")
+_AWK_VALUE_OPTION = re.compile(r"-[vF]")
 
 _WRAP_UP_SKILLS = frozenset({"session-end", "handoff"})
 
@@ -99,6 +108,26 @@ def required_skill_for(command_names: list[str]) -> str | None:
     return None
 
 
+def _file_inputs(cmd: ParsedCommand) -> list[str]:
+    """Return the files a file-reading command opens: its operands, less a sed/awk program, and stdin redirects."""
+    operands: list[str] = []
+    has_program_option = False
+    skip_next = False
+    runs_program = cmd.name in _PROGRAM_READERS
+    for word in cmd.words:
+        if skip_next:
+            skip_next = False
+        elif word.startswith("-"):
+            is_program_option = runs_program and bool(_PROGRAM_OPTION.fullmatch(word))
+            skip_next = is_program_option or (cmd.name == "awk" and bool(_AWK_VALUE_OPTION.fullmatch(word)))
+            has_program_option |= is_program_option or (runs_program and bool(_ATTACHED_PROGRAM_OPTION.fullmatch(word)))
+        else:
+            operands.append(word)
+    if runs_program and not has_program_option:
+        operands = operands[1:]
+    return [*operands, *cmd.redirect_inputs]
+
+
 def skills_in_command(command: str) -> list[str]:
     """Return skill names and part keys referenced by skill file paths that a shell command reads.
 
@@ -122,7 +151,7 @@ def skills_in_command(command: str) -> list[str]:
         key
         for index, cmd in enumerate(commands)
         if cmd.name in _FILE_READERS
-        for path in [*cmd.args, *cmd.redirect_inputs]
+        for path in _file_inputs(cmd)
         if (key := skill_key(path, effective_cwd(commands, index, session_cwd)))
     ]
 
