@@ -306,22 +306,18 @@ def extract_commands(ast: list[bashlex.ast.node]) -> list[ParsedCommand]:
                 continue
 
             parts = getattr(node, "parts", [])
-            if not parts:
+            name_index = next((i for i, part in enumerate(parts) if getattr(part, "kind", None) == "word"), None)
+            if name_index is None:
                 continue
 
-            first_part = parts[0]
-            if getattr(first_part, "kind", None) != "word":
-                continue
-
-            cmd_name = getattr(first_part, "word", "")
+            cmd_name = Path(parts[name_index].word).name
             if not cmd_name:
                 continue
-            cmd_name = Path(cmd_name).name
 
             flags = []
             args = []
             words = []
-            for part in parts[1:]:
+            for part in parts[name_index + 1 :]:
                 if getattr(part, "kind", None) == "word":
                     word = getattr(part, "word", "")
                     words.append(word)
