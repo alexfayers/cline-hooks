@@ -4,44 +4,27 @@ import os
 from typing import TYPE_CHECKING, cast
 
 from cline_hooks.core.plugin import HookResult, HooksPlugin
-from cline_hooks.core.protocol import get_protocol
-from cline_hooks.core.vocabulary import CanonicalHook, PluginScope
-from cline_hooks.handlers.commands import extract_commands, is_git_push, is_read_only_git
+from cline_hooks.core.vocabulary import PluginScope
+from cline_hooks.handlers.commands import extract_commands, is_git_push
 from cline_hooks.handlers.herdr_guard import removed_worktree_paths, workspace_linking
 from cline_hooks.handlers.push_guard import marker_above_repo
 from cline_hooks.handlers.search_scope import MAX_SCAN_ENTRIES, MAX_SCAN_SECONDS, find_oversized_search
-from cline_hooks.state.skills import (
-    _SKILL_REQUIREMENTS,
-    is_skill_called,
-    required_skill_for,
-)
 
 if TYPE_CHECKING:
     import logging
 
 
-def _skill_block_message(skill: str) -> str:
-    message = f"MUST use the `{skill}` skill before running this command"
-    spec = get_protocol().frontend_spec
-    if spec is not None and spec.skills_dir is not None:
-        skill_file = spec.skills_dir() / skill / "SKILL.md"
-        if skill_file.is_file():
-            return f"{message} - read {skill_file} first"
-    return message
-
-
 def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | None:
-    """Block a shell command missing a required skill, a blocked git push, or an oversized recursive search.
+    """Block a git push inside a managed workspace, a linked worktree removal, or an oversized recursive search.
 
     Args:
         logger: This plugin's hook-scoped child logger.
-        **kwargs: The PreShell dispatch kwargs (command, task_id, workspace_roots).
+        **kwargs: The PreShell dispatch kwargs (command, workspace_roots).
 
     Returns:
-        A blocking HookResult for a missing skill, a blocked git push or an oversized search, or None.
+        A blocking HookResult for a blocked push, a linked worktree removal or an oversized search, or None.
     """
     command = cast("str", kwargs.get("command") or "")
-    task_id = cast("str", kwargs.get("task_id") or "")
     workspace_roots = cast("list[str]", kwargs.get("workspace_roots") or [])
 
     import bashlex.errors  # ruff: ignore[import-outside-top-level]
@@ -51,11 +34,6 @@ def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | N
     except (bashlex.errors.ParsingError, NotImplementedError):
         return None
     commands = extract_commands(parsed)
-
-    required_skill = required_skill_for([cmd.name for cmd in commands if not is_read_only_git(cmd)])
-    if required_skill and not is_skill_called(task_id, required_skill):
-        logger.debug("Blocked shell command: missing required skill")
-        return HookResult(block=_skill_block_message(required_skill))
 
     if is_git_push(commands):
         marker = marker_above_repo(workspace_roots)
@@ -96,30 +74,11 @@ def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | N
     return None
 
 
-def _task_resume_guard(logger: logging.Logger, **kwargs: object) -> HookResult | None:
-    """Re-nudge any skill named in this task's recorded block reasons.
-
-    Args:
-        logger: This plugin's hook-scoped child logger.
-        **kwargs: The TaskResume dispatch kwargs (block_reasons, ...).
-
-    Returns:
-        A HookResult carrying the re-nudge note, or None if nothing pends.
-    """
-    block_reasons = cast("list[str]", kwargs.get("block_reasons") or [])
-    pending_skills = {skill for reason in block_reasons for skill in _SKILL_REQUIREMENTS.values() if skill in reason}
-    if not pending_skills:
-        return None
-    skills_list = ", ".join(f"`{s}`" for s in sorted(pending_skills))
-    logger.debug("Re-nudged pending skill requirement(s) on task resume")
-    return HookResult(notes=[f"REQUIRED: use the {skills_list} skill(s) before retrying the blocked command."])
-
-
 class ShellGuardsPlugin(HooksPlugin):
     """Bundled plugin enforcing shell-command guards."""
 
     def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
-        """Dispatch PreShell and TaskResume events to the shell-command guards.
+        """Dispatch PreShell events to the shell-command guards.
 
         Args:
             hook_name: The hook or plugin-scope name.
@@ -131,6 +90,4 @@ class ShellGuardsPlugin(HooksPlugin):
         """
         if hook_name == PluginScope.PRE_SHELL:
             return _pre_shell_guard(logger, **kwargs)
-        if hook_name == CanonicalHook.TASK_RESUME:
-            return _task_resume_guard(logger, **kwargs)
         return None
