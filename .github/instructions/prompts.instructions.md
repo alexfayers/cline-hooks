@@ -29,6 +29,7 @@ excludeAgent: "cloud-agent"
 ## Hooks
 
 - Flag a new or changed rule, skill or agent directive that a hook could enforce deterministically. Name the hook event (before or after a tool, prompt submit, session start or stop, compaction) and the mechanism (a Claude Code hook that runs a cline-hooks plugin, or a Pi extension).
+- Accept a linked paired hook PR (`Depends on`) as the hook for a MUST.
 - Where the natural event fires only after the change lands, check whether an earlier event can predict the outcome from the tool's input. Only then accept that no hook can enforce it.
 
 ## Size
