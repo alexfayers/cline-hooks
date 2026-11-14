@@ -11,4 +11,4 @@ jobs:
       actions: read
       contents: read
       pull-requests: write
-    uses: alexfayers/llm-prompts/.github/workflows/size-comment.yml@main
+    uses: alexfayers/llm-prompts-ci/.github/workflows/size-comment.yml@main

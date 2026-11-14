@@ -19,7 +19,7 @@ jobs:
       issues: write
       statuses: write
       pull-requests: write
-    uses: alexfayers/llm-prompts/.github/workflows/dependencies.yml@main
+    uses: alexfayers/llm-prompts-ci/.github/workflows/dependencies.yml@main
     secrets:
       PROJECTS_TOKEN: ${{ secrets.PROJECTS_TOKEN }}
       CI_BOT_ID: ${{ secrets.CI_BOT_ID }}
