@@ -15,7 +15,7 @@ jobs:
   parity:
     runs-on: ubuntu-latest
     steps:
-      - name: Compare with the canonical copy in alexfayers/llm-prompts
+      - name: Compare with the canonical copy in alexfayers/llm-prompts-ci
         env:
           GH_TOKEN: ${{ github.token }}
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
@@ -29,6 +29,6 @@ jobs:
           fi
           for name in $FILES; do
             gh api -H 'Accept: application/vnd.github.raw+json' "repos/$HEAD_REPO/contents/.github/instructions/$name?ref=$HEAD_SHA" > mirror.md
-            curl -fsSL "https://raw.githubusercontent.com/alexfayers/llm-prompts/main/.github/instructions/$name" > canonical.md
+            curl -fsSL "https://raw.githubusercontent.com/alexfayers/llm-prompts-ci/main/.github/instructions/$name" > canonical.md
             cmp mirror.md canonical.md
           done

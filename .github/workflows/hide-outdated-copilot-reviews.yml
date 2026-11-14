@@ -11,4 +11,4 @@ jobs:
   hide:
     permissions:
       pull-requests: write
-    uses: alexfayers/llm-prompts/.github/workflows/hide-outdated-copilot-reviews.yml@main
+    uses: alexfayers/llm-prompts-ci/.github/workflows/hide-outdated-copilot-reviews.yml@main

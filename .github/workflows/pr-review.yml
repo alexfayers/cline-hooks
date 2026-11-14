@@ -8,4 +8,4 @@ permissions: {}
 
 jobs:
   relay:
-    uses: alexfayers/llm-prompts/.github/workflows/pr-review.yml@main
+    uses: alexfayers/llm-prompts-ci/.github/workflows/pr-review.yml@main
