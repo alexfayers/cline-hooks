@@ -68,6 +68,7 @@
 | src/cline\_hooks/plugins/context\_usage.py              |       93 |        1 |       38 |        1 |     98% |       202 |
 | src/cline\_hooks/plugins/delegation.py                  |       93 |        1 |       42 |        1 |     99% |       198 |
 | src/cline\_hooks/plugins/ecosystem.py                   |       52 |        1 |       14 |        1 |     97% |44, 137-\>139 |
+| src/cline\_hooks/plugins/file\_structure.py             |       39 |        5 |       12 |        2 |     86% |58, 63, 67-69 |
 | src/cline\_hooks/plugins/fixup\_guard.py                |       58 |        0 |       14 |        0 |    100% |           |
 | src/cline\_hooks/plugins/handback\_rescue.py            |       22 |        0 |        8 |        0 |    100% |           |
 | src/cline\_hooks/plugins/handoff\_ack.py                |      143 |        0 |       56 |        1 |     99% | 275-\>277 |
@@ -142,6 +143,7 @@
 | tests/test\_plugins\_command\_rules.py                  |       55 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugins\_delegation.py                      |       76 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugins\_ecosystem.py                       |      112 |        0 |        2 |        0 |    100% |           |
+| tests/test\_plugins\_file\_structure.py                 |       44 |        0 |        6 |        0 |    100% |           |
 | tests/test\_plugins\_fixup\_guard.py                    |       62 |        0 |        2 |        0 |    100% |           |
 | tests/test\_plugins\_handback\_rescue.py                |       27 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugins\_handoff\_ack.py                    |      304 |        0 |        0 |        0 |    100% |           |
@@ -165,7 +167,7 @@
 | tests/test\_uninstall.py                                |       46 |        0 |        0 |        0 |    100% |           |
 | tests/test\_user\_install.py                            |       53 |        0 |        4 |        0 |    100% |           |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **12401** |  **169** | **1492** |   **97** | **98%** |           |
+| **TOTAL**                                               | **12484** |  **174** | **1510** |   **99** | **98%** |           |
 
 
 ## Setup coverage badge
