@@ -22,3 +22,5 @@ jobs:
     uses: alexfayers/llm-prompts/.github/workflows/dependencies.yml@main
     secrets:
       PROJECTS_TOKEN: ${{ secrets.PROJECTS_TOKEN }}
+      CI_BOT_ID: ${{ secrets.CI_BOT_ID }}
+      CI_BOT_PRIVATE_KEY: ${{ secrets.CI_BOT_PRIVATE_KEY }}
