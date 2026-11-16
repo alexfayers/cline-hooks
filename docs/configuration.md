@@ -8,6 +8,7 @@
 | `CLINE_HOOKS_DEV_BIN_DIR` | Directory searched first for `cline-hook` when installing, even if it is a virtual environment. Prints a warning when used. Unset, installs use only binaries outside virtual environments. |
 | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | Any non-empty value turns on the delegation nudges. |
 | `PI_CODING_AGENT_DIR` | Pi's agent directory, used by `install pi`. Defaults to `~/.pi/agent`. |
+| `PI_CONTEXT_WORKTREE` | Set by pi-context for a writer delegate. The pi frontend sends it as the hook payload's `cwd` instead of pi's own `ctx.cwd`. |
 | `HERDR_PANE_ID` | Read by the handoff acknowledgement plugin to find the session's own Herdr pane. |
 
 ## Commands

@@ -83,6 +83,12 @@ def test_plain_text_context_leaves_the_tool_input_alone(tmp_path: Path) -> None:
     assert result["structuredContent"] == {"ok": True}
 
 
+def test_a_pi_context_writer_sends_its_worktree_as_the_cwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PI_CONTEXT_WORKTREE", "/work/worktree")
+    cases = '*\'"cwd":"/work/worktree"\'*\'"hook_event_name":"tool_call"\'*) printf in-worktree;;'
+    assert _run_harness(tmp_path, cases, {"task": "do it"})["content"][-1]["text"] == "in-worktree"
+
+
 def test_a_compaction_is_relayed_as_a_compact_task_start(tmp_path: Path) -> None:
     assert _run_extension(tmp_path, "", {"task": "do it"})["queued"][-1] == "recap"
 
