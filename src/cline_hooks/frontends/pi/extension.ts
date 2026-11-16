@@ -15,7 +15,7 @@ function runHook(ctx: ExtensionContext, payload: Record<string, unknown>): Promi
   const usage = ctx.getContextUsage();
   const input = JSON.stringify({
     session_id: ctx.sessionManager.getSessionId(),
-    cwd: ctx.cwd,
+    cwd: process.env.PI_CONTEXT_WORKTREE ?? ctx.cwd,
     transcript_path: ctx.sessionManager.getSessionFile() ?? "",
     session_name: ctx.sessionManager.getSessionName() ?? "",
     agent_type: process.env.PI_HERDSMAN_AGENT_DEFINITION ?? "",
