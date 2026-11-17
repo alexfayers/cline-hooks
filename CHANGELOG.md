@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.2](https://github.com/alexfayers/cline-hooks/compare/v0.1.1...v0.1.2) (2026-11-17)
+
+
+### Bug Fixes
+
+* **pi:** send a pi-context writer's worktree as the hook cwd ([#187](https://github.com/alexfayers/cline-hooks/issues/187)) ([6b8c722](https://github.com/alexfayers/cline-hooks/commit/6b8c72271150d3703c3b0b05ed60cf2b5dac6915))
+
+
+### Miscellaneous Chores
+
+* **deps:** update all non-major dependencies ([#189](https://github.com/alexfayers/cline-hooks/issues/189)) ([fb77354](https://github.com/alexfayers/cline-hooks/commit/fb77354890b00d43dd3866a73de8d9b0adbd1632))
+* sync shared files from llm-prompts-ci ([#188](https://github.com/alexfayers/cline-hooks/issues/188)) ([8c0d600](https://github.com/alexfayers/cline-hooks/commit/8c0d600b9369bf80b29ca292b230f67a041be8e1))
+
 ## [0.1.1](https://github.com/alexfayers/cline-hooks/compare/v0.1.0...v0.1.1) (2026-11-16)
 
 
