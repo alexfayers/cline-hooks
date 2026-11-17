@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_a44f0ac069e85531_test_kiro_integration_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.17.3">coverage.py v7.17.3</a>,
-            created at 2026-11-17 06:33 +0000
+            created at 2026-11-17 19:53 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -162,10 +162,10 @@
     <p class="run"><span class="n"><a id="t78" href="#t78">78</a></span><span class="t">            <span class="key">assert</span> <span class="fst">f&#x27;</span><span class="fst">pi.on(&quot;</span><span class="op">{</span><span class="nam">registration</span><span class="op">.</span><span class="nam">native_name</span><span class="op">}</span><span class="fst">&quot;</span><span class="fst">&#x27;</span> <span class="key">in</span> <span class="nam">content</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t79" href="#t79">79</a></span><span class="t">            <span class="key">assert</span> <span class="fst">f&#x27;</span><span class="fst">hook_event_name: &quot;</span><span class="op">{</span><span class="nam">registration</span><span class="op">.</span><span class="nam">native_name</span><span class="op">}</span><span class="fst">&quot;</span><span class="fst">&#x27;</span> <span class="key">in</span> <span class="nam">content</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t80" href="#t80">80</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t81" href="#t81">81</a></span><span class="t">    <span class="key">def</span> <span class="nam">test_relays_the_herdsman_child_identity</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="nam">home</span><span class="op">:</span> <span class="nam">Path</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t81" href="#t81">81</a></span><span class="t">    <span class="key">def</span> <span class="nam">test_relays_the_child_identity</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="nam">home</span><span class="op">:</span> <span class="nam">Path</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t82" href="#t82">82</a></span><span class="t">        <span class="nam">content</span> <span class="op">=</span> <span class="nam">_install</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t83" href="#t83">83</a></span><span class="t">        <span class="key">assert</span> <span class="str">&#x27;agent_type: process.env.PI_HERDSMAN_AGENT_DEFINITION ?? &quot;&quot;&#x27;</span> <span class="key">in</span> <span class="nam">content</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t84" href="#t84">84</a></span><span class="t">        <span class="key">assert</span> <span class="str">&#x27;agent_id: process.env.PI_HERDSMAN_RUN_ID ?? &quot;&quot;&#x27;</span> <span class="key">in</span> <span class="nam">content</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t83" href="#t83">83</a></span><span class="t">        <span class="key">assert</span> <span class="str">&quot;agent_type: process.env.PI_HERDSMAN_AGENT_DEFINITION ?? process.env.PI_CONTEXT_ROLE&quot;</span> <span class="key">in</span> <span class="nam">content</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t84" href="#t84">84</a></span><span class="t">        <span class="key">assert</span> <span class="str">&quot;agent_id: process.env.PI_HERDSMAN_RUN_ID ?? process.env.PI_CONTEXT_RUN_ID&quot;</span> <span class="key">in</span> <span class="nam">content</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t85" href="#t85">85</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t86" href="#t86">86</a></span><span class="t">    <span class="key">def</span> <span class="nam">test_relays_the_context_usage_pi_reports</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="nam">home</span><span class="op">:</span> <span class="nam">Path</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t87" href="#t87">87</a></span><span class="t">        <span class="nam">content</span> <span class="op">=</span> <span class="nam">_install</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
@@ -209,7 +209,7 @@
             <a class="nav" href="z_a44f0ac069e85531_test_kiro_integration_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.17.3">coverage.py v7.17.3</a>,
-            created at 2026-11-17 06:33 +0000
+            created at 2026-11-17 19:53 +0000
         </p>
     </div>
 </footer>
