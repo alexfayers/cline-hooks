@@ -60,10 +60,10 @@ def handle_task_start(hook: HookInputTaskStart) -> None:
     """
     source = hook.taskStart.source if hook.taskStart else ""
     if source not in NO_RESET_TASK_START_SOURCES:
-        _reset_skills(hook.taskId)
-        _reset_memory(hook.taskId)
-        _reset_agents(hook.taskId)
-        _reset_finished(hook.taskId)
+        _reset_skills(hook.stateKey)
+        _reset_memory(hook.stateKey)
+        _reset_agents(hook.stateKey)
+        _reset_finished(hook.stateKey)
     parts: list[str] = []
 
     result = collect_hook_results(

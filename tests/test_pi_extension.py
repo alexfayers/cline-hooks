@@ -76,6 +76,33 @@ def test_the_updated_input_is_copied_into_the_tool_input(tmp_path: Path) -> None
     assert result["content"][-1]["text"] == "ctx"
 
 
+@pytest.mark.parametrize(
+    ("env", "identity"),
+    [
+        ({"PI_CONTEXT_ROLE": "reader", "PI_CONTEXT_RUN_ID": "a1b2c3d4"}, '"agent_type":"reader","agent_id":"a1b2c3d4"'),
+        (
+            {
+                "PI_CONTEXT_ROLE": "reader",
+                "PI_CONTEXT_RUN_ID": "a1b2c3d4",
+                "PI_HERDSMAN_AGENT_DEFINITION": "worker",
+                "PI_HERDSMAN_RUN_ID": "run-9",
+            },
+            '"agent_type":"worker","agent_id":"run-9"',
+        ),
+    ],
+    ids=["pi-context", "herdsman-wins"],
+)
+def test_the_child_identity_comes_from_the_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, env: dict[str, str], identity: str
+) -> None:
+    for name in ("PI_CONTEXT_ROLE", "PI_CONTEXT_RUN_ID", "PI_HERDSMAN_AGENT_DEFINITION", "PI_HERDSMAN_RUN_ID"):
+        monkeypatch.delenv(name, raising=False)
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+    cases = f"*'{identity}'*) printf '%s' '{{\"updated_input\":{{\"seen\":true}}}}';;"
+    assert _run_harness(tmp_path, cases, {})["input"] == {"seen": True}
+
+
 def test_plain_text_context_leaves_the_tool_input_alone(tmp_path: Path) -> None:
     result = _run_extension(tmp_path, "REMINDER: plain", {"task": "do it"})
     assert result["input"] == {"task": "do it"}

@@ -53,13 +53,16 @@ BASE = {
 }
 
 
-def _task_start(roots: list[str] | None = None, source: str = "", agent_type: str = "") -> HookInputTaskStart:
+def _task_start(
+    roots: list[str] | None = None, source: str = "", agent_type: str = "", agent_id: str | None = None
+) -> HookInputTaskStart:
     return HookInputTaskStart(
         taskId="task-1",
         workspaceRoots=roots or ["/workspace"],
         hookName="TaskStart",
         taskStart=TaskStartFields(source=source),
         agentType=agent_type,
+        agentId=agent_id,
     )
 
 
@@ -240,6 +243,14 @@ class TestHandleTaskStart:
         with patch("cline_hooks.plugins.session_context.get_git_context", return_value=None):
             self._run(_task_start([str(tmp_path)], source="startup"))
         assert not is_skill_called("task-1", "git-usage")
+
+    def test_subagent_start_keeps_the_parent_skills(self, tmp_path: Path) -> None:
+        record_skill("task-1", "git-usage")
+        record_skill("task-1:agent-a", "cr")
+        with patch("cline_hooks.plugins.session_context.get_git_context", return_value=None):
+            self._run(_task_start([str(tmp_path)], source="startup", agent_type="writer", agent_id="agent-a"))
+        assert is_skill_called("task-1", "git-usage")
+        assert not is_skill_called("task-1:agent-a", "cr")
 
     def test_git_context_emitted_on_compact(self, tmp_path: Path) -> None:
         with patch(

@@ -78,10 +78,10 @@ class TestPiInstaller:
             assert f'pi.on("{registration.native_name}"' in content
             assert f'hook_event_name: "{registration.native_name}"' in content
 
-    def test_relays_the_herdsman_child_identity(self, home: Path) -> None:
+    def test_relays_the_child_identity(self, home: Path) -> None:
         content = _install()
-        assert 'agent_type: process.env.PI_HERDSMAN_AGENT_DEFINITION ?? ""' in content
-        assert 'agent_id: process.env.PI_HERDSMAN_RUN_ID ?? ""' in content
+        assert "agent_type: process.env.PI_HERDSMAN_AGENT_DEFINITION ?? process.env.PI_CONTEXT_ROLE" in content
+        assert "agent_id: process.env.PI_HERDSMAN_RUN_ID ?? process.env.PI_CONTEXT_RUN_ID" in content
 
     def test_relays_the_context_usage_pi_reports(self, home: Path) -> None:
         content = _install()
