@@ -45,17 +45,22 @@ _invocation_filter = _InvocationContextFilter()
 _LOG_MAX_BYTES = 10 * 1024 * 1024
 _LOG_BACKUP_COUNT = 3
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    handlers=[
-        RotatingFileHandler(get_data_dir() / "cline-hooks.log", maxBytes=_LOG_MAX_BYTES, backupCount=_LOG_BACKUP_COUNT)
-    ],
-    format="%(asctime)s %(levelname)s %(name)s[%(context)s]: %(message)s",
-    datefmt="%Y-%m-%dT%H:%M:%S",
-)
-logging.root.handlers[0].addFilter(_invocation_filter)
-
 logger = logging.getLogger("hooks")
+
+
+def _configure_logging() -> None:
+    """Send all log records to the rotating cline-hooks log file."""
+    logging.basicConfig(
+        level=logging.DEBUG,
+        handlers=[
+            RotatingFileHandler(
+                get_data_dir() / "cline-hooks.log", maxBytes=_LOG_MAX_BYTES, backupCount=_LOG_BACKUP_COUNT
+            )
+        ],
+        format="%(asctime)s %(levelname)s %(name)s[%(context)s]: %(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%S",
+    )
+    logging.root.handlers[0].addFilter(_invocation_filter)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -193,6 +198,7 @@ def _list_plugins() -> None:
 
 def main() -> NoReturn:  # ruff: ignore[too-many-branches]
     """Entrypoint - dispatches to install subcommands or hook processing."""
+    _configure_logging()
     if len(sys.argv) == 1:
         _run_hook()
 

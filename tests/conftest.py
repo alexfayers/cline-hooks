@@ -193,8 +193,8 @@ class GreeterOwner(HooksPlugin):
 def isolate_log_file(tmp_path_factory: pytest.TempPathFactory) -> None:
     """Redirect the "hooks" logger away from the real, shared log file.
 
-    cline_hooks._main configures logging.basicConfig at import time against the
-    real user log file; without this, running the test suite writes deliberate
+    cline_hooks._main.main configures logging.basicConfig against the real user
+    log file; without this, running the test suite writes deliberate
     test-triggered tracebacks into the same log live hook invocations use.
     """
     log_path = tmp_path_factory.mktemp("logs") / "cline-hooks.log"
