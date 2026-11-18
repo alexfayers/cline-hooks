@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_a44f0ac069e85531_test_agents_tracker_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.17.3">coverage.py v7.17.3</a>,
-            created at 2026-11-18 21:39 +0000
+            created at 2026-11-18 21:48 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -277,8 +277,8 @@
     <p class="run"><span class="n"><a id="t193" href="#t193">193</a></span><span class="t"><span class="key">def</span> <span class="nam">isolate_log_file</span><span class="op">(</span><span class="nam">tmp_path_factory</span><span class="op">:</span> <span class="nam">pytest</span><span class="op">.</span><span class="nam">TempPathFactory</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t194" href="#t194">194</a></span><span class="t">    <span class="str">&quot;&quot;&quot;Redirect the &quot;hooks&quot; logger away from the real, shared log file.</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t195" href="#t195">195</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t196" href="#t196">196</a></span><span class="t"><span class="str">    cline_hooks._main configures logging.basicConfig at import time against the</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t197" href="#t197">197</a></span><span class="t"><span class="str">    real user log file; without this, running the test suite writes deliberate</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t196" href="#t196">196</a></span><span class="t"><span class="str">    cline_hooks._main.main configures logging.basicConfig against the real user</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t197" href="#t197">197</a></span><span class="t"><span class="str">    log file; without this, running the test suite writes deliberate</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t198" href="#t198">198</a></span><span class="t"><span class="str">    test-triggered tracebacks into the same log live hook invocations use.</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t199" href="#t199">199</a></span><span class="t"><span class="str">    &quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t200" href="#t200">200</a></span><span class="t">    <span class="nam">log_path</span> <span class="op">=</span> <span class="nam">tmp_path_factory</span><span class="op">.</span><span class="nam">mktemp</span><span class="op">(</span><span class="str">&quot;logs&quot;</span><span class="op">)</span> <span class="op">/</span> <span class="str">&quot;cline-hooks.log&quot;</span>&nbsp;</span><span class="r"></span></p>
@@ -430,7 +430,7 @@
             <a class="nav" href="z_a44f0ac069e85531_test_agents_tracker_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.17.3">coverage.py v7.17.3</a>,
-            created at 2026-11-18 21:39 +0000
+            created at 2026-11-18 21:48 +0000
         </p>
     </div>
 </footer>
