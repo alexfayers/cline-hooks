@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import logging
+import subprocess
+import sys
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
@@ -132,6 +134,20 @@ class TestInvocationContextFilter:
         record = logging.LogRecord("hooks", logging.INFO, __file__, 1, "msg", (), None)
         context_filter.filter(record)
         assert record.context == "-"  # type: ignore[attr-defined]
+
+
+_IMPORT_PACKAGE = """
+import logging
+before = list(logging.root.handlers)
+import cline_hooks
+print(logging.root.handlers == before)
+"""
+
+
+class TestImportSideEffects:
+    def test_importing_the_package_leaves_root_logging_unchanged(self) -> None:
+        out = subprocess.run([sys.executable, "-c", _IMPORT_PACKAGE], capture_output=True, text=True, check=True)
+        assert out.stdout.strip() == "True"
 
 
 class TestParserProgramName:
