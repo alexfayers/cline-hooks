@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/alexfayers/cline-hooks/compare/v0.1.2...v0.1.3) (2026-11-18)
+
+
+### Bug Fixes
+
+* **pi:** give forks their own identity so they keep the lead's skill reads ([#191](https://github.com/alexfayers/cline-hooks/issues/191)) ([8293e90](https://github.com/alexfayers/cline-hooks/commit/8293e90bdd8dc89c6951d078740c13f8b3d60e90))
+
 ## [0.1.2](https://github.com/alexfayers/cline-hooks/compare/v0.1.1...v0.1.2) (2026-11-17)
 
 
