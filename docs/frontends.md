@@ -10,11 +10,14 @@
 | Claude Code | `~/.claude/settings.json` |
 | Codex | `~/.codex/hooks.json` |
 | Kiro | The agent config you give, which must already exist |
+| OpenCode | `plugins/cline-hooks.ts` in `$OPENCODE_CONFIG_DIR`, `$XDG_CONFIG_HOME/opencode` or `~/.config/opencode` |
 | Pi | `~/.pi/agent/extensions/cline-hooks.ts` (or under `$PI_CODING_AGENT_DIR`) |
 
-Re-running an install only repoints entries whose binary is missing. `--force` repoints all of them. Pi's extension is always repointed.
+Re-running an install only repoints entries whose binary is missing. `--force` repoints all of them. Pi's extension and OpenCode's plugin are always repointed.
 
 Pi has no command hooks, so its extension relays Pi's events to `cline-hook`, with `session_compact` sent as a `TaskStart` with source `compact`. Reminders produced by tool calls nested in a script are delivered on the script's own result.
+
+OpenCode (2.x) has no command hooks either, so its plugin relays OpenCode's plugin hooks to `cline-hook`, run in the session's directory. It sends `session.start` with a session's first prompt and adds prompt context as a synthetic message. It renames MCP tools to `mcp__<server>__<tool>` and checks a `patch` call once per file it touches. A blocked `session.idle` continues the session with a synthetic message. Child sessions, and sessions still waiting on their own background work, skip it.
 
 ## Hook support matrix
 
@@ -73,7 +76,7 @@ The package holds, at most:
 | `models.py` | Models for payload fields whose raw shape differs from canonical |
 | `install.py` | An `Installer`, usually a few lines on `JsonHookInstaller` |
 | `transcript.py` | A `TranscriptReader`, if the frontend writes a readable transcript |
-| `extension.ts` | A bridge extension, where the frontend runs extensions rather than hook commands |
+| `extension.ts` / `plugin.ts` | A bridge extension or plugin, where the frontend runs those rather than hook commands |
 
 A frontend speaking another's payload shape subclasses that frontend's spec
 class and overrides only what differs - Codex is one.

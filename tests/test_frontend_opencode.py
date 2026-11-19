@@ -54,11 +54,6 @@ class TestOpencodeDetection:
         with patch.object(Path, "home", return_value=tmp_path):
             assert spec.skills_dir() == tmp_path / ".config" / "opencode" / "skills"
 
-    def test_has_no_installer_yet(self) -> None:
-        spec = OpencodeProtocol.frontend_spec
-        assert spec is not None
-        assert spec.installer is None
-
 
 class TestOpencodeConfigDir:
     @pytest.mark.parametrize(

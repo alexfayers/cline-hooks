@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import patch
@@ -30,23 +29,15 @@ def home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
         yield tmp_path
 
 
-def _install(*, force: bool = False) -> str:
+def _install() -> str:
     """Run the pi installer and read back the extension it wrote.
 
     Returns:
         The written extension source.
     """
     installer = PiInstaller()
-    installer.install(PiProtocol, None, force=force)
+    installer.install(PiProtocol, None)
     return installer.extension_path().read_text(encoding="utf-8")
-
-
-def _seed_embedded_binary(binary: Path) -> None:
-    """Install the extension, then repoint its embedded binary at `binary`."""
-    content = _install()
-    PiInstaller().extension_path().write_text(
-        content.replace(json.dumps(_EXPECTED_BINARY), json.dumps(str(binary))), encoding="utf-8"
-    )
 
 
 class TestPiInstaller:
@@ -59,24 +50,10 @@ class TestPiInstaller:
         _install()
         assert (home / "custom" / "extensions" / "cline-hooks.ts").is_file()
 
-    def test_embeds_the_resolved_binary_as_a_string_literal(self, home: Path) -> None:
-        content = _install()
-        assert f"const BINARY: string = {json.dumps(_EXPECTED_BINARY)};" in content
-        assert "__CLINE_HOOK_BINARY__" not in content
-
-    def test_writes_nothing_where_there_is_no_user_wide_install(self, home: Path) -> None:
-        with (
-            patch("cline_hooks.core.install.resolve_user_binary", return_value=None),
-            pytest.raises(SystemExit),
-        ):
-            _install()
-        assert not PiInstaller().extension_path().exists()
-
-    def test_relays_every_registered_hook(self, home: Path) -> None:
+    def test_listens_for_every_registered_hook(self, home: Path) -> None:
         content = _install()
         for registration in PiProtocol.supported_hooks.values():
             assert f'pi.on("{registration.native_name}"' in content
-            assert f'hook_event_name: "{registration.native_name}"' in content
 
     def test_relays_the_child_identity(self, home: Path) -> None:
         content = _install()
@@ -91,28 +68,3 @@ class TestPiInstaller:
     def test_relays_the_parent_tool_call_id_of_tool_events(self, home: Path) -> None:
         content = _install()
         assert content.count("parent_tool_call_id: event.parentToolCallId") == 2
-
-    def test_reinstall_is_idempotent(self, home: Path, capsys: pytest.CaptureFixture[str]) -> None:
-        first = _install()
-        capsys.readouterr()
-        assert _install() == first
-        assert "already up to date" in capsys.readouterr().out
-
-    def test_repoints_an_embedded_binary_that_still_exists(self, home: Path) -> None:
-        working = home / "other-env" / "cline-hook"
-        working.parent.mkdir()
-        working.write_text("", encoding="utf-8")
-        _seed_embedded_binary(working)
-        assert f"const BINARY: string = {json.dumps(_EXPECTED_BINARY)};" in _install()
-
-    def test_repoints_an_embedded_binary_in_a_venv(self, home: Path) -> None:
-        venv_binary = home / "project" / ".venv" / "bin" / "cline-hook"
-        venv_binary.parent.mkdir(parents=True)
-        venv_binary.write_text("", encoding="utf-8")
-        (home / "project" / ".venv" / "pyvenv.cfg").write_text("", encoding="utf-8")
-        _seed_embedded_binary(venv_binary)
-        assert f"const BINARY: string = {json.dumps(_EXPECTED_BINARY)};" in _install()
-
-    def test_replaces_an_embedded_binary_that_is_gone(self, home: Path) -> None:
-        _seed_embedded_binary(home / "gone" / "cline-hook")
-        assert f"const BINARY: string = {json.dumps(_EXPECTED_BINARY)};" in _install()

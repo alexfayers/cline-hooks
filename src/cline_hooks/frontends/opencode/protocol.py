@@ -1,4 +1,4 @@
-"""Opencode exit-code protocol, spoken by the opencode bridge plugin."""
+"""Opencode exit-code protocol, spoken by the bridge plugin `OpencodeInstaller` writes."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from cline_hooks.frontends.claude_code.models import (
     ClaudeCodeStop,
     ClaudeCodeUserPromptSubmit,
 )
-from cline_hooks.frontends.opencode.install import config_dir
+from cline_hooks.frontends.opencode.install import OpencodeInstaller, config_dir
 from cline_hooks.frontends.opencode.models import (
     OpencodeEditParams,
     OpencodeEnvelope,
@@ -39,7 +39,7 @@ def _skills_dir() -> Path:
 @frontend(
     name="opencode",
     display_name="OpenCode",
-    installer=None,
+    installer=OpencodeInstaller(),
     detect_priority=EXACT_MATCH,
     skills_dir=_skills_dir,
 )

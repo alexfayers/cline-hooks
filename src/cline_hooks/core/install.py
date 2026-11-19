@@ -10,6 +10,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from importlib.metadata import distribution
+from importlib.resources import files
 import json
 import os
 from pathlib import Path
@@ -79,6 +80,30 @@ def resolve_binary() -> Path:
         print(f"error: no user-wide {name} found on PATH. Install cline-hooks as a tool first.", file=sys.stderr)
         sys.exit(1)
     return binary
+
+
+_BINARY_PLACEHOLDER = '"__CLINE_HOOK_BINARY__"'
+
+
+def write_bridge(package: str, template: str, dest: Path) -> None:
+    """Write a bridge script from a template in `package`, pointed at the resolved binary.
+
+    Frontends without command hooks run a script of their own that relays each
+    event to cline-hook; the template names the binary `__CLINE_HOOK_BINARY__`.
+
+    Args:
+        package: The frontend package holding the template.
+        template: The template's file name.
+        dest: Where the bridge is written.
+    """
+    source = files(package).joinpath(template).read_text(encoding="utf-8")
+    content = source.replace(_BINARY_PLACEHOLDER, json.dumps(str(resolve_binary())))
+    if dest.exists() and dest.read_text(encoding="utf-8") == content:
+        print(f"{dest} is already up to date.")
+        return
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(content, encoding="utf-8")
+    print(f"Wrote {dest}.")
 
 
 class JsonHookInstaller(Installer):

@@ -8,5 +8,5 @@
     "types": ["node"],
     "skipLibCheck": true
   },
-  "include": ["src/cline_hooks/frontends/pi/extension.ts"]
+  "include": ["src/cline_hooks/frontends/pi/extension.ts", "src/cline_hooks/frontends/opencode/plugin.ts"]
 }
