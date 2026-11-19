@@ -4,7 +4,7 @@
   "session_id": "fixture-session-id",
   "tool_name": "read",
   "tool_input": {
-    "filePath": "/home/user/project/src/app.py",
+    "path": "src/app.py",
     "offset": 10,
     "limit": 5
   }

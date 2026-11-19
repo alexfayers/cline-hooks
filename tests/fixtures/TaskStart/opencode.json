@@ -1,5 +1,5 @@
 {
-  "hook_event_name": "session.created",
+  "hook_event_name": "session.start",
   "cwd": "/home/user/project",
   "session_id": "fixture-session-id",
   "source": "startup"

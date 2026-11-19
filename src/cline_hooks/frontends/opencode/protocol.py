@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, NoReturn
 
 from cline_hooks.core.frontend import EXACT_MATCH, frontend
 from cline_hooks.core.models import PreCompactFields, TaskStartFields
-from cline_hooks.core.payload import StandardPayloadProtocol, ToolParams
+from cline_hooks.core.payload import PayloadEnvelope, StandardPayloadProtocol, ToolParams
 from cline_hooks.core.protocol import HookRegistration, exit_allow, exit_block
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
 from cline_hooks.frontends.claude_code.models import (
@@ -15,9 +15,10 @@ from cline_hooks.frontends.claude_code.models import (
     ClaudeCodeStop,
     ClaudeCodeUserPromptSubmit,
 )
-from cline_hooks.frontends.opencode.install import OpencodeInstaller, config_dir
+from cline_hooks.frontends.opencode.install import config_dir
 from cline_hooks.frontends.opencode.models import (
     OpencodeEditParams,
+    OpencodeEnvelope,
     OpencodeReadParams,
     OpencodeSkillParams,
     OpencodeWriteParams,
@@ -38,39 +39,42 @@ def _skills_dir() -> Path:
 @frontend(
     name="opencode",
     display_name="OpenCode",
-    installer=OpencodeInstaller(),
+    installer=None,
     detect_priority=EXACT_MATCH,
     skills_dir=_skills_dir,
 )
 class OpencodeProtocol(StandardPayloadProtocol):
-    """Opencode exit-code protocol: exit 0 + stdout for context, exit 2 + stderr to block.
+    """Opencode 2.x exit-code protocol: exit 0 + stdout for context, exit 2 + stderr to block.
 
-    Opencode has no command hooks, only plugin hooks and bus events, so the
-    bridge plugin relays each as snake_case JSON named after the opencode hook
-    or event, and maps the exit code back onto it. The plugin renames MCP
-    tools, which opencode names `<server>_<tool>`, to `mcp__<server>__<tool>`.
+    Opencode has no command hooks, only plugin hooks, so the bridge plugin
+    relays each as snake_case JSON named `<domain>.<hook>` after the plugin
+    API hook it came from, and maps the exit code back onto it. `session.start`
+    is the bridge's own name for a session's first prompt. The plugin renames
+    MCP tools, which opencode names `<server>_<tool>`, to `mcp__<server>__<tool>`,
+    and splits a `patch` call that touches several files into one call per file.
     """
 
     supported_hooks: ClassVar[Mapping[CanonicalHook, HookRegistration]] = {
         CanonicalHook.PRE_TOOL_USE: HookRegistration("tool.execute.before"),
         CanonicalHook.POST_TOOL_USE: HookRegistration("tool.execute.after"),
-        CanonicalHook.TASK_START: HookRegistration("session.created"),
-        CanonicalHook.USER_PROMPT_SUBMIT: HookRegistration("chat.message"),
-        CanonicalHook.PRE_COMPACT: HookRegistration("experimental.session.compacting"),
+        CanonicalHook.TASK_START: HookRegistration("session.start"),
+        CanonicalHook.USER_PROMPT_SUBMIT: HookRegistration("session.prompt"),
+        CanonicalHook.PRE_COMPACT: HookRegistration("session.compaction"),
         CanonicalHook.STOP: HookRegistration("session.idle"),
     }
     tool_map: ClassVar[Mapping[str, CanonicalTool]] = {
-        "bash": CanonicalTool.SHELL,
+        "shell": CanonicalTool.SHELL,
         "read": CanonicalTool.READ,
         "edit": CanonicalTool.EDIT,
+        "patch": CanonicalTool.EDIT,
         "write": CanonicalTool.WRITE,
         "skill": CanonicalTool.SKILL,
-        "task": CanonicalTool.SPAWN_AGENT,
+        "subagent": CanonicalTool.SPAWN_AGENT,
         "webfetch": CanonicalTool.WEB_FETCH,
         "websearch": CanonicalTool.WEB_SEARCH,
         "todowrite": CanonicalTool.BOOKKEEPING,
-        "todoread": CanonicalTool.BOOKKEEPING,
     }
+    envelope_model: ClassVar[type[PayloadEnvelope]] = OpencodeEnvelope
     hook_models: ClassVar[Mapping[CanonicalHook, type[HookFields]]] = {
         CanonicalHook.TASK_START: TaskStartFields,
         CanonicalHook.PRE_COMPACT: PreCompactFields,

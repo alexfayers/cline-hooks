@@ -841,7 +841,7 @@ class TestOpencodeNormalisation:
         assert isinstance(hook, HookInputPreToolUse)
         assert hook.preToolUse is not None
         assert hook.preToolUse.toolName == "read_file"
-        assert hook.preToolUse.parameters == {"path": "/home/user/project/src/app.py", "start_line": 10, "end_line": 14}
+        assert hook.preToolUse.parameters == {"path": "src/app.py", "start_line": 10, "end_line": 14}
 
     def test_tools_edit_renders_the_replacement(self) -> None:
         hook = _parse("opencode", "tools/Edit", OpencodeProtocol)
@@ -849,9 +849,30 @@ class TestOpencodeNormalisation:
         assert hook.preToolUse is not None
         assert hook.preToolUse.toolName == "replace_in_file"
         assert hook.preToolUse.parameters == {
-            "path": "/home/user/project/src/app.py",
+            "path": "src/app.py",
             "diff": "------- SEARCH\nold\n=======\nnew\n+++++++ REPLACE",
         }
+
+    def test_tools_patch_reads_the_file_and_change_from_the_patch_text(self) -> None:
+        hook = _parse("opencode", "tools/Patch", OpencodeProtocol)
+        assert isinstance(hook, HookInputPreToolUse)
+        assert hook.preToolUse is not None
+        assert hook.preToolUse.toolName == "replace_in_file"
+        assert hook.preToolUse.parameters == {
+            "path": "src/app.py",
+            "diff": "------- SEARCH\ncontext\nold\n=======\ncontext\nnew\n+++++++ REPLACE",
+        }
+
+    def test_tools_shell_runs_in_its_workdir(self) -> None:
+        hook = _parse("opencode", "tools/Shell", OpencodeProtocol)
+        assert hook.workspaceRoots == ["/home/user/project/sub/repo"]
+
+    def test_tools_subagent_spawns_an_agent_with_its_prompt(self) -> None:
+        hook = _parse("opencode", "tools/Subagent", OpencodeProtocol)
+        assert isinstance(hook, HookInputPreToolUse)
+        assert hook.preToolUse is not None
+        assert hook.preToolUse.toolName == "spawn_agent"
+        assert hook.preToolUse.parameters["prompt"] == "Read a.txt"
 
     def test_tools_write(self) -> None:
         hook = _parse("opencode", "tools/Write", OpencodeProtocol)
@@ -859,11 +880,11 @@ class TestOpencodeNormalisation:
         assert hook.preToolUse is not None
         assert hook.preToolUse.toolName == "write_to_file"
         assert hook.preToolUse.parameters == {
-            "path": "/home/user/project/src/new.py",
+            "path": "src/new.py",
             "diff": "------- SEARCH\n=======\nprint('hi')\n+++++++ REPLACE",
         }
 
-    def test_tools_skill_reads_its_name(self) -> None:
+    def test_tools_skill_reads_its_id(self) -> None:
         hook = _parse("opencode", "tools/Skill", OpencodeProtocol)
         assert isinstance(hook, HookInputPreToolUse)
         assert hook.preToolUse is not None

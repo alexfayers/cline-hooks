@@ -25,12 +25,12 @@ The canonical hooks each frontend fires, with its native name for each. `tests/t
 |---|---|---|---|---|---|---|
 | PreToolUse | `PreToolUse` | `PreToolUse` | `PreToolUse` | `preToolUse` | `tool.execute.before` | `tool_call` |
 | PostToolUse | `PostToolUse` | `PostToolUse` | `PostToolUse` | `postToolUse` | `tool.execute.after` | `tool_result` |
-| TaskStart | - | `SessionStart` | `SessionStart` | `agentSpawn` | `session.created` | `session_start` |
+| TaskStart | - | `SessionStart` | `SessionStart` | `agentSpawn` | `session.start` | `session_start` |
 | TaskResume | - | - | - | - | - | - |
 | TaskCancel | - | - | - | - | - | - |
 | TaskComplete | - | - | - | - | - | - |
-| UserPromptSubmit | - | `UserPromptSubmit` | `UserPromptSubmit` | `userPromptSubmit` | `chat.message` | `before_agent_start` |
-| PreCompact | - | - | - | - | `experimental.session.compacting` | `session_before_compact` |
+| UserPromptSubmit | - | `UserPromptSubmit` | `UserPromptSubmit` | `userPromptSubmit` | `session.prompt` | `before_agent_start` |
+| PreCompact | - | - | - | - | `session.compaction` | `session_before_compact` |
 | Stop | `Stop` | `Stop` | `Stop` | `stop` | `session.idle` | `agent_end` |
 | AgentIdle | - | - | - | - | - | `agent_settled` |
 | SubagentStart | - | `SubagentStart` | `SubagentStart` | - | - | - |

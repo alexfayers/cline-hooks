@@ -2,9 +2,8 @@
   "hook_event_name": "tool.execute.before",
   "cwd": "/home/user/project",
   "session_id": "fixture-session-id",
-  "tool_name": "bash",
+  "tool_name": "shell",
   "tool_input": {
-    "command": "ls -la",
-    "description": "List files"
+    "command": "ls -la"
   }
 }
