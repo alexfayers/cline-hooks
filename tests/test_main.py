@@ -16,9 +16,12 @@ from cline_hooks._main import (
     _run_hook,
     main,
 )
+from cline_hooks.config import get_max_in_flight_reviews
 from cline_hooks.core.frontends import FRONTENDS, FRONTENDS_BY_NAME
 from cline_hooks.core.plugin import HooksPlugin, hookimpl
 from cline_hooks.core.vocabulary import CanonicalHook
+from cline_hooks.plugins import review_limit
+from cline_hooks.state.jsonfile import updated_json
 from tests.conftest import CanonicalProtocol, GreeterOwner
 
 if TYPE_CHECKING:
@@ -247,3 +250,20 @@ class TestListPlugins:
         assert "clean" not in output
         assert "unpublished_extension_point" in output
         assert StrayContributor.__name__ in output
+
+
+def _reviews(capsys: pytest.CaptureFixture[str], *args: str) -> str:
+    with patch("sys.argv", ["cline-hook", "reviews", *args]), pytest.raises(SystemExit) as excinfo:
+        main()
+    assert excinfo.value.code == 0
+    return capsys.readouterr().out
+
+
+class TestReviews:
+    def test_sets_the_limit_drops_reviews_and_lists_the_rest(self, capsys: pytest.CaptureFixture[str]) -> None:
+        with updated_json(review_limit._LEDGER_PATH, {}) as ledger:
+            ledger.update({"https://github.com/acme/widgets/pull/1": "github", "R-2": "custom"})
+        _reviews(capsys, "--limit", "9")
+        _reviews(capsys, "--drop", "R-2")
+        assert get_max_in_flight_reviews() == 9
+        assert _reviews(capsys) == "In flight: 1 of 9\nhttps://github.com/acme/widgets/pull/1\n"

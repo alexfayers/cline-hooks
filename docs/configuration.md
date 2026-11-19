@@ -11,6 +11,14 @@
 | `PI_CONTEXT_WORKTREE` | Set by pi-context for a writer delegate. The pi frontend sends it as the hook payload's `cwd` instead of pi's own `ctx.cwd`. |
 | `HERDR_PANE_ID` | Read by the handoff acknowledgement plugin to find the session's own Herdr pane. |
 
+## Config file
+
+`config.json` in the data directory is read on each check, so a change applies at once.
+
+| Key | Effect |
+|-----|--------|
+| `max_in_flight_reviews` | How many reviews opened through a guarded command, such as `gh pr create`, may be in flight before a new one is blocked. Defaults to 5. |
+
 ## Commands
 
 | Command | Does |
@@ -19,5 +27,6 @@
 | `cline-hook install <assistant> [target] [--force]` | Registers the hooks. |
 | `cline-hook plugins` | Lists loaded plugins, the extension points each owns and contributes to, and whether the plugin set validates. |
 | `cline-hook retro-count --get` / `--reset` | Prints or resets the count of sessions since the last retrospective. |
+| `cline-hook reviews [--limit <n> \| --drop <id>...]` | Lists the in-flight reviews and the limit, sets `max_in_flight_reviews`, or drops merged or discarded reviews. At the limit, the guard drops closed GitHub PRs by itself. |
 | `cline-hook unlock [path]` | Drops the session's file and working tree locks, or only the lock on `path`. |
 | `cline-hook handoff-ack --clear` | Releases sessions blocked on a handoff acknowledgement. |

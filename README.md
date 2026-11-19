@@ -33,12 +33,14 @@ Other commands:
 - `cline-hook plugins` lists loaded plugins
 - `cline-hook retro-count --get` / `--reset` shows or resets the retrospective session counter
 - `cline-hook handoff-ack --clear` releases sessions blocked on a handoff acknowledgement
+- `cline-hook reviews [--limit <n> | --drop <id>...]` lists the in-flight reviews, sets their limit, or drops merged or discarded ones
 
 ## Configuration
 
 - `CLINE_HOOKS_DATA_DIR` sets where state files and the log live
 - `CLINE_HOOKS_FRONTEND` loads only the named assistant, instead of detecting it from the payload
 - `CLINE_HOOKS_PUSH_BLOCK_MARKERS` blocks `git push` in repos under any of the given file or directory names
+- `max_in_flight_reviews` in the data directory's `config.json` caps the open reviews created through `gh pr create`, 5 by default
 
 The rest are in [docs/configuration.md](docs/configuration.md).
 
@@ -46,6 +48,6 @@ The rest are in [docs/configuration.md](docs/configuration.md).
 
 - [Frontends](docs/frontends.md): install targets, hook support matrix, adding a frontend
 - [Plugins](docs/plugins.md): bundled plugins, writing and registering your own
-- [Configuration](docs/configuration.md): env vars and commands
+- [Configuration](docs/configuration.md): env vars, the config file and commands
 
 See also [llm-prompts](https://github.com/alexfayers/llm-prompts) and [mcp-memory](https://github.com/alexfayers/mcp-memory).

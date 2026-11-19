@@ -108,6 +108,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "--clear", action="store_true", required=True, help="Clear every owed and awaited acknowledgement"
     )
 
+    reviews_parser = sub.add_parser("reviews", help="List, drop or set the limit of in-flight reviews")
+    reviews_group = reviews_parser.add_mutually_exclusive_group()
+    reviews_group.add_argument("--limit", type=int, help="Set how many reviews may be in flight at once")
+    reviews_group.add_argument("--drop", nargs="+", metavar="ID", help="Drop merged or discarded reviews")
+
     unlock_parser = sub.add_parser("unlock", help="Drop this session's checkout locks")
     unlock_parser.add_argument("path", nargs="?", help="Unlock only this file, default every lock the session holds")
     unlock_parser.add_argument("--session", required=True, help="The session whose locks are dropped")
@@ -196,6 +201,22 @@ def _list_plugins() -> None:
         print("check_pending: clean")  # ruff: ignore[print]
 
 
+def _reviews(limit: int | None, drop: list[str] | None) -> None:
+    """Set the in-flight review limit, drop reviews from the ledger, or print the ledger and limit."""
+    from cline_hooks import config  # ruff: ignore[import-outside-top-level]
+    from cline_hooks.plugins import review_limit  # ruff: ignore[import-outside-top-level]
+
+    if limit is not None:
+        config.set_max_in_flight_reviews(limit)
+    elif drop:
+        review_limit.drop_reviews(drop)
+    else:
+        reviews = review_limit.in_flight_reviews()
+        print(f"In flight: {len(reviews)} of {config.get_max_in_flight_reviews()}")  # ruff: ignore[print]
+        for review_id in reviews:
+            print(review_id)  # ruff: ignore[print]
+
+
 def main() -> NoReturn:  # ruff: ignore[too-many-branches]
     """Entrypoint - dispatches to install subcommands or hook processing."""
     _configure_logging()
@@ -240,6 +261,10 @@ def main() -> NoReturn:  # ruff: ignore[too-many-branches]
         from cline_hooks.plugins import handoff_ack  # ruff: ignore[import-outside-top-level]
 
         handoff_ack.clear_acks()
+        sys.exit(0)
+
+    if args.command == "reviews":
+        _reviews(args.limit, args.drop)
         sys.exit(0)
 
     if args.command == "unlock":

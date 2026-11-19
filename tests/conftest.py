@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, NoReturn
 
 import pytest
 
+import cline_hooks.config as config_module
 from cline_hooks.core.frontend import FrontendSpec
 from cline_hooks.core.models import HOOK_INPUTS, HookInput
 from cline_hooks.core.plugin import HooksPlugin, _plugin_cache, hookspec, plugins_override
@@ -24,6 +25,7 @@ import cline_hooks.plugins.handoff_ack as handoff_ack_module
 import cline_hooks.plugins.nudges as nudges_module
 import cline_hooks.plugins.plan_handoff as plan_handoff_module
 import cline_hooks.plugins.research as research_module
+import cline_hooks.plugins.review_limit as review_limit_module
 import cline_hooks.plugins.tool_usage as tool_usage_plugin_module
 import cline_hooks.state.agents as agents_tracker_module
 import cline_hooks.state.finished as finished_tracker_module
@@ -221,6 +223,8 @@ def isolate_state_files(mocker: MockerFixture, tmp_path: Path) -> None:
     mocker.patch.object(delegation_module._store, "_path", tmp_path / "delegation-state.json")
     mocker.patch.object(handoff_ack_module._store, "_path", tmp_path / "handoff-ack-state.json")
     mocker.patch.object(checkout_lock_module, "_LOCKS_PATH", tmp_path / "checkout-locks.json")
+    mocker.patch.object(review_limit_module, "_LEDGER_PATH", tmp_path / "in-flight-reviews.json")
+    mocker.patch.object(config_module, "CONFIG_PATH", tmp_path / "config.json")
     mocker.patch.object(tool_usage_module, "_USAGE_PATH", tmp_path / "tool-usage.json")
     mocker.patch.object(tool_usage_plugin_module._seen, "_path", tmp_path / "tool-usage-seen.json")
     mocker.patch.dict(os.environ, {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": ""})

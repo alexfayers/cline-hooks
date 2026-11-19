@@ -9,6 +9,7 @@ Plugins add custom command rules, build tool detection, research tools, ecosyste
 - Build tool detection and build failure alerts
 - Shell command rules and guards, such as `rm -f`, commit messages and the push block
 - Fixup guard: blocks a new commit that overlaps an unpushed one
+- Review limit: blocks opening a new review, such as `gh pr create`, while the reviews it recorded as in flight reach `max_in_flight_reviews`
 - Skill guard: blocks a command or edit until its required skill, or a skill part file such as `git-usage/tidy.md`, was read
 - File structure note: a new file that brings its folder from 7 to 8 files prompts a note to use a short-named area subfolder, except at the repo root
 - Per-tool guards and edit blocks for files managed by llm-prompts
@@ -99,6 +100,7 @@ my-plugins = "my_package.plugins"
 | `command_rules()` | `CommandRulesPlugin` | Return CommandRule instances this plugin wants to enforce. | `list[CommandRule]` |
 | `ecosystem_tooling_note(workspace_roots)` | `EcosystemPlugin` | Return this plugin's ecosystem tooling note for these workspace roots. | `ToolingNote \| None` |
 | `research_tools()` | `ResearchPlugin` | Return the tools that count as research lookups, with their detail extractors. | `dict[str, Callable[[dict[str, Any]], str]]` |
+| `review_sources()` | `ReviewLimitPlugin` | Return the commands that open a new review, counted against the in-flight review limit. | `list[ReviewSource]` |
 | `startup_blocks(workspace_roots)` | `StartupBlocksPlugin` | Return the startup blocks this plugin injects at session start. | `list[StartupBlock]` |
 <!-- EXTENSION_POINTS_END -->
 
@@ -116,6 +118,7 @@ is skipped, and the last two are logged against the contributing plugin.
 | `build_commands` | The union of every contribution. |
 | `command_rules` | Lists are concatenated in contributor order, and the first matching rule wins. |
 | `research_tools` | Dicts are merged in contributor order, and the first entry for a tool name wins. |
+| `review_sources` | Lists are concatenated in contributor order, and the first source for a name wins. |
 | `ecosystem_tooling_note` | The generic note unless a contribution replaces it, then replacing notes, then additive notes. |
 | `startup_blocks` | Joined, filtered by flags, sorted by (order, title), each body gets the chars left, over-budget -> fallback note, a fallback note that does not fit is dropped. |
 
@@ -165,3 +168,16 @@ CommandRule(
 
 A `validator` receives `(cmd: ParsedCommand, all_commands: list[ParsedCommand])`
 and returns `True` if the command should be blocked.
+
+## ReviewSource
+
+```python
+ReviewSource(
+    name="github",  # ledger tag, the first contribution per name wins
+    creates=lambda cmd: ...,  # True where a ParsedCommand opens a new review
+    review_id=re.compile(r"https://\S+/pull/\d+"),  # finds each new review's ID in the command output
+    is_open=my_state_check,  # optional, (review_id) -> bool | None, None keeps the review
+)
+```
+
+A review without an `is_open` check stays in flight until `cline-hook reviews --drop <id>` drops it.
