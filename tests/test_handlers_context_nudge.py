@@ -6,6 +6,7 @@ from cline_hooks.plugins.context_usage import (
     _BAND_SIZE,
     CONTEXT_DEGRADED_THRESHOLD,
     CONTEXT_REDUCED_THRESHOLD,
+    CONTEXT_WORKER_THRESHOLD,
     context_note,
 )
 from cline_hooks.state.agents import record_agent_use
@@ -129,3 +130,26 @@ class TestContextNoteSubagent:
         note = context_note("task-1:sub-1", _JUST_ABOVE_REDUCED, is_subagent=True)
         assert note is not None
         assert "stop the team" not in note
+
+
+class TestContextNoteSubagentReplacement:
+    def test_subagent_note_asks_caller_for_replacement(self) -> None:
+        note = context_note("task-1:w-1", CONTEXT_WORKER_THRESHOLD, is_subagent=True)
+        assert note is not None
+        assert "report your open state to your caller/lead and ask for a replacement" in note
+
+    def test_subagent_just_below_the_worker_threshold_gets_the_info_note(self) -> None:
+        note = context_note("task-1:w-1", CONTEXT_WORKER_THRESHOLD - 1, is_subagent=True)
+        assert note is not None
+        assert "No action needed yet" in note
+
+    def test_subagent_past_the_reduced_threshold_gets_the_reduced_note(self) -> None:
+        note = context_note("task-1:w-1", _JUST_ABOVE_REDUCED, is_subagent=True)
+        assert note is not None
+        assert "ask for a replacement" not in note
+        assert "before starting new planning or implementation" in note
+
+    def test_main_agent_keeps_the_info_note_at_the_worker_threshold(self) -> None:
+        note = context_note("task-1", CONTEXT_WORKER_THRESHOLD)
+        assert note is not None
+        assert "No action needed yet" in note

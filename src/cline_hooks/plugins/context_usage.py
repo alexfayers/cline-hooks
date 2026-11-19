@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
 _BAND_SIZE = 10_000
 
+CONTEXT_WORKER_THRESHOLD = 200_000
 CONTEXT_REDUCED_THRESHOLD = 300_000
 CONTEXT_DEGRADED_THRESHOLD = 500_000
 _PERCENT = 100
@@ -104,6 +105,11 @@ _CONTEXT_NUDGE_SEVERE_SUBAGENT = (
     "{status} Context budget exhausted. MUST stop, report your state to your caller/lead, and ask to be replaced."
 )
 
+_CONTEXT_NUDGE_WORKER_SUBAGENT = (
+    f"{{status}} Accuracy degrading past {CONTEXT_WORKER_THRESHOLD // 1000}k. MUST report your open state to "
+    "your caller/lead and ask for a replacement before starting new work."
+)
+
 
 def _status(token_count: int, context_window: int | None) -> str:
     """Return the status sentence, with the budget and percent when the window is known.
@@ -150,6 +156,8 @@ def context_note(
         if is_subagent:
             return _CONTEXT_NUDGE_REDUCED_SUBAGENT.format(status=status)
         return with_team_clause(_CONTEXT_NUDGE_REDUCED.format(status=status), task_id)
+    if is_subagent and token_count >= CONTEXT_WORKER_THRESHOLD:
+        return _CONTEXT_NUDGE_WORKER_SUBAGENT.format(status=status)
     return _CONTEXT_NUDGE_INFO.format(status=status)
 
 
