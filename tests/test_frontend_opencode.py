@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pytest
 
 from cline_hooks.core.protocol import RawPayload
-from cline_hooks.frontends.opencode import OpencodeInstaller, OpencodeProtocol
+from cline_hooks.frontends.opencode import OpencodeProtocol
 from cline_hooks.frontends.opencode.models import OpencodeEditParams
 
 if TYPE_CHECKING:
@@ -56,9 +56,3 @@ class TestOpencodeEditParams:
     def test_edit_without_a_replacement_has_no_diff(self) -> None:
         params = OpencodeEditParams.model_validate({"filePath": "/a.py"})
         assert params.model_dump(exclude_none=True) == {"path": "/a.py"}
-
-
-class TestOpencodeInstaller:
-    def test_install_refuses_until_the_plugin_exists(self, capsys: pytest.CaptureFixture[str]) -> None:
-        assert _exit(lambda: OpencodeInstaller().install(OpencodeProtocol, None)) == 1
-        assert "cannot be installed yet" in capsys.readouterr().err

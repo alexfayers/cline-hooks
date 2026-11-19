@@ -1,4 +1,4 @@
-"""Opencode exit-code protocol, spoken by the opencode bridge plugin."""
+"""Opencode exit-code protocol, spoken by the bridge plugin `OpencodeInstaller` writes."""
 
 from __future__ import annotations
 

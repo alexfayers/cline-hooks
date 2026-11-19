@@ -1,16 +1,19 @@
 # ruff: file-ignore[print]
-"""Opencode hook installation - not available until the bridge plugin ships."""
+"""Opencode hook installation - writes a bridge plugin into opencode's plugins directory."""
 
 from __future__ import annotations
 
+from importlib.resources import files
+import json
 from pathlib import Path
-import sys
-from typing import TYPE_CHECKING, ClassVar, NoReturn
+from typing import TYPE_CHECKING, ClassVar
 
-from cline_hooks.core.install import Installer
+from cline_hooks.core.install import Installer, resolve_binary
 
 if TYPE_CHECKING:
     from cline_hooks.core.protocol import Protocol
+
+_BINARY_PLACEHOLDER = '"__CLINE_HOOK_BINARY__"'
 
 
 def config_dir() -> Path:
@@ -23,17 +26,36 @@ def config_dir() -> Path:
 
 
 class OpencodeInstaller(Installer):
-    """Placeholder installer: opencode runs plugins, not hook commands, and the bridge plugin is not written yet."""
+    """Installs cline-hooks as an opencode plugin.
 
-    help: ClassVar[str] = "Install opencode hooks (not available yet)"
+    Opencode runs no hook commands, only JavaScript plugins, so the installer
+    writes one that pipes each relayed event to the cline-hook binary.
+    """
 
-    def install(self, protocol_cls: type[Protocol], target: str | None, *, force: bool = False) -> NoReturn:
-        """Refuse to install, since there is no bridge plugin to write yet.
+    help: ClassVar[str] = "Install opencode hooks as a plugin in ~/.config/opencode/plugins/"
+
+    def plugin_path(self) -> Path:
+        """Return where the bridge plugin is written.
+
+        Returns:
+            Path to cline-hooks.ts in opencode's global plugins directory.
+        """
+        return config_dir() / "plugins" / "cline-hooks.ts"
+
+    def install(self, protocol_cls: type[Protocol], target: str | None, *, force: bool = False) -> None:
+        """Write the bridge plugin, pointed at the resolved binary.
 
         Args:
-            protocol_cls: Unused.
+            protocol_cls: The opencode protocol; the plugin relays its hooks.
             target: Unused; opencode's install takes no argument.
-            force: Unused.
+            force: Unused; the plugin is always repointed at the resolved binary.
         """
-        print("error: opencode hooks cannot be installed yet.", file=sys.stderr)
-        sys.exit(1)
+        template = files(__package__).joinpath("plugin.ts").read_text(encoding="utf-8")
+        dest = self.plugin_path()
+        content = template.replace(_BINARY_PLACEHOLDER, json.dumps(str(resolve_binary())))
+        if dest.exists() and dest.read_text(encoding="utf-8") == content:
+            print(f"{dest} is already up to date.")
+            return
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(content, encoding="utf-8")
+        print(f"Wrote {dest}.")

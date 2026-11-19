@@ -10,11 +10,14 @@
 | Claude Code | `~/.claude/settings.json` |
 | Codex | `~/.codex/hooks.json` |
 | Kiro | The agent config you give, which must already exist |
+| OpenCode | `~/.config/opencode/plugins/cline-hooks.ts` |
 | Pi | `~/.pi/agent/extensions/cline-hooks.ts` (or under `$PI_CODING_AGENT_DIR`) |
 
-Re-running an install only repoints entries whose binary is missing. `--force` repoints all of them. Pi's extension is always repointed.
+Re-running an install only repoints entries whose binary is missing. `--force` repoints all of them. Pi's extension and OpenCode's plugin are always repointed.
 
 Pi has no command hooks, so its extension relays Pi's events to `cline-hook`, with `session_compact` sent as a `TaskStart` with source `compact`. Reminders produced by tool calls nested in a script are delivered on the script's own result.
+
+OpenCode has no command hooks either, so its plugin relays OpenCode's plugin hooks and `session.idle` event to `cline-hook`. It sends `session.created` with a session's first message, adds context to that message as synthetic text, and renames MCP tools to `mcp__<server>__<tool>`. A blocked `session.idle` is sent back to the session as a new prompt. Child sessions skip it.
 
 ## Hook support matrix
 
@@ -73,7 +76,7 @@ The package holds, at most:
 | `models.py` | Models for payload fields whose raw shape differs from canonical |
 | `install.py` | An `Installer`, usually a few lines on `JsonHookInstaller` |
 | `transcript.py` | A `TranscriptReader`, if the frontend writes a readable transcript |
-| `extension.ts` | A bridge extension, where the frontend runs extensions rather than hook commands |
+| `extension.ts` / `plugin.ts` | A bridge extension or plugin, where the frontend runs those rather than hook commands |
 
 A frontend speaking another's payload shape subclasses that frontend's spec
 class and overrides only what differs - Codex is one.
