@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.4](https://github.com/alexfayers/cline-hooks/compare/v0.1.3...v0.1.4) (2026-11-19)
+
+
+### Bug Fixes
+
+* set up logging only when the cline-hook command runs ([#198](https://github.com/alexfayers/cline-hooks/issues/198)) ([91497f7](https://github.com/alexfayers/cline-hooks/commit/91497f7f19242d293d1b3b4dbd40abd38759e29d))
+
+
+### Miscellaneous Chores
+
+* **deps:** update all non-major dependencies ([#199](https://github.com/alexfayers/cline-hooks/issues/199)) ([da04981](https://github.com/alexfayers/cline-hooks/commit/da049818cda9bce3e08ddeb748db8cebf32e081a))
+* sync shared files from llm-prompts-ci ([#196](https://github.com/alexfayers/cline-hooks/issues/196)) ([6db2846](https://github.com/alexfayers/cline-hooks/commit/6db28468f4790500a5170e84eac977a2de5ebf65))
+
 ## [0.1.3](https://github.com/alexfayers/cline-hooks/compare/v0.1.2...v0.1.3) (2026-11-18)
 
 
