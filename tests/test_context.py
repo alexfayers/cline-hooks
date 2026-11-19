@@ -10,6 +10,7 @@ from cline_hooks.core.vocabulary import CanonicalHook
 from cline_hooks.plugins.context_usage import (
     _BAND_SIZE,
     CONTEXT_REDUCED_THRESHOLD,
+    CONTEXT_WORKER_THRESHOLD,
     ContextUsagePlugin,
     reset,
     should_nudge_context,
@@ -101,6 +102,22 @@ class TestNestedToolCalls:
         outer = plugin.on_hook(CanonicalHook.POST_TOOL_USE, logger=logging.getLogger("test"), **kwargs)
         assert nested is None
         assert isinstance(outer, HookResult)
+
+
+class TestSubagentReplacementWording:
+    @pytest.mark.parametrize(("agent_id", "asks_replacement"), [("a", True), ("", False)])
+    def test_only_a_subagent_is_asked_for_a_replacement_at_the_worker_threshold(
+        self, agent_id: str, asks_replacement: bool
+    ) -> None:
+        result = ContextUsagePlugin().on_hook(
+            CanonicalHook.POST_TOOL_USE,
+            logger=logging.getLogger("test"),
+            task_id="t",
+            context_tokens=CONTEXT_WORKER_THRESHOLD,
+            agent_id=agent_id,
+        )
+        assert isinstance(result, HookResult)
+        assert ("ask for a replacement" in result.notes[0]) is asks_replacement
 
 
 class TestSubagentStopReset:
