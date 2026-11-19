@@ -17,6 +17,7 @@ from cline_hooks.frontends.antigravity.protocol import AntigravityProtocol
 from cline_hooks.frontends.claude_code.protocol import ClaudeCodeProtocol
 from cline_hooks.frontends.codex.protocol import CodexProtocol
 from cline_hooks.frontends.kiro.protocol import KiroProtocol
+from cline_hooks.frontends.opencode.protocol import OpencodeProtocol
 from cline_hooks.frontends.pi.protocol import PiProtocol
 
 if TYPE_CHECKING:
@@ -51,6 +52,14 @@ _PI_ENVELOPE: dict[str, Any] = {
     "taskId": "fixture-session-id",
     "workspaceRoots": ["/home/user/project"],
     "transcriptPath": "/home/user/.pi/agent/sessions/fixture/session.jsonl",
+    "agentType": "",
+    "agentId": None,
+}
+
+_OPENCODE_ENVELOPE: dict[str, Any] = {
+    "taskId": "fixture-session-id",
+    "workspaceRoots": ["/home/user/project"],
+    "transcriptPath": "",
     "agentType": "",
     "agentId": None,
 }
@@ -781,6 +790,93 @@ class TestPiNormalisation:
         assert isinstance(hook, HookInputPreToolUse)
         assert hook.preToolUse is not None
         assert hook.preToolUse.toolName == "plan_mode_respond"
+
+
+class TestOpencodeNormalisation:
+    def test_pre_tool_use(self) -> None:
+        hook = _parse("opencode", "PreToolUse", OpencodeProtocol)
+        assert hook.model_dump() == {
+            **_OPENCODE_ENVELOPE,
+            "hookName": "PreToolUse",
+            "preToolUse": {"toolName": "execute_command", "parameters": {"command": "ls -la"}},
+        }
+
+    def test_post_tool_use(self) -> None:
+        hook = _parse("opencode", "PostToolUse", OpencodeProtocol)
+        assert isinstance(hook, HookInputPostToolUse)
+        assert hook.postToolUse is not None
+        assert hook.postToolUse.success is True
+        assert hook.postToolUse.result == "file1\nfile2"
+
+    def test_task_start(self) -> None:
+        hook = _parse("opencode", "TaskStart", OpencodeProtocol)
+        assert hook.model_dump() == {
+            **_OPENCODE_ENVELOPE,
+            "hookName": "TaskStart",
+            "taskStart": {"task": "", "source": "startup"},
+        }
+
+    def test_user_prompt_submit(self) -> None:
+        hook = _parse("opencode", "UserPromptSubmit", OpencodeProtocol)
+        assert isinstance(hook, HookInputUserPromptSubmit)
+        assert hook.userPromptSubmit is not None
+        assert hook.userPromptSubmit.userMessage == "Add a new test for the parser."
+
+    def test_stop(self) -> None:
+        hook = _parse("opencode", "Stop", OpencodeProtocol, overrides={"stop_hook_active": True})
+        assert hook.model_dump() == {
+            **_OPENCODE_ENVELOPE,
+            "hookName": "Stop",
+            "stop": {"stopHookActive": True},
+        }
+
+    def test_child_session_is_a_subagent(self) -> None:
+        overrides = {"agent_type": "explore", "agent_id": "ses_child"}
+        hook = _parse("opencode", "PreToolUse", OpencodeProtocol, overrides=overrides)
+        assert hook.agentType == "explore"
+        assert hook.agentId == "ses_child"
+
+    def test_tools_read_converts_offset_and_limit_to_a_line_range(self) -> None:
+        hook = _parse("opencode", "tools/Read", OpencodeProtocol)
+        assert isinstance(hook, HookInputPreToolUse)
+        assert hook.preToolUse is not None
+        assert hook.preToolUse.toolName == "read_file"
+        assert hook.preToolUse.parameters == {"path": "/home/user/project/src/app.py", "start_line": 10, "end_line": 14}
+
+    def test_tools_edit_renders_the_replacement(self) -> None:
+        hook = _parse("opencode", "tools/Edit", OpencodeProtocol)
+        assert isinstance(hook, HookInputPreToolUse)
+        assert hook.preToolUse is not None
+        assert hook.preToolUse.toolName == "replace_in_file"
+        assert hook.preToolUse.parameters == {
+            "path": "/home/user/project/src/app.py",
+            "diff": "------- SEARCH\nold\n=======\nnew\n+++++++ REPLACE",
+        }
+
+    def test_tools_write(self) -> None:
+        hook = _parse("opencode", "tools/Write", OpencodeProtocol)
+        assert isinstance(hook, HookInputPreToolUse)
+        assert hook.preToolUse is not None
+        assert hook.preToolUse.toolName == "write_to_file"
+        assert hook.preToolUse.parameters == {
+            "path": "/home/user/project/src/new.py",
+            "diff": "------- SEARCH\n=======\nprint('hi')\n+++++++ REPLACE",
+        }
+
+    def test_tools_skill_reads_its_name(self) -> None:
+        hook = _parse("opencode", "tools/Skill", OpencodeProtocol)
+        assert isinstance(hook, HookInputPreToolUse)
+        assert hook.preToolUse is not None
+        assert hook.preToolUse.toolName == "use_skill"
+        assert hook.preToolUse.parameters == {"skill": "git-usage"}
+
+    def test_tools_mcp_splits_the_bridged_tool_name(self) -> None:
+        hook = _parse("opencode", "tools/Mcp", OpencodeProtocol)
+        assert isinstance(hook, HookInputPreToolUse)
+        assert hook.preToolUse is not None
+        assert hook.preToolUse.toolName == "use_mcp_tool"
+        assert hook.preToolUse.parameters["server_name"] == "memory"
+        assert hook.preToolUse.parameters["tool_name"] == "create_entities"
 
 
 class TestFrontendAsymmetries:

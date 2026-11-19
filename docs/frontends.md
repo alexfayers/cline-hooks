@@ -21,21 +21,21 @@ Pi has no command hooks, so its extension relays Pi's events to `cline-hook`, wi
 The canonical hooks each frontend fires, with its native name for each. `tests/test_readme_matrix.py` fails if this table drifts from `Protocol.supported_hooks`.
 
 <!-- HOOK_MATRIX_START -->
-| Canonical hook | Antigravity | Claude Code | Codex | Kiro | Pi |
-|---|---|---|---|---|---|
-| PreToolUse | `PreToolUse` | `PreToolUse` | `PreToolUse` | `preToolUse` | `tool_call` |
-| PostToolUse | `PostToolUse` | `PostToolUse` | `PostToolUse` | `postToolUse` | `tool_result` |
-| TaskStart | - | `SessionStart` | `SessionStart` | `agentSpawn` | `session_start` |
-| TaskResume | - | - | - | - | - |
-| TaskCancel | - | - | - | - | - |
-| TaskComplete | - | - | - | - | - |
-| UserPromptSubmit | - | `UserPromptSubmit` | `UserPromptSubmit` | `userPromptSubmit` | `before_agent_start` |
-| PreCompact | - | - | - | - | `session_before_compact` |
-| Stop | `Stop` | `Stop` | `Stop` | `stop` | `agent_end` |
-| AgentIdle | - | - | - | - | `agent_settled` |
-| SubagentStart | - | `SubagentStart` | `SubagentStart` | - | - |
-| SubagentStop | - | `SubagentStop` | `SubagentStop` | - | `session_shutdown` |
-| SessionEnd | - | `SessionEnd` | `SessionEnd` | - | - |
+| Canonical hook | Antigravity | Claude Code | Codex | Kiro | OpenCode | Pi |
+|---|---|---|---|---|---|---|
+| PreToolUse | `PreToolUse` | `PreToolUse` | `PreToolUse` | `preToolUse` | `tool.execute.before` | `tool_call` |
+| PostToolUse | `PostToolUse` | `PostToolUse` | `PostToolUse` | `postToolUse` | `tool.execute.after` | `tool_result` |
+| TaskStart | - | `SessionStart` | `SessionStart` | `agentSpawn` | `session.created` | `session_start` |
+| TaskResume | - | - | - | - | - | - |
+| TaskCancel | - | - | - | - | - | - |
+| TaskComplete | - | - | - | - | - | - |
+| UserPromptSubmit | - | `UserPromptSubmit` | `UserPromptSubmit` | `userPromptSubmit` | `chat.message` | `before_agent_start` |
+| PreCompact | - | - | - | - | `experimental.session.compacting` | `session_before_compact` |
+| Stop | `Stop` | `Stop` | `Stop` | `stop` | `session.idle` | `agent_end` |
+| AgentIdle | - | - | - | - | - | `agent_settled` |
+| SubagentStart | - | `SubagentStart` | `SubagentStart` | - | - | - |
+| SubagentStop | - | `SubagentStop` | `SubagentStop` | - | - | `session_shutdown` |
+| SessionEnd | - | `SessionEnd` | `SessionEnd` | - | - | - |
 <!-- HOOK_MATRIX_END -->
 
 ## Adding a frontend

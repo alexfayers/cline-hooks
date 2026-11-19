@@ -1,0 +1,5 @@
+{
+  "hook_event_name": "experimental.session.compacting",
+  "cwd": "/home/user/project",
+  "session_id": "fixture-session-id"
+}

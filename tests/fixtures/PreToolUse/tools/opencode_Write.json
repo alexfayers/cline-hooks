@@ -1,0 +1,10 @@
+{
+  "hook_event_name": "tool.execute.before",
+  "cwd": "/home/user/project",
+  "session_id": "fixture-session-id",
+  "tool_name": "write",
+  "tool_input": {
+    "filePath": "/home/user/project/src/new.py",
+    "content": "print('hi')"
+  }
+}
