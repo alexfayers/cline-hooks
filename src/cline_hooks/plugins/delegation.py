@@ -18,7 +18,13 @@ from cline_hooks.core.vocabulary import (
     CanonicalHook,
     PluginScope,
 )
-from cline_hooks.handlers.commands import extract_commands, is_print_only_sed, is_read_only_gh, is_read_only_git
+from cline_hooks.handlers.commands import (
+    extract_commands,
+    is_print_only_sed,
+    is_read_only_gh,
+    is_read_only_git,
+    parse_command,
+)
 from cline_hooks.state.agents import has_agent_use
 
 if TYPE_CHECKING:
@@ -161,7 +167,7 @@ def is_read_only_command(command: str) -> bool:
 
     commands: list[ParsedCommand] = []
     with contextlib.suppress(bashlex.errors.ParsingError, NotImplementedError):
-        commands = extract_commands(bashlex.parse(command))
+        commands = extract_commands(parse_command(command))
     if not commands:
         return True
     return all(_is_read_only_single(cmd) for cmd in commands)

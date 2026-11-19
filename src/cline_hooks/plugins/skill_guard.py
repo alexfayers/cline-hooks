@@ -9,7 +9,13 @@ from cline_hooks.core.hook_kwargs import PreToolUseKwargs
 from cline_hooks.core.parameters import FileEditParameters
 from cline_hooks.core.plugin import HookResult, HooksPlugin
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool, PluginScope
-from cline_hooks.handlers.commands import ParsedCommand, extract_commands, is_read_only_git, is_tidy_rebase
+from cline_hooks.handlers.commands import (
+    ParsedCommand,
+    extract_commands,
+    is_read_only_git,
+    is_tidy_rebase,
+    parse_command,
+)
 from cline_hooks.state.skills import _SKILL_REQUIREMENTS, installed_skill_file, is_skill_called, required_skill_for
 
 if TYPE_CHECKING:
@@ -76,7 +82,7 @@ def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | N
     import bashlex.errors  # ruff: ignore[import-outside-top-level]
 
     try:
-        parsed = bashlex.parse(command)
+        parsed = parse_command(command)
     except (bashlex.errors.ParsingError, NotImplementedError):
         return None
     commands = extract_commands(parsed)

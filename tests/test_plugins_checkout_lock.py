@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import json
 import logging
 from pathlib import Path
@@ -119,7 +120,7 @@ def _hook(frontend: str, session: str, cwd: Path, event: str, command: str = "")
     payload = {"session_id": session, "cwd": str(cwd), **extra, **events[event]}
     with (
         plugins_override([CheckoutLockPlugin()]),
-        patch("builtins.input", return_value=json.dumps(payload)),
+        patch("sys.stdin", io.StringIO(json.dumps(payload))),
         pytest.raises(SystemExit) as exit_info,
     ):
         _run_hook()

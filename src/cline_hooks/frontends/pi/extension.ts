@@ -5,6 +5,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 const BINARY: string = "__CLINE_HOOK_BINARY__";
 const CUSTOM_TYPE = "cline-hooks";
 const BLOCK_EXIT_CODE = 2;
+const HOOK_TIMEOUT_MS = 35_000;
 
 interface HookOutcome {
   blocked: boolean;
@@ -25,12 +26,23 @@ function runHook(ctx: ExtensionContext, payload: Record<string, unknown>): Promi
     ...payload,
   });
   return new Promise((resolve) => {
-    const child = spawn(BINARY, [], { env: { ...process.env, CLINE_HOOKS_FRONTEND: "pi" } });
+    const child = spawn(BINARY, [], {
+      env: { ...process.env, CLINE_HOOKS_FRONTEND: "pi" },
+      timeout: HOOK_TIMEOUT_MS,
+      killSignal: "SIGKILL",
+    });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk) => (stdout += chunk));
     child.stderr.on("data", (chunk) => (stderr += chunk));
     child.on("error", () => resolve({ blocked: false, message: "" }));
+    child.stdin.on("error", () => {});
+    child.on("exit", (_code, signal) => {
+      if (!signal) return;
+      child.stdout.destroy();
+      child.stderr.destroy();
+      resolve({ blocked: false, message: "" });
+    });
     child.on("close", (code) => {
       if (code === BLOCK_EXIT_CODE) resolve({ blocked: true, message: stderr.trim() });
       else resolve({ blocked: false, message: code === 0 ? stdout.trim() : "" });

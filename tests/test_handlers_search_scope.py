@@ -5,11 +5,10 @@ import threading
 import time
 from typing import TYPE_CHECKING
 
-import bashlex
 import pytest
 
 from cline_hooks.handlers import search_scope as search_scope_module
-from cline_hooks.handlers.commands import extract_commands
+from cline_hooks.handlers.commands import extract_commands, parse_command
 from cline_hooks.handlers.search_scope import (
     SearchScope,
     effective_cwd,
@@ -37,11 +36,11 @@ def small_cap(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _oversized(command: str, session_cwd: Path | str = CWD) -> SearchScope | None:
-    return find_oversized_search(extract_commands(bashlex.parse(command)), str(session_cwd))
+    return find_oversized_search(extract_commands(parse_command(command)), str(session_cwd))
 
 
 def _scope(command: str, cwd: str = CWD) -> SearchScope | None:
-    return search_scope(extract_commands(bashlex.parse(command))[0], cwd)
+    return search_scope(extract_commands(parse_command(command))[0], cwd)
 
 
 class TestSearchScope:
@@ -135,16 +134,16 @@ class TestEffectiveCwd:
         ],
     )
     def test_replays_preceding_cd(self, command: str, expected: str) -> None:
-        commands = extract_commands(bashlex.parse(command))
+        commands = extract_commands(parse_command(command))
         assert effective_cwd(commands, len(commands) - 1, CWD) == expected
 
     @pytest.mark.parametrize("command", ["cd ~ && rg foo", "cd && rg x", "pushd ~ && rg x"])
     def test_home_directory(self, command: str, fake_home: Path) -> None:
-        commands = extract_commands(bashlex.parse(command))
+        commands = extract_commands(parse_command(command))
         assert effective_cwd(commands, len(commands) - 1, CWD) == str(fake_home)
 
     def test_ignores_cd_after_the_command(self) -> None:
-        commands = extract_commands(bashlex.parse("rg x && cd sub"))
+        commands = extract_commands(parse_command("rg x && cd sub"))
         assert effective_cwd(commands, 0, CWD) == CWD
 
 

@@ -10,7 +10,7 @@ import git.exc
 
 from cline_hooks.core.plugin import HookResult, HooksPlugin
 from cline_hooks.core.vocabulary import PluginScope
-from cline_hooks.handlers.commands import extract_commands
+from cline_hooks.handlers.commands import extract_commands, parse_command
 from cline_hooks.handlers.search_scope import effective_cwd
 
 if TYPE_CHECKING:
@@ -57,7 +57,7 @@ def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | N
     import bashlex.errors  # ruff: ignore[import-outside-top-level]
 
     try:
-        commands = extract_commands(bashlex.parse(command))
+        commands = extract_commands(parse_command(command))
     except (bashlex.errors.ParsingError, NotImplementedError):
         return None
     session_cwd = workspace_roots[0] if workspace_roots else os.getcwd()  # ruff: ignore[os-getcwd]
