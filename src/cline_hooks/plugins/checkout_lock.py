@@ -14,7 +14,7 @@ from cline_hooks.core.parameters import FileEditParameters, parameters_for
 from cline_hooks.core.plugin import HookResult, HooksPlugin
 from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.vocabulary import FILE_EDIT_TOOLS, CanonicalHook, PluginScope
-from cline_hooks.handlers.commands import ParsedCommand, extract_commands, is_read_only_git
+from cline_hooks.handlers.commands import ParsedCommand, extract_commands, is_read_only_git, parse_command
 from cline_hooks.handlers.search_scope import effective_cwd
 from cline_hooks.state.jsonfile import updated_json
 from cline_hooks.state.paths import get_data_dir
@@ -147,7 +147,7 @@ def _pre_shell(kwargs: PreShellKwargs) -> HookResult | None:
     import bashlex.errors  # ruff: ignore[import-outside-top-level]
 
     try:
-        commands = extract_commands(bashlex.parse(kwargs.command))
+        commands = extract_commands(parse_command(kwargs.command))
     except (bashlex.errors.ParsingError, NotImplementedError):
         return None
     for index, command in enumerate(commands):

@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import shutil
 import subprocess
+import time
 from typing import Any
 
 import pytest
@@ -11,13 +12,19 @@ import pytest
 HARNESS = Path(__file__).parent / "pi_extension_harness.mjs"
 TEMPLATE = Path(__file__).parents[1] / "src" / "cline_hooks" / "frontends" / "pi" / "extension.ts"
 
+HOOK_TIMEOUT_MS = "35_000"
+TEST_HOOK_TIMEOUT_MS = 500
+HUNG_HOOK_SECONDS = 20
+
 pytestmark = pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
 
 
-def _run_harness(tmp_path: Path, cases: str, tool_input: dict[str, Any], *harness_args: str) -> dict[str, Any]:
+def _run_harness(
+    tmp_path: Path, cases: str, tool_input: dict[str, Any], *harness_args: str, read_stdin: str = "$(cat)"
+) -> dict[str, Any]:
     binary = tmp_path / "cline-hook"
     binary.write_text(
-        f'#!/bin/sh\ncase "$(cat)" in {cases}'
+        f'#!/bin/sh\ncase "{read_stdin}" in {cases}'
         ' *\'"source":"compact"\'*) printf recap;;'
         ' *\'"source":"startup"\'*) printf \'{"message":"ctx","system_message":"hello %s"}\' $CLINE_HOOKS_FRONTEND;;'
         " esac\n",
@@ -25,7 +32,10 @@ def _run_harness(tmp_path: Path, cases: str, tool_input: dict[str, Any], *harnes
     )
     binary.chmod(0o755)
     script = tmp_path / "cline-hooks.ts"
-    script.write_text(TEMPLATE.read_text(encoding="utf-8").replace("__CLINE_HOOK_BINARY__", str(binary)))
+    template = TEMPLATE.read_text(encoding="utf-8").replace("__CLINE_HOOK_BINARY__", str(binary))
+    timeout_line = f"HOOK_TIMEOUT_MS = {HOOK_TIMEOUT_MS};"
+    assert timeout_line in template
+    script.write_text(template.replace(timeout_line, f"HOOK_TIMEOUT_MS = {TEST_HOOK_TIMEOUT_MS};"))
     input_file = tmp_path / "input.json"
     input_file.write_text(json.dumps(tool_input), encoding="utf-8")
     completed = subprocess.run(
@@ -114,6 +124,19 @@ def test_a_pi_context_writer_sends_its_worktree_as_the_cwd(tmp_path: Path, monke
     monkeypatch.setenv("PI_CONTEXT_WORKTREE", "/work/worktree")
     cases = '*\'"cwd":"/work/worktree"\'*\'"hook_event_name":"tool_call"\'*) printf in-worktree;;'
     assert _run_harness(tmp_path, cases, {"task": "do it"})["content"][-1]["text"] == "in-worktree"
+
+
+def test_a_hook_still_running_at_the_timeout_is_killed_and_the_call_allowed(tmp_path: Path) -> None:
+    cases = f'*\'"hook_event_name":"tool_call"\'*) sleep {HUNG_HOOK_SECONDS}; exit 2;;'
+    started = time.monotonic()
+    result = _run_harness(tmp_path, cases, {"task": "do it"})
+    assert result["blocked"] is False
+    assert time.monotonic() - started < HUNG_HOOK_SECONDS
+
+
+def test_a_hook_that_exits_without_reading_its_payload_allows_the_call(tmp_path: Path) -> None:
+    result = _run_harness(tmp_path, "", {"task": "x" * 1024 * 1024}, read_stdin="")
+    assert result["blocked"] is False
 
 
 def test_a_compaction_is_relayed_as_a_compact_task_start(tmp_path: Path) -> None:

@@ -165,3 +165,9 @@ CommandRule(
 
 A `validator` receives `(cmd: ParsedCommand, all_commands: list[ParsedCommand])`
 and returns `True` if the command should be blocked.
+
+## Parsing shell commands
+
+Parse a command with `parse_command` from `cline_hooks.handlers.commands`, never `bashlex.parse`.
+It raises `bashlex.errors.ParsingError` on a command bashlex cannot finish parsing.
+Pass its result to `extract_commands` for a `list[ParsedCommand]`.

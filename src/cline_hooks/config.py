@@ -22,3 +22,15 @@ def get_push_block_markers() -> tuple[str, ...]:
     """
     raw = os.environ.get("CLINE_HOOKS_PUSH_BLOCK_MARKERS", "")
     return tuple(marker.strip() for marker in raw.split(",") if marker.strip())
+
+
+_DEFAULT_MAX_MEMORY_MB = 640
+
+
+def get_max_memory_mb() -> int:
+    """Return the address-space (virtual memory) cap for one hook process, in megabytes.
+
+    Read from CLINE_HOOKS_MAX_MEMORY_MB, 640 by default or when not a positive integer.
+    """
+    raw = os.environ.get("CLINE_HOOKS_MAX_MEMORY_MB", "")
+    return int(raw) if raw.isdigit() and int(raw) > 0 else _DEFAULT_MAX_MEMORY_MB

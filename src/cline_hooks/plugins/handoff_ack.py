@@ -11,7 +11,7 @@ from cline_hooks.core.parameters import SendMessageParameters, ShellParameters, 
 from cline_hooks.core.plugin import HookResult, HooksPlugin, is_subagent
 from cline_hooks.core.state import PluginStateStore
 from cline_hooks.core.vocabulary import AGENT_SPAWN_TOOLS, MESSAGE_TOOLS, SHELL_TOOLS, CanonicalHook, PluginScope
-from cline_hooks.handlers.commands import ParsedCommand, extract_commands
+from cline_hooks.handlers.commands import ParsedCommand, extract_commands, parse_command
 from cline_hooks.handlers.herdr_guard import (
     ack_marker,
     ack_marker_ids,
@@ -69,7 +69,7 @@ def _parse(command: str) -> list[ParsedCommand]:
     import bashlex.errors  # ruff: ignore[import-outside-top-level]
 
     try:
-        return extract_commands(bashlex.parse(command))
+        return extract_commands(parse_command(command))
     except (bashlex.errors.ParsingError, NotImplementedError):
         return []
 
