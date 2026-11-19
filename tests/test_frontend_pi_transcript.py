@@ -63,6 +63,16 @@ class TestTurnAssistantText:
         )
         assert _reader.turn_assistant_text(path) == "kept"
 
+    def test_stops_at_a_parent_cycle(self, tmp_path: Path) -> None:
+        path = _write(tmp_path, _message("1", "2", "assistant", text="a"), _message("2", "1", "assistant", text="b"))
+        assert _reader.turn_assistant_text(path) == "a\nb"
+
+    def test_stops_at_a_malformed_parent_id(self, tmp_path: Path) -> None:
+        entry = _message("2", None, "assistant", text="b")
+        entry["parentId"] = ["1"]
+        path = _write(tmp_path, _message("1", None, "assistant", text="a"), entry)
+        assert _reader.turn_assistant_text(path) == "b"
+
     def test_is_empty_for_a_missing_file(self, tmp_path: Path) -> None:
         assert _reader.turn_assistant_text(str(tmp_path / "absent.jsonl")) == ""
 
