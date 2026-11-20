@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/alexfayers/cline-hooks/compare/v0.1.4...v0.2.0) (2026-11-20)
+
+
+### Features
+
+* ask subagents to request a replacement at 200k tokens ([#200](https://github.com/alexfayers/cline-hooks/issues/200)) ([8ce86ee](https://github.com/alexfayers/cline-hooks/commit/8ce86ee3012933f6431fe1cb36d169cb47027a80))
+
 ## [0.1.4](https://github.com/alexfayers/cline-hooks/compare/v0.1.3...v0.1.4) (2026-11-19)
 
 
