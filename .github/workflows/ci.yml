@@ -44,8 +44,12 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: just ts-type-check
 
+  unblocked:
+    permissions: {}
+    uses: alexfayers/llm-prompts-ci/.github/workflows/blocked.yml@main
+
   test:
-    if: ${{ !contains(github.event.pull_request.labels.*.name, 'blocked') }}
+    needs: unblocked
     runs-on: ubuntu-latest
     permissions:
       contents: write
