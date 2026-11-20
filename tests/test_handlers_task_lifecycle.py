@@ -3,8 +3,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
+import git
 import pytest
 
 from cline_hooks.core.models import (
@@ -117,21 +118,24 @@ class TestFormatBlockHistory:
 
 
 class TestGetDirtyCount:
-    def test_returns_count_from_valid_repo(self, tmp_path: Path) -> None:
-        mock_repo = MagicMock()
-        mock_repo.index.diff.return_value = [1, 2]
-        mock_repo.untracked_files = ["file.txt"]
-        with patch("git.Repo", return_value=mock_repo):
-            assert get_dirty_count([str(tmp_path)]) == 3
+    def test_counts_unstaged_and_untracked_files_but_not_staged_ones(self, tmp_path: Path) -> None:
+        (tmp_path / "staged.txt").write_text("s")
+        git.Repo.init(tmp_path).index.add(["staged.txt"])
+        assert get_dirty_count([str(tmp_path)]) == 0
+
+        (tmp_path / "staged.txt").write_text("changed")
+        (tmp_path / "sub").mkdir()
+        (tmp_path / "sub" / "new.txt").write_text("n")
+
+        assert get_dirty_count([str(tmp_path)]) == 2
+
+    def test_returns_none_where_git_cannot_read_the_index(self, tmp_path: Path) -> None:
+        git.Repo.init(tmp_path)
+        (tmp_path / ".git" / "index").write_text("corrupt")
+        assert get_dirty_count([str(tmp_path)]) is None
 
     def test_returns_none_for_invalid_repo(self, tmp_path: Path) -> None:
-        import git.exc
-
-        with patch(
-            "git.Repo",
-            side_effect=git.exc.InvalidGitRepositoryError,
-        ):
-            assert get_dirty_count([str(tmp_path)]) is None
+        assert get_dirty_count([str(tmp_path)]) is None
 
     def test_returns_none_for_empty_roots(self) -> None:
         assert get_dirty_count([]) is None

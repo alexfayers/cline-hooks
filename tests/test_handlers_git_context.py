@@ -62,5 +62,15 @@ class TestGitContext:
 
         assert "Branch: main" in context(tmp_path)
 
+    def test_a_detached_head_is_named(self, repo: git.Repo, tmp_path: Path) -> None:
+        repo.git.checkout("--detach")
+
+        assert "Branch: detached HEAD" in context(tmp_path)
+
+    def test_an_empty_commit_message_is_listed_as_a_blank_entry(self, repo: git.Repo, tmp_path: Path) -> None:
+        repo.git.commit("--allow-empty", "--allow-empty-message", "-m", "")
+
+        assert "Recent commits:\n  - \n  - initial" in context(tmp_path)
+
     def test_a_directory_that_is_not_a_repo_gives_no_summary(self, tmp_path: Path) -> None:
         assert get_git_context([str(tmp_path), str(tmp_path / "missing")]) is None
