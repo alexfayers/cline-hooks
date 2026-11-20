@@ -49,9 +49,9 @@
 | src/cline\_hooks/frontends/pi/protocol.py               |       38 |        1 |        4 |        1 |     95% |       115 |
 | src/cline\_hooks/frontends/pi/transcript.py             |       51 |        4 |       16 |        2 |     91% |78-79, 87, 96 |
 | src/cline\_hooks/handlers/\_\_init\_\_.py               |        3 |        0 |        0 |        0 |    100% |           |
-| src/cline\_hooks/handlers/commands.py                   |      200 |        6 |       92 |        9 |     95% |238, 253, 280, 324, 328, 372, 381-\>377, 383-\>377, 384-\>383 |
+| src/cline\_hooks/handlers/commands.py                   |      200 |        6 |       92 |       10 |     95% |238, 253, 280, 324, 328, 372, 379-\>377, 381-\>377, 383-\>377, 384-\>383 |
 | src/cline\_hooks/handlers/context\_nudge.py             |        7 |        0 |        2 |        0 |    100% |           |
-| src/cline\_hooks/handlers/git\_context.py               |       44 |        2 |        8 |        0 |     96% |     55-56 |
+| src/cline\_hooks/handlers/git\_context.py               |       45 |        2 |        8 |        0 |     96% |     33-34 |
 | src/cline\_hooks/handlers/herdr\_guard.py               |       79 |        1 |       24 |        1 |     98% |        84 |
 | src/cline\_hooks/handlers/post\_tool\_use.py            |       44 |        2 |       12 |        2 |     93% |   54, 120 |
 | src/cline\_hooks/handlers/pre\_compact.py               |       14 |        1 |        2 |        1 |     88% |        22 |
@@ -116,14 +116,14 @@
 | tests/test\_frontend\_pi\_transcript.py                 |       39 |        0 |        4 |        0 |    100% |           |
 | tests/test\_handlers\_commands.py                       |       77 |        0 |        0 |        0 |    100% |           |
 | tests/test\_handlers\_context\_nudge.py                 |      113 |        0 |        0 |        0 |    100% |           |
-| tests/test\_handlers\_git\_context.py                   |       42 |        0 |        2 |        0 |    100% |           |
+| tests/test\_handlers\_git\_context.py                   |       48 |        0 |        2 |        0 |    100% |           |
 | tests/test\_handlers\_post\_tool\_use.py                |      595 |        7 |       22 |        5 |     98% |511, 519, 731-732, 765-766, 922 |
 | tests/test\_handlers\_pre\_compact.py                   |       19 |        0 |        0 |        0 |    100% |           |
 | tests/test\_handlers\_pre\_tool\_use.py                 |      526 |        0 |       14 |        0 |    100% |           |
 | tests/test\_handlers\_push\_guard.py                    |       28 |        0 |        0 |        0 |    100% |           |
 | tests/test\_handlers\_search\_scope.py                  |      166 |        0 |        2 |        0 |    100% |           |
 | tests/test\_handlers\_stop.py                           |      343 |        0 |        4 |        0 |    100% |           |
-| tests/test\_handlers\_task\_lifecycle.py                |      348 |        7 |       10 |        4 |     97% |95-100, 144, 274-\>exit, 292-\>exit, 310-\>exit |
+| tests/test\_handlers\_task\_lifecycle.py                |      353 |        7 |       10 |        4 |     97% |96-101, 148, 278-\>exit, 296-\>exit, 314-\>exit |
 | tests/test\_handlers\_user\_prompt.py                   |      419 |        6 |       20 |        7 |     97% |138, 368-\>exit, 459-460, 593-\>exit, 609-\>exit, 659-\>exit, 703, 730, 748, 766-\>exit, 785-\>exit |
 | tests/test\_hook\_kwargs.py                             |       64 |        0 |        0 |        0 |    100% |           |
 | tests/test\_install.py                                  |      217 |        0 |       10 |        0 |    100% |           |
@@ -167,7 +167,7 @@
 | tests/test\_uninstall.py                                |       46 |        0 |        0 |        0 |    100% |           |
 | tests/test\_user\_install.py                            |       53 |        0 |        4 |        0 |    100% |           |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **12540** |  **174** | **1516** |   **99** | **98%** |           |
+| **TOTAL**                                               | **12552** |  **174** | **1516** |  **100** | **98%** |           |
 
 
 ## Setup coverage badge

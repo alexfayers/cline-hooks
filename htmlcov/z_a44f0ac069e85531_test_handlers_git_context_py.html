@@ -55,8 +55,8 @@
             </div>
         </aside>
         <h2>
-            <span class="text">42 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">42<span class="text"> run</span></button>
+            <span class="text">48 statements &nbsp;</span>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">48<span class="text"> run</span></button>
             <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">0<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">3<span class="text"> excluded</span></button>
             <button type="button" class="par run show_par button_toggle_par" value="par" data-shortcut="p" title="Toggle lines partially run">0<span class="text"> partial</span></button>
@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_a44f0ac069e85531_test_handlers_post_tool_use_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.17.3">coverage.py v7.17.3</a>,
-            created at 2026-11-20 06:34 +0000
+            created at 2026-11-20 06:35 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -146,8 +146,18 @@
     <p class="pln"><span class="n"><a id="t62" href="#t62">62</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t63" href="#t63">63</a></span><span class="t">        <span class="key">assert</span> <span class="str">&quot;Branch: main&quot;</span> <span class="key">in</span> <span class="nam">context</span><span class="op">(</span><span class="nam">tmp_path</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t64" href="#t64">64</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t65" href="#t65">65</a></span><span class="t">    <span class="key">def</span> <span class="nam">test_a_directory_that_is_not_a_repo_gives_no_summary</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="nam">tmp_path</span><span class="op">:</span> <span class="nam">Path</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t66" href="#t66">66</a></span><span class="t">        <span class="key">assert</span> <span class="nam">get_git_context</span><span class="op">(</span><span class="op">[</span><span class="nam">str</span><span class="op">(</span><span class="nam">tmp_path</span><span class="op">)</span><span class="op">,</span> <span class="nam">str</span><span class="op">(</span><span class="nam">tmp_path</span> <span class="op">/</span> <span class="str">&quot;missing&quot;</span><span class="op">)</span><span class="op">]</span><span class="op">)</span> <span class="key">is</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t65" href="#t65">65</a></span><span class="t">    <span class="key">def</span> <span class="nam">test_a_detached_head_is_named</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="nam">repo</span><span class="op">:</span> <span class="nam">git</span><span class="op">.</span><span class="nam">Repo</span><span class="op">,</span> <span class="nam">tmp_path</span><span class="op">:</span> <span class="nam">Path</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t66" href="#t66">66</a></span><span class="t">        <span class="nam">repo</span><span class="op">.</span><span class="nam">git</span><span class="op">.</span><span class="nam">checkout</span><span class="op">(</span><span class="str">&quot;--detach&quot;</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t67" href="#t67">67</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t68" href="#t68">68</a></span><span class="t">        <span class="key">assert</span> <span class="str">&quot;Branch: detached HEAD&quot;</span> <span class="key">in</span> <span class="nam">context</span><span class="op">(</span><span class="nam">tmp_path</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t69" href="#t69">69</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t70" href="#t70">70</a></span><span class="t">    <span class="key">def</span> <span class="nam">test_an_empty_commit_message_is_listed_as_a_blank_entry</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="nam">repo</span><span class="op">:</span> <span class="nam">git</span><span class="op">.</span><span class="nam">Repo</span><span class="op">,</span> <span class="nam">tmp_path</span><span class="op">:</span> <span class="nam">Path</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t71" href="#t71">71</a></span><span class="t">        <span class="nam">repo</span><span class="op">.</span><span class="nam">git</span><span class="op">.</span><span class="nam">commit</span><span class="op">(</span><span class="str">&quot;--allow-empty&quot;</span><span class="op">,</span> <span class="str">&quot;--allow-empty-message&quot;</span><span class="op">,</span> <span class="str">&quot;-m&quot;</span><span class="op">,</span> <span class="str">&quot;&quot;</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t72" href="#t72">72</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t73" href="#t73">73</a></span><span class="t">        <span class="key">assert</span> <span class="str">&quot;Recent commits:\n  - \n  - initial&quot;</span> <span class="key">in</span> <span class="nam">context</span><span class="op">(</span><span class="nam">tmp_path</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t74" href="#t74">74</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t75" href="#t75">75</a></span><span class="t">    <span class="key">def</span> <span class="nam">test_a_directory_that_is_not_a_repo_gives_no_summary</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="nam">tmp_path</span><span class="op">:</span> <span class="nam">Path</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t76" href="#t76">76</a></span><span class="t">        <span class="key">assert</span> <span class="nam">get_git_context</span><span class="op">(</span><span class="op">[</span><span class="nam">str</span><span class="op">(</span><span class="nam">tmp_path</span><span class="op">)</span><span class="op">,</span> <span class="nam">str</span><span class="op">(</span><span class="nam">tmp_path</span> <span class="op">/</span> <span class="str">&quot;missing&quot;</span><span class="op">)</span><span class="op">]</span><span class="op">)</span> <span class="key">is</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
 </main>
 <footer>
     <div class="content">
@@ -157,7 +167,7 @@
             <a class="nav" href="z_a44f0ac069e85531_test_handlers_post_tool_use_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.17.3">coverage.py v7.17.3</a>,
-            created at 2026-11-20 06:34 +0000
+            created at 2026-11-20 06:35 +0000
         </p>
     </div>
 </footer>
