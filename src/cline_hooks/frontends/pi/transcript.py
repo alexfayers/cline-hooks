@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from cline_hooks.core.transcript import TranscriptReader
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 class PiTranscriptReader(TranscriptReader):
@@ -30,7 +34,7 @@ class PiTranscriptReader(TranscriptReader):
             Newline-joined assistant text, or "" if the file is unreadable or has none.
         """
         texts: list[str] = []
-        for entry in reversed(_active_branch(transcript_path)):
+        for entry in _branch_from_leaf(transcript_path):
             role = _role(entry)
             if role == "user":
                 break
@@ -39,35 +43,37 @@ class PiTranscriptReader(TranscriptReader):
         return "\n".join(texts)
 
 
-def _active_branch(transcript_path: str) -> list[dict[str, Any]]:
-    """Return the entries from the root to the last entry, following `parentId`.
+def _branch_from_leaf(transcript_path: str) -> Iterator[dict[str, Any]]:
+    """Yield the entries from the last entry back to the root, following `parentId`.
 
     Args:
         transcript_path: Path to the session JSONL file.
 
-    Returns:
-        The active branch in order, or [] if the file is unreadable.
+    Yields:
+        Each entry on the active branch, newest first, or none if the file is unreadable.
     """
-    entries: dict[str, dict[str, Any]] = {}
-    leaf_id: str | None = None
-    try:
-        with Path(transcript_path).open(encoding="utf-8") as handle:
-            for line in handle:
-                entry = _parse_entry(line)
-                if entry is not None and entry.get("type") != "session" and isinstance(entry.get("id"), str):
-                    entries[entry["id"]] = entry
-                    leaf_id = entry["id"]
-    except OSError:
-        return []
+    with contextlib.suppress(OSError), Path(transcript_path).open("rb") as handle:
+        offsets: dict[str, tuple[str | None, int]] = {}
+        leaf_id: str | None = None
+        offset = 0
+        for line in handle:
+            entry = _parse_entry(line)
+            if entry is not None and entry.get("type") != "session" and isinstance(entry.get("id"), str):
+                parent_id = entry.get("parentId")
+                offsets[entry["id"]] = (parent_id if isinstance(parent_id, str) else None, offset)
+                leaf_id = entry["id"]
+            offset += len(line)
+        seen: set[str] = set()
+        while leaf_id in offsets and leaf_id not in seen:
+            seen.add(leaf_id)
+            leaf_id, start = offsets[leaf_id]
+            handle.seek(start)
+            entry = _parse_entry(handle.readline())
+            if entry is not None:
+                yield entry
 
-    branch: list[dict[str, Any]] = []
-    while leaf_id in entries and entries[leaf_id] not in branch:
-        branch.append(entries[leaf_id])
-        leaf_id = entries[leaf_id].get("parentId")
-    return branch[::-1]
 
-
-def _parse_entry(line: str) -> dict[str, Any] | None:
+def _parse_entry(line: bytes) -> dict[str, Any] | None:
     """Parse one JSONL line.
 
     Returns:
@@ -75,7 +81,7 @@ def _parse_entry(line: str) -> dict[str, Any] | None:
     """
     try:
         entry = json.loads(line)
-    except json.JSONDecodeError:
+    except ValueError:
         return None
     return entry if isinstance(entry, dict) else None
 
