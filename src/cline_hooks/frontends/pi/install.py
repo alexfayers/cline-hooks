@@ -1,20 +1,15 @@
-# ruff: file-ignore[print]
 """Pi hook installation - writes a bridge extension into pi's extensions directory."""
 
 from __future__ import annotations
 
-from importlib.resources import files
-import json
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
-from cline_hooks.core.install import Installer, resolve_binary
+from cline_hooks.core.install import Installer, write_bridge
 
 if TYPE_CHECKING:
     from cline_hooks.core.protocol import Protocol
-
-_BINARY_PLACEHOLDER = '"__CLINE_HOOK_BINARY__"'
 
 
 def agent_dir() -> Path:
@@ -52,12 +47,4 @@ class PiInstaller(Installer):
             target: Unused; pi's install takes no argument.
             force: Unused; the extension is always repointed at the resolved binary.
         """
-        template = files(__package__).joinpath("extension.ts").read_text(encoding="utf-8")
-        dest = self.extension_path()
-        content = template.replace(_BINARY_PLACEHOLDER, json.dumps(str(resolve_binary())))
-        if dest.exists() and dest.read_text(encoding="utf-8") == content:
-            print(f"{dest} is already up to date.")
-            return
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_text(content, encoding="utf-8")
-        print(f"Wrote {dest}.")
+        write_bridge(__package__, "extension.ts", self.extension_path())

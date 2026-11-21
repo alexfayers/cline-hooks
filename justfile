@@ -17,7 +17,7 @@ type-check: _uv
     pnpm install --frozen-lockfile --silent
 
 ts-lint: _pnpm
-    pnpm exec biome check src/cline_hooks/frontends/pi/extension.ts
+    pnpm exec biome check src/cline_hooks/frontends/pi/extension.ts src/cline_hooks/frontends/opencode/plugin.ts
 
 ts-type-check: _pnpm
     pnpm exec tsc -p tsconfig.json

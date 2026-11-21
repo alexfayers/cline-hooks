@@ -1,0 +1,9 @@
+{
+  "hook_event_name": "tool.execute.before",
+  "cwd": "/home/user/project",
+  "session_id": "fixture-session-id",
+  "tool_name": "patch",
+  "tool_input": {
+    "patchText": "*** Begin Patch\n*** Update File: src/app.py\n@@ def main():\n context\n-old\n+new\n*** End Patch"
+  }
+}

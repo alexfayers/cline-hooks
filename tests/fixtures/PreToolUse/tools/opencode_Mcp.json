@@ -1,0 +1,10 @@
+{
+  "hook_event_name": "tool.execute.before",
+  "cwd": "/home/user/project",
+  "session_id": "fixture-session-id",
+  "tool_name": "mcp__memory__create_entities",
+  "tool_input": {
+    "project": "demo",
+    "entities": [{"name": "e1"}]
+  }
+}
