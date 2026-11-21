@@ -2,11 +2,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import bashlex
 import pytest
 
 from cline_hooks.core.plugin import collect_contributions
-from cline_hooks.handlers.commands import CommandRule, check_rules, extract_commands
+from cline_hooks.handlers.commands import CommandRule, check_rules, extract_commands, parse_command
 from cline_hooks.plugins.command_rules import CommandRulesPlugin, CommandRulesSpec
 
 if TYPE_CHECKING:
@@ -34,11 +33,11 @@ class TestCommandRulesPluginCommandRules:
 
 class TestCommandRulesPluginGitCommitMessageRule:
     def test_single_line_commit_message_is_allowed(self, rules: list[CommandRule]) -> None:
-        commands = extract_commands(bashlex.parse('git commit -m "single line message"'))
+        commands = extract_commands(parse_command('git commit -m "single line message"'))
         assert check_rules(commands, rules) is None
 
     def test_multi_line_commit_message_is_blocked(self, rules: list[CommandRule]) -> None:
-        commands = extract_commands(bashlex.parse('git commit -m "line one\nline two"'))
+        commands = extract_commands(parse_command('git commit -m "line one\nline two"'))
         violated = check_rules(commands, rules)
         assert violated is not None
         assert violated.command == "git"
@@ -46,7 +45,7 @@ class TestCommandRulesPluginGitCommitMessageRule:
 
 
 def _violated(rules: list[CommandRule], command: str) -> CommandRule | None:
-    return check_rules(extract_commands(bashlex.parse(command)), rules)
+    return check_rules(extract_commands(parse_command(command)), rules)
 
 
 class TestCommandRulesPluginCommitMessageContentRule:

@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import io
 import json
 import logging
+import resource
+import signal
 import subprocess
 import sys
 from typing import TYPE_CHECKING
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -22,9 +25,10 @@ from cline_hooks.core.vocabulary import CanonicalHook
 from tests.conftest import CanonicalProtocol, GreeterOwner
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterator
 
     from cline_hooks.core.frontend import FrontendSpec
+    from cline_hooks.core.plugin import HookResult
     from cline_hooks.core.protocol import Protocol
 
 
@@ -38,7 +42,7 @@ def _run(
     """
     output: list[str] = []
     with (
-        patch("builtins.input", return_value=json.dumps(payload)),
+        patch("sys.stdin", io.StringIO(json.dumps(payload))),
         patch("builtins.print", side_effect=lambda s, **kw: output.append(str(s))),
         patch.dict("os.environ", env or {}, clear=True),
         patch("cline_hooks._main.select_protocol", return_value=protocol),
@@ -134,6 +138,114 @@ class TestInvocationContextFilter:
         record = logging.LogRecord("hooks", logging.INFO, __file__, 1, "msg", (), None)
         context_filter.filter(record)
         assert record.context == "-"  # type: ignore[attr-defined]
+
+
+_PRE_TOOL_USE_PAYLOAD: dict[str, object] = {
+    "hookName": "PreToolUse",
+    "taskId": "task-1",
+    "workspaceRoots": [],
+    "preToolUse": {"toolName": "execute_command", "parameters": {"command": "ls"}},
+}
+_MB = 1024 * 1024
+
+
+class ExhaustingPlugin(HooksPlugin):
+    """Runs `exhaust` on every hook, standing in for a plugin that runs out of a resource."""
+
+    def __init__(self, exhaust: Callable[[], object]) -> None:
+        super().__init__()
+        self.exhaust = exhaust
+
+    def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
+        self.exhaust()
+        return None
+
+
+def _raise_memory_error() -> None:
+    raise MemoryError
+
+
+@pytest.fixture
+def setrlimit() -> Iterator[MagicMock]:
+    """Record the hook's resource limits instead of applying them to the test process."""
+    cpu_handler = signal.getsignal(signal.SIGXCPU)
+    with patch("resource.setrlimit") as recorded, patch.dict("os.environ"):
+        yield recorded
+    signal.signal(signal.SIGXCPU, cpu_handler)
+
+
+def _run_main(payload: dict[str, object]) -> list[str]:
+    """Feed one payload through `main` as the hook command, and capture what it printed.
+
+    Returns:
+        Everything written to stdout, in order.
+    """
+    output: list[str] = []
+    with (
+        patch("sys.argv", ["cline-hook"]),
+        patch("sys.stdin", io.StringIO(json.dumps(payload))),
+        patch("builtins.print", side_effect=lambda s, **kw: output.append(str(s))),
+        patch("cline_hooks._main.select_protocol", return_value=CanonicalProtocol),
+        pytest.raises(SystemExit),
+    ):
+        main()
+    return output
+
+
+class TestResourceLimits:
+    """A hook that runs out of memory, CPU time or payload room allows the tool call."""
+
+    @pytest.mark.usefixtures("setrlimit")
+    @pytest.mark.parametrize(
+        "exhaust", [_raise_memory_error, lambda: signal.raise_signal(signal.SIGXCPU)], ids=["memory", "cpu"]
+    )
+    def test_running_out_allows_the_tool_call_with_a_warning(
+        self, exhaust: Callable[[], object], use_plugins: Callable[..., None], caplog: pytest.LogCaptureFixture
+    ) -> None:
+        use_plugins(ExhaustingPlugin(exhaust))
+        with caplog.at_level(logging.WARNING, logger="hooks"):
+            output = _run_main(_PRE_TOOL_USE_PAYLOAD)
+        assert json.loads(output[0])["cancel"] is False
+        assert any(
+            record.levelno == logging.WARNING and "PreToolUse" in record.message and "execute_command" in record.message
+            for record in caplog.records
+        )
+
+    @pytest.mark.parametrize(("env", "megabytes"), [({}, 640), ({"CLINE_HOOKS_MAX_MEMORY_MB": "512"}, 512)])
+    def test_caps_the_address_space_at_the_configured_size(
+        self, setrlimit: MagicMock, monkeypatch: pytest.MonkeyPatch, env: dict[str, str], megabytes: int
+    ) -> None:
+        monkeypatch.delenv("CLINE_HOOKS_MAX_MEMORY_MB", raising=False)
+        for name, value in env.items():
+            monkeypatch.setenv(name, value)
+        _run_main(_TASK_START_PAYLOAD)
+        limits = {call.args[0]: call.args[1][0] for call in setrlimit.call_args_list}
+        assert limits[resource.RLIMIT_AS] == megabytes * _MB
+        assert resource.RLIMIT_CPU in limits
+
+    @pytest.mark.usefixtures("setrlimit")
+    def test_git_children_map_pack_files_within_the_cap(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("CLINE_HOOKS_MAX_MEMORY_MB", "400")
+        _run_main(_TASK_START_PAYLOAD)
+        completed = subprocess.run(
+            ["git", "config", "--get", "core.packedGitLimit"],  # ruff: ignore[start-process-with-partial-path]
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        assert completed.stdout.strip() == "100m"
+
+    @pytest.mark.usefixtures("setrlimit")
+    def test_a_payload_over_the_size_cap_is_allowed_unread(
+        self, use_plugins: Callable[..., None], monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        use_plugins(ExhaustingPlugin(_raise_memory_error))
+        monkeypatch.setattr("cline_hooks._main._MAX_PAYLOAD_CHARS", len(json.dumps(_PRE_TOOL_USE_PAYLOAD)) - 1)
+        with caplog.at_level(logging.WARNING, logger="hooks"):
+            output = _run_main(_PRE_TOOL_USE_PAYLOAD)
+        assert json.loads(output[0])["cancel"] is False
+        assert not any("PreToolUse" in record.message for record in caplog.records)
+        assert any(record.levelno == logging.WARNING for record in caplog.records)
 
 
 _IMPORT_PACKAGE = """

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, cast
 from cline_hooks.core.parameters import ReadParameters, ShellParameters, SkillParameters
 from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.vocabulary import SHELL_TOOLS, CanonicalTool
-from cline_hooks.handlers.commands import extract_commands
+from cline_hooks.handlers.commands import extract_commands, parse_command
 from cline_hooks.handlers.search_scope import effective_cwd
 from cline_hooks.state.jsonfile import discard_key, discard_prefix, read_json, updated_json
 from cline_hooks.state.paths import get_data_dir
@@ -139,11 +139,10 @@ def skills_in_command(command: str) -> list[str]:
     """
     if not command:
         return []
-    import bashlex  # ruff: ignore[import-outside-top-level]
     import bashlex.errors  # ruff: ignore[import-outside-top-level]
 
     try:
-        commands = extract_commands(bashlex.parse(command))
+        commands = extract_commands(parse_command(command))
     except (bashlex.errors.ParsingError, NotImplementedError):
         return []
     session_cwd = str(Path.cwd())
