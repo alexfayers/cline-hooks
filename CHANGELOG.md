@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/alexfayers/cline-hooks/compare/v0.2.1...v0.2.2) (2026-11-22)
+
+
+### Miscellaneous Chores
+
+* **deps:** update github actions ([#212](https://github.com/alexfayers/cline-hooks/issues/212)) ([3d28b99](https://github.com/alexfayers/cline-hooks/commit/3d28b9990f9fb9d45b9d849edf1cabd278c85ce5))
+
 ## [0.2.1](https://github.com/alexfayers/cline-hooks/compare/v0.2.0...v0.2.1) (2026-11-21)
 
 
