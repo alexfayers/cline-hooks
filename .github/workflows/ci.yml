@@ -44,8 +44,12 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: just ts-type-check
 
+  unblocked:
+    permissions: {}
+    uses: alexfayers/llm-prompts-ci/.github/workflows/blocked.yml@main
+
   test:
-    if: ${{ !contains(github.event.pull_request.labels.*.name, 'blocked') }}
+    needs: unblocked
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -59,7 +63,7 @@ jobs:
       - run: uv sync --locked
       - run: just test
       - run: uv run pytest --cov=.
-      - uses: py-cov-action/python-coverage-comment-action@v4.6
+      - uses: py-cov-action/python-coverage-comment-action@v4.7
         with:
           GITHUB_TOKEN: ${{ github.token }}
           ANNOTATE_MISSING_LINES: true

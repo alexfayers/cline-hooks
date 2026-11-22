@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.2.2](https://github.com/alexfayers/cline-hooks/compare/v0.2.1...v0.2.2) (2026-11-22)
+
+
+### Miscellaneous Chores
+
+* **deps:** update github actions ([#212](https://github.com/alexfayers/cline-hooks/issues/212)) ([3d28b99](https://github.com/alexfayers/cline-hooks/commit/3d28b9990f9fb9d45b9d849edf1cabd278c85ce5))
+
+## [0.2.1](https://github.com/alexfayers/cline-hooks/compare/v0.2.0...v0.2.1) (2026-11-21)
+
+
+### Performance Improvements
+
+* **hooks:** read git context with plain git commands ([#205](https://github.com/alexfayers/cline-hooks/issues/205)) ([69a7893](https://github.com/alexfayers/cline-hooks/commit/69a7893f635137f07c7e19a4e1836e0534f69120))
+
+
+### Miscellaneous Chores
+
+* sync shared files from llm-prompts-ci ([#210](https://github.com/alexfayers/cline-hooks/issues/210)) ([625d44b](https://github.com/alexfayers/cline-hooks/commit/625d44bea71b0a609c43a17b8636ac959b21faa5))
+
 ## [0.2.0](https://github.com/alexfayers/cline-hooks/compare/v0.1.4...v0.2.0) (2026-11-20)
 
 
