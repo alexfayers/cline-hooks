@@ -4,6 +4,7 @@
 // "tool.execute.before"), and prints { results, synthetic } as JSON: each step's event after the
 // hook ran (or its thrown error message) and every synthetic message the plugin added.
 // Sessions live in <root>/project, except "elsewhere" in <root>/other; ids starting "child" are children of "main".
+// Ids starting "resumed" are sessions that have run before.
 import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 
@@ -20,6 +21,7 @@ const ctx = {
     get: async ({ sessionID }) => ({
       id: sessionID,
       ...(sessionID.startsWith('child') ? { parentID: 'main' } : {}),
+      ...(sessionID.startsWith('resumed') ? { time: { idle: 1 } } : {}),
       location: { directory: `${root}/${sessionID === 'elsewhere' ? 'other' : 'project'}` },
     }),
     synthetic: async (input) => synthetic.push(input),

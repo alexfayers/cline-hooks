@@ -104,6 +104,10 @@ class TestOpencodePlugin:
         assert payloads[1]["prompt"] == "hi"
         assert payloads[1]["cwd"] == payloads[1]["ran_in"] == str(tmp_path / "project")
 
+    def test_session_that_has_run_before_starts_as_resume(self, tmp_path: Path) -> None:
+        _, payloads = _run(tmp_path, "", [_prompt(session="resumed-1"), _prompt()])
+        assert [p.get("source") for p in payloads if p["hook_event_name"] == "session.start"] == ["resume", "startup"]
+
     def test_hooks_run_in_the_sessions_own_directory(self, tmp_path: Path) -> None:
         _, payloads = _run(tmp_path, "", [_before(session="elsewhere")])
         assert payloads[0]["cwd"] == payloads[0]["ran_in"] == str(tmp_path / "other")

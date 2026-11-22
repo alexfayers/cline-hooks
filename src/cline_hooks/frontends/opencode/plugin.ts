@@ -20,6 +20,7 @@ interface InputUpdate {
 interface SessionInfo {
   parentID?: string;
   location?: { directory?: string };
+  time?: { idle?: unknown };
 }
 
 interface ToolResult {
@@ -216,10 +217,13 @@ async function setup(ctx: Context) {
       const messages: string[] = [];
       if (!started.has(sessionID)) {
         started.add(sessionID);
-        const parentID = (await sessionOf(sessionID))?.parentID;
-        const agent = parentID ? spawning.get(parentID)?.shift() : undefined;
+        const info = await sessionOf(sessionID);
+        const agent = info?.parentID ? spawning.get(info.parentID)?.shift() : undefined;
         if (agent) agents.set(sessionID, agent);
-        const { message } = await hook(sessionID, { hook_event_name: "session.start", source: "startup" });
+        const { message } = await hook(sessionID, {
+          hook_event_name: "session.start",
+          source: info?.time?.idle ? "resume" : "startup",
+        });
         if (message) messages.push(message);
       }
       const { message } = await hook(sessionID, { hook_event_name: "session.prompt", prompt: event.prompt.text });
