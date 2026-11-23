@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/alexfayers/cline-hooks/compare/v0.2.2...v0.2.3) (2026-11-23)
+
+
+### Miscellaneous Chores
+
+* **deps:** lock file maintenance ([#214](https://github.com/alexfayers/cline-hooks/issues/214)) ([86341e9](https://github.com/alexfayers/cline-hooks/commit/86341e9dd3654336f06ecd9ddda0b5d5a55b72aa))
+
 ## [0.2.2](https://github.com/alexfayers/cline-hooks/compare/v0.2.1...v0.2.2) (2026-11-22)
 
 
