@@ -262,7 +262,11 @@ async function setup(ctx: Context) {
     try {
       const pending = notes.get(event.id) ?? [];
       notes.delete(event.id);
-      const response = { success: event.status === "completed", result: resultText(event) };
+      const response = {
+        success:
+          event.status === "completed" && (event.tool !== "shell" || record(event.result?.output).exitCode === 0),
+        result: resultText(event),
+      };
       for (const input of inputsOf(event)) {
         const { message } = await hook(event.sessionID, {
           hook_event_name: "tool.execute.after",
