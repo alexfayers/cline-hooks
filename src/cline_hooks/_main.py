@@ -209,6 +209,8 @@ def _run_hook() -> NoReturn:
     raw = sys.stdin.readline(_MAX_PAYLOAD_CHARS + 1)
     if len(raw) > _MAX_PAYLOAD_CHARS:
         logger.warning("Allowed a hook payload over %d characters without reading it", _MAX_PAYLOAD_CHARS)
+        unread = RawPayload.from_stdin("")
+        set_protocol(select_protocol(unread).from_payload(unread))
         allow()
     try:
         payload = RawPayload.from_stdin(raw.removesuffix("\n"))

@@ -241,6 +241,7 @@ class TestResourceLimits:
     ) -> None:
         use_plugins(ExhaustingPlugin(_raise_memory_error))
         monkeypatch.setattr("cline_hooks._main._MAX_PAYLOAD_CHARS", len(json.dumps(_PRE_TOOL_USE_PAYLOAD)) - 1)
+        monkeypatch.setattr("cline_hooks.core.protocol._active_protocol", None)
         with caplog.at_level(logging.WARNING, logger="hooks"):
             output = _run_main(_PRE_TOOL_USE_PAYLOAD)
         assert json.loads(output[0])["cancel"] is False
