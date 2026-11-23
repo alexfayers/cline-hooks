@@ -278,7 +278,7 @@ wheels = [
 [[package]]
 name = "fayers-configs"
 version = "0.1.0"
-source = { git = "https://github.com/alexfayers/fayers-configs#323b970e448ebf77bc51b0bd827f48ab23effd95" }
+source = { git = "https://github.com/alexfayers/fayers-configs#9b891808b21395de799312db8ea19e1a2f94c1c9" }
 dependencies = [
     { name = "ruff" },
     { name = "tomli-w" },
