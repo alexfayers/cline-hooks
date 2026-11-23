@@ -1,6 +1,6 @@
 # cline-hooks
 
-One `cline-hook` command that runs lifecycle hooks for AI coding assistants: Antigravity, Claude Code, Codex, Kiro and Pi. Bundled and installed plugins can add notes to a session or block a tool call.
+One `cline-hook` command that runs lifecycle hooks for AI coding assistants: Antigravity, Claude Code, Codex, Kiro, OpenCode and Pi. Bundled and installed plugins can add notes to a session or block a tool call.
 
 ## Install
 
@@ -23,6 +23,7 @@ Register the hooks with each assistant you use:
 ```bash
 cline-hook install claude-code
 cline-hook install codex
+cline-hook install opencode
 cline-hook install pi
 ```
 

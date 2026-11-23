@@ -1,0 +1,11 @@
+{
+  "hook_event_name": "tool.execute.before",
+  "cwd": "/home/user/project",
+  "session_id": "fixture-session-id",
+  "tool_name": "read",
+  "tool_input": {
+    "path": "src/app.py",
+    "offset": 10,
+    "limit": 5
+  }
+}

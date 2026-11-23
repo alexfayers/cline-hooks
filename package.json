@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "type-check": "tsc -p tsconfig.json",
-    "lint": "biome check src/cline_hooks/frontends/pi/extension.ts"
+    "lint": "biome check src/cline_hooks/frontends/pi/extension.ts src/cline_hooks/frontends/opencode/plugin.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.0.0",

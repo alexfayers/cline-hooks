@@ -1,0 +1,9 @@
+{
+  "hook_event_name": "tool.execute.before",
+  "cwd": "/home/user/project",
+  "session_id": "fixture-session-id",
+  "tool_name": "skill",
+  "tool_input": {
+    "id": "git-usage"
+  }
+}
