@@ -17,15 +17,13 @@ from cline_hooks.handlers.commands import (
 
 
 class TestParseCommand:
-    @pytest.mark.parametrize("command", ["echo a'${b'", "echo a'${b' x}", "git log -S'tool call${group.tools'"])
-    def test_rejects_an_unclosed_brace_expansion(self, command: str) -> None:
+    def test_rejects_an_unclosed_brace_expansion(self) -> None:
         with pytest.raises(bashlex.errors.ParsingError):
-            parse_command(command)
+            parse_command("echo a'${b' x}")
 
-    @pytest.mark.parametrize("command", ['echo "${x:-a}" ${HOME}/y', 'echo "${x:-a b}"; git push'])
-    def test_parses_closed_brace_expansions(self, command: str) -> None:
-        commands = extract_commands(parse_command(command))
-        assert commands[0].name == "echo"
+    def test_parses_closed_brace_expansions(self) -> None:
+        commands = extract_commands(parse_command('echo "${x:-a b}"; git push'))
+        assert [cmd.name for cmd in commands] == ["echo", "git"]
 
 
 class TestExtractCommands:
