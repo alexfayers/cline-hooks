@@ -54,8 +54,16 @@ def _prompt(session: str = "main", text: str = "hi") -> dict[str, Any]:
     return {"hook": "session.prompt", "event": {"sessionID": session, "prompt": {"text": text}}}
 
 
-def _before(tool: str = "shell", call: str = "c1", session: str = "main", **tool_input: Any) -> dict[str, Any]:
-    event = {"tool": tool, "sessionID": session, "agent": "build", "id": call, "input": tool_input or {"command": "ls"}}
+def _before(
+    tool: str = "shell", call: str = "c1", session: str = "main", as_agent: str = "build", **tool_input: Any
+) -> dict[str, Any]:
+    event = {
+        "tool": tool,
+        "sessionID": session,
+        "agent": as_agent,
+        "id": call,
+        "input": tool_input or {"command": "ls"},
+    }
     return {"hook": "tool.execute.before", "event": event}
 
 
@@ -159,11 +167,35 @@ class TestOpencodePlugin:
         steps = [
             _before(tool="subagent", agent="explore", prompt="look"),
             _prompt(session="child-1", text="look"),
-            _before(session="child-1", call="c2"),
+            _before(session="child-1", call="c2", as_agent="explore"),
         ]
         _, payloads = _run(tmp_path, "", steps)
         assert all(p["agent_id"] == "child-1" and p["agent_type"] == "explore" for p in payloads[1:])
         assert payloads[0]["agent_type"] == ""
+
+    def test_tool_events_update_the_child_sessions_agent(self, tmp_path: Path) -> None:
+        steps = [
+            _before(session="child-1", as_agent="explore"),
+            _before(session="child-1", call="c2", as_agent="review"),
+        ]
+        _, payloads = _run(tmp_path, "", steps)
+        assert [p["agent_type"] for p in payloads] == ["explore", "review"]
+
+    def test_reused_child_session_carries_its_current_agent(self, tmp_path: Path) -> None:
+        steps = [
+            _before(tool="subagent", agent="explore", prompt="look"),
+            _prompt(session="child-1", text="look"),
+            _before(tool="subagent", call="c2", sessionID="child-1", agent="review", prompt="check"),
+            _prompt(session="child-1", text="check"),
+            _before(session="child-1", call="c3", as_agent="review"),
+        ]
+        _, payloads = _run(tmp_path, "", steps)
+        assert [p["agent_type"] for p in payloads if p.get("agent_id") == "child-1"] == [
+            "explore",
+            "explore",
+            "review",
+            "review",
+        ]
 
     def test_blocked_stop_continues_once_then_reports_the_stop_hook_active(self, tmp_path: Path) -> None:
         cases = "*session.idle*) printf 'keep going' >&2; exit 2;;"
