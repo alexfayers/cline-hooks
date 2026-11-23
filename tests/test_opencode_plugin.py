@@ -59,7 +59,9 @@ def _before(tool: str = "shell", call: str = "c1", session: str = "main", **tool
     return {"hook": "tool.execute.before", "event": event}
 
 
-def _after(tool: str = "shell", call: str = "c1", session: str = "main", **tool_input: Any) -> dict[str, Any]:
+def _after(
+    tool: str = "shell", call: str = "c1", session: str = "main", output: object = ..., **tool_input: Any
+) -> dict[str, Any]:
     event = {
         "tool": tool,
         "sessionID": session,
@@ -67,7 +69,10 @@ def _after(tool: str = "shell", call: str = "c1", session: str = "main", **tool_
         "id": call,
         "input": tool_input or {"command": "ls"},
         "status": "completed",
-        "result": {"output": {"exitCode": 0}, "content": [{"type": "text", "text": "done"}]},
+        "result": {
+            "output": {"exitCode": 0} if output is Ellipsis else output,
+            "content": [{"type": "text", "text": "done"}],
+        },
     }
     return {"hook": "tool.execute.after", "event": event}
 
@@ -131,6 +136,21 @@ class TestOpencodePlugin:
             {"type": "text", "text": "before\n\nafter"},
         ]
         assert payloads[1]["tool_response"] == {"success": True, "result": "done"}
+
+    @pytest.mark.parametrize(
+        ("tool", "output", "success"),
+        [
+            ("shell", {"exitCode": 1}, False),
+            ("shell", {"exitCode": None}, False),
+            ("shell", {}, False),
+            ("read", "text", True),
+        ],
+    )
+    def test_completed_tool_success_requires_a_zero_shell_exit(
+        self, tmp_path: Path, tool: str, output: object, success: bool
+    ) -> None:
+        _, payloads = _run(tmp_path, "", [_after(tool=tool, output=output)])
+        assert payloads[0]["tool_response"] == {"success": success, "result": "done"}
 
     def test_a_patch_is_checked_once_per_file(self, tmp_path: Path) -> None:
         patch = "*** Begin Patch\n*** Update File: a.py\n@@\n-x\n+y\n*** Add File: b.py\n+z\n*** End Patch"
