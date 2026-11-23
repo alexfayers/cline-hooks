@@ -22,8 +22,9 @@ class TestParseCommand:
         with pytest.raises(bashlex.errors.ParsingError):
             parse_command(command)
 
-    def test_parses_closed_brace_expansions(self) -> None:
-        commands = extract_commands(parse_command('echo "${x:-a}" ${HOME}/y'))
+    @pytest.mark.parametrize("command", ['echo "${x:-a}" ${HOME}/y', 'echo "${x:-a b}"; git push'])
+    def test_parses_closed_brace_expansions(self, command: str) -> None:
+        commands = extract_commands(parse_command(command))
         assert commands[0].name == "echo"
 
 

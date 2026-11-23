@@ -14,14 +14,14 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("hooks.commands")
 
-_SHELL_WORD_END = r"\s;&|<>()`"
-_UNCLOSED_BRACE_EXPANSION = re.compile(rf"\$\{{[^}}{_SHELL_WORD_END}]*(?:[{_SHELL_WORD_END}]|\Z)")
+_ESCAPE_OR_SINGLE_QUOTED = re.compile(r"\\.|'([^']*)'?", re.DOTALL)
+_UNCLOSED_BRACE_EXPANSION = re.compile(r"\$\{[^}]*\Z")
 
 
 def parse_command(command: str) -> list[bashlex.ast.node]:
     """Parse a shell command with bashlex, rejecting input bashlex cannot finish parsing.
 
-    Rejects a `${` with no `}` before the next shell metacharacter, which bashlex parses forever.
+    Rejects a `${` with no `}` before the end of its single-quoted string, which bashlex parses forever.
 
     Returns:
         The parsed bashlex nodes.
@@ -31,10 +31,10 @@ def parse_command(command: str) -> list[bashlex.ast.node]:
     """
     import bashlex.errors  # ruff: ignore[import-outside-top-level]
 
-    match = _UNCLOSED_BRACE_EXPANSION.search(command)
-    if match:
-        msg = "unclosed ${"
-        raise bashlex.errors.ParsingError(msg, command, match.start())
+    for match in _ESCAPE_OR_SINGLE_QUOTED.finditer(command):
+        if match[1] and _UNCLOSED_BRACE_EXPANSION.search(match[1]):
+            msg = "unclosed ${"
+            raise bashlex.errors.ParsingError(msg, command, match.start())
     nodes: list[bashlex.ast.node] = bashlex.parse(command)
     return nodes
 
