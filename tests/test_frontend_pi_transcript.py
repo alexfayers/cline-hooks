@@ -73,6 +73,12 @@ class TestTurnAssistantText:
         path = _write(tmp_path, _message("1", None, "assistant", text="a"), entry)
         assert _reader.turn_assistant_text(path) == "b"
 
+    def test_skips_a_line_that_is_not_utf8(self, tmp_path: Path) -> None:
+        path = _write(tmp_path, _message("1", None, "assistant", text="a"))
+        with (tmp_path / "session.jsonl").open("ab") as handle:
+            handle.write(b"\xff\n" + json.dumps(_message("2", "1", "assistant", text="b")).encode() + b"\n")
+        assert _reader.turn_assistant_text(path) == "a\nb"
+
     def test_is_empty_for_a_missing_file(self, tmp_path: Path) -> None:
         assert _reader.turn_assistant_text(str(tmp_path / "absent.jsonl")) == ""
 
