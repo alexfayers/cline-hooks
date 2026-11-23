@@ -28,7 +28,7 @@ const ctx = {
     hook: register('session'),
   },
   tool: { hook: register('tool') },
-  mcp: { list: async () => ({ data: [{ name: 'my.memory', status: 'connected' }] }) },
+  mcp: { list: async () => ({ data: [{ name: 'my', status: 'connected' }, { name: 'my.memory', status: 'connected' }] }) },
 }
 const plugin = (await import(pathToFileURL(script).href)).default
 await plugin.setup(ctx)

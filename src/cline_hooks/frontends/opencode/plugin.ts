@@ -179,7 +179,8 @@ async function setup(ctx: Context) {
 
   const toolName = async (tool: string) => {
     mcpServers ??= ctx.mcp.list().then(
-      (result) => (result.data ?? []).map((server) => server.name),
+      (result) =>
+        (result.data ?? []).map((server) => server.name).sort((a, b) => sanitize(b).length - sanitize(a).length),
       () => [],
     );
     for (const server of await mcpServers) {
