@@ -127,11 +127,19 @@ def test_a_pi_context_writer_sends_its_worktree_as_the_cwd(tmp_path: Path, monke
 
 
 def test_a_hook_still_running_at_the_timeout_is_killed_and_the_call_allowed(tmp_path: Path) -> None:
-    cases = f'*\'"hook_event_name":"tool_call"\'*) sleep {HUNG_HOOK_SECONDS}; exit 2;;'
+    pid_file = tmp_path / "hung.pid"
+    cases = f'*\'"hook_event_name":"tool_call"\'*) sleep {HUNG_HOOK_SECONDS} & echo $! > {pid_file}; wait; exit 2;;'
     started = time.monotonic()
     result = _run_harness(tmp_path, cases, {"task": "do it"})
     assert result["blocked"] is False
     assert time.monotonic() - started < HUNG_HOOK_SECONDS
+    hung_child = subprocess.run(
+        ["ps", "-o", "stat=", "-p", pid_file.read_text().strip()],  # ruff: ignore[start-process-with-partial-path]
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert hung_child.stdout.strip() in {"", "Z"}
 
 
 def test_a_hook_that_exits_without_reading_its_payload_allows_the_call(tmp_path: Path) -> None:

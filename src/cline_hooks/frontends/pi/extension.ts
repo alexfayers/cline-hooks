@@ -28,9 +28,14 @@ function runHook(ctx: ExtensionContext, payload: Record<string, unknown>): Promi
   return new Promise((resolve) => {
     const child = spawn(BINARY, [], {
       env: { ...process.env, CLINE_HOOKS_FRONTEND: "pi" },
-      timeout: HOOK_TIMEOUT_MS,
-      killSignal: "SIGKILL",
+      detached: true,
     });
+    const timer = setTimeout(() => {
+      if (child.pid === undefined) return;
+      try {
+        process.kill(-child.pid, "SIGKILL");
+      } catch {}
+    }, HOOK_TIMEOUT_MS);
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk) => (stdout += chunk));
@@ -38,6 +43,7 @@ function runHook(ctx: ExtensionContext, payload: Record<string, unknown>): Promi
     child.on("error", () => resolve({ blocked: false, message: "" }));
     child.stdin.on("error", () => {});
     child.on("exit", (_code, signal) => {
+      clearTimeout(timer);
       if (!signal) return;
       child.stdout.destroy();
       child.stderr.destroy();
