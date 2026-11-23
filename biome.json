@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.0.0/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.6.8/schema.json",
   "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 120 },
   "files": { "includes": ["src/cline_hooks/frontends/pi/extension.ts", "src/cline_hooks/frontends/opencode/plugin.ts"] }
 }
