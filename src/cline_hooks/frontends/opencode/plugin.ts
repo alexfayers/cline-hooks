@@ -236,7 +236,7 @@ async function setup(ctx: Context) {
   });
 
   await ctx.tool.hook("execute.before", async (event) => {
-    if (event.agent && !agents.has(event.sessionID)) agents.set(event.sessionID, event.agent);
+    if (event.agent) agents.set(event.sessionID, event.agent);
     const inputs = inputsOf(event);
     const messages: string[] = [];
     for (const input of inputs) {
@@ -251,8 +251,9 @@ async function setup(ctx: Context) {
       if (message) messages.push(message);
     }
     const input = record(event.input);
-    if (event.tool === "subagent" && !input.sessionID && typeof input.agent === "string") {
-      spawning.set(event.sessionID, [...(spawning.get(event.sessionID) ?? []), input.agent]);
+    if (event.tool === "subagent" && typeof input.agent === "string") {
+      if (typeof input.sessionID === "string") agents.set(input.sessionID, input.agent);
+      else spawning.set(event.sessionID, [...(spawning.get(event.sessionID) ?? []), input.agent]);
     }
     if (messages.length) notes.set(event.id, messages);
   });
