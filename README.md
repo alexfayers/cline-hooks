@@ -51,7 +51,7 @@
 | src/cline\_hooks/frontends/pi/install.py                |       14 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/frontends/pi/models.py                 |       62 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/frontends/pi/protocol.py               |       38 |        1 |        4 |        1 |     95% |       115 |
-| src/cline\_hooks/frontends/pi/transcript.py             |       51 |        4 |       16 |        2 |     91% |78-79, 87, 96 |
+| src/cline\_hooks/frontends/pi/transcript.py             |       55 |        2 |       18 |        3 |     93% |72-\>67, 93, 102 |
 | src/cline\_hooks/handlers/\_\_init\_\_.py               |        3 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/handlers/commands.py                   |      210 |        6 |       96 |       10 |     95% |262, 277, 304, 348, 352, 396, 403-\>401, 405-\>401, 407-\>401, 408-\>407 |
 | src/cline\_hooks/handlers/context\_nudge.py             |        7 |        0 |        2 |        0 |    100% |           |
@@ -118,7 +118,7 @@
 | tests/test\_frontend\_conformance.py                    |      100 |        1 |       14 |        1 |     98% |        88 |
 | tests/test\_frontend\_normalisation.py                  |      383 |        0 |        4 |        0 |    100% |           |
 | tests/test\_frontend\_opencode.py                       |       62 |        0 |        2 |        0 |    100% |           |
-| tests/test\_frontend\_pi\_transcript.py                 |       39 |        0 |        4 |        0 |    100% |           |
+| tests/test\_frontend\_pi\_transcript.py                 |       52 |        0 |        4 |        0 |    100% |           |
 | tests/test\_handlers\_commands.py                       |       84 |        0 |        0 |        0 |    100% |           |
 | tests/test\_handlers\_context\_nudge.py                 |      113 |        0 |        0 |        0 |    100% |           |
 | tests/test\_handlers\_git\_context.py                   |       48 |        0 |        2 |        0 |    100% |           |
@@ -175,7 +175,7 @@
 | tests/test\_uninstall.py                                |       46 |        0 |        0 |        0 |    100% |           |
 | tests/test\_user\_install.py                            |       53 |        0 |        4 |        0 |    100% |           |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **13128** |  **173** | **1572** |  **101** | **98%** |           |
+| **TOTAL**                                               | **13145** |  **171** | **1574** |  **102** | **98%** |           |
 
 
 ## Setup coverage badge
