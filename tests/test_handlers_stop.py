@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import json
 from typing import TYPE_CHECKING, cast
 from unittest.mock import patch
@@ -109,7 +110,7 @@ def _run_payload(payload: dict[str, object]) -> str:
     """
     output: list[str] = []
     with (
-        patch("builtins.input", return_value=json.dumps(payload)),
+        patch("sys.stdin", io.StringIO(json.dumps(payload))),
         patch("builtins.print", side_effect=lambda s, **kw: output.append(str(s))),
         patch.dict("os.environ", {}, clear=True),
         pytest.raises(SystemExit),

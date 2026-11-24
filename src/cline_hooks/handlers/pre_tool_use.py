@@ -18,7 +18,7 @@ from cline_hooks.core.vocabulary import (
     CanonicalTool,
     PluginScope,
 )
-from cline_hooks.handlers.commands import check_rules, extract_commands
+from cline_hooks.handlers.commands import check_rules, extract_commands, parse_command
 from cline_hooks.plugins.command_rules import CommandRulesSpec
 from cline_hooks.state.store import TaskStateStore
 
@@ -82,7 +82,7 @@ def _pre_shell(hook: HookInputPreToolUse, fields: PreToolUseFields, plugins: lis
     import bashlex.errors  # ruff: ignore[import-outside-top-level]
 
     try:
-        parsed = bashlex.parse(command)
+        parsed = parse_command(command)
     except (bashlex.errors.ParsingError, NotImplementedError):
         logger.debug("Failed to parse command (unsupported shell syntax): %s", command)
         return Outcome()

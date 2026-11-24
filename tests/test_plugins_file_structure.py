@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import io
+import json
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -68,7 +70,7 @@ def test_notes_a_new_file_from_a_frontend_payload(tmp_path: Path, capsys: pytest
 
     with (
         plugins_override([FileStructurePlugin()]),
-        patch("builtins.input", return_value=fixture),
+        patch("sys.stdin", io.StringIO(json.dumps(json.loads(fixture)))),
         pytest.raises(SystemExit),
     ):
         _run_hook()

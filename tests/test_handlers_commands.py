@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import bashlex
+import bashlex.errors
 import pytest
 
 from cline_hooks.handlers.commands import (
@@ -11,29 +11,40 @@ from cline_hooks.handlers.commands import (
     extract_replacement_blocks,
     is_git_push,
     is_read_only_git,
+    parse_command,
     strip_strings,
 )
 
 
+class TestParseCommand:
+    def test_rejects_an_unclosed_brace_expansion(self) -> None:
+        with pytest.raises(bashlex.errors.ParsingError):
+            parse_command("echo a'${b' x}")
+
+    def test_parses_closed_brace_expansions(self) -> None:
+        commands = extract_commands(parse_command('echo "${x:-a b}"; git push'))
+        assert [cmd.name for cmd in commands] == ["echo", "git"]
+
+
 class TestExtractCommands:
     def test_uses_basename_for_absolute_path_commands(self) -> None:
-        commands = extract_commands(bashlex.parse("/usr/bin/git push"))
+        commands = extract_commands(parse_command("/usr/bin/git push"))
         assert commands == [ParsedCommand(name="git", flags=[], args=["push"])]
 
     def test_uses_bare_name_unchanged(self) -> None:
-        commands = extract_commands(bashlex.parse("git push"))
+        commands = extract_commands(parse_command("git push"))
         assert commands == [ParsedCommand(name="git", flags=[], args=["push"])]
 
     def test_records_every_word_in_order(self) -> None:
-        commands = extract_commands(bashlex.parse("find . -maxdepth 2 -name x"))
+        commands = extract_commands(parse_command("find . -maxdepth 2 -name x"))
         assert commands[0].words == [".", "-maxdepth", "2", "-name", "x"]
 
     def test_skips_leading_variable_assignments(self) -> None:
-        commands = extract_commands(bashlex.parse("GIT_SEQUENCE_EDITOR=: git rebase -i x"))
+        commands = extract_commands(parse_command("GIT_SEQUENCE_EDITOR=: git rebase -i x"))
         assert [(cmd.name, cmd.words) for cmd in commands] == [("git", ["rebase", "-i", "x"])]
 
     def test_skips_leading_redirects(self) -> None:
-        commands = extract_commands(bashlex.parse("GIT_EDITOR=true >log git commit -m x"))
+        commands = extract_commands(parse_command("GIT_EDITOR=true >log git commit -m x"))
         assert [(cmd.name, cmd.words, cmd.redirect_outputs) for cmd in commands] == [
             ("git", ["commit", "-m", "x"], ["log"])
         ]
@@ -125,7 +136,7 @@ class TestIsReadOnlyGit:
         ],
     )
     def test_matches_only_read_only_git_subcommands(self, command: str, expected: bool) -> None:
-        assert is_read_only_git(extract_commands(bashlex.parse(command))[0]) is expected
+        assert is_read_only_git(extract_commands(parse_command(command))[0]) is expected
 
 
 class TestSplitGitWords:

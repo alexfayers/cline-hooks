@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, cast
 
 from cline_hooks.core.plugin import HookResult, HooksPlugin
 from cline_hooks.core.vocabulary import PluginScope
-from cline_hooks.handlers.commands import extract_commands, is_git_push
+from cline_hooks.handlers.commands import extract_commands, is_git_push, parse_command
 from cline_hooks.handlers.herdr_guard import removed_worktree_paths, workspace_linking
 from cline_hooks.handlers.push_guard import marker_above_repo
 from cline_hooks.handlers.search_scope import MAX_SCAN_ENTRIES, MAX_SCAN_SECONDS, find_oversized_search
@@ -30,7 +30,7 @@ def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | N
     import bashlex.errors  # ruff: ignore[import-outside-top-level]
 
     try:
-        parsed = bashlex.parse(command)
+        parsed = parse_command(command)
     except (bashlex.errors.ParsingError, NotImplementedError):
         return None
     commands = extract_commands(parsed)

@@ -164,7 +164,7 @@ def use_plugins() -> Iterator[Callable[..., None]]:
 
 
 FAKE_PLUGIN_PREFIX = "fakeep_"
-UNSUPPORTED_SYNTAX = ["echo $((1+2))", "case x in a) echo hi;; esac"]
+UNSUPPORTED_SYNTAX = ["echo $((1+2))", "case x in a) echo hi;; esac", "echo a'${b' x}"]
 
 
 @pytest.fixture

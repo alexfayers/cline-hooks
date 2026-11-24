@@ -14,6 +14,30 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("hooks.commands")
 
+_ESCAPE_OR_SINGLE_QUOTED = re.compile(r"\\.|'([^']*)'?", re.DOTALL)
+_UNCLOSED_BRACE_EXPANSION = re.compile(r"\$\{[^}]*\Z")
+
+
+def parse_command(command: str) -> list[bashlex.ast.node]:
+    """Parse a shell command with bashlex, rejecting input bashlex cannot finish parsing.
+
+    Rejects a `${` with no `}` before the end of its single-quoted string, which bashlex parses forever.
+
+    Returns:
+        The parsed bashlex nodes.
+
+    Raises:
+        bashlex.errors.ParsingError: The command has an unclosed `${`, or bashlex rejects it.
+    """
+    import bashlex.errors  # ruff: ignore[import-outside-top-level]
+
+    for match in _ESCAPE_OR_SINGLE_QUOTED.finditer(command):
+        if match[1] and _UNCLOSED_BRACE_EXPANSION.search(match[1]):
+            msg = "unclosed ${"
+            raise bashlex.errors.ParsingError(msg, command, match.start())
+    nodes: list[bashlex.ast.node] = bashlex.parse(command)
+    return nodes
+
 
 @dataclass(frozen=True)
 class CommandRule:

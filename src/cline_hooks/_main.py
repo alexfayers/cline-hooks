@@ -3,9 +3,13 @@ from __future__ import annotations
 import argparse
 import logging
 from logging.handlers import RotatingFileHandler
+import os
+import resource
+import signal
 import sys
 from typing import TYPE_CHECKING, NoReturn
 
+from cline_hooks.config import get_max_memory_mb
 from cline_hooks.core.frontend import select_protocol
 from cline_hooks.core.install import binary_names
 from cline_hooks.core.protocol import Protocol, RawPayload, set_protocol
@@ -16,6 +20,8 @@ from cline_hooks.state.paths import get_data_dir
 from cline_hooks.uninstall import uninstall_cline, uninstall_copilot
 
 if TYPE_CHECKING:
+    from types import FrameType
+
     from cline_hooks.core.models import HookInput
 
 
@@ -44,6 +50,12 @@ _invocation_filter = _InvocationContextFilter()
 
 _LOG_MAX_BYTES = 10 * 1024 * 1024
 _LOG_BACKUP_COUNT = 3
+_BYTES_PER_MB = 1024 * 1024
+_HOOK_CPU_SECONDS = 30
+_CPU_KILL_GRACE_SECONDS = 5
+_MAX_PAYLOAD_CHARS = 16 * 1024 * 1024
+_GIT_PACK_SHARE_OF_MEMORY = 4
+_GIT_PACK_WINDOW_MB = 32
 
 logger = logging.getLogger("hooks")
 
@@ -61,6 +73,67 @@ def _configure_logging() -> None:
         datefmt="%Y-%m-%dT%H:%M:%S",
     )
     logging.root.handlers[0].addFilter(_invocation_filter)
+
+
+class _CpuTimeExceededError(BaseException):
+    """The hook process used up its CPU time."""
+
+
+def _raise_cpu_time_exceeded(_signum: int, _frame: FrameType | None) -> NoReturn:
+    raise _CpuTimeExceededError
+
+
+def _within_hard_limit(limit: int, value: int) -> int:
+    """Return `value`, lowered to the resource's current hard limit.
+
+    Returns:
+        The value the resource limit can be set to.
+    """
+    hard = resource.getrlimit(limit)[1]
+    return value if hard == resource.RLIM_INFINITY else min(value, hard)
+
+
+def _fit_git_in_memory_cap(max_memory_mb: int) -> None:
+    """Make git child processes, which inherit the address-space cap, map pack files in windows that fit it."""
+    pack_limit_mb = max_memory_mb // _GIT_PACK_SHARE_OF_MEMORY
+    settings = {
+        "core.packedGitLimit": f"{pack_limit_mb}m",
+        "core.packedGitWindowSize": f"{min(_GIT_PACK_WINDOW_MB, pack_limit_mb)}m",
+    }
+    raw_count = os.environ.get("GIT_CONFIG_COUNT", "")
+    count = int(raw_count) if raw_count.isdigit() else 0
+    for index, (key, value) in enumerate(settings.items(), start=count):
+        os.environ[f"GIT_CONFIG_KEY_{index}"] = key
+        os.environ[f"GIT_CONFIG_VALUE_{index}"] = value
+    os.environ["GIT_CONFIG_COUNT"] = str(count + len(settings))
+
+
+def _limit_resources() -> None:
+    """Cap this process's address space and CPU time, raising _CpuTimeExceededError at the CPU cap."""
+    signal.signal(signal.SIGXCPU, _raise_cpu_time_exceeded)
+    max_memory_mb = get_max_memory_mb()
+    _fit_git_in_memory_cap(max_memory_mb)
+    memory_hard = resource.getrlimit(resource.RLIMIT_AS)[1]
+    resource.setrlimit(
+        resource.RLIMIT_AS, (_within_hard_limit(resource.RLIMIT_AS, max_memory_mb * _BYTES_PER_MB), memory_hard)
+    )
+    resource.setrlimit(
+        resource.RLIMIT_CPU,
+        (
+            _within_hard_limit(resource.RLIMIT_CPU, _HOOK_CPU_SECONDS),
+            _within_hard_limit(resource.RLIMIT_CPU, _HOOK_CPU_SECONDS + _CPU_KILL_GRACE_SECONDS),
+        ),
+    )
+
+
+def _tool_name(hook: HookInput) -> str:
+    """Return the tool a hook is about, or "-" for a hook about no tool.
+
+    Returns:
+        The tool name.
+    """
+    fields = getattr(hook, "preToolUse", None) or getattr(hook, "postToolUse", None)
+    return str(getattr(fields, "toolName", "-"))
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -133,8 +206,14 @@ def _parse_hook(payload: RawPayload) -> tuple[Protocol, HookInput]:
 def _run_hook() -> NoReturn:
     """Read hook input from stdin and dispatch to the appropriate handler."""
     logger.debug("=== start ===")
+    raw = sys.stdin.readline(_MAX_PAYLOAD_CHARS + 1)
+    if len(raw) > _MAX_PAYLOAD_CHARS:
+        logger.warning("Allowed a hook payload over %d characters without reading it", _MAX_PAYLOAD_CHARS)
+        unread = RawPayload.from_stdin("")
+        set_protocol(select_protocol(unread).from_payload(unread))
+        allow()
     try:
-        payload = RawPayload.from_stdin(input())
+        payload = RawPayload.from_stdin(raw.removesuffix("\n"))
         proto, hook = _parse_hook(payload)
     except Exception:
         logger.exception("Failed to parse hook input")
@@ -146,7 +225,12 @@ def _run_hook() -> NoReturn:
 
     handler = HOOK_HANDLERS.get(hook.hookName)
     if handler is not None:
-        outcome = handler(hook)
+        try:
+            outcome = handler(hook)
+        except (MemoryError, _CpuTimeExceededError) as error:
+            resource_name = "memory" if isinstance(error, MemoryError) else "CPU time"
+            logger.warning("Allowed %s for %s: the hook ran out of %s", hook.hookName, _tool_name(hook), resource_name)
+            allow()
         if outcome is not None:
             emit(outcome)
 
@@ -200,6 +284,7 @@ def main() -> NoReturn:  # ruff: ignore[too-many-branches]
     """Entrypoint - dispatches to install subcommands or hook processing."""
     _configure_logging()
     if len(sys.argv) == 1:
+        _limit_resources()
         _run_hook()
 
     args = _build_parser().parse_args()
@@ -248,6 +333,7 @@ def main() -> NoReturn:  # ruff: ignore[too-many-branches]
         release(args.session, args.path)
         sys.exit(0)
 
+    _limit_resources()
     _run_hook()
 
 
