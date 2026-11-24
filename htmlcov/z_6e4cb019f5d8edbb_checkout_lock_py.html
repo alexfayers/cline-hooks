@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_6e4cb019f5d8edbb_command_rules_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.17.3">coverage.py v7.17.3</a>,
-            created at 2026-11-24 06:36 +0000
+            created at 2026-11-24 15:22 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -98,7 +98,7 @@
     <p class="run"><span class="n"><a id="t14" href="#t14">14</a></span><span class="t"><span class="key">from</span> <span class="nam">cline_hooks</span><span class="op">.</span><span class="nam">core</span><span class="op">.</span><span class="nam">plugin</span> <span class="key">import</span> <span class="nam">HookResult</span><span class="op">,</span> <span class="nam">HooksPlugin</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t15" href="#t15">15</a></span><span class="t"><span class="key">from</span> <span class="nam">cline_hooks</span><span class="op">.</span><span class="nam">core</span><span class="op">.</span><span class="nam">protocol</span> <span class="key">import</span> <span class="nam">get_protocol</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t16" href="#t16">16</a></span><span class="t"><span class="key">from</span> <span class="nam">cline_hooks</span><span class="op">.</span><span class="nam">core</span><span class="op">.</span><span class="nam">vocabulary</span> <span class="key">import</span> <span class="nam">FILE_EDIT_TOOLS</span><span class="op">,</span> <span class="nam">CanonicalHook</span><span class="op">,</span> <span class="nam">PluginScope</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t17" href="#t17">17</a></span><span class="t"><span class="key">from</span> <span class="nam">cline_hooks</span><span class="op">.</span><span class="nam">handlers</span><span class="op">.</span><span class="nam">commands</span> <span class="key">import</span> <span class="nam">ParsedCommand</span><span class="op">,</span> <span class="nam">extract_commands</span><span class="op">,</span> <span class="nam">is_read_only_git</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t17" href="#t17">17</a></span><span class="t"><span class="key">from</span> <span class="nam">cline_hooks</span><span class="op">.</span><span class="nam">handlers</span><span class="op">.</span><span class="nam">commands</span> <span class="key">import</span> <span class="nam">ParsedCommand</span><span class="op">,</span> <span class="nam">extract_commands</span><span class="op">,</span> <span class="nam">is_read_only_git</span><span class="op">,</span> <span class="nam">parse_command</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t18" href="#t18">18</a></span><span class="t"><span class="key">from</span> <span class="nam">cline_hooks</span><span class="op">.</span><span class="nam">handlers</span><span class="op">.</span><span class="nam">search_scope</span> <span class="key">import</span> <span class="nam">effective_cwd</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t19" href="#t19">19</a></span><span class="t"><span class="key">from</span> <span class="nam">cline_hooks</span><span class="op">.</span><span class="nam">state</span><span class="op">.</span><span class="nam">jsonfile</span> <span class="key">import</span> <span class="nam">updated_json</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t20" href="#t20">20</a></span><span class="t"><span class="key">from</span> <span class="nam">cline_hooks</span><span class="op">.</span><span class="nam">state</span><span class="op">.</span><span class="nam">paths</span> <span class="key">import</span> <span class="nam">get_data_dir</span>&nbsp;</span><span class="r"></span></p>
@@ -231,7 +231,7 @@
     <p class="run"><span class="n"><a id="t147" href="#t147">147</a></span><span class="t">    <span class="key">import</span> <span class="nam">bashlex</span><span class="op">.</span><span class="nam">errors</span>  <span class="com"># ruff: ignore[import-outside-top-level]</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t148" href="#t148">148</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t149" href="#t149">149</a></span><span class="t">    <span class="key">try</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t150" href="#t150">150</a></span><span class="t">        <span class="nam">commands</span> <span class="op">=</span> <span class="nam">extract_commands</span><span class="op">(</span><span class="nam">bashlex</span><span class="op">.</span><span class="nam">parse</span><span class="op">(</span><span class="nam">kwargs</span><span class="op">.</span><span class="nam">command</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t150" href="#t150">150</a></span><span class="t">        <span class="nam">commands</span> <span class="op">=</span> <span class="nam">extract_commands</span><span class="op">(</span><span class="nam">parse_command</span><span class="op">(</span><span class="nam">kwargs</span><span class="op">.</span><span class="nam">command</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t151" href="#t151">151</a></span><span class="t">    <span class="key">except</span> <span class="op">(</span><span class="nam">bashlex</span><span class="op">.</span><span class="nam">errors</span><span class="op">.</span><span class="nam">ParsingError</span><span class="op">,</span> <span class="nam">NotImplementedError</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t152" href="#t152">152</a></span><span class="t">        <span class="key">return</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t153" href="#t153">153</a></span><span class="t">    <span class="key">for</span> <span class="nam">index</span><span class="op">,</span> <span class="nam">command</span> <span class="key">in</span> <span class="nam">enumerate</span><span class="op">(</span><span class="nam">commands</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
@@ -278,7 +278,7 @@
             <a class="nav" href="z_6e4cb019f5d8edbb_command_rules_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.17.3">coverage.py v7.17.3</a>,
-            created at 2026-11-24 06:36 +0000
+            created at 2026-11-24 15:22 +0000
         </p>
     </div>
 </footer>

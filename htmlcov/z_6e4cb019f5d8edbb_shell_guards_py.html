@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_6e4cb019f5d8edbb_skill_guard_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.17.3">coverage.py v7.17.3</a>,
-            created at 2026-11-24 06:36 +0000
+            created at 2026-11-24 15:22 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -89,7 +89,7 @@
     <p class="pln"><span class="n"><a id="t5" href="#t5">5</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t6" href="#t6">6</a></span><span class="t"><span class="key">from</span> <span class="nam">cline_hooks</span><span class="op">.</span><span class="nam">core</span><span class="op">.</span><span class="nam">plugin</span> <span class="key">import</span> <span class="nam">HookResult</span><span class="op">,</span> <span class="nam">HooksPlugin</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t7" href="#t7">7</a></span><span class="t"><span class="key">from</span> <span class="nam">cline_hooks</span><span class="op">.</span><span class="nam">core</span><span class="op">.</span><span class="nam">vocabulary</span> <span class="key">import</span> <span class="nam">PluginScope</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t8" href="#t8">8</a></span><span class="t"><span class="key">from</span> <span class="nam">cline_hooks</span><span class="op">.</span><span class="nam">handlers</span><span class="op">.</span><span class="nam">commands</span> <span class="key">import</span> <span class="nam">extract_commands</span><span class="op">,</span> <span class="nam">is_git_push</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t8" href="#t8">8</a></span><span class="t"><span class="key">from</span> <span class="nam">cline_hooks</span><span class="op">.</span><span class="nam">handlers</span><span class="op">.</span><span class="nam">commands</span> <span class="key">import</span> <span class="nam">extract_commands</span><span class="op">,</span> <span class="nam">is_git_push</span><span class="op">,</span> <span class="nam">parse_command</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t9" href="#t9">9</a></span><span class="t"><span class="key">from</span> <span class="nam">cline_hooks</span><span class="op">.</span><span class="nam">handlers</span><span class="op">.</span><span class="nam">herdr_guard</span> <span class="key">import</span> <span class="nam">removed_worktree_paths</span><span class="op">,</span> <span class="nam">workspace_linking</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t10" href="#t10">10</a></span><span class="t"><span class="key">from</span> <span class="nam">cline_hooks</span><span class="op">.</span><span class="nam">handlers</span><span class="op">.</span><span class="nam">push_guard</span> <span class="key">import</span> <span class="nam">marker_above_repo</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t11" href="#t11">11</a></span><span class="t"><span class="key">from</span> <span class="nam">cline_hooks</span><span class="op">.</span><span class="nam">handlers</span><span class="op">.</span><span class="nam">search_scope</span> <span class="key">import</span> <span class="nam">MAX_SCAN_ENTRIES</span><span class="op">,</span> <span class="nam">MAX_SCAN_SECONDS</span><span class="op">,</span> <span class="nam">find_oversized_search</span>&nbsp;</span><span class="r"></span></p>
@@ -114,7 +114,7 @@
     <p class="run"><span class="n"><a id="t30" href="#t30">30</a></span><span class="t">    <span class="key">import</span> <span class="nam">bashlex</span><span class="op">.</span><span class="nam">errors</span>  <span class="com"># ruff: ignore[import-outside-top-level]</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t31" href="#t31">31</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t32" href="#t32">32</a></span><span class="t">    <span class="key">try</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t33" href="#t33">33</a></span><span class="t">        <span class="nam">parsed</span> <span class="op">=</span> <span class="nam">bashlex</span><span class="op">.</span><span class="nam">parse</span><span class="op">(</span><span class="nam">command</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t33" href="#t33">33</a></span><span class="t">        <span class="nam">parsed</span> <span class="op">=</span> <span class="nam">parse_command</span><span class="op">(</span><span class="nam">command</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t34" href="#t34">34</a></span><span class="t">    <span class="key">except</span> <span class="op">(</span><span class="nam">bashlex</span><span class="op">.</span><span class="nam">errors</span><span class="op">.</span><span class="nam">ParsingError</span><span class="op">,</span> <span class="nam">NotImplementedError</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t35" href="#t35">35</a></span><span class="t">        <span class="key">return</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t36" href="#t36">36</a></span><span class="t">    <span class="nam">commands</span> <span class="op">=</span> <span class="nam">extract_commands</span><span class="op">(</span><span class="nam">parsed</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
@@ -184,7 +184,7 @@
             <a class="nav" href="z_6e4cb019f5d8edbb_skill_guard_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.17.3">coverage.py v7.17.3</a>,
-            created at 2026-11-24 06:36 +0000
+            created at 2026-11-24 15:22 +0000
         </p>
     </div>
 </footer>
