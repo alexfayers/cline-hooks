@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.0](https://github.com/alexfayers/cline-hooks/compare/v0.2.3...v0.3.0) (2026-11-24)
+
+
+### Features
+
+* add opencode 2.x frontend and bridge plugin ([#194](https://github.com/alexfayers/cline-hooks/issues/194)) ([2fcce78](https://github.com/alexfayers/cline-hooks/commit/2fcce78ecbebd8c8408353b87157448fb389aaec))
+
+
+### Miscellaneous Chores
+
+* **deps:** refresh fayers-configs source ([#223](https://github.com/alexfayers/cline-hooks/issues/223)) ([a86e916](https://github.com/alexfayers/cline-hooks/commit/a86e9168c6f4fac9325a948f6909c7d5f6219625))
+* **deps:** update all non-major dependencies ([#219](https://github.com/alexfayers/cline-hooks/issues/219)) ([7d4c5d9](https://github.com/alexfayers/cline-hooks/commit/7d4c5d9177b888a409c9275f3c650e1cfa46307f))
+* **deps:** update github actions ([#221](https://github.com/alexfayers/cline-hooks/issues/221)) ([09ad74e](https://github.com/alexfayers/cline-hooks/commit/09ad74ee1b22c2891d03a58d2f535f240e23e0eb))
+* match the Biome schema to the locked version ([#222](https://github.com/alexfayers/cline-hooks/issues/222)) ([ce33e59](https://github.com/alexfayers/cline-hooks/commit/ce33e5963d9a27fe6dac69ae256d3dc0dca07eb4))
+
 ## [0.2.3](https://github.com/alexfayers/cline-hooks/compare/v0.2.2...v0.2.3) (2026-11-23)
 
 
