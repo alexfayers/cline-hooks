@@ -8,10 +8,17 @@ from cline_hooks.core.vocabulary import PluginScope
 from cline_hooks.handlers.commands import extract_commands, is_git_push, parse_command
 from cline_hooks.handlers.herdr_guard import removed_worktree_paths, workspace_linking
 from cline_hooks.handlers.push_guard import marker_above_repo
-from cline_hooks.handlers.search_scope import MAX_SCAN_ENTRIES, MAX_SCAN_SECONDS, find_oversized_search
+from cline_hooks.handlers.search_scope import (
+    MAX_SCAN_ENTRIES,
+    MAX_SCAN_SECONDS,
+    find_oversized_search,
+    scope_oversized_searches,
+)
 
 if TYPE_CHECKING:
     import logging
+
+    from pydantic import JsonValue
 
 
 def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | None:
@@ -61,6 +68,11 @@ def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | N
         )
     scope = find_oversized_search(commands, session_cwd)
     if scope:
+        scoped = scope_oversized_searches(command, session_cwd, workspace_roots)
+        if scoped is not None:
+            logger.debug("Gave an oversized recursive search a smaller directory as its path")
+            parameters = cast("dict[str, JsonValue]", kwargs.get("parameters") or {})
+            return HookResult(updated_input={**parameters, "command": scoped})
         logger.debug("Blocked oversized recursive search")
         return HookResult(
             block=(

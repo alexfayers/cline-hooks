@@ -14,6 +14,7 @@ from cline_hooks.handlers.search_scope import (
     effective_cwd,
     find_oversized_search,
     is_home_or_above,
+    scope_oversized_searches,
     search_scope,
 )
 
@@ -37,6 +38,11 @@ def small_cap(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def _oversized(command: str, session_cwd: Path | str = CWD) -> SearchScope | None:
     return find_oversized_search(extract_commands(parse_command(command)), str(session_cwd))
+
+
+def _summary(scope: SearchScope | None) -> tuple[str, tuple[str, ...], int | None, bool]:
+    assert scope is not None
+    return scope.tool, scope.roots, scope.max_depth, scope.respects_ignores
 
 
 def _scope(command: str, cwd: str = CWD) -> SearchScope | None:
@@ -110,11 +116,33 @@ class TestSearchScope:
         assert scope.respects_ignores is respects
 
     def test_expands_home_and_variables(self, fake_home: Path) -> None:
-        assert _scope("rg --max-depth 2 foo ~") == SearchScope("rg", (str(fake_home),), 2, True)
-        assert _scope('rg foo "$HOME"') == SearchScope("rg", (str(fake_home),), None, True)
-        assert _scope("rg foo ${HOME}/a") == SearchScope("rg", (f"{fake_home}/a",), None, True)
-        assert _scope("fd -d 2 foo ~/x") == SearchScope("fd", (f"{fake_home}/x",), 2, True)
-        assert _scope("find ~ -maxdepth 1 -type d") == SearchScope("find", (str(fake_home),), 1, False)
+        assert _summary(_scope("rg --max-depth 2 foo ~")) == ("rg", (str(fake_home),), 2, True)
+        assert _summary(_scope('rg foo "$HOME"')) == ("rg", (str(fake_home),), None, True)
+        assert _summary(_scope("rg foo ${HOME}/a")) == ("rg", (f"{fake_home}/a",), None, True)
+        assert _summary(_scope("fd -d 2 foo ~/x")) == ("fd", (f"{fake_home}/x",), 2, True)
+        assert _summary(_scope("find ~ -maxdepth 1 -type d")) == ("find", (str(fake_home),), 1, False)
+
+    @pytest.mark.parametrize(
+        ("command", "roots"),
+        [
+            ("fd foo", ("/w",)),
+            ("fd -C /a foo", ("/a",)),
+            ("fd -C/a foo", ("/a",)),
+            ("fd -tf -C /a foo", ("/a",)),
+            ("fd --base-directory /a foo", ("/a",)),
+            ("fd --base-directory=src foo", ("/w/src",)),
+            ("fd -C /a foo sub", ("/a/sub",)),
+            ("fd -C /a foo /b", ("/b",)),
+            ("fd -C /a foo --search-path sub", ("/a/sub",)),
+            ("fd -C $UNSET_BASE_VARIABLE_XYZ foo", ("/w",)),
+            ("rg -C 2 foo", ("/w",)),
+            ("grep -rC2 foo", ("/w",)),
+        ],
+    )
+    def test_resolves_search_paths_against_the_fd_base_directory(self, command: str, roots: tuple[str, ...]) -> None:
+        scope = _scope(command)
+        assert scope is not None
+        assert scope.roots == roots
 
     def test_unresolved_variable_falls_back_to_cwd(self) -> None:
         scope = _scope("rg foo $UNSET_SEARCH_ROOT_VARIABLE_XYZ")
@@ -284,3 +312,113 @@ class TestFindOversizedSearch:
             assert time.monotonic() - started < 1
         finally:
             release.set()
+
+
+WORKSPACE = "/fake/repo"
+RG_SHAPES = [
+    "rg foo",
+    "rg -n foo",
+    "rg -ie foo",
+    "rg -A3 foo",
+    "rg -C 2 foo",
+    "rg -r bar foo",
+    "rg foo -g '*.py'",
+    "rg -g '*.py' foo",
+    "rg -t py foo",
+    "rg --type py foo",
+    "rg 'a b' --max-count=1",
+    "rg -e foo",
+    "rg -e foo -e bar",
+    "rg --regexp foo",
+    "rg --regexp=foo",
+    "rg -f patterns.txt",
+    "rg --files",
+    "rg --files -g '*.py'",
+    "rg -- -foo",
+]
+GREP_SHAPES = [
+    "grep -r foo",
+    "grep -rn foo",
+    "grep -R foo",
+    "grep --recursive foo",
+    "grep -d recurse foo",
+    "grep --directories=recurse foo",
+    "grep -r -e foo",
+    "grep -re foo",
+    "grep -rf patterns.txt",
+    "grep -rA3 foo",
+    "grep -r -A 3 foo",
+    "grep -r -m 1 foo",
+    "grep -r --include '*.py' foo",
+    "grep -r --include=*.py foo",
+    "grep --exclude-dir node_modules -r foo",
+    "egrep -r 'a|b'",
+    "fgrep -r foo",
+]
+FD_PATTERNLESS_SHAPES = [
+    "fd",
+    "fd -e py",
+    "fd --extension=py",
+    "fd -t f",
+    "fd -H -e py",
+    "fd -g -e py",
+    "fd -F -e py",
+    "fd -e py -E node_modules",
+    "fd -C ~ -e py",
+    "fd --base-directory ~ -e py",
+    "fd --base-directory=~ -e py",
+]
+FD_PATTERN_SHAPES = ["fd foo", "fd -e py foo", "fd -t f -e py foo", "fd -g '*.py'", "fd -E node_modules foo"]
+FIND_SHAPES = [
+    ("find", "find {root}"),
+    ("find -name '*.py'", "find {root} -name '*.py'"),
+    ("find -type f -name x", "find {root} -type f -name x"),
+    ("find -L -name x", "find -L {root} -name x"),
+    ("find -H -L -type f", "find -H -L {root} -type f"),
+    ("find -D tree -name x", "find -D tree {root} -name x"),
+    ("find -O3 -name x", "find -O3 {root} -name x"),
+]
+
+
+class TestScopeOversizedSearches:
+    @pytest.fixture(autouse=True)
+    def workspace(self, fake_home: Path, fake_filesystem: FakeFilesystem) -> None:
+        fake_filesystem.add_files(WORKSPACE, 1)
+
+    def _scoped(self, command: str) -> str | None:
+        return scope_oversized_searches(command, "/fake/home", [WORKSPACE])
+
+    @pytest.mark.parametrize("command", [*RG_SHAPES, *GREP_SHAPES, *FD_PATTERN_SHAPES])
+    def test_appends_the_path_after_the_arguments(self, command: str) -> None:
+        assert self._scoped(command) == f"{command} {WORKSPACE}"
+
+    @pytest.mark.parametrize("command", FD_PATTERNLESS_SHAPES)
+    def test_gives_a_patternless_fd_a_match_all_pattern_before_the_path(self, command: str) -> None:
+        assert self._scoped(command) == f"{command} '' {WORKSPACE}"
+
+    @pytest.mark.parametrize(("command", "scoped"), FIND_SHAPES)
+    def test_inserts_the_path_after_the_global_options_of_find(self, command: str, scoped: str) -> None:
+        assert self._scoped(command) == scoped.format(root=WORKSPACE)
+
+    @pytest.mark.parametrize("command", ["fd -e py -C /fake/repo", "fd -e py --base-directory=/fake/repo foo"])
+    def test_leaves_a_search_scoped_by_the_fd_base_directory_alone(self, command: str) -> None:
+        assert self._scoped(command) == command
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "rg foo ~",
+            "grep -r foo /fake/home",
+            "fd -e py . ~",
+            "fd -e py --search-path ~",
+            "find ~ -name x",
+            "find -L ~ -name x",
+            "fd -e py -x echo {}",
+            "fd -e py -X ls",
+            "fd -e py --exec ls",
+            "ag foo",
+            "ack foo",
+        ],
+    )
+    def test_leaves_a_search_it_cannot_scope_blocked(self, command: str) -> None:
+        assert self._scoped(command) is None
