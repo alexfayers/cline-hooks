@@ -44,6 +44,7 @@ class PreToolUseKwargs(HookKwargs):
     task_id: str = ""
     tool_name: str = ""
     parameters: dict[str, JsonValue] = Field(default_factory=dict)
+    tool_input: dict[str, JsonValue] = Field(default_factory=dict)
     workspace_roots: list[str] = Field(default_factory=list)
     agent_type: str = ""
     agent_id: str | None = None

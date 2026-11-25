@@ -27,7 +27,7 @@ from cline_hooks.core.models import (
     PostToolUseFields,
     PreToolUseFields,
 )
-from cline_hooks.core.protocol import Protocol, RawPayload
+from cline_hooks.core.protocol import Protocol, RawPayload, get_protocol
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
 
 if TYPE_CHECKING:
@@ -225,6 +225,22 @@ def line_range(data: dict[str, Any]) -> dict[str, Any]:
         return {**data, "start_line": offset}
     start = offset if isinstance(offset, int) else 1
     return {**data, "start_line": start, "end_line": start + limit - 1}
+
+
+def rewritten_parameters(tool: str, updated_input: dict[str, Any]) -> dict[str, Any]:
+    """Return a rewritten tool input with the active frontend's derived canonical parameters added.
+
+    Args:
+        tool: The canonical tool name.
+        updated_input: The tool's complete input as a guard rewrote it.
+
+    Returns:
+        The input plus the fields the frontend's parameter model derives from it, such as `diff`.
+    """
+    params_cls = getattr(get_protocol(), "tool_models", {}).get(cast("CanonicalTool", tool))
+    if params_cls is None:
+        return updated_input
+    return {**updated_input, **params_cls.model_validate(updated_input).model_dump(exclude_none=True)}
 
 
 def _tool_parameters(

@@ -70,10 +70,11 @@ class PiPreToolUse(PreToolUseFields):
     """Pi's PreToolUse fields."""
 
     parentToolCallId: str | None = Field(default=None, validation_alias="parent_tool_call_id")
+    toolInput: dict[str, Any] = Field(default_factory=dict, validation_alias="tool_input")
 
     def frontend_kwargs(self) -> dict[str, object]:
-        """Return the parent tool call id as the extra plugin kwargs."""
-        return {"parent_tool_call_id": self.parentToolCallId}
+        """Return the parent tool call id and pi's own tool input as the extra plugin kwargs."""
+        return {"parent_tool_call_id": self.parentToolCallId, "tool_input": self.toolInput}
 
 
 class PiPostToolUse(PostToolUseFields):
