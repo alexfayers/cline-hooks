@@ -124,7 +124,7 @@ def collect_hook_results(plugins: list[HooksPlugin], hook_name: str, **kwargs: o
     """
     kwargs.setdefault("agent", _agent_info(kwargs))
     merged = HookResult()
-    for plugin in plugins:
+    for plugin in sorted(plugins, key=lambda plugin: plugin.runs_last):
         plugin_logger = plugin.logger.getChild(hook_name)
         result = plugin.on_hook(hook_name, logger=plugin_logger, **kwargs)
         if result is None:
@@ -155,10 +155,13 @@ class HooksPlugin:
             extension point, or None if it publishes none.
         handles_peer_messages: Whether this plugin still receives UserPromptSubmit
             events for cross-session peer messages, which all other plugins skip.
+        runs_last: Whether this plugin runs after every plugin that does not set it,
+            so it sees the result of their checks and rewrites.
     """
 
     hookspecs: ClassVar[type | None] = None
     handles_peer_messages: ClassVar[bool] = False
+    runs_last: ClassVar[bool] = False
 
     @property
     def logger(self) -> logging.Logger:
