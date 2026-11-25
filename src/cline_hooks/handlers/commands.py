@@ -60,6 +60,8 @@ class ParsedCommand:
     piped_from: ParsedCommand | None = field(default=None, compare=False, repr=False)
     redirect_outputs: list[str] = field(default_factory=list, compare=False)
     redirect_inputs: list[str] = field(default_factory=list, compare=False)
+    name_end: int = field(default=0, compare=False)
+    word_ends: list[int] = field(default_factory=list, compare=False)
 
 
 def is_git_push(commands: list[ParsedCommand]) -> bool:
@@ -372,6 +374,8 @@ def extract_commands(ast: list[bashlex.ast.node]) -> list[ParsedCommand]:
                 piped_from=parsed_by_node.get(feeder_id) if feeder_id is not None else None,
                 redirect_outputs=_redirect_targets(parts, lambda type_: type_.startswith((">", "&>"))),
                 redirect_inputs=_redirect_targets(parts, lambda type_: type_ == "<"),
+                name_end=parts[name_index].pos[1],
+                word_ends=[part.pos[1] for part in parts[name_index + 1 :] if getattr(part, "kind", None) == "word"],
             )
             parsed_by_node[id(node)] = command
             commands.append(command)

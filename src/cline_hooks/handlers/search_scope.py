@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import os
 from pathlib import Path
+import shlex
+import subprocess
 import threading
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from cline_hooks.handlers.commands import ParsedCommand
+from cline_hooks.handlers.commands import ParsedCommand, extract_commands, parse_command
+from cline_hooks.handlers.git_context import GIT_TIMEOUT_SECONDS
 
 MAX_SCAN_ENTRIES = 20_000
 MAX_SCAN_SECONDS = 0.5
@@ -22,12 +23,103 @@ _PATTERN_TOOLS = _GREP_TOOLS | {"rg", "ag", "ack"} | _FD_TOOLS
 
 _NO_IGNORE_FLAGS = frozenset({"-u", "-uu", "-uuu", "--unrestricted", "--no-ignore", "--hidden", "-."})
 _FD_NO_IGNORE_FLAGS = frozenset({"-H", "-I"})
-_PATTERN_VALUE_FLAGS = frozenset({"-e", "--regexp", "-f", "--file"})
-_COMMON_VALUE_FLAGS = _PATTERN_VALUE_FLAGS | {"-A", "-B", "-C", "-m", "--max-count", "--context"}
-_SCANNER_VALUE_FLAGS = frozenset(
-    {"-g", "--glob", "-t", "--type", "-T", "--type-not", "-E", "--exclude", "-j", "--threads"}
-    | {"-M", "--max-columns", "--max-filesize", "--max-depth", "--depth"}
-)
+_PATTERN_VALUE_FLAGS = frozenset({"--regexp", "--file"})
+_PATTERN_LETTERS = "ef"
+_GREP_VALUE_FLAGS = _PATTERN_VALUE_FLAGS | {
+    "--after-context",
+    "--before-context",
+    "--context",
+    "--max-count",
+    "--include",
+    "--exclude",
+    "--exclude-dir",
+    "--exclude-from",
+    "--label",
+    "--binary-files",
+    "--directories",
+    "--devices",
+}
+_RG_VALUE_FLAGS = _PATTERN_VALUE_FLAGS | {
+    "--after-context",
+    "--before-context",
+    "--context",
+    "--max-count",
+    "--glob",
+    "--iglob",
+    "--type",
+    "--type-not",
+    "--type-add",
+    "--type-clear",
+    "--max-depth",
+    "--max-filesize",
+    "--max-columns",
+    "--threads",
+    "--encoding",
+    "--replace",
+    "--sort",
+    "--sortr",
+    "--pre",
+    "--pre-glob",
+    "--ignore-file",
+    "--colors",
+    "--color",
+    "--context-separator",
+    "--field-context-separator",
+    "--field-match-separator",
+    "--path-separator",
+    "--engine",
+    "--dfa-size-limit",
+    "--regex-size-limit",
+}
+_FD_VALUE_FLAGS = frozenset({
+    "--extension",
+    "--exclude",
+    "--type",
+    "--max-depth",
+    "--min-depth",
+    "--exact-depth",
+    "--size",
+    "--changed-within",
+    "--changed-before",
+    "--newer",
+    "--older",
+    "--owner",
+    "--color",
+    "--threads",
+    "--max-results",
+    "--base-directory",
+    "--search-path",
+    "--ignore-file",
+    "--and",
+    "--format",
+    "--batch-size",
+    "--exec",
+    "--exec-batch",
+})
+_LEGACY_VALUE_FLAGS = _PATTERN_VALUE_FLAGS | {
+    "--max-count",
+    "--context",
+    "--glob",
+    "--type",
+    "--type-not",
+    "--exclude",
+    "--threads",
+    "--max-columns",
+    "--max-filesize",
+    "--max-depth",
+    "--depth",
+}
+_LONG_VALUE_FLAGS = {"grep": _GREP_VALUE_FLAGS, "rg": _RG_VALUE_FLAGS, "fd": _FD_VALUE_FLAGS}
+_SHORT_VALUE_LETTERS = {"grep": "efABCmdD", "rg": "efABCmgtTEjMdr", "fd": "eEtdSjcoxXC", "ag": "efABCmgtTEjM"}
+_FD_EXEC_LETTERS = frozenset("xX")
+_FD_EXEC_FLAGS = frozenset({"--exec", "--exec-batch"})
+_FD_SEARCH_PATH_FLAG = "--search-path"
+_FD_BASE_DIRECTORY_FLAG = "--base-directory"
+_FD_BASE_DIRECTORY_LETTER = "C"
+_REWRITABLE_TOOLS = frozenset({"rg", "find"}) | _GREP_TOOLS | _FD_TOOLS
+_CLUSTER_START = "-"
+_END_OF_OPTIONS = "--"
+_RG_LIST_FLAGS = frozenset({"--files", "--type-list"})
 _DEPTH_FLAGS = {
     "find": ("-maxdepth",),
     "rg": ("--max-depth", "-d"),
@@ -38,6 +130,7 @@ _DEPTH_FLAGS = {
 _GLOB_CHARS = frozenset("*?[")
 _UNRESOLVED_CHARS = ("$", "`")
 _FIND_EXPRESSION_START = ("-", "(", "!")
+_FIND_GLOBAL_FLAGS = frozenset({"-H", "-L", "-P"})
 _GITIGNORE_PATTERN_CHARS = frozenset("/*?[")
 _DIRECTORY_CHANGERS = frozenset({"cd", "pushd"})
 _PREVIOUS_DIRECTORY = "-"
@@ -51,6 +144,8 @@ class SearchScope:
     roots: tuple[str, ...]
     max_depth: int | None
     respects_ignores: bool
+    command: ParsedCommand
+    pathless: bool
 
 
 def _is_recursive(cmd: ParsedCommand) -> bool:
@@ -64,20 +159,6 @@ def _is_recursive(cmd: ParsedCommand) -> bool:
         or any(flag == "-d" and "recurse" in cmd.words for flag in cmd.flags)
         or any(not flag.startswith("--") and ("r" in flag or "R" in flag) for flag in cmd.flags)
     )
-
-
-def _value_flags(tool: str) -> frozenset[str]:
-    """Return the flags of a tool whose next word is a value, not a path."""
-    flags = set(_COMMON_VALUE_FLAGS)
-    if tool in _GREP_TOOLS:
-        flags |= {"-d", "-D"}
-    if tool in _IGNORE_AWARE:
-        flags |= _SCANNER_VALUE_FLAGS
-    if tool in _FD_TOOLS | {"rg"}:
-        flags.add("-d")
-    if tool in _FD_TOOLS:
-        flags |= {"-e", "--extension", "--exact-depth"}
-    return frozenset(flags)
 
 
 def _max_depth(cmd: ParsedCommand) -> int | None:
@@ -96,31 +177,106 @@ def _max_depth(cmd: ParsedCommand) -> int | None:
     return None
 
 
+@dataclass(frozen=True)
+class _Arguments:
+    """The words of a search command that are not flags or flag values."""
+
+    positionals: list[str]
+    pattern_given_by_flag: bool
+    short_flags: frozenset[str]
+    long_flags: frozenset[str]
+    search_paths: list[str]
+    base_directory: str | None
+
+    @property
+    def pattern_is_positional(self) -> bool:
+        """Whether the first positional is the search pattern."""
+        return not self.pattern_given_by_flag and not self.long_flags & _RG_LIST_FLAGS
+
+
+def _tool_family(name: str) -> str:
+    """Return the key of the tool's flag tables: grep, rg, fd, or ag for the other pattern tools."""
+    if name in _GREP_TOOLS:
+        return "grep"
+    return "fd" if name in _FD_TOOLS else name
+
+
+def _parse_arguments(cmd: ParsedCommand) -> _Arguments:
+    """Split the words of a grep, rg, fd, ag or ack command into positionals, flags and flag values.
+
+    Returns:
+        The positional words, whether a flag supplies the pattern, the flags seen, and any `fd --search-path` and
+        `fd --base-directory` values.
+    """
+    family = _tool_family(cmd.name)
+    long_values = _LONG_VALUE_FLAGS.get(family, _LEGACY_VALUE_FLAGS)
+    short_values = _SHORT_VALUE_LETTERS.get(family, "efABCm")
+    pattern_letters = "" if family == "fd" else _PATTERN_LETTERS
+    positionals: list[str] = []
+    search_paths: list[str] = []
+    base_directory: str | None = None
+    short_flags: set[str] = set()
+    long_flags: set[str] = set()
+    pattern_given_by_flag = False
+    options_ended = False
+    words = iter(cmd.words)
+    for word in words:
+        if options_ended or not word.startswith(_CLUSTER_START) or word == _CLUSTER_START:
+            positionals.append(word)
+        elif word == _END_OF_OPTIONS:
+            options_ended = True
+        elif word.startswith(_END_OF_OPTIONS):
+            name, has_value, value = word.partition("=")
+            long_flags.add(name)
+            pattern_given_by_flag |= family != "fd" and name in _PATTERN_VALUE_FLAGS
+            if name in long_values:
+                value = value if has_value else next(words, "")
+                if name == _FD_SEARCH_PATH_FLAG:
+                    search_paths.append(value)
+                elif name == _FD_BASE_DIRECTORY_FLAG:
+                    base_directory = value
+        else:
+            for index, letter in enumerate(word[1:], 1):
+                short_flags.add(letter)
+                if letter in short_values:
+                    pattern_given_by_flag |= letter in pattern_letters
+                    value = word[index + 1 :] or next(words, "")
+                    if family == "fd" and letter == _FD_BASE_DIRECTORY_LETTER:
+                        base_directory = value
+                    break
+    return _Arguments(
+        positionals, pattern_given_by_flag, frozenset(short_flags), frozenset(long_flags), search_paths, base_directory
+    )
+
+
+def _find_leading_options(words: list[str]) -> int:
+    """Return how many leading words of a `find` command are global options (-H, -L, -P, -D debugopts, -Olevel)."""
+    count = 0
+    while count < len(words):
+        if words[count] in _FIND_GLOBAL_FLAGS or words[count].startswith("-O"):
+            count += 1
+        elif words[count] == "-D":
+            count += 2
+        else:
+            break
+    return count
+
+
 def _positionals(cmd: ParsedCommand) -> list[str]:
     """Return the path-like words of the command, excluding flags, flag values and the search pattern."""
     if cmd.name == "find":
         positionals = []
-        for word in cmd.words:
+        for word in cmd.words[_find_leading_options(cmd.words) :]:
             if word.startswith(_FIND_EXPRESSION_START):
                 break
             positionals.append(word)
         return positionals
 
-    value_flags = _value_flags(cmd.name)
-    positionals = []
-    skip_next = False
-    for word in cmd.words:
-        if skip_next:
-            skip_next = False
-        elif word in value_flags:
-            skip_next = True
-        elif not word.startswith("-"):
-            positionals.append(word)
-
-    pattern_flags = _PATTERN_VALUE_FLAGS - {"-e"} if cmd.name in _FD_TOOLS else _PATTERN_VALUE_FLAGS
-    if cmd.name in _PATTERN_TOOLS and not pattern_flags & set(cmd.words):
-        return positionals[1:]
-    return positionals
+    arguments = _parse_arguments(cmd)
+    positionals = arguments.positionals
+    if cmd.name in _PATTERN_TOOLS and arguments.pattern_is_positional:
+        positionals = positionals[1:]
+    return positionals + arguments.search_paths
 
 
 def _reads_pipe(cmd: ParsedCommand) -> bool:
@@ -159,12 +315,17 @@ def search_scope(cmd: ParsedCommand, cwd: str) -> SearchScope | None:
     if _reads_pipe(cmd):
         return None
     no_ignore_flags = _NO_IGNORE_FLAGS | _FD_NO_IGNORE_FLAGS if cmd.name in _FD_TOOLS else _NO_IGNORE_FLAGS
-    roots = tuple(root for word in _positionals(cmd) if (root := _resolve_root(word, cwd)) is not None)
+    positionals = _positionals(cmd)
+    base_directory = _parse_arguments(cmd).base_directory if cmd.name in _FD_TOOLS else None
+    cwd = (base_directory and _resolve_root(base_directory, cwd)) or cwd
+    roots = tuple(root for word in positionals if (root := _resolve_root(word, cwd)) is not None)
     return SearchScope(
         tool=cmd.name,
         roots=roots or (cwd,),
         max_depth=_max_depth(cmd),
         respects_ignores=cmd.name in _IGNORE_AWARE and not no_ignore_flags & set(cmd.words),
+        command=cmd,
+        pathless=not positionals,
     )
 
 
@@ -295,6 +456,19 @@ def exceeds_scan_budget(scope: SearchScope, entry_cap: int, time_cap: float) -> 
     return counts[0] >= entry_cap
 
 
+def _is_oversized(scope: SearchScope) -> bool:
+    """Check whether a search would walk the filesystem root, the home directory, or too large a tree.
+
+    Returns:
+        bool: True if the search is unbounded at the home directory or above, or exceeds the scan budget.
+    """
+    if scope.max_depth == 0:
+        return False
+    return (scope.max_depth is None and any(is_home_or_above(root) for root in scope.roots)) or exceeds_scan_budget(
+        scope, MAX_SCAN_ENTRIES, MAX_SCAN_SECONDS
+    )
+
+
 def find_oversized_search(commands: list[ParsedCommand], session_cwd: str) -> SearchScope | None:
     """Find the first recursive search in a command line that would walk too large a tree.
 
@@ -307,10 +481,102 @@ def find_oversized_search(commands: list[ParsedCommand], session_cwd: str) -> Se
     """
     for index, cmd in enumerate(commands):
         scope = search_scope(cmd, effective_cwd(commands, index, session_cwd))
-        if scope is None or scope.max_depth == 0:
-            continue
-        if (scope.max_depth is None and any(is_home_or_above(root) for root in scope.roots)) or exceeds_scan_budget(
-            scope, MAX_SCAN_ENTRIES, MAX_SCAN_SECONDS
-        ):
+        if scope is not None and _is_oversized(scope):
             return scope
+    return None
+
+
+def _is_git_ignored(root: str, path: str) -> bool:
+    """Return whether git's ignore rules in `root` exclude `path`; False where git cannot tell."""
+    try:
+        return (
+            subprocess.run(
+                ["git", "-C", root, "check-ignore", "-q", "--", path],  # ruff: ignore[start-process-with-partial-path]
+                capture_output=True,
+                timeout=GIT_TIMEOUT_SECONDS,
+                check=False,
+            ).returncode
+            == 0
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def _omits_start(scope: SearchScope, root: str) -> bool:
+    """Return whether searching `root` instead of the scope's directory would skip that directory.
+
+    Returns:
+        bool: True if the tool skips hidden or git-ignored directories and `root` is above the scope's directory
+            and reaches it through one.
+    """
+    start = Path(scope.roots[0])
+    if not scope.respects_ignores or start == Path(root) or not start.is_relative_to(root):
+        return False
+    return any(part.startswith(".") for part in start.relative_to(root).parts) or _is_git_ignored(root, str(start))
+
+
+def _narrower_root(scope: SearchScope, workspace_roots: list[str]) -> str | None:
+    """Find a workspace root to search instead of the oversized directory.
+
+    Returns:
+        The first workspace root that is small enough and does not skip the oversized directory, or None.
+    """
+    return next(
+        (
+            root
+            for root in workspace_roots
+            if root not in scope.roots
+            and not _omits_start(scope, root)
+            and not _is_oversized(replace(scope, roots=(root,)))
+        ),
+        None,
+    )
+
+
+def _insertion(scope: SearchScope, root: str) -> tuple[int, str] | None:
+    """Work out where in the command line, and what, to insert so the search covers `root`.
+
+    Returns:
+        The offset and text to insert, or None where the tool is not one the rewrite supports.
+    """
+    cmd = scope.command
+    if cmd.name not in _REWRITABLE_TOOLS:
+        return None
+    path = f" {shlex.quote(root)}"
+    if cmd.name == "find":
+        leading = min(_find_leading_options(cmd.words), len(cmd.word_ends))
+        return (cmd.word_ends[leading - 1] if leading else cmd.name_end), path
+    offset = cmd.word_ends[-1] if cmd.word_ends else cmd.name_end
+    if cmd.name in _FD_TOOLS:
+        arguments = _parse_arguments(cmd)
+        if arguments.short_flags & _FD_EXEC_LETTERS or arguments.long_flags & _FD_EXEC_FLAGS:
+            return None
+        if not arguments.positionals:
+            return offset, f" ''{path}"
+    return offset, path
+
+
+def scope_oversized_searches(command: str, session_cwd: str, workspace_roots: list[str]) -> str | None:
+    """Give every oversized pathless search in a command line a smaller workspace root as its path.
+
+    Args:
+        command: The shell command line.
+        session_cwd: The directory the shell line starts in.
+        workspace_roots: The workspace directories to search instead.
+
+    Returns:
+        The command line with the paths added, or None if an oversized search cannot be scoped to a smaller tree.
+    """
+    commands = extract_commands(parse_command(command))
+    for _ in range(len(commands) + 1):
+        scope = find_oversized_search(commands, session_cwd)
+        if scope is None:
+            return command
+        root = _narrower_root(scope, workspace_roots) if scope.pathless else None
+        insertion = root and _insertion(scope, root)
+        if not insertion:
+            return None
+        offset, text = insertion
+        command = command[:offset] + text + command[offset:]
+        commands = extract_commands(parse_command(command))
     return None
