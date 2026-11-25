@@ -4,7 +4,7 @@ import importlib
 import importlib.metadata
 import logging
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import pytest
 
@@ -111,7 +111,7 @@ class TestCollectHookResults:
         result = collect_hook_results([PluginA(), PluginB()], "TestHook")
         assert result.block == "block-a"
 
-    def test_merges_input_updates_and_fallback_notes(self) -> None:
+    def test_a_later_input_replaces_an_earlier_one_and_fallback_notes_are_collected(self) -> None:
         class PluginA(HooksPlugin):
             def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
                 return HookResult(updated_input={"task": "a", "keep": 1}, fallback_notes=["fa"])
@@ -121,8 +121,20 @@ class TestCollectHookResults:
                 return HookResult(updated_input={"task": "b"}, fallback_notes=["fb"])
 
         result = collect_hook_results([PluginA(), PluginB()], "TestHook")
-        assert result.updated_input == {"task": "b", "keep": 1}
+        assert result.updated_input == {"task": "b"}
         assert result.fallback_notes == ["fa", "fb"]
+
+    def test_each_plugin_sees_the_input_the_earlier_plugins_left(self) -> None:
+        class PluginA(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+                return HookResult(updated_input={**cast("dict[str, object]", kwargs["parameters"]), "timeout": 900})
+
+        class PluginB(HooksPlugin):
+            def on_hook(self, hook_name: str, **kwargs: object) -> HookResult | None:
+                return HookResult(updated_input={**cast("dict[str, object]", kwargs["parameters"]), "command": "ls -a"})
+
+        result = collect_hook_results([PluginA(), PluginB()], "TestHook", parameters={"command": "ls"})
+        assert result.updated_input == {"command": "ls -a", "timeout": 900}
 
     def test_none_results_skipped(self) -> None:
         class PluginA(HooksPlugin):

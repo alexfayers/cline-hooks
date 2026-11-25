@@ -118,7 +118,8 @@ def collect_hook_results(plugins: list[HooksPlugin], hook_name: str, **kwargs: o
         **kwargs: Hook-specific keyword arguments passed to each plugin.
 
     Returns:
-        A merged HookResult with all notes, input updates and the first block reason found.
+        A merged HookResult with all notes, the final input and the first block reason found.
+        Each plugin sees the `parameters` (and `command`) as the earlier plugins rewrote them.
     """
     kwargs.setdefault("agent", _agent_info(kwargs))
     merged = HookResult()
@@ -133,7 +134,10 @@ def collect_hook_results(plugins: list[HooksPlugin], hook_name: str, **kwargs: o
         merged.user_notes.extend(result.user_notes)
         merged.fallback_notes.extend(note for note in result.fallback_notes if note.strip())
         if result.updated_input is not None:
-            merged.updated_input = {**(merged.updated_input or {}), **result.updated_input}
+            merged.updated_input = result.updated_input
+            kwargs["parameters"] = result.updated_input
+            if "command" in kwargs:
+                kwargs["command"] = result.updated_input.get("command", kwargs["command"])
         if result.block and merged.block is None:
             merged.block = result.block
     return merged

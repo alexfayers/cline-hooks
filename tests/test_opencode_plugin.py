@@ -133,7 +133,7 @@ class TestOpencodePlugin:
     def test_updated_input_replaces_the_input(self, tmp_path: Path) -> None:
         reply = json.dumps({"updated_input": {"command": "ls -a"}, "message": None})
         cases = f"*tool.execute.before*) printf '%s' '{reply}';;"
-        out, _ = _run(tmp_path, cases, [_before()])
+        out, _ = _run(tmp_path, cases, [_before(command="ls", timeout=5)])
         assert out["results"][0]["input"] == {"command": "ls -a"}
 
     def test_notes_are_appended_to_the_tool_result(self, tmp_path: Path) -> None:

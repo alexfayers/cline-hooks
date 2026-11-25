@@ -825,6 +825,28 @@ class TestPreShellPluginScope:
         assert "blocked by plugin" in cast("str", result.get("errorMessage", ""))
 
 
+class TestRewritesFromDifferentScopes:
+    def test_a_shell_rewrite_carries_the_earlier_generic_rewrite(self, mocker: MockerFixture) -> None:
+        class _TimeoutPlugin(HooksPlugin):
+            def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
+                if hook_name == CanonicalHook.PRE_TOOL_USE:
+                    return HookResult(updated_input={**cast("dict[str, object]", kwargs["parameters"]), "timeout": 900})
+                return None
+
+        class _CommandPlugin(HooksPlugin):
+            def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
+                if hook_name == PluginScope.PRE_SHELL:
+                    parameters = cast("dict[str, object]", kwargs["parameters"])
+                    return HookResult(updated_input={**parameters, "command": "ls -a"})
+                return None
+
+        mocker.patch(
+            "cline_hooks.handlers.pre_tool_use.load_plugins", return_value=[_TimeoutPlugin(), _CommandPlugin()]
+        )
+        outcome = handle_pre_tool_use(_make_hook("execute_command", {"command": "ls"}))
+        assert outcome.updated_input == {"command": "ls -a", "timeout": 900}
+
+
 _RM_F_MESSAGE = "rm -f is not allowed. MUST drop -f (rm, or rm -r for a directory)."
 _TAIL_BUILD_MESSAGE = "MUST NOT filter build output with tail - MUST capture the full output."
 

@@ -55,6 +55,7 @@ class PreShellKwargs(HookKwargs):
     task_id: str = ""
     tool_name: str = ""
     command: str = ""
+    parameters: dict[str, JsonValue] = Field(default_factory=dict)
     workspace_roots: list[str] = Field(default_factory=list)
     agent_type: str = ""
     agent_id: str | None = None

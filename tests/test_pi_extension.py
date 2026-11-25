@@ -79,10 +79,10 @@ def _run_steps(
     return _run_harness(tmp_path, cases, {}, str(steps_file))
 
 
-def test_the_updated_input_is_copied_into_the_tool_input(tmp_path: Path) -> None:
+def test_the_updated_input_replaces_the_tool_input(tmp_path: Path) -> None:
     hook_stdout = json.dumps({"updated_input": {"task": "do it. hint"}, "message": "ctx"})
     result = _run_extension(tmp_path, hook_stdout, {"task": "do it", "definition": "worker"})
-    assert result["input"] == {"task": "do it. hint", "definition": "worker"}
+    assert result["input"] == {"task": "do it. hint"}
     assert result["content"][-1]["text"] == "ctx"
 
 

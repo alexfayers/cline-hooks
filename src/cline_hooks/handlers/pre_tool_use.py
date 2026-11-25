@@ -100,6 +100,7 @@ def _pre_shell(hook: HookInputPreToolUse, fields: PreToolUseFields, plugins: lis
         hook.stateKey,
         fields.toolName,
         command=command,
+        parameters=fields.parameters,
         workspace_roots=hook.workspaceRoots,
         agent_type=hook.agentType,
         agent_id=hook.agentId,
@@ -204,7 +205,10 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> Outcome:
 
     handler = TOOL_HANDLERS.get((CanonicalHook.PRE_TOOL_USE, tool_name))
     if handler is not None:
-        outcome = outcome.merge(handler(hook, hook.preToolUse, plugins))
+        fields = hook.preToolUse
+        if outcome.updated_input is not None:
+            fields = fields.model_copy(update={"parameters": dict(outcome.updated_input)})
+        outcome = outcome.merge(handler(hook, fields, plugins))
 
     if outcome.disposition is Disposition.BLOCK:
         TaskStateStore().record_block(hook.stateKey, tool_name, outcome.message or "")

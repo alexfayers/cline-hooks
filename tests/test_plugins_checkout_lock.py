@@ -50,7 +50,14 @@ def _edit(root: Path, session: str, name: str) -> HookResult | None:
 
 
 def _shell(root: Path, session: str, command: str) -> HookResult | None:
-    return _fire("PreShell", root, session, tool_name=CanonicalTool.SHELL, command=command)
+    return _fire(
+        "PreShell",
+        root,
+        session,
+        tool_name=CanonicalTool.SHELL,
+        command=command,
+        parameters={"command": command, "timeout": 5},
+    )
 
 
 @pytest.mark.parametrize("command", UNSUPPORTED_SYNTAX)
@@ -102,6 +109,7 @@ def test_unlock_drops_the_sessions_locks(
     rewritten = _shell(primary, "s1", f"{binary_names()[0]} {args}")
     assert rewritten is not None
     assert rewritten.updated_input is not None
+    assert rewritten.updated_input["timeout"] == 5
     monkeypatch.chdir(primary)
     monkeypatch.setattr("sys.argv", shlex.split(rewritten.updated_input["command"]))
     with pytest.raises(SystemExit):
