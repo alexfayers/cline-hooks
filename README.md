@@ -17,7 +17,7 @@
 | src/cline\_hooks/core/parameters.py                     |       89 |        0 |        6 |        0 |    100% |           |
 | src/cline\_hooks/core/payload.py                        |      136 |        2 |       38 |        2 |     98% |  167, 327 |
 | src/cline\_hooks/core/plugin.py                         |      207 |        6 |       60 |        3 |     97% |132-\>134, 192, 194, 366-369 |
-| src/cline\_hooks/core/protocol.py                       |       85 |        2 |        8 |        1 |     97% |   223-224 |
+| src/cline\_hooks/core/protocol.py                       |       87 |        2 |        8 |        1 |     97% |   231-232 |
 | src/cline\_hooks/core/registry.py                       |       15 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/core/response.py                       |       34 |        0 |       12 |        0 |    100% |           |
 | src/cline\_hooks/core/state.py                          |       46 |        0 |        4 |        0 |    100% |           |
@@ -34,7 +34,7 @@
 | src/cline\_hooks/frontends/claude\_code/\_\_init\_\_.py |        3 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/frontends/claude\_code/install.py      |        8 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/frontends/claude\_code/models.py       |       48 |        0 |        8 |        0 |    100% |           |
-| src/cline\_hooks/frontends/claude\_code/protocol.py     |       68 |        1 |       16 |        2 |     96% |143, 155-\>157 |
+| src/cline\_hooks/frontends/claude\_code/protocol.py     |       70 |        2 |       16 |        2 |     95% |143, 155-\>157, 191 |
 | src/cline\_hooks/frontends/claude\_code/transcript.py   |      137 |        7 |       58 |        7 |     93% |145, 148, 182, 241, 247, 293, 296 |
 | src/cline\_hooks/frontends/codex/\_\_init\_\_.py        |        3 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/frontends/codex/install.py             |        8 |        0 |        0 |        0 |    100% |           |
@@ -46,14 +46,14 @@
 | src/cline\_hooks/frontends/opencode/\_\_init\_\_.py     |        3 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/frontends/opencode/install.py          |       17 |        0 |        4 |        0 |    100% |           |
 | src/cline\_hooks/frontends/opencode/models.py           |       75 |        0 |       24 |        2 |     98% |94-\>106, 106-\>108 |
-| src/cline\_hooks/frontends/opencode/protocol.py         |       35 |        0 |        2 |        0 |    100% |           |
+| src/cline\_hooks/frontends/opencode/protocol.py         |       37 |        1 |        2 |        0 |     97% |       119 |
 | src/cline\_hooks/frontends/pi/\_\_init\_\_.py           |        3 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/frontends/pi/install.py                |       14 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/frontends/pi/models.py                 |       63 |        0 |        2 |        0 |    100% |           |
-| src/cline\_hooks/frontends/pi/protocol.py               |       38 |        1 |        4 |        1 |     95% |       115 |
+| src/cline\_hooks/frontends/pi/protocol.py               |       40 |        1 |        4 |        1 |     95% |       115 |
 | src/cline\_hooks/frontends/pi/transcript.py             |       55 |        2 |       18 |        3 |     93% |72-\>67, 93, 102 |
 | src/cline\_hooks/handlers/\_\_init\_\_.py               |        3 |        0 |        0 |        0 |    100% |           |
-| src/cline\_hooks/handlers/commands.py                   |      212 |        6 |       96 |       10 |     95% |264, 279, 306, 350, 354, 400, 407-\>405, 409-\>405, 411-\>405, 412-\>411 |
+| src/cline\_hooks/handlers/commands.py                   |      212 |        6 |       96 |        9 |     95% |264, 279, 306, 350, 354, 400, 409-\>405, 411-\>405, 412-\>411 |
 | src/cline\_hooks/handlers/context\_nudge.py             |        7 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/handlers/git\_context.py               |       45 |        2 |        8 |        0 |     96% |     33-34 |
 | src/cline\_hooks/handlers/herdr\_guard.py               |       79 |        1 |       24 |        1 |     98% |        84 |
@@ -68,9 +68,10 @@
 | src/cline\_hooks/plugins/\_\_init\_\_.py                |        0 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/plugins/agent\_worktree.py             |       35 |        2 |        8 |        0 |     95% |     23-24 |
 | src/cline\_hooks/plugins/bash\_timeout.py               |       16 |        0 |        4 |        0 |    100% |           |
+| src/cline\_hooks/plugins/build\_redirect.py             |       54 |        3 |       10 |        0 |     95% |     94-96 |
 | src/cline\_hooks/plugins/build\_tools.py                |       24 |        1 |        4 |        0 |     96% |        24 |
 | src/cline\_hooks/plugins/checkout\_lock.py              |      134 |        5 |       42 |        4 |     95% |69-70, 125, 126-\>121, 128, 157 |
-| src/cline\_hooks/plugins/command\_rules.py              |      111 |        5 |       42 |        3 |     95% |30-\>24, 158, 160-162, 214 |
+| src/cline\_hooks/plugins/command\_rules.py              |      113 |        2 |       42 |        2 |     97% |30-\>24, 158, 219 |
 | src/cline\_hooks/plugins/context\_usage.py              |       97 |        1 |       40 |        1 |     99% |       210 |
 | src/cline\_hooks/plugins/delegation.py                  |       93 |        1 |       42 |        1 |     99% |       204 |
 | src/cline\_hooks/plugins/ecosystem.py                   |       52 |        1 |       14 |        1 |     97% |44, 137-\>139 |
@@ -126,7 +127,7 @@
 | tests/test\_handlers\_git\_context.py                   |       48 |        0 |        2 |        0 |    100% |           |
 | tests/test\_handlers\_post\_tool\_use.py                |      595 |        7 |       22 |        5 |     98% |511, 519, 731-732, 765-766, 922 |
 | tests/test\_handlers\_pre\_compact.py                   |       19 |        0 |        0 |        0 |    100% |           |
-| tests/test\_handlers\_pre\_tool\_use.py                 |      596 |        0 |       18 |        0 |    100% |           |
+| tests/test\_handlers\_pre\_tool\_use.py                 |      582 |        0 |       18 |        0 |    100% |           |
 | tests/test\_handlers\_push\_guard.py                    |       28 |        0 |        0 |        0 |    100% |           |
 | tests/test\_handlers\_search\_scope.py                  |      200 |        0 |        2 |        0 |    100% |           |
 | tests/test\_handlers\_stop.py                           |      344 |        0 |        4 |        0 |    100% |           |
@@ -150,6 +151,7 @@
 | tests/test\_plugin\_extension\_points.py                |       27 |        0 |        2 |        0 |    100% |           |
 | tests/test\_plugins\_agent\_worktree.py                 |       51 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugins\_bash\_timeout.py                   |       22 |        0 |        0 |        0 |    100% |           |
+| tests/test\_plugins\_build\_redirect.py                 |       95 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugins\_build\_tools.py                    |       17 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugins\_checkout\_lock.py                  |       99 |        0 |        6 |        0 |    100% |           |
 | tests/test\_plugins\_command\_rules.py                  |       54 |        0 |        0 |        0 |    100% |           |
@@ -179,7 +181,7 @@
 | tests/test\_uninstall.py                                |       46 |        0 |        0 |        0 |    100% |           |
 | tests/test\_user\_install.py                            |       53 |        0 |        4 |        0 |    100% |           |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **13673** |  **177** | **1644** |  **104** | **98%** |           |
+| **TOTAL**                                               | **13818** |  **179** | **1654** |  **102** | **98%** |           |
 
 
 ## Setup coverage badge
