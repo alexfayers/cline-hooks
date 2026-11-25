@@ -142,7 +142,7 @@
 | tests/test\_memory\_tracker.py                          |       66 |        0 |        4 |        0 |    100% |           |
 | tests/test\_models.py                                   |      108 |        0 |        4 |        0 |    100% |           |
 | tests/test\_models\_kiro.py                             |      213 |        0 |        2 |        0 |    100% |           |
-| tests/test\_opencode\_plugin.py                         |      140 |        0 |        8 |        0 |    100% |           |
+| tests/test\_opencode\_plugin.py                         |      152 |        0 |        8 |        0 |    100% |           |
 | tests/test\_pi\_extension.py                            |      121 |        0 |       10 |        0 |    100% |           |
 | tests/test\_plan.py                                     |       45 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugin.py                                   |      177 |        0 |        0 |        0 |    100% |           |
@@ -179,7 +179,7 @@
 | tests/test\_uninstall.py                                |       46 |        0 |        0 |        0 |    100% |           |
 | tests/test\_user\_install.py                            |       53 |        0 |        4 |        0 |    100% |           |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **13661** |  **177** | **1644** |  **104** | **98%** |           |
+| **TOTAL**                                               | **13673** |  **177** | **1644** |  **104** | **98%** |           |
 
 
 ## Setup coverage badge
