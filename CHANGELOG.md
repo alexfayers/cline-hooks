@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.1](https://github.com/alexfayers/cline-hooks/compare/v0.3.0...v0.3.1) (2026-11-25)
+
+
+### Bug Fixes
+
+* cap hook memory, CPU time and run time ([#203](https://github.com/alexfayers/cline-hooks/issues/203)) ([43d19e8](https://github.com/alexfayers/cline-hooks/commit/43d19e8dbd8a1ddcc6d1c3c6b69fbe68d0caef3d))
+
+
+### Performance Improvements
+
+* **pi:** stream the transcript when finding the active branch ([#204](https://github.com/alexfayers/cline-hooks/issues/204)) ([a0daf35](https://github.com/alexfayers/cline-hooks/commit/a0daf35e382a884bab15753dc46554912b29a732))
+
 ## [0.3.0](https://github.com/alexfayers/cline-hooks/compare/v0.2.3...v0.3.0) (2026-11-24)
 
 
