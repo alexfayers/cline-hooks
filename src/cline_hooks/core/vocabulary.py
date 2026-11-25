@@ -49,6 +49,7 @@ class PluginScope(StrEnum):
     PRE_MCP_TOOL_USE = "PreMcpToolUse"
     ATTEMPT_COMPLETION = "AttemptCompletion"
     PRE_SHELL = "PreShell"
+    TOOL_ALLOWED = "ToolAllowed"
     TRACK_TOOL_USE = "TrackToolUse"
     TOOL_FAILED = "ToolFailed"
 

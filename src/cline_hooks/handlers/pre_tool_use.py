@@ -10,6 +10,7 @@ from cline_hooks.core.parameters import (
     ShellParameters,
 )
 from cline_hooks.core.plugin import collect_contributions, collect_hook_results, load_plugins
+from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.registry import TOOL_HANDLERS, hook_handler, tool_handler
 from cline_hooks.core.vocabulary import (
     KNOWN_TOOLS,
@@ -23,7 +24,7 @@ from cline_hooks.plugins.command_rules import CommandRulesSpec
 from cline_hooks.state.store import TaskStateStore
 
 if TYPE_CHECKING:
-    from cline_hooks.core.models import HookInputPreToolUse, PreToolUseFields
+    from cline_hooks.core.models import HookInputPostToolUse, HookInputPreToolUse, PostToolUseFields, PreToolUseFields
     from cline_hooks.core.plugin import HooksPlugin
 
 logger = logging.getLogger("hooks.pre_tool_use")
@@ -60,6 +61,31 @@ def _hook_result_outcome(
             fallback_note="\n\n".join(result.fallback_notes),
         )
     return Outcome()
+
+
+def notify_tool_allowed(
+    plugins: list[HooksPlugin],
+    hook: HookInputPreToolUse | HookInputPostToolUse,
+    fields: PreToolUseFields | PostToolUseFields,
+) -> None:
+    """Tell plugins that the response carrying a tool call's notes reached the frontend.
+
+    Args:
+        plugins: Loaded plugin instances.
+        hook: The hook input data.
+        fields: The call's PreToolUse or PostToolUse fields.
+    """
+    collect_hook_results(
+        plugins,
+        PluginScope.TOOL_ALLOWED,
+        task_id=hook.stateKey,
+        tool_name=fields.toolName,
+        parameters=fields.parameters,
+        workspace_roots=hook.workspaceRoots,
+        agent_type=hook.agentType,
+        agent_id=hook.agentId,
+        **fields.frontend_kwargs(),
+    )
 
 
 @tool_handler(CanonicalHook.PRE_TOOL_USE, *SHELL_TOOLS)
@@ -212,5 +238,7 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> Outcome:
 
     if outcome.disposition is Disposition.BLOCK:
         TaskStateStore().record_block(hook.stateKey, tool_name, outcome.message or "")
+    elif not get_protocol().reports_note_delivery:
+        notify_tool_allowed(plugins, hook, hook.preToolUse)
 
     return outcome

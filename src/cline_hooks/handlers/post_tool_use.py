@@ -8,6 +8,7 @@ from cline_hooks.core.parameters import McpToolUse
 from cline_hooks.core.plugin import collect_hook_results, load_plugins
 from cline_hooks.core.registry import TOOL_HANDLERS, hook_handler
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool, PluginScope
+from cline_hooks.handlers.pre_tool_use import notify_tool_allowed
 from cline_hooks.plugins.research import record_research_use
 
 if TYPE_CHECKING:
@@ -59,6 +60,9 @@ def handle_post_tool_use(hook: HookInputPostToolUse) -> Outcome:
     logger.info("Called %s", tool_name)
 
     plugins = load_plugins()
+
+    if hook.postToolUse.frontend_kwargs().get("notes_delivered"):
+        notify_tool_allowed(plugins, hook, hook.postToolUse)
 
     if not hook.postToolUse.success:
         logger.warning("Tool %s failed", tool_name)
