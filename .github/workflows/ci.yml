@@ -68,6 +68,18 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           ANNOTATE_MISSING_LINES: true
 
+  test-macos:
+    needs: unblocked
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: alexfayers/llm-prompts-ci/.github/actions/setup-just@main
+      - uses: astral-sh/setup-uv@v10.4.0
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - run: just test
+
   pr-template-check:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
