@@ -5,6 +5,7 @@ const BINARY: string = "__CLINE_HOOK_BINARY__";
 const BLOCK_EXIT_CODE = 2;
 const PATCH_FILE = /^\*\*\* (Add|Update|Delete) File: (.+)$/;
 const PATCH_MOVE = /^\*\*\* Move to: (.+)$/;
+const SKILL_NOTE_START = /^(?=REQUIRED: the `)/m;
 
 interface HookOutcome {
   blocked: boolean;
@@ -248,7 +249,10 @@ async function setup(ctx: Context) {
       const update = parseInputUpdate(outcome.message);
       if (update && inputs.length === 1) event.input = update.updated_input;
       const message = update ? update.message : outcome.message;
-      if (message) messages.push(message);
+      // Files of one patch can need the same skill, which is shown once.
+      for (const note of (message ?? "").split(SKILL_NOTE_START).map((part) => part.trim())) {
+        if (note && !messages.includes(note)) messages.push(note);
+      }
     }
     const input = record(event.input);
     if (event.tool === "subagent" && typeof input.agent === "string") {
@@ -262,6 +266,8 @@ async function setup(ctx: Context) {
     try {
       const pending = notes.get(event.id) ?? [];
       notes.delete(event.id);
+      // A tool that errored drops the notes buffered before it ran.
+      const notesDelivered = pending.length > 0 && event.status === "completed" && Boolean(event.result);
       const response = {
         success:
           event.status === "completed" && (event.tool !== "shell" || record(event.result?.output).exitCode === 0),
@@ -272,6 +278,7 @@ async function setup(ctx: Context) {
           hook_event_name: "tool.execute.after",
           ...(await toolPayload(event, input)),
           tool_response: response,
+          notes_delivered: notesDelivered,
         });
         if (message) pending.push(message);
       }

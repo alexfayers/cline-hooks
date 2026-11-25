@@ -8,13 +8,16 @@ from unittest.mock import patch
 import git
 import pytest
 
+from cline_hooks.core.outcome import Disposition, Outcome
 from cline_hooks.core.plugin import HookResult, HooksPlugin, hookimpl
 from cline_hooks.core.protocol import RawPayload, set_protocol
 from cline_hooks.core.response import emit
 from cline_hooks.core.vocabulary import CanonicalHook, PluginScope
 from cline_hooks.frontends.claude_code.protocol import ClaudeCodeProtocol
+from cline_hooks.frontends.opencode import OpencodeProtocol
 from cline_hooks.frontends.pi import PiProtocol
 from cline_hooks.handlers.commands import CommandRule
+from cline_hooks.handlers.post_tool_use import handle_post_tool_use
 from cline_hooks.handlers.pre_tool_use import handle_pre_tool_use
 from cline_hooks.plugins.build_tools import BuildToolsSpec
 from cline_hooks.plugins.command_rules import CommandRulesPlugin
@@ -31,7 +34,7 @@ if TYPE_CHECKING:
 
     from pytest_mock import MockerFixture
 
-    from cline_hooks.core.models import HookInput, HookInputPreToolUse
+    from cline_hooks.core.models import HookInput, HookInputPostToolUse, HookInputPreToolUse
 
 
 def parse_data(raw: str) -> HookInput:
@@ -703,6 +706,30 @@ class TestRequiredSkillGuardIntegration:
         result = _run("execute_command", {"command": "git commit -m x"})
         assert result is None
 
+    @pytest.fixture
+    def pi_git_skill(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        skill = tmp_path / "skills" / "git-usage" / "SKILL.md"
+        skill.parent.mkdir(parents=True)
+        skill.write_text("git skill text")
+        monkeypatch.setenv("PI_CODING_AGENT_DIR", str(tmp_path))
+        set_protocol(PiProtocol())
+
+    def test_skill_text_reaches_the_retry_of_a_call_another_rule_blocked(self, pi_git_skill: None) -> None:
+        blocked = handle_pre_tool_use(
+            _make_hook("execute_command", {"command": 'git commit -m "first line\nsecond line"'})
+        )
+        assert blocked.disposition is Disposition.BLOCK
+        assert "git skill text" not in (blocked.message or "")
+        retry = handle_pre_tool_use(_make_hook("execute_command", {"command": "git commit -m x"}))
+        assert retry.disposition is Disposition.ALLOW
+        assert "git skill text" in (retry.message or "")
+
+    def test_skill_text_is_not_repeated_for_a_call_that_ran_and_failed(self, pi_git_skill: None) -> None:
+        first = handle_pre_tool_use(_make_hook("execute_command", {"command": "git commit -m x"}))
+        assert "git skill text" in (first.message or "")
+        retry = handle_pre_tool_use(_make_hook("execute_command", {"command": "git commit -m x"}))
+        assert "git skill text" not in (retry.message or "")
+
 
 class TestAttemptCompletionTaskProgressGuard:
     def test_unchecked_items_block_with_count(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -768,9 +795,9 @@ class TestAttemptCompletionDirtyTreeGuard:
 @pytest.mark.parametrize(
     ("tool_name", "scopes"),
     [
-        ("mcp__x__y", {CanonicalHook.PRE_TOOL_USE, PluginScope.PRE_MCP_TOOL_USE}),
-        ("codemode", {CanonicalHook.PRE_TOOL_USE}),
-        ("process", {CanonicalHook.PRE_TOOL_USE}),
+        ("mcp__x__y", {CanonicalHook.PRE_TOOL_USE, PluginScope.PRE_MCP_TOOL_USE, PluginScope.TOOL_ALLOWED}),
+        ("codemode", {CanonicalHook.PRE_TOOL_USE, PluginScope.TOOL_ALLOWED}),
+        ("process", {CanonicalHook.PRE_TOOL_USE, PluginScope.TOOL_ALLOWED}),
     ],
 )
 def test_pi_tool_calls_reach_plugins_with_a_parent_id(tool_name: str, scopes: set[str], mocker: MockerFixture) -> None:
@@ -926,3 +953,56 @@ class TestCommandRuleEnforcement:
         assert result is not None
         assert result.get("errorMessage") == _RM_F_MESSAGE
         assert recorder.commands == ["rm -f x"]
+
+
+class TestOpencodeBufferedNotes:
+    """Opencode holds a call's notes until the tool finishes, so a skill counts once the bridge reports them shown."""
+
+    @pytest.fixture(autouse=True)
+    def opencode_git_skill(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        skill = tmp_path / "skills" / "git-usage" / "SKILL.md"
+        skill.parent.mkdir(parents=True)
+        skill.write_text("git skill text")
+        monkeypatch.setenv("OPENCODE_CONFIG_DIR", str(tmp_path))
+        set_protocol(OpencodeProtocol())
+
+    @staticmethod
+    def _pre(command: str) -> Outcome:
+        payload = {
+            "hook_event_name": "tool.execute.before",
+            "session_id": "s",
+            "tool_name": "shell",
+            "tool_input": {"command": command},
+        }
+        raw = RawPayload.from_stdin(json.dumps(payload))
+        return cast("Outcome", handle_pre_tool_use(cast("HookInputPreToolUse", OpencodeProtocol().parse(raw))))
+
+    @staticmethod
+    def _post(command: str, *, notes_delivered: bool, success: bool = True) -> None:
+        payload = {
+            "hook_event_name": "tool.execute.after",
+            "session_id": "s",
+            "tool_name": "shell",
+            "tool_input": {"command": command},
+            "tool_response": {"success": success, "result": ""},
+            "notes_delivered": notes_delivered,
+        }
+        raw = RawPayload.from_stdin(json.dumps(payload))
+        handle_post_tool_use(cast("HookInputPostToolUse", OpencodeProtocol().parse(raw)))
+
+    def test_skill_text_comes_again_when_a_later_input_of_the_call_is_blocked(self) -> None:
+        first = self._pre("git commit -m x")
+        assert "git skill text" in (first.message or "")
+        assert self._pre('git commit -m "first line\nsecond line"').disposition is Disposition.BLOCK
+        assert "git skill text" in (self._pre("git commit -m x").message or "")
+
+    def test_skill_text_comes_again_when_the_tool_failed_before_showing_it(self) -> None:
+        assert "git skill text" in (self._pre("git commit -m x").message or "")
+        self._post("git commit -m x", notes_delivered=False, success=False)
+        assert "git skill text" in (self._pre("git commit -m x").message or "")
+
+    @pytest.mark.parametrize("success", [True, False])
+    def test_skill_text_is_not_repeated_once_the_notes_were_shown(self, success: bool) -> None:
+        assert "git skill text" in (self._pre("git commit -m x").message or "")
+        self._post("git commit -m x", notes_delivered=True, success=success)
+        assert "git skill text" not in (self._pre("git commit -m x").message or "")

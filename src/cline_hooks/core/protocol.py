@@ -63,6 +63,9 @@ class Protocol(ABC):
     transcript: ClassVar[TranscriptReader] = NULL_TRANSCRIPT
     # Set by @frontend; None on a spec class that only carries a payload shape.
     frontend_spec: ClassVar[FrontendSpec | None] = None
+    # True where the frontend holds a PreToolUse response's notes until the tool finishes, and then
+    # reports in its PostToolUse payload whether it showed them.
+    reports_note_delivery: ClassVar[bool] = False
 
     @classmethod
     def canonical_hook(cls, native_name: str) -> CanonicalHook | str:

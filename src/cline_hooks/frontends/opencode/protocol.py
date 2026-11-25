@@ -19,6 +19,7 @@ from cline_hooks.frontends.opencode.install import OpencodeInstaller, config_dir
 from cline_hooks.frontends.opencode.models import (
     OpencodeEditParams,
     OpencodeEnvelope,
+    OpencodePostToolUse,
     OpencodeReadParams,
     OpencodeSkillParams,
     OpencodeWriteParams,
@@ -75,7 +76,9 @@ class OpencodeProtocol(StandardPayloadProtocol):
         "todowrite": CanonicalTool.BOOKKEEPING,
     }
     envelope_model: ClassVar[type[PayloadEnvelope]] = OpencodeEnvelope
+    reports_note_delivery: ClassVar[bool] = True
     hook_models: ClassVar[Mapping[CanonicalHook, type[HookFields]]] = {
+        CanonicalHook.POST_TOOL_USE: OpencodePostToolUse,
         CanonicalHook.TASK_START: TaskStartFields,
         CanonicalHook.PRE_COMPACT: PreCompactFields,
         CanonicalHook.USER_PROMPT_SUBMIT: ClaudeCodeUserPromptSubmit,

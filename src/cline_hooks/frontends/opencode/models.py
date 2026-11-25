@@ -9,7 +9,8 @@ from typing import Any
 
 from pydantic import Field, model_validator
 
-from cline_hooks.core.payload import PayloadEnvelope, ToolParams, diff_envelope, line_range
+from cline_hooks.core.models import PostToolUseFields
+from cline_hooks.core.payload import Flag, PayloadEnvelope, ToolParams, diff_envelope, line_range
 
 _PATCH_FILE = re.compile(r"^\*\*\* (Add|Update|Delete) File: (.+)$")
 
@@ -30,6 +31,16 @@ class OpencodeEnvelope(PayloadEnvelope):
         if not isinstance(workdir, str) or not workdir:
             return data
         return {**data, "cwd": os.path.normpath(Path(str(data.get("cwd") or ""), workdir))}
+
+
+class OpencodePostToolUse(PostToolUseFields):
+    """Opencode's PostToolUse fields; `notes_delivered` is set where the bridge showed the call's PreToolUse notes."""
+
+    notesDelivered: Flag = Field(default=False, validation_alias="notes_delivered")
+
+    def frontend_kwargs(self) -> dict[str, object]:
+        """Return whether the PreToolUse notes were shown as the extra plugin kwargs."""
+        return {"notes_delivered": self.notesDelivered}
 
 
 class OpencodeReadParams(ToolParams):
