@@ -16,7 +16,7 @@
 | src/cline\_hooks/core/outcome.py                        |       37 |        0 |        4 |        0 |    100% |           |
 | src/cline\_hooks/core/parameters.py                     |       89 |        0 |        6 |        0 |    100% |           |
 | src/cline\_hooks/core/payload.py                        |      136 |        2 |       38 |        2 |     98% |  167, 327 |
-| src/cline\_hooks/core/plugin.py                         |      207 |        6 |       60 |        3 |     97% |132-\>134, 192, 194, 366-369 |
+| src/cline\_hooks/core/plugin.py                         |      208 |        6 |       60 |        3 |     97% |132-\>134, 195, 197, 369-372 |
 | src/cline\_hooks/core/protocol.py                       |       87 |        2 |        8 |        1 |     97% |   231-232 |
 | src/cline\_hooks/core/registry.py                       |       15 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/core/response.py                       |       34 |        0 |       12 |        0 |    100% |           |
@@ -67,6 +67,7 @@
 | src/cline\_hooks/handlers/user\_prompt.py               |       28 |        0 |        6 |        0 |    100% |           |
 | src/cline\_hooks/plugins/\_\_init\_\_.py                |        0 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/plugins/agent\_worktree.py             |       35 |        2 |        8 |        0 |     95% |     23-24 |
+| src/cline\_hooks/plugins/background\_watch.py           |       23 |        0 |        4 |        0 |    100% |           |
 | src/cline\_hooks/plugins/bash\_timeout.py               |       16 |        0 |        4 |        0 |    100% |           |
 | src/cline\_hooks/plugins/build\_redirect.py             |       54 |        3 |       10 |        0 |     95% |     94-96 |
 | src/cline\_hooks/plugins/build\_tools.py                |       24 |        1 |        4 |        0 |     96% |        24 |
@@ -150,6 +151,7 @@
 | tests/test\_plugin\_entry\_points.py                    |       80 |        0 |        2 |        0 |    100% |           |
 | tests/test\_plugin\_extension\_points.py                |       27 |        0 |        2 |        0 |    100% |           |
 | tests/test\_plugins\_agent\_worktree.py                 |       51 |        0 |        0 |        0 |    100% |           |
+| tests/test\_plugins\_background\_watch.py               |       54 |        0 |        6 |        1 |     98% |   50-\>54 |
 | tests/test\_plugins\_bash\_timeout.py                   |       22 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugins\_build\_redirect.py                 |       95 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugins\_build\_tools.py                    |       17 |        0 |        0 |        0 |    100% |           |
@@ -181,7 +183,7 @@
 | tests/test\_uninstall.py                                |       46 |        0 |        0 |        0 |    100% |           |
 | tests/test\_user\_install.py                            |       53 |        0 |        4 |        0 |    100% |           |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **13818** |  **179** | **1654** |  **102** | **98%** |           |
+| **TOTAL**                                               | **13896** |  **179** | **1664** |  **103** | **98%** |           |
 
 
 ## Setup coverage badge
