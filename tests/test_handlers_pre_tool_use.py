@@ -179,7 +179,7 @@ class TestBuildOutputFilterScope:
             "just --help | head",
             "just --version | head",
             "just build && grep x package.json",
-            "just > build.log; grep build.log unrelated.txt",
+            "just build > build.log; grep build.log unrelated.txt",
             "just build | grep x package.json",
         ],
     )
@@ -255,7 +255,7 @@ class TestEchoTrueBlock:
         assert result is None
 
     def test_echo_chained_with_other_command_is_allowed(self) -> None:
-        result = _run("execute_command", {"command": 'echo "starting" && npm test'})
+        result = _run("execute_command", {"command": 'echo "starting" && npm run build'})
         assert result is None
 
 
