@@ -174,12 +174,17 @@ def _file_inputs(cmd: ParsedCommand) -> list[str]:
     return [*_operands(cmd), *cmd.redirect_inputs]
 
 
-def _filters_build_output(cmd: ParsedCommand, all_commands: list[ParsedCommand]) -> bool:
-    """Return True when the command reads a build command's output via stdin or a log it redirected to."""
-    build_logs = {Path(log) for build in all_commands if _is_build_invocation(build) for log in build.redirect_outputs}
+def reads_piped_build_output(cmd: ParsedCommand) -> bool:
+    """Return True when a grep, head or tail command reads a build command's output from stdin."""
     file_inputs = _file_inputs(cmd)
-    reads_piped_build = _is_build_invocation(cmd.piped_from) and (not file_inputs or "-" in file_inputs)
-    return reads_piped_build or not build_logs.isdisjoint(map(Path, file_inputs))
+    reads_stdin = not file_inputs or "-" in file_inputs
+    return cmd.name in _VALUE_SHORT_OPTIONS and _is_build_invocation(cmd.piped_from) and reads_stdin
+
+
+def _filters_build_output(cmd: ParsedCommand, all_commands: list[ParsedCommand]) -> bool:
+    """Return True when the command reads a log a build command redirected its output to."""
+    build_logs = {Path(log) for build in all_commands if _is_build_invocation(build) for log in build.redirect_outputs}
+    return not build_logs.isdisjoint(map(Path, _file_inputs(cmd)))
 
 
 def _is_standalone(_cmd: ParsedCommand, all_commands: list[ParsedCommand]) -> bool:

@@ -167,6 +167,14 @@ class Protocol(ABC):
         context = "\n\n".join(part for part in (message, fallback_message) if part)
         self.allow(context or None, system_message=system_message)
 
+    def supports_updated_input(self) -> bool:
+        """Whether this protocol can change a tool call's input.
+
+        Returns:
+            False by default; overridden by protocols that apply `updated_input`.
+        """
+        return False
+
     def supports_user_message(self) -> bool:
         """Whether this protocol can surface a message directly to the user.
 

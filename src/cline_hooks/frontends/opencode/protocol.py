@@ -110,6 +110,14 @@ class OpencodeProtocol(StandardPayloadProtocol):
         """Allow via exit 0, context on stdout."""
         exit_allow(message)
 
+    def supports_updated_input(self) -> bool:
+        """Report that this frontend applies a changed tool input.
+
+        Returns:
+            True.
+        """
+        return True
+
     def allow_with_input(
         self,
         updated_input: Mapping[str, Any],
