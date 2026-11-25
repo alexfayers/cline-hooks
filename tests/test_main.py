@@ -223,6 +223,15 @@ class TestResourceLimits:
         assert limits[resource.RLIMIT_AS] == megabytes * _MB
         assert resource.RLIMIT_CPU in limits
 
+    def test_runs_uncapped_where_the_os_rejects_an_address_space_cap(self, setrlimit: MagicMock) -> None:
+        def reject_address_space(limit: int, _values: tuple[int, int]) -> None:
+            if limit == resource.RLIMIT_AS:
+                raise ValueError("current limit exceeds maximum limit")
+
+        setrlimit.side_effect = reject_address_space
+        _run_main(_TASK_START_PAYLOAD)
+        assert resource.RLIMIT_CPU in {call.args[0] for call in setrlimit.call_args_list}
+
     @pytest.mark.usefixtures("setrlimit")
     def test_git_children_map_pack_files_within_the_cap(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("CLINE_HOOKS_MAX_MEMORY_MB", "400")
