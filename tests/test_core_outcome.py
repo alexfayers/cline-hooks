@@ -113,10 +113,10 @@ class TestUpdatedInput:
         assert outcome.updated_input == {"task": "new"}
         assert outcome.fallback_notes == ("hint",)
 
-    def test_merge_overlays_later_input_and_collects_fallback_notes(self) -> None:
+    def test_merge_replaces_the_input_with_the_later_one_and_collects_fallback_notes(self) -> None:
         first = Outcome.allow(updated_input={"task": "a", "keep": 1}, fallback_note="one")
         merged = first.merge(Outcome.allow(updated_input={"task": "b"}, fallback_note="two"))
-        assert merged.updated_input == {"task": "b", "keep": 1}
+        assert merged.updated_input == {"task": "b"}
         assert merged.fallback_notes == ("one", "two")
 
     def test_a_block_discards_the_updated_input(self) -> None:

@@ -164,7 +164,11 @@ export default function (pi: ExtensionAPI) {
     });
     if (outcome.blocked) return { block: true, reason: outcome.message };
     const update = parseInputUpdate(outcome.message);
-    if (update) Object.assign(event.input, update.updated_input);
+    if (update) {
+      const input: Record<string, unknown> = event.input;
+      for (const key of Object.keys(input)) delete input[key];
+      Object.assign(input, update.updated_input);
+    }
     const message = update ? update.message : outcome.message;
     if (message) addNote(delivery, message);
   });

@@ -246,7 +246,7 @@ async function setup(ctx: Context) {
       });
       if (outcome.blocked) throw new Error(outcome.message);
       const update = parseInputUpdate(outcome.message);
-      if (update && inputs.length === 1) event.input = { ...record(event.input), ...update.updated_input };
+      if (update && inputs.length === 1) event.input = update.updated_input;
       const message = update ? update.message : outcome.message;
       if (message) messages.push(message);
     }

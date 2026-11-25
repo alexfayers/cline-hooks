@@ -107,7 +107,7 @@ class Outcome:
 
         A BLOCK wins: it discards notes and input updates accumulated before
         it, and nothing after it contributes any. `user_message` accumulates
-        regardless. Later input updates overwrite earlier ones key by key.
+        regardless. A later input update replaces an earlier one.
 
         Args:
             other: The later contributor's outcome.
@@ -132,14 +132,11 @@ class Outcome:
         disposition = (
             Disposition.FEEDBACK if Disposition.FEEDBACK in {self.disposition, other.disposition} else Disposition.ALLOW
         )
-        updated_input = None
-        if self.updated_input is not None or other.updated_input is not None:
-            updated_input = {**(self.updated_input or {}), **(other.updated_input or {})}
         return Outcome(
             disposition,
             notes=self.notes + other.notes,
             user_message=user_message,
             label=label,
-            updated_input=updated_input,
+            updated_input=self.updated_input if other.updated_input is None else other.updated_input,
             fallback_notes=self.fallback_notes + other.fallback_notes,
         )

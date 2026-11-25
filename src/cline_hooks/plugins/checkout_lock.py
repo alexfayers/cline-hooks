@@ -157,7 +157,7 @@ def _pre_shell(kwargs: PreShellKwargs) -> HookResult | None:
                 return None
             flagged = f"{UNLOCK_COMMAND} --session {shlex.quote(kwargs.task_id)}"
             return HookResult(
-                updated_input={"command": kwargs.command.replace(UNLOCK_COMMAND, flagged, 1)},
+                updated_input={**kwargs.parameters, "command": kwargs.command.replace(UNLOCK_COMMAND, flagged, 1)},
                 fallback_notes=[f"MUST run `{flagged} [path]` so the unlock names your session."],
             )
         message = _claim(_written_files(command, base), kwargs.task_id)
