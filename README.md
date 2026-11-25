@@ -5,7 +5,7 @@
 | Name                                                    |    Stmts |     Miss |   Branch |   BrPart |   Cover |   Missing |
 |-------------------------------------------------------- | -------: | -------: | -------: | -------: | ------: | --------: |
 | src/cline\_hooks/\_\_init\_\_.py                        |        2 |        0 |        0 |        0 |    100% |           |
-| src/cline\_hooks/\_main.py                              |      202 |       24 |       46 |        9 |     86% |156, 218-220, 237, 253-254, 280, 306, 316-322, 325-328, 336-337, 341-345 |
+| src/cline\_hooks/\_main.py                              |      204 |       24 |       46 |        9 |     86% |159, 221-223, 240, 256-257, 283, 309, 319-325, 328-331, 339-340, 344-348 |
 | src/cline\_hooks/config.py                              |       11 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/core/\_\_init\_\_.py                   |        0 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/core/frontend.py                       |       46 |        3 |        8 |        1 |     89% |   133-135 |
@@ -53,7 +53,7 @@
 | src/cline\_hooks/frontends/pi/protocol.py               |       38 |        1 |        4 |        1 |     95% |       115 |
 | src/cline\_hooks/frontends/pi/transcript.py             |       55 |        2 |       18 |        3 |     93% |72-\>67, 93, 102 |
 | src/cline\_hooks/handlers/\_\_init\_\_.py               |        3 |        0 |        0 |        0 |    100% |           |
-| src/cline\_hooks/handlers/commands.py                   |      210 |        6 |       96 |        9 |     95% |262, 277, 304, 348, 352, 396, 405-\>401, 407-\>401, 408-\>407 |
+| src/cline\_hooks/handlers/commands.py                   |      210 |        6 |       96 |       10 |     95% |262, 277, 304, 348, 352, 396, 403-\>401, 405-\>401, 407-\>401, 408-\>407 |
 | src/cline\_hooks/handlers/context\_nudge.py             |        7 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/handlers/git\_context.py               |       45 |        2 |        8 |        0 |     96% |     33-34 |
 | src/cline\_hooks/handlers/herdr\_guard.py               |       79 |        1 |       24 |        1 |     98% |        84 |
@@ -136,7 +136,7 @@
 | tests/test\_install\_opencode.py                        |       20 |        0 |        0 |        0 |    100% |           |
 | tests/test\_install\_pi.py                              |       39 |        0 |        2 |        0 |    100% |           |
 | tests/test\_kiro\_integration.py                        |       49 |        0 |        0 |        0 |    100% |           |
-| tests/test\_main.py                                     |      189 |        3 |        6 |        0 |     98% |161, 334, 340 |
+| tests/test\_main.py                                     |      196 |        3 |        8 |        0 |     99% |161, 343, 349 |
 | tests/test\_memory\_tracker.py                          |       66 |        0 |        4 |        0 |    100% |           |
 | tests/test\_models.py                                   |      108 |        0 |        4 |        0 |    100% |           |
 | tests/test\_models\_kiro.py                             |      213 |        0 |        2 |        0 |    100% |           |
@@ -175,7 +175,7 @@
 | tests/test\_uninstall.py                                |       46 |        0 |        0 |        0 |    100% |           |
 | tests/test\_user\_install.py                            |       53 |        0 |        4 |        0 |    100% |           |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **13145** |  **171** | **1574** |  **101** | **98%** |           |
+| **TOTAL**                                               | **13154** |  **171** | **1576** |  **102** | **98%** |           |
 
 
 ## Setup coverage badge
