@@ -9,6 +9,7 @@ from cline_hooks.core.parameters import (
     McpToolUse,
     ShellParameters,
 )
+from cline_hooks.core.payload import rewritten_parameters
 from cline_hooks.core.plugin import collect_contributions, collect_hook_results, load_plugins
 from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.registry import TOOL_HANDLERS, hook_handler, tool_handler
@@ -233,7 +234,8 @@ def handle_pre_tool_use(hook: HookInputPreToolUse) -> Outcome:
     if handler is not None:
         fields = hook.preToolUse
         if outcome.updated_input is not None:
-            fields = fields.model_copy(update={"parameters": dict(outcome.updated_input)})
+            parameters = rewritten_parameters(tool_name, dict(outcome.updated_input))
+            fields = fields.model_copy(update={"parameters": parameters})
         outcome = outcome.merge(handler(hook, fields, plugins))
 
     if outcome.disposition is Disposition.BLOCK:

@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 import pluggy
 
+from cline_hooks.core.payload import rewritten_parameters
 import cline_hooks.plugins as _plugins_pkg
 
 if TYPE_CHECKING:
@@ -135,7 +136,7 @@ def collect_hook_results(plugins: list[HooksPlugin], hook_name: str, **kwargs: o
         merged.fallback_notes.extend(note for note in result.fallback_notes if note.strip())
         if result.updated_input is not None:
             merged.updated_input = result.updated_input
-            kwargs["parameters"] = result.updated_input
+            kwargs["parameters"] = rewritten_parameters(str(kwargs.get("tool_name", "")), result.updated_input)
             if "command" in kwargs:
                 kwargs["command"] = result.updated_input.get("command", kwargs["command"])
         if result.block and merged.block is None:
