@@ -149,7 +149,7 @@
 | tests/test\_plugins\_build\_tools.py                    |       17 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugins\_checkout\_lock.py                  |       99 |        0 |        6 |        0 |    100% |           |
 | tests/test\_plugins\_command\_rules.py                  |       54 |        0 |        0 |        0 |    100% |           |
-| tests/test\_plugins\_delegation.py                      |       76 |        0 |        0 |        0 |    100% |           |
+| tests/test\_plugins\_delegation.py                      |       85 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugins\_ecosystem.py                       |      112 |        0 |        2 |        0 |    100% |           |
 | tests/test\_plugins\_file\_structure.py                 |       46 |        0 |        6 |        0 |    100% |           |
 | tests/test\_plugins\_fixup\_guard.py                    |       62 |        0 |        2 |        0 |    100% |           |
@@ -175,7 +175,7 @@
 | tests/test\_uninstall.py                                |       46 |        0 |        0 |        0 |    100% |           |
 | tests/test\_user\_install.py                            |       53 |        0 |        4 |        0 |    100% |           |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **13184** |  **171** | **1582** |  **102** | **98%** |           |
+| **TOTAL**                                               | **13193** |  **171** | **1582** |  **102** | **98%** |           |
 
 
 ## Setup coverage badge
