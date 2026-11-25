@@ -66,6 +66,7 @@
 | src/cline\_hooks/handlers/task\_lifecycle.py            |       78 |        1 |       12 |        1 |     98% |       161 |
 | src/cline\_hooks/handlers/user\_prompt.py               |       28 |        0 |        6 |        0 |    100% |           |
 | src/cline\_hooks/plugins/\_\_init\_\_.py                |        0 |        0 |        0 |        0 |    100% |           |
+| src/cline\_hooks/plugins/bash\_timeout.py               |       16 |        0 |        4 |        0 |    100% |           |
 | src/cline\_hooks/plugins/build\_tools.py                |       24 |        1 |        4 |        0 |     96% |        24 |
 | src/cline\_hooks/plugins/checkout\_lock.py              |      134 |        5 |       42 |        4 |     95% |69-70, 125, 126-\>121, 128, 157 |
 | src/cline\_hooks/plugins/command\_rules.py              |      111 |        5 |       42 |        3 |     95% |30-\>24, 158, 160-162, 214 |
@@ -146,6 +147,7 @@
 | tests/test\_plugin.py                                   |      177 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugin\_entry\_points.py                    |       80 |        0 |        2 |        0 |    100% |           |
 | tests/test\_plugin\_extension\_points.py                |       27 |        0 |        2 |        0 |    100% |           |
+| tests/test\_plugins\_bash\_timeout.py                   |       22 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugins\_build\_tools.py                    |       17 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugins\_checkout\_lock.py                  |       99 |        0 |        6 |        0 |    100% |           |
 | tests/test\_plugins\_command\_rules.py                  |       54 |        0 |        0 |        0 |    100% |           |
@@ -175,7 +177,7 @@
 | tests/test\_uninstall.py                                |       46 |        0 |        0 |        0 |    100% |           |
 | tests/test\_user\_install.py                            |       53 |        0 |        4 |        0 |    100% |           |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **13193** |  **171** | **1582** |  **102** | **98%** |           |
+| **TOTAL**                                               | **13231** |  **171** | **1586** |  **102** | **98%** |           |
 
 
 ## Setup coverage badge
