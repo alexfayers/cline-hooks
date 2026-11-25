@@ -5,7 +5,9 @@ const BINARY: string = "__CLINE_HOOK_BINARY__";
 const BLOCK_EXIT_CODE = 2;
 const PATCH_FILE = /^\*\*\* (Add|Update|Delete) File: (.+)$/;
 const PATCH_MOVE = /^\*\*\* Move to: (.+)$/;
-const SKILL_NOTE_START = /^(?=REQUIRED: the `)/m;
+const SKILL_NOTE_START = /^(?=(?:REMINDER: )?REQUIRED: the `)/m;
+const SKILL_NOTE_PREFIX = /^REMINDER: /;
+const SKILL_NOTE_ID = /^(?:REMINDER: )?REQUIRED: the `([^`]+)`/;
 
 interface HookOutcome {
   blocked: boolean;
@@ -240,6 +242,7 @@ async function setup(ctx: Context) {
     if (event.agent) agents.set(event.sessionID, event.agent);
     const inputs = inputsOf(event);
     const messages: string[] = [];
+    const skills = new Map<string, string[]>();
     for (const input of inputs) {
       const outcome = await hook(event.sessionID, {
         hook_event_name: "tool.execute.before",
@@ -251,7 +254,19 @@ async function setup(ctx: Context) {
       const message = update ? update.message : outcome.message;
       // Files of one patch can need the same skill, which is shown once.
       for (const note of (message ?? "").split(SKILL_NOTE_START).map((part) => part.trim())) {
-        if (note && !messages.includes(note)) messages.push(note);
+        const id = note.match(SKILL_NOTE_ID)?.[1];
+        if (!id) {
+          if (note && !messages.includes(note)) messages.push(note);
+          continue;
+        }
+        // A note after the skill text is a separate note, so only the shared leading paragraphs are dropped.
+        const paragraphs = note.replace(SKILL_NOTE_PREFIX, "").split("\n\n");
+        const seen = skills.get(id);
+        if (!seen) skills.set(id, paragraphs);
+        let shared = 0;
+        while (seen && shared < seen.length && seen[shared] === paragraphs[shared]) shared++;
+        const rest = (seen ? paragraphs.slice(shared) : [note.replace(SKILL_NOTE_PREFIX, "")]).join("\n\n").trim();
+        if (rest && !messages.includes(rest)) messages.push(rest);
       }
     }
     const input = record(event.input);

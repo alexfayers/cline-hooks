@@ -165,6 +165,26 @@ class TestOpencodePlugin:
         out, _ = _run(tmp_path, cases, [_before(tool="patch", patchText=patch), _after(tool="patch")])
         assert out["results"][1]["result"]["content"][-1]["text"] == f"{skill_a}\n\n{skill_b}\n\nafter"
 
+    def test_a_skill_is_shown_once_whether_or_not_it_has_the_reminder_prefix(self, tmp_path: Path) -> None:
+        patch = "*** Begin Patch\n*** Update File: a.py\n@@\n-x\n+y\n*** Add File: b.py\n+z\n*** End Patch"
+        skill = "REQUIRED: the `a` skill:\n\nline"
+        cases = (
+            f"*a.py*) printf '%s' '{skill}';; *b.py*) printf 'REMINDER: %s' '{skill}';;"
+            " *tool.execute.after*) printf after;;"
+        )
+        out, _ = _run(tmp_path, cases, [_before(tool="patch", patchText=patch), _after(tool="patch")])
+        assert out["results"][1]["result"]["content"][-1]["text"] == f"{skill}\n\nafter"
+
+    def test_a_warning_after_a_repeated_skill_is_kept(self, tmp_path: Path) -> None:
+        patch = "*** Begin Patch\n*** Update File: a.py\n@@\n-x\n+y\n*** Add File: b.py\n+z\n*** End Patch"
+        skill = "REQUIRED: the `a` skill:\n\nline\n\nmore"
+        cases = (
+            f"*a.py*) printf '%s' '{skill}';; *b.py*) printf '%s\n\n%s' '{skill}' 'WARNING: b is odd';;"
+            " *tool.execute.after*) printf after;;"
+        )
+        out, _ = _run(tmp_path, cases, [_before(tool="patch", patchText=patch), _after(tool="patch")])
+        assert out["results"][1]["result"]["content"][-1]["text"] == f"{skill}\n\nWARNING: b is odd\n\nafter"
+
     def test_a_blocked_later_file_leaves_the_earlier_notes_unreported(self, tmp_path: Path) -> None:
         patch = "*** Begin Patch\n*** Update File: a.py\n@@\n-x\n+y\n*** Add File: b.py\n+z\n*** End Patch"
         cases = "*b.py*) printf 'no b' >&2; exit 2;; *tool.execute.before*) printf note;;"
