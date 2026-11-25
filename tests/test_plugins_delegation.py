@@ -48,6 +48,19 @@ def _pre_shell(command: str, *, agent_type: str = "", agent_id: str | None = Non
     }
 
 
+class TestNudgeWording:
+    def test_requires_delegating_real_work_and_allows_a_small_fix_inline(self, mocker: MockerFixture) -> None:
+        _enable(mocker)
+        result = DelegationPlugin().on_hook(
+            CanonicalHook.PRE_TOOL_USE, logger=logging.getLogger("test"), **_pre_tool_use("replace_in_file")
+        )
+        assert isinstance(result, HookResult)
+        note = result.notes[0]
+        assert "MUST delegate" in note
+        assert "small fix" in note
+        assert "MAY run inline" in note
+
+
 class TestFileEditTools:
     def test_fires_on_edit(self, mocker: MockerFixture) -> None:
         _enable(mocker)

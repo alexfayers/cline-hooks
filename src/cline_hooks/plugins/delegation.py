@@ -108,9 +108,9 @@ _MUTATING_FLAGS = {
 
 _DELEGATION_NUDGE = (
     "DELEGATION CHECK: An agent team is enabled and this session is about to do work "
-    "inline with no subagent spawned yet. MUST delegate the first unit of work - "
-    "research, design, edits, verification - to a teammate and keep this session on "
-    "orchestration."
+    "inline with no subagent spawned yet. MUST delegate the first unit of real work - "
+    "research, design, large edits, verification - to a teammate and keep this session on "
+    "orchestration. A small fix to a few files you can already name MAY run inline or with one worker."
 )
 
 
