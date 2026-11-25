@@ -8,7 +8,7 @@ from cline_hooks.core.parameters import (
     PlanModeRespondParameters,
     ReadParameters,
 )
-from cline_hooks.core.plugin import HookResult, HooksPlugin
+from cline_hooks.core.plugin import HookResult, HooksPlugin, is_subagent
 from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool, PluginScope
 from cline_hooks.handlers.commands import contains_comment, extract_replacement_blocks
@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     import logging
 
 _LARGE_FILE_THRESHOLD = 1000
+_LEAD_READ_NOTE = " MUST send a read that needs the whole file to a fork and read its report."
 _BINARY_SNIFF_BYTES = 8192
 _BINARY_EXTENSIONS = frozenset({
     ".png",
@@ -98,12 +99,13 @@ def _plan_mode_respond_guard(logger: logging.Logger, parameters: dict[str, Any])
     )
 
 
-def _read_guard(logger: logging.Logger, parameters: dict[str, Any]) -> HookResult | None:
+def _read_guard(logger: logging.Logger, parameters: dict[str, Any], *, in_lead: bool) -> HookResult | None:
     """Block reading a file that's too large to read in full.
 
     Args:
         logger: This plugin's hook-scoped child logger.
         parameters: The read call's parameters.
+        in_lead: Whether the read runs in the lead rather than a subagent, which is told to use a fork.
 
     Returns:
         A blocking HookResult if the file exceeds the large-file threshold and
@@ -129,6 +131,7 @@ def _read_guard(logger: logging.Logger, parameters: dict[str, Any]) -> HookResul
             block=(
                 f"{params.path} has {line_count} lines to read. "
                 "MUST search it with specific patterns instead of reading the whole file."
+                f"{_LEAD_READ_NOTE if in_lead else ''}"
             )
         )
     return None
@@ -183,7 +186,7 @@ def _pre_tool_use_guard(logger: logging.Logger, **kwargs: object) -> HookResult 
     if tool_name == CanonicalTool.PLAN_MODE_RESPOND:
         return _plan_mode_respond_guard(logger, parameters)
     if tool_name == CanonicalTool.READ:
-        return _read_guard(logger, parameters)
+        return _read_guard(logger, parameters, in_lead=not is_subagent(kwargs))
     if tool_name in {CanonicalTool.EDIT, CanonicalTool.WRITE}:
         return _file_edit_comment_guard(logger, parameters)
     return None
