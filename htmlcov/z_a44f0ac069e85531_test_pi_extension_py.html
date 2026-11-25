@@ -66,8 +66,8 @@
             <a id="indexLink" class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
             <a id="nextFileLink" class="nav" href="z_a44f0ac069e85531_test_plan_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io/en/7.17.3">coverage.py v7.17.3</a>,
-            created at 2026-11-25 18:36 +0000
+            <a class="nav" href="https://coverage.readthedocs.io/en/7.17.5">coverage.py v7.17.5</a>,
+            created at 2026-11-25 20:37 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -163,10 +163,10 @@
     <p class="run"><span class="n"><a id="t79" href="#t79">79</a></span><span class="t">    <span class="key">return</span> <span class="nam">_run_harness</span><span class="op">(</span><span class="nam">tmp_path</span><span class="op">,</span> <span class="nam">cases</span><span class="op">,</span> <span class="op">{</span><span class="op">}</span><span class="op">,</span> <span class="nam">str</span><span class="op">(</span><span class="nam">steps_file</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t80" href="#t80">80</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t81" href="#t81">81</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t82" href="#t82">82</a></span><span class="t"><span class="key">def</span> <span class="nam">test_the_updated_input_is_copied_into_the_tool_input</span><span class="op">(</span><span class="nam">tmp_path</span><span class="op">:</span> <span class="nam">Path</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t82" href="#t82">82</a></span><span class="t"><span class="key">def</span> <span class="nam">test_the_updated_input_replaces_the_tool_input</span><span class="op">(</span><span class="nam">tmp_path</span><span class="op">:</span> <span class="nam">Path</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t83" href="#t83">83</a></span><span class="t">    <span class="nam">hook_stdout</span> <span class="op">=</span> <span class="nam">json</span><span class="op">.</span><span class="nam">dumps</span><span class="op">(</span><span class="op">{</span><span class="str">&quot;updated_input&quot;</span><span class="op">:</span> <span class="op">{</span><span class="str">&quot;task&quot;</span><span class="op">:</span> <span class="str">&quot;do it. hint&quot;</span><span class="op">}</span><span class="op">,</span> <span class="str">&quot;message&quot;</span><span class="op">:</span> <span class="str">&quot;ctx&quot;</span><span class="op">}</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t84" href="#t84">84</a></span><span class="t">    <span class="nam">result</span> <span class="op">=</span> <span class="nam">_run_extension</span><span class="op">(</span><span class="nam">tmp_path</span><span class="op">,</span> <span class="nam">hook_stdout</span><span class="op">,</span> <span class="op">{</span><span class="str">&quot;task&quot;</span><span class="op">:</span> <span class="str">&quot;do it&quot;</span><span class="op">,</span> <span class="str">&quot;definition&quot;</span><span class="op">:</span> <span class="str">&quot;worker&quot;</span><span class="op">}</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t85" href="#t85">85</a></span><span class="t">    <span class="key">assert</span> <span class="nam">result</span><span class="op">[</span><span class="str">&quot;input&quot;</span><span class="op">]</span> <span class="op">==</span> <span class="op">{</span><span class="str">&quot;task&quot;</span><span class="op">:</span> <span class="str">&quot;do it. hint&quot;</span><span class="op">,</span> <span class="str">&quot;definition&quot;</span><span class="op">:</span> <span class="str">&quot;worker&quot;</span><span class="op">}</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t85" href="#t85">85</a></span><span class="t">    <span class="key">assert</span> <span class="nam">result</span><span class="op">[</span><span class="str">&quot;input&quot;</span><span class="op">]</span> <span class="op">==</span> <span class="op">{</span><span class="str">&quot;task&quot;</span><span class="op">:</span> <span class="str">&quot;do it. hint&quot;</span><span class="op">}</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t86" href="#t86">86</a></span><span class="t">    <span class="key">assert</span> <span class="nam">result</span><span class="op">[</span><span class="str">&quot;content&quot;</span><span class="op">]</span><span class="op">[</span><span class="op">-</span><span class="num">1</span><span class="op">]</span><span class="op">[</span><span class="str">&quot;text&quot;</span><span class="op">]</span> <span class="op">==</span> <span class="str">&quot;ctx&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t87" href="#t87">87</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t88" href="#t88">88</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -348,8 +348,8 @@
             <a class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
             <a class="nav" href="z_a44f0ac069e85531_test_plan_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io/en/7.17.3">coverage.py v7.17.3</a>,
-            created at 2026-11-25 18:36 +0000
+            <a class="nav" href="https://coverage.readthedocs.io/en/7.17.5">coverage.py v7.17.5</a>,
+            created at 2026-11-25 20:37 +0000
         </p>
     </div>
 </footer>
