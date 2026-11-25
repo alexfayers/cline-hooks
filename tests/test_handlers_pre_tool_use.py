@@ -19,6 +19,7 @@ from cline_hooks.frontends.pi import PiProtocol
 from cline_hooks.handlers.commands import CommandRule
 from cline_hooks.handlers.post_tool_use import handle_post_tool_use
 from cline_hooks.handlers.pre_tool_use import handle_pre_tool_use
+from cline_hooks.plugins.build_redirect import BuildRedirectPlugin
 from cline_hooks.plugins.build_tools import BuildToolsSpec
 from cline_hooks.plugins.command_rules import CommandRulesPlugin
 from cline_hooks.plugins.managed_files import _is_managed_path
@@ -124,11 +125,6 @@ class TestStartsWithEmoji:
 
 
 class TestGrepBlock:
-    def test_grep_with_build_command_is_blocked(self) -> None:
-        result = _run("execute_command", {"command": "just | grep foo"})
-        assert result is not None
-        assert "build output" in cast("str", result.get("errorMessage", ""))
-
     def test_grep_standalone_is_not_blocked(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.chdir(tmp_path)
         result = _run("execute_command", {"command": "grep -r foo ."})
@@ -137,10 +133,6 @@ class TestGrepBlock:
     def test_grep_piped_to_non_build_is_not_blocked(self) -> None:
         result = _run("execute_command", {"command": "ps aux | grep python"})
         assert result is None
-
-    def test_grep_with_just_is_blocked(self) -> None:
-        result = _run("execute_command", {"command": "just build | grep ERROR"})
-        assert result is not None
 
     def test_grep_without_build_not_blocked(self) -> None:
         result = _run("execute_command", {"command": "cat file.txt | grep foo"})
@@ -152,11 +144,6 @@ class TestGrepBlock:
 
 
 class TestHeadTailBlock:
-    def test_head_with_build_is_blocked(self) -> None:
-        result = _run("execute_command", {"command": "just | head -n 10"})
-        assert result is not None
-        assert "full output" in cast("str", result.get("errorMessage", ""))
-
     def test_head_standalone_is_blocked(self) -> None:
         result = _run("execute_command", {"command": "head -n 10 file.txt"})
         assert result is not None
@@ -165,11 +152,6 @@ class TestHeadTailBlock:
     def test_head_piped_to_non_build_not_blocked(self) -> None:
         result = _run("execute_command", {"command": "ls | head"})
         assert result is None
-
-    def test_tail_with_build_is_blocked(self) -> None:
-        result = _run("execute_command", {"command": "just | tail -n 20"})
-        assert result is not None
-        assert "full output" in cast("str", result.get("errorMessage", ""))
 
     def test_tail_standalone_is_blocked(self) -> None:
         result = _run("execute_command", {"command": "tail -n 20 file.log"})
@@ -212,8 +194,6 @@ class TestBuildOutputFilterScope:
             ("just build > build.log; grep x < build.log", "grep"),
             ("just > build.log; grep x ./build.log", "grep"),
             ("just > build.log; grep -eFAIL build.log", "grep"),
-            ("just build | tail -n 20 -", "tail"),
-            ("just build | grep x package.json -", "grep"),
         ],
     )
     def test_filter_reading_redirected_build_log_is_blocked(self, command: str, filter_name: str) -> None:
@@ -875,7 +855,6 @@ class TestRewritesFromDifferentScopes:
 
 
 _RM_F_MESSAGE = "rm -f is not allowed. MUST drop -f (rm, or rm -r for a directory)."
-_TAIL_BUILD_MESSAGE = "MUST NOT filter build output with tail - MUST capture the full output."
 
 
 class _FakeBuildPlugin(HooksPlugin):
@@ -925,11 +904,12 @@ class _PreShellRecordingPlugin(HooksPlugin):
 
 
 class TestCommandRuleEnforcement:
-    def test_contributed_build_command_piped_into_tail_is_blocked(self, use_plugins: Callable[..., None]) -> None:
-        use_plugins(_FakeBuildPlugin(), CommandRulesPlugin())
+    def test_contributed_build_command_piped_into_tail_is_redirected(self, use_plugins: Callable[..., None]) -> None:
+        use_plugins(_FakeBuildPlugin(), BuildRedirectPlugin())
+        set_protocol(PiProtocol())
         result = _run("execute_command", {"command": "fakebuild | tail -n 20"})
         assert result is not None
-        assert result.get("errorMessage") == _TAIL_BUILD_MESSAGE
+        assert "Full output" in str(result)
 
     def test_rule_message_wins_over_another_plugins_block(self, use_plugins: Callable[..., None]) -> None:
         use_plugins(CommandRulesPlugin(), _PreShellBlockingPlugin())

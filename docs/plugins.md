@@ -20,6 +20,7 @@ Plugins add custom command rules, build tool detection, research tools, ecosyste
 - Checkout lock: one editing session per file and per git working tree
 - Bash timeout: a Pi bash call that sets no timeout gets a 900 second one
 - Writer redirect: a Pi writer's file edit in the primary checkout runs on the same file in its worktree
+- Build redirect: a plain build piped into `grep`, `head` or `tail` writes its output to a private log file that the filter reads, where the frontend can change a command. Any other filtered build is blocked
 - Tracking of skill loads, memory writes, agent spawns and MCP tool use
 
 ## Creating a plugin
