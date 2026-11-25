@@ -18,6 +18,7 @@ Plugins add custom command rules, build tool detection, research tools, ecosyste
 - Nudges for commit size, retrospectives, persistence to memory, delegation and plan handoff
 - Handoff acknowledgement between sessions
 - Checkout lock: one editing session per file and per git working tree
+- Bash timeout: a Pi bash call that sets no timeout gets a 900 second one
 - Tracking of skill loads, memory writes, agent spawns and MCP tool use
 
 ## Creating a plugin
