@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.2](https://github.com/alexfayers/cline-hooks/compare/v0.3.1...v0.3.2) (2026-11-25)
+
+
+### Bug Fixes
+
+* run hooks without a memory cap where macOS rejects it ([#226](https://github.com/alexfayers/cline-hooks/issues/226)) ([a083816](https://github.com/alexfayers/cline-hooks/commit/a08381688214fd6dad0e5d68b6d369477f2e0b53))
+
+
+### Miscellaneous Chores
+
+* **deps:** update all non-major dependencies ([#227](https://github.com/alexfayers/cline-hooks/issues/227)) ([419f743](https://github.com/alexfayers/cline-hooks/commit/419f7437153812f20a06029273dcf5703cc65e2f))
+
 ## [0.3.1](https://github.com/alexfayers/cline-hooks/compare/v0.3.0...v0.3.1) (2026-11-25)
 
 
