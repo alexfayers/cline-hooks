@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import logging
 
+from cline_hooks.core.state import NameStore
 from cline_hooks.core.vocabulary import AGENT_SPAWN_TOOLS
-from cline_hooks.state.jsonfile import discard_key, discard_prefix, read_json, updated_json
-from cline_hooks.state.paths import get_data_dir
 
 logger = logging.getLogger("hooks.state.agents")
 
-_STATE_PATH = get_data_dir() / "agents-state.json"
+_store = NameStore("agents-state.json")
 _START_PREFIX = "start:"
 
 
@@ -36,9 +35,7 @@ def record_agent_use(task_id: str, tool_name: str) -> None:
         task_id: The session or task identifier.
         tool_name: The agent tool that was called.
     """
-    empty: dict[str, list[str]] = {}
-    with updated_json(_STATE_PATH, empty) as data:
-        data[task_id] = [*data.get(task_id, []), tool_name]
+    _store.add(task_id, tool_name, repeat=True)
 
 
 def record_agent_start(task_id: str, agent_id: str) -> None:
@@ -48,11 +45,7 @@ def record_agent_start(task_id: str, agent_id: str) -> None:
         task_id: The parent session or task identifier.
         agent_id: The subagent's identifier.
     """
-    empty: dict[str, list[str]] = {}
-    with updated_json(_STATE_PATH, empty) as data:
-        entry = f"{_START_PREFIX}{agent_id}"
-        if entry not in data.get(task_id, []):
-            data[task_id] = [*data.get(task_id, []), entry]
+    _store.add(task_id, f"{_START_PREFIX}{agent_id}")
 
 
 def has_agent_start(task_id: str) -> bool:
@@ -64,8 +57,7 @@ def has_agent_start(task_id: str) -> bool:
     Returns:
         True if at least one subagent id is recorded, so the frontend fires SubagentStart.
     """
-    data: dict[str, list[str]] = read_json(_STATE_PATH, {})
-    return any(entry.startswith(_START_PREFIX) for entry in data.get(task_id, []))
+    return any(entry.startswith(_START_PREFIX) for entry in _store.names(task_id))
 
 
 def has_agent_use(task_id: str) -> bool:
@@ -77,8 +69,7 @@ def has_agent_use(task_id: str) -> bool:
     Returns:
         True if at least one agent tool was called.
     """
-    data: dict[str, list[str]] = read_json(_STATE_PATH, {})
-    return bool(data.get(task_id))
+    return bool(_store.names(task_id))
 
 
 def agent_use_count(task_id: str) -> int:
@@ -90,8 +81,7 @@ def agent_use_count(task_id: str) -> int:
     Returns:
         The total number of agent tool invocations recorded.
     """
-    data: dict[str, list[str]] = read_json(_STATE_PATH, {})
-    return len(data.get(task_id, []))
+    return len(_store.names(task_id))
 
 
 def reset(task_id: str) -> None:
@@ -100,5 +90,4 @@ def reset(task_id: str) -> None:
     Args:
         task_id: The session or task identifier.
     """
-    discard_key(_STATE_PATH, task_id)
-    discard_prefix(_STATE_PATH, f"{task_id}:")
+    _store.reset(task_id)

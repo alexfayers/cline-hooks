@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import threading
 
-from cline_hooks.state.jsonfile import read_json
 import cline_hooks.state.memory as memory_tracker_module
 from cline_hooks.state.memory import (
     has_memory_writes,
@@ -94,5 +93,4 @@ class TestConcurrentWrites:
         for thread in threads:
             thread.join()
 
-        data: dict[str, list[str]] = read_json(memory_tracker_module._STATE_PATH, {})
-        assert sorted(data[_TASK]) == sorted(tool_names)
+        assert sorted(memory_tracker_module._store.names(_TASK)) == sorted(tool_names)

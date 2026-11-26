@@ -267,3 +267,35 @@ class PluginStateStore[StateT: "DataclassInstance"]:
             keys = [task_id] if task_id in data else []
             keys += [key for key in data if key.startswith(prefix) and (finished is None or key in finished)]
             return [self._parse(_visible(key, data.pop(key))) for key in keys]
+
+
+@dataclasses.dataclass
+class _Names:
+    names: list[str] = dataclasses.field(default_factory=list)
+
+
+class NameStore(PluginStateStore[_Names]):
+    """Records names per task, in the order they were first recorded."""
+
+    def __init__(self, filename: str) -> None:
+        """Back the store with `filename` under the platform data directory."""
+        super().__init__(filename, _Names)
+
+    def add(self, task_id: str, name: str, *, repeat: bool = False) -> None:
+        """Record a name for a task.
+
+        Args:
+            task_id: The session or task identifier.
+            name: The name to record.
+            repeat: Record the name again even where the task already has it.
+        """
+
+        def apply(state: _Names) -> None:
+            if repeat or name not in state.names:
+                state.names.append(name)
+
+        self.update(task_id, apply)
+
+    def names(self, task_id: str) -> list[str]:
+        """Return the names recorded for a task, oldest first."""
+        return self.get(task_id).names

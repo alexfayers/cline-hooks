@@ -209,11 +209,11 @@ def isolate_log_file(tmp_path_factory: pytest.TempPathFactory) -> None:
 def isolate_state_files(mocker: MockerFixture, tmp_path: Path) -> None:
     """Redirect all state file paths to tmp_path and set default protocol."""
     mocker.patch.object(state_store_module, "_STATE_PATH", tmp_path / "hook-state.json")
-    mocker.patch.object(skill_tracker_module, "_STATE_PATH", tmp_path / "skill-state.json")
-    mocker.patch.object(memory_tracker_module, "_STATE_PATH", tmp_path / "memory-state.json")
+    mocker.patch.object(skill_tracker_module._store, "_path", tmp_path / "skill-state.json")
+    mocker.patch.object(memory_tracker_module._store, "_path", tmp_path / "memory-state.json")
     mocker.patch.object(retrospective_module, "_STATE_PATH", tmp_path / "retrospective-state.json")
     mocker.patch.object(nudges_module._store, "_path", tmp_path / "turns-state.json")
-    mocker.patch.object(agents_tracker_module, "_STATE_PATH", tmp_path / "agents-state.json")
+    mocker.patch.object(agents_tracker_module._store, "_path", tmp_path / "agents-state.json")
     mocker.patch.object(finished_tracker_module, "_STATE_PATH", tmp_path / "finished-agents.json")
     mocker.patch.object(context_usage_module._store, "_path", tmp_path / "context-state.json")
     mocker.patch.object(plan_handoff_module._store, "_path", tmp_path / "plan-state.json")

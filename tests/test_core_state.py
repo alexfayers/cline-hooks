@@ -5,7 +5,10 @@ import json
 import threading
 from typing import TYPE_CHECKING
 
+import pytest
+
 from cline_hooks.core.state import PluginStateStore, counter, set_hook_context
+from cline_hooks.state import agents, memory, skills
 from cline_hooks.state.finished import mark_finished
 
 if TYPE_CHECKING:
@@ -256,3 +259,24 @@ class TestContextAnchors:
             store.update("task-1", _band_setter(band))
         set_hook_context("task-1", "b1", ["a1", "a3", "b1"])
         assert store.get("task-1") == _BandState(band=3)
+
+    @pytest.mark.parametrize(
+        ("record", "recorded"),
+        [
+            (lambda: skills.record_skill("task-1", "tdd"), lambda: skills.is_skill_called("task-1", "tdd")),
+            (
+                lambda: memory.record_memory_write("task-1", "add_observations"),
+                lambda: memory.has_memory_writes("task-1"),
+            ),
+            (lambda: agents.record_agent_use("task-1", "Agent"), lambda: agents.has_agent_use("task-1")),
+        ],
+        ids=["skills", "memory", "agents"],
+    )
+    def test_a_tracker_forgets_a_record_once_its_anchor_leaves_the_context(
+        self, record: Callable[[], None], recorded: Callable[[], bool]
+    ) -> None:
+        set_hook_context("task-1", "a1", ["a1"])
+        record()
+        assert recorded()
+        set_hook_context("task-1", "a2", ["a2"])
+        assert not recorded()

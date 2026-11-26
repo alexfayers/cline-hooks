@@ -4,15 +4,14 @@ import logging
 import os
 from pathlib import Path, PurePosixPath
 import re
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from cline_hooks.core.parameters import ReadParameters, ShellParameters, SkillParameters
 from cline_hooks.core.protocol import get_protocol
+from cline_hooks.core.state import NameStore
 from cline_hooks.core.vocabulary import SHELL_TOOLS, CanonicalTool
 from cline_hooks.handlers.commands import extract_commands, parse_command
 from cline_hooks.handlers.search_scope import effective_cwd
-from cline_hooks.state.jsonfile import discard_key, discard_prefix, read_json, updated_json
-from cline_hooks.state.paths import get_data_dir
 
 if TYPE_CHECKING:
     from cline_hooks.handlers.commands import ParsedCommand
@@ -33,7 +32,7 @@ _AWK_VALUE_OPTION = re.compile(r"-[vF]")
 
 _WRAP_UP_SKILLS = frozenset({"session-end", "handoff"})
 
-_STATE_PATH = get_data_dir() / "skill-state.json"
+_store = NameStore("skill-state.json")
 
 
 def record_skill(task_id: str, skill_name: str) -> None:
@@ -43,10 +42,7 @@ def record_skill(task_id: str, skill_name: str) -> None:
         task_id: The session or task identifier.
         skill_name: The skill name or `<skill>/<part>.md` key.
     """
-    with updated_json(_STATE_PATH, cast("dict[str, list[str]]", {})) as data:
-        skills = set(data.get(task_id, []))
-        skills.add(skill_name)
-        data[task_id] = sorted(skills)
+    _store.add(task_id, skill_name)
 
 
 def is_skill_called(task_id: str, skill_name: str) -> bool:
@@ -59,8 +55,7 @@ def is_skill_called(task_id: str, skill_name: str) -> bool:
     Returns:
         True if the skill has been called for the task.
     """
-    data: dict[str, list[str]] = read_json(_STATE_PATH, {})
-    return skill_name in data.get(task_id, [])
+    return skill_name in _store.names(task_id)
 
 
 def installed_skill_file(key: str) -> Path | None:
@@ -161,8 +156,7 @@ def reset(task_id: str) -> None:
     Args:
         task_id: The session or task identifier.
     """
-    discard_key(_STATE_PATH, task_id)
-    discard_prefix(_STATE_PATH, f"{task_id}:")
+    _store.reset(task_id)
 
 
 def _is_skill_invocation(tool_name: str, parameters: dict[str, Any], skill_names: frozenset[str]) -> bool:
