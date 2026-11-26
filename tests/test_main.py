@@ -3,7 +3,9 @@ from __future__ import annotations
 import io
 import json
 import logging
+import os
 import resource
+import shutil
 import signal
 import subprocess
 import sys
@@ -19,6 +21,7 @@ from cline_hooks._main import (
     _run_hook,
     main,
 )
+from cline_hooks.config import _DEFAULT_MAX_MEMORY_MB
 from cline_hooks.core.frontends import FRONTENDS, FRONTENDS_BY_NAME
 from cline_hooks.core.plugin import HooksPlugin, hookimpl
 import cline_hooks.core.state as core_state_module
@@ -158,6 +161,13 @@ _PRE_TOOL_USE_PAYLOAD: dict[str, object] = {
 _MB = 1024 * 1024
 
 
+def _run_under_cap(code: str) -> subprocess.CompletedProcess[str]:
+    """Run Python code in a fresh process after the hook applies its default resource limits."""
+    script = f"import subprocess\nfrom cline_hooks._main import _limit_resources\n_limit_resources()\n{code}"
+    env = {key: value for key, value in os.environ.items() if key != "CLINE_HOOKS_MAX_MEMORY_MB"}
+    return subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, env=env, check=False)
+
+
 class ExhaustingPlugin(HooksPlugin):
     """Runs `exhaust` on every hook, standing in for a plugin that runs out of a resource."""
 
@@ -221,7 +231,7 @@ class TestResourceLimits:
         )
 
     @pytest.mark.parametrize(("env", "megabytes"), [({}, 640), ({"CLINE_HOOKS_MAX_MEMORY_MB": "512"}, 512)])
-    def test_caps_the_address_space_at_the_configured_size(
+    def test_caps_the_data_segment_at_the_configured_size(
         self, setrlimit: MagicMock, monkeypatch: pytest.MonkeyPatch, env: dict[str, str], megabytes: int
     ) -> None:
         monkeypatch.delenv("CLINE_HOOKS_MAX_MEMORY_MB", raising=False)
@@ -229,17 +239,29 @@ class TestResourceLimits:
             monkeypatch.setenv(name, value)
         _run_main(_TASK_START_PAYLOAD)
         limits = {call.args[0]: call.args[1][0] for call in setrlimit.call_args_list}
-        assert limits[resource.RLIMIT_AS] == megabytes * _MB
+        assert limits[resource.RLIMIT_DATA] == megabytes * _MB
         assert resource.RLIMIT_CPU in limits
 
-    def test_runs_uncapped_where_the_os_rejects_an_address_space_cap(self, setrlimit: MagicMock) -> None:
-        def reject_address_space(limit: int, _values: tuple[int, int]) -> None:
-            if limit == resource.RLIMIT_AS:
+    def test_runs_uncapped_where_the_os_rejects_a_memory_cap(self, setrlimit: MagicMock) -> None:
+        def reject_memory_cap(limit: int, _values: tuple[int, int]) -> None:
+            if limit == resource.RLIMIT_DATA:
                 raise ValueError("current limit exceeds maximum limit")
 
-        setrlimit.side_effect = reject_address_space
+        setrlimit.side_effect = reject_memory_cap
         _run_main(_TASK_START_PAYLOAD)
         assert resource.RLIMIT_CPU in {call.args[0] for call in setrlimit.call_args_list}
+
+    @pytest.mark.skipif(sys.platform != "linux", reason="the memory cap is enforced on Linux only")
+    @pytest.mark.parametrize("command", [["gh", "--version"], ["node", "--version"]], ids=["go", "node"])
+    def test_a_child_with_a_large_virtual_reserve_starts_under_the_cap(self, command: list[str]) -> None:
+        if not shutil.which(command[0]):
+            pytest.skip(f"{command[0]} is not installed")
+        assert _run_under_cap(f"subprocess.run({command!r}, check=True, capture_output=True)").returncode == 0
+
+    @pytest.mark.skipif(sys.platform != "linux", reason="the memory cap is enforced on Linux only")
+    def test_an_allocation_over_the_cap_fails(self) -> None:
+        completed = _run_under_cap(f"bytearray({2 * _DEFAULT_MAX_MEMORY_MB} * {_MB})")
+        assert "MemoryError" in completed.stderr
 
     @pytest.mark.usefixtures("setrlimit")
     def test_git_children_map_pack_files_within_the_cap(self, monkeypatch: pytest.MonkeyPatch) -> None:
