@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
-from cline_hooks.core.install import Installer, write_bridge
+from cline_hooks.core.install import Installer, remove_bridge, write_bridge
 
 if TYPE_CHECKING:
     from cline_hooks.core.protocol import Protocol
@@ -48,3 +48,12 @@ class PiInstaller(Installer):
             force: Unused; the extension is always repointed at the resolved binary.
         """
         write_bridge(__package__, "extension.ts", self.extension_path())
+
+    def uninstall(self, protocol_cls: type[Protocol], target: str | None) -> None:
+        """Delete the bridge extension.
+
+        Args:
+            protocol_cls: Unused; the extension is one file.
+            target: Unused; pi's install takes no argument.
+        """
+        remove_bridge(self.extension_path())

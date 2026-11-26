@@ -78,3 +78,19 @@ class TestUninstallCopilot:
         uninstall_copilot()
 
         assert json.loads(copilot_file.read_text(encoding="utf-8")) == {"version": 1, "hooks": {"PreToolUse": [other]}}
+
+
+class TestUninstallFrontend:
+    def test_removes_the_frontend_s_entries_through_the_cli(self, tmp_path: Path) -> None:
+        settings = tmp_path / ".claude" / "settings.json"
+        _write(settings, {"hooks": {"Stop": [{"hooks": [{"type": "command", "command": _BINARY}]}]}})
+
+        with (
+            patch.object(Path, "home", return_value=tmp_path),
+            patch("sys.argv", ["cline-hook", "uninstall", "claude-code"]),
+            pytest.raises(SystemExit) as excinfo,
+        ):
+            main()
+
+        assert excinfo.value.code == 0
+        assert json.loads(settings.read_text(encoding="utf-8")) == {}

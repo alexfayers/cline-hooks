@@ -19,6 +19,7 @@
 |---------|------|
 | `cline-hook` (no arguments) | Reads one hook payload from stdin. This is what the assistants run. |
 | `cline-hook install <assistant> [target] [--force]` | Registers the hooks. |
+| `cline-hook uninstall <assistant> [target]` | Removes only the cline-hooks entries, leaving other tools' hooks. |
 | `cline-hook plugins` | Lists loaded plugins, the extension points each owns and contributes to, and whether the plugin set validates. |
 | `cline-hook retro-count --get` / `--reset` | Prints or resets the count of sessions since the last retrospective. |
 | `cline-hook unlock [path]` | Drops the session's file and working tree locks, or only the lock on `path`. |

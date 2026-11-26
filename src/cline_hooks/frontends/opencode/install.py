@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
-from cline_hooks.core.install import Installer, write_bridge
+from cline_hooks.core.install import Installer, remove_bridge, write_bridge
 
 if TYPE_CHECKING:
     from cline_hooks.core.protocol import Protocol
@@ -52,3 +52,12 @@ class OpencodeInstaller(Installer):
             force: Unused; the plugin is always repointed at the resolved binary.
         """
         write_bridge(__package__, "plugin.ts", self.plugin_path())
+
+    def uninstall(self, protocol_cls: type[Protocol], target: str | None) -> None:
+        """Delete the bridge plugin.
+
+        Args:
+            protocol_cls: Unused; the plugin is one file.
+            target: Unused; opencode's install takes no argument.
+        """
+        remove_bridge(self.plugin_path())
