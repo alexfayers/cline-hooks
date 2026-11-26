@@ -72,5 +72,29 @@ class TestGitContext:
 
         assert "Recent commits:\n  - \n  - initial" in context(tmp_path)
 
+    def test_a_branch_behind_its_cached_upstream_is_reported(self, repo: git.Repo, tmp_path: Path) -> None:
+        assert "Upstream" not in context(tmp_path)
+        repo.git.remote("add", "origin", str(tmp_path))
+        repo.git.update_ref("refs/remotes/origin/main", "HEAD")
+        repo.git.branch("--set-upstream-to=origin/main")
+        assert "Upstream" not in context(tmp_path)
+
+        repo.git.commit("--allow-empty", "-m", "remote work")
+        repo.git.update_ref("refs/remotes/origin/main", "HEAD")
+        repo.git.reset("--hard", "HEAD~1")
+        repo.git.commit("--allow-empty", "-m", "local work")
+
+        assert "Upstream origin/main: 1 ahead, 1 behind" in context(tmp_path).splitlines()
+
+    def test_a_detached_head_gives_no_upstream_line(self, repo: git.Repo, tmp_path: Path) -> None:
+        repo.git.remote("add", "origin", str(tmp_path))
+        repo.git.commit("--allow-empty", "-m", "remote work")
+        repo.git.update_ref("refs/remotes/origin/main", "HEAD")
+        repo.git.reset("--hard", "HEAD~1")
+        repo.git.branch("--set-upstream-to=origin/main")
+        repo.git.checkout("--detach")
+
+        assert "Upstream" not in context(tmp_path)
+
     def test_a_directory_that_is_not_a_repo_gives_no_summary(self, tmp_path: Path) -> None:
         assert get_git_context([str(tmp_path), str(tmp_path / "missing")]) is None

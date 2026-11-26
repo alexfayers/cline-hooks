@@ -72,6 +72,27 @@ def _unmerged_branches_line(root: str) -> str | None:
     return f"Unmerged local branches: {', '.join(names)}" if names else None
 
 
+def _upstream_line(root: str) -> str | None:
+    """Compare the branch with its cached remote-tracking ref, without fetching.
+
+    Args:
+        root: The repo to inspect.
+
+    Returns:
+        The ahead/behind line, or None where there is no upstream or the branch is level with it.
+    """
+    upstream = _git(root, "rev-parse", "--abbrev-ref", "@{u}")
+    if not upstream:
+        return None
+    counts = _git(root, "rev-list", "--left-right", "--count", "HEAD...@{u}")
+    if not counts:
+        return None
+    summary = ", ".join(
+        f"{count} {label}" for count, label in zip(counts.split(), ("ahead", "behind"), strict=True) if count != "0"
+    )
+    return f"Upstream {upstream.strip()}: {summary}" if summary else None
+
+
 def get_git_context(workspace_roots: list[str]) -> str | None:
     """Build a context string with git state for the first valid repo found.
 
@@ -80,7 +101,7 @@ def get_git_context(workspace_roots: list[str]) -> str | None:
 
     Returns:
         Formatted string with branch, dirty file count, recent commits, and
-        TODO.md status, plus unmerged branches and HANDOFF.md/RULES.md where
+        TODO.md status, plus upstream ahead/behind counts, unmerged branches and HANDOFF.md/RULES.md where
         present; or None if no valid git repo found.
     """
     for root in workspace_roots:
@@ -103,6 +124,7 @@ def get_git_context(workspace_roots: list[str]) -> str | None:
             f"Dirty files: {'unknown' if dirty_count is None else dirty_count}",
             f"Recent commits:\n{commits_str}",
             f"TODO.md present: {todo_exists}",
+            _upstream_line(root),
             _unmerged_branches_line(root),
             "HANDOFF.md present: run pickup" if (root_path / "HANDOFF.md").exists() else None,
             "RULES.md present" if (root_path / "RULES.md").exists() else None,
