@@ -22,6 +22,7 @@ logger = logging.getLogger("hooks.state")
 
 _ANCHORS_DIR = get_data_dir() / "context-anchors"
 _LAYERS = "_layers"
+_COUNTER = "counter"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -82,6 +83,15 @@ def _live_layers(key: str, entry: dict[str, Any]) -> list[dict[str, Any]]:
     return [layer for layer in layers if layer.get("anchor") is None or layer.get("anchor") in live]
 
 
+def counter() -> int:
+    """Declare a dataclass state field as a counter, whose writes are stored as steps.
+
+    Returns:
+        A field defaulting to 0.
+    """
+    return dataclasses.field(default=0, metadata={_COUNTER: True})
+
+
 def _is_count(value: object) -> bool:
     return isinstance(value, int) and not isinstance(value, bool)
 
@@ -98,14 +108,14 @@ def _applied(layers: list[dict[str, Any]]) -> dict[str, Any]:
     return copy.deepcopy(state)
 
 
-def _change(old: dict[str, Any], new: dict[str, Any]) -> dict[str, Any]:
-    """Return the change from `old` to `new`: counts as steps, lists as appended items, the rest as values."""
+def _change(old: dict[str, Any], new: dict[str, Any], counters: frozenset[str]) -> dict[str, Any]:
+    """Return the change from `old` to `new`: counters as steps, lists as appended items, the rest as values."""
     change: dict[str, dict[str, Any]] = {}
     for name, value in new.items():
         before = old.get(name)
         if name in old and before == value:
             continue
-        if _is_count(value) and _is_count(before):
+        if name in counters and _is_count(value) and _is_count(before):
             change.setdefault("add", {})[name] = value - before
         elif isinstance(value, list) and isinstance(before, list) and value[: len(before)] == before:
             change.setdefault("extend", {})[name] = value[len(before) :]
@@ -123,7 +133,7 @@ def _visible(key: str, entry: dict[str, Any]) -> dict[str, Any]:
     return _applied(_live_layers(key, entry))
 
 
-def _written(key: str, entry: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
+def _written(key: str, entry: dict[str, Any], state: dict[str, Any], counters: frozenset[str]) -> dict[str, Any]:
     """Return the raw entry to store after the current call changed its state.
 
     Returns:
@@ -141,7 +151,7 @@ def _written(key: str, entry: dict[str, Any], state: dict[str, Any]) -> dict[str
     anchor = _context.anchor_id if key == _context.state_key else newest
     if layers and newest == anchor:
         layers.pop()
-    change = _change(_applied(layers), state)
+    change = _change(_applied(layers), state, counters)
     return {_LAYERS: [*layers, {"anchor": anchor, **change}] if change else layers}
 
 
@@ -158,6 +168,9 @@ class PluginStateStore[StateT: "DataclassInstance"]:
         """
         self._path = path if path is not None else get_data_dir() / filename
         self._state_type = state_type
+        self._counters = frozenset(
+            field.name for field in dataclasses.fields(state_type) if field.metadata.get(_COUNTER)
+        )
 
     def _read_all(self) -> dict[str, dict[str, Any]]:
         """Read the whole state file, returning empty on a missing or corrupt file.
@@ -208,7 +221,7 @@ class PluginStateStore[StateT: "DataclassInstance"]:
             entry = data.get(task_id, {})
             state = self._parse(_visible(task_id, entry))
             result = mutate(state)
-            data[task_id] = _written(task_id, entry, dataclasses.asdict(state))
+            data[task_id] = _written(task_id, entry, dataclasses.asdict(state), self._counters)
         return result
 
     def update_all(self, mutate: Callable[[StateT], object]) -> None:
@@ -221,7 +234,7 @@ class PluginStateStore[StateT: "DataclassInstance"]:
             for task_id, entry in data.items():
                 state = self._parse(_visible(task_id, entry))
                 mutate(state)
-                data[task_id] = _written(task_id, entry, dataclasses.asdict(state))
+                data[task_id] = _written(task_id, entry, dataclasses.asdict(state), self._counters)
 
     def reset(self, task_id: str) -> None:
         """Clear the state entry for a task and every per-agent entry nested under it.

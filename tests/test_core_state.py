@@ -5,7 +5,7 @@ import json
 import threading
 from typing import TYPE_CHECKING
 
-from cline_hooks.core.state import PluginStateStore, set_hook_context
+from cline_hooks.core.state import PluginStateStore, counter, set_hook_context
 from cline_hooks.state.finished import mark_finished
 
 if TYPE_CHECKING:
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 @dataclass
 class _SampleState:
-    count: int = 0
+    count: int = counter()
     label: str = ""
 
 
@@ -155,6 +155,18 @@ class TestPluginStateStore:
 
 
 @dataclass
+class _BandState:
+    band: int | None = None
+
+
+def _band_setter(band: int) -> Callable[[_BandState], None]:
+    def apply(state: _BandState) -> None:
+        state.band = band
+
+    return apply
+
+
+@dataclass
 class _ListState:
     items: list[str] = field(default_factory=list)
 
@@ -236,3 +248,11 @@ class TestContextAnchors:
         assert path.read_text().count('"item-0"') == 1
         set_hook_context("task-1", "b0", [*anchors[:10], "b0"])
         assert store.get("task-1") == _ListState([f"item-{n}" for n in range(10)])
+
+    def test_a_plain_int_keeps_its_value_once_an_earlier_write_leaves_the_context(self, tmp_path: Path) -> None:
+        store = PluginStateStore("band.json", _BandState, tmp_path / "band.json")
+        for anchors, band in ((["a1"], 1), (["a1", "a2"], 2), (["a1", "a2", "a3"], 3)):
+            set_hook_context("task-1", anchors[-1], anchors)
+            store.update("task-1", _band_setter(band))
+        set_hook_context("task-1", "b1", ["a1", "a3", "b1"])
+        assert store.get("task-1") == _BandState(band=3)

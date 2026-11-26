@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from cline_hooks.core.parameters import ShellParameters
 from cline_hooks.core.plugin import HookResult, HooksPlugin, is_subagent
 from cline_hooks.core.protocol import get_protocol
-from cline_hooks.core.state import PluginStateStore
+from cline_hooks.core.state import PluginStateStore, counter
 from cline_hooks.core.timing import local_now
 from cline_hooks.core.vocabulary import (
     FILE_EDIT_TOOLS,
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 class _TurnsState:
     """Per-session user-prompt turn count and whether the session has edited a file."""
 
-    count: int = 0
+    count: int = counter()
     edited: bool = False
 
 
