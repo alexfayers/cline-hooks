@@ -96,7 +96,7 @@ def _within_hard_limit(limit: int, value: int) -> int:
 
 
 def _fit_git_in_memory_cap(max_memory_mb: int) -> None:
-    """Make git child processes, which inherit the address-space cap, map pack files in windows that fit it."""
+    """Make git child processes, which inherit the memory cap, map pack files in windows that fit it."""
     pack_limit_mb = max_memory_mb // _GIT_PACK_SHARE_OF_MEMORY
     settings = {
         "core.packedGitLimit": f"{pack_limit_mb}m",
@@ -111,15 +111,16 @@ def _fit_git_in_memory_cap(max_memory_mb: int) -> None:
 
 
 def _limit_resources() -> None:
-    """Cap this process's address space and CPU time, raising _CpuTimeExceededError at the CPU cap."""
+    """Cap this process's data segment and CPU time, raising _CpuTimeExceededError at the CPU cap."""
     signal.signal(signal.SIGXCPU, _raise_cpu_time_exceeded)
     max_memory_mb = get_max_memory_mb()
     _fit_git_in_memory_cap(max_memory_mb)
-    memory_hard = resource.getrlimit(resource.RLIMIT_AS)[1]
-    # macOS rejects any finite RLIMIT_AS, so the hook runs without a memory cap there.
+    memory_hard = resource.getrlimit(resource.RLIMIT_DATA)[1]
+    # macOS can reject a finite RLIMIT_DATA, so the hook runs without a memory cap there.
     with contextlib.suppress(ValueError):
         resource.setrlimit(
-            resource.RLIMIT_AS, (_within_hard_limit(resource.RLIMIT_AS, max_memory_mb * _BYTES_PER_MB), memory_hard)
+            resource.RLIMIT_DATA,
+            (_within_hard_limit(resource.RLIMIT_DATA, max_memory_mb * _BYTES_PER_MB), memory_hard),
         )
     resource.setrlimit(
         resource.RLIMIT_CPU,

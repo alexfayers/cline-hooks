@@ -28,7 +28,7 @@ _DEFAULT_MAX_MEMORY_MB = 640
 
 
 def get_max_memory_mb() -> int:
-    """Return the address-space (virtual memory) cap for one hook process, in megabytes.
+    """Return the data-segment (private writable memory) cap for one hook process, in megabytes.
 
     Read from CLINE_HOOKS_MAX_MEMORY_MB, 640 by default or when not a positive integer.
     """
