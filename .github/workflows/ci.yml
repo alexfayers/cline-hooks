@@ -9,6 +9,7 @@ on:
 
 jobs:
   lint:
+    if: github.head_ref != 'release-please--branches--main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -27,6 +28,7 @@ jobs:
       - run: just ts-lint
 
   type-check:
+    if: github.head_ref != 'release-please--branches--main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -49,6 +51,7 @@ jobs:
     uses: alexfayers/llm-prompts-ci/.github/workflows/blocked.yml@main
 
   test:
+    if: github.head_ref != 'release-please--branches--main'
     needs: unblocked
     runs-on: ubuntu-latest
     permissions:
@@ -69,6 +72,7 @@ jobs:
           ANNOTATE_MISSING_LINES: true
 
   test-macos:
+    if: github.head_ref != 'release-please--branches--main'
     needs: unblocked
     runs-on: macos-latest
     steps:
