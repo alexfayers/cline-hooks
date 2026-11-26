@@ -108,7 +108,7 @@ class TestConcurrency:
                     str(state_path),
                     f"session-{i}",
                 ],
-                env={"PYTHONPATH": src_dir},
+                env={"PYTHONPATH": src_dir, "CLINE_HOOKS_DATA_DIR": str(tmp_path / "data")},
             )
             for i in range(process_count)
         ]

@@ -2,7 +2,8 @@
 
 | Variable | Effect |
 |----------|--------|
-| `CLINE_HOOKS_DATA_DIR` | Where state files and `cline-hooks.log` live. Defaults to the platform data directory. The log rotates at 10 MB and keeps 3 backups. |
+| `CLINE_HOOKS_DATA_DIR` | Where state files and `cline-hooks.log` live. Defaults to `cline-hooks/state` in `$LLM_PROMPTS_HOME`, else in `$XDG_DATA_HOME/llm-prompts` or `~/.local/share/llm-prompts`. The first run copies the files of the old platform data directory there and keeps the old files. The log rotates at 10 MB and keeps 3 backups. |
+| `LLM_PROMPTS_HOME` | The shared root that holds one folder per tool, shared with llm-prompts and mcp-memory. |
 | `CLINE_HOOKS_FRONTEND` | Assistant name to load. Unset, it is detected from the payload. |
 | `CLINE_HOOKS_PUSH_BLOCK_MARKERS` | Comma-separated file or directory names. `git push` is blocked in a repo that has one of them at or above its root. Empty by default. |
 | `CLINE_HOOKS_MAX_MEMORY_MB` | Address-space (virtual memory, not resident memory) cap for one hook process and the git commands it runs, in MB. Defaults to 640. A hook that runs out of memory or out of its 30 seconds of CPU time allows the tool call. |

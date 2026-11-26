@@ -67,7 +67,7 @@ class TestUpdatedJson:
         processes = [
             subprocess.Popen(
                 [sys.executable, "-c", script],
-                env={"PYTHONPATH": src_dir},
+                env={"PYTHONPATH": src_dir, "CLINE_HOOKS_DATA_DIR": str(tmp_path / "data")},
             )
             for _ in range(process_count)
         ]

@@ -37,7 +37,7 @@ Other commands:
 
 ## Configuration
 
-- `CLINE_HOOKS_DATA_DIR` sets where state files and the log live
+- `CLINE_HOOKS_DATA_DIR` sets where state files and the log live, instead of `cline-hooks/state` in the shared llm-prompts root
 - `CLINE_HOOKS_FRONTEND` loads only the named assistant, instead of detecting it from the payload
 - `CLINE_HOOKS_PUSH_BLOCK_MARKERS` blocks `git push` in repos under any of the given file or directory names
 
