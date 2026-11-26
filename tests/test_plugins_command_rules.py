@@ -153,3 +153,90 @@ class TestCommandRulesPluginCommitMessageContentRule:
     @pytest.mark.parametrize("command", ["git log -F pattern", "git commit -m '-Fix the parser'", "git commit -mF"])
     def test_other_uses_of_the_file_flag_letter_are_allowed(self, rules: list[CommandRule], command: str) -> None:
         assert _violated(rules, command) is None
+
+
+class TestCommandRulesPluginInlineJsonRule:
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "curl -s https://example.test/api | python3 -c 'import json,sys; print(json.load(sys.stdin)[\"id\"])'",
+            "gh api repos/o/r | python -c 'import json,sys; print(json.loads(sys.stdin.read()))'",
+            'cat out.json | node -e \'console.log(JSON.parse(require("fs").readFileSync(0, "utf8")).id)\'',
+            "node --eval 'JSON.parse(require(\"fs\").readFileSync(0))' < out.json",
+            "curl -s x | python3 -c 'import json,sys\ntext = sys.stdin.read().strip()\nprint(json.loads(text))'",
+            "curl -s x | python3 -c 'import json,sys\nfor line in sys.stdin:\n    json.loads(line)'",
+            'curl -s x | node -e \'JSON.parse(require("fs").readFileSync(process.stdin.fd, "utf8"))\'',
+            "curl -s x | python3 -c 'import json,os,sys\njson.load(os.fdopen(sys.stdin.fileno()))'",
+            "curl -s x | python3 -c 'import json\nwith open(0) as f:\n    json.load(f)'",
+            "curl -s x | python3 -c 'import json,sys\nraw = sys.stdin.read()\nbody = raw.strip()\njson.loads(body)'",
+            'curl -s x | node -e \'let d=""; process.stdin.on("data", c => d += c).on("end", () => JSON.parse(d))\'',
+            'curl -s x | node -e \'const text = require("fs").readFileSync("/dev/stdin", "utf8"); JSON.parse(text)\'',
+            "python3 -c 'import json,sys; json.load(sys.stdin)' < out.json",
+            "python3 -c 'import json,sys; json.load(sys.stdin)' <<EOF\n{\"id\": 1}\nEOF\n",
+            "/usr/bin/python3 -c 'import json,sys; json.load(sys.stdin)'",
+            "curl -s x | python3 -c 'import json\nimport sys\nprint(json.load(sys.stdin))'",
+            "gh api repos/o/r | uv run python -c 'import json,sys; print(json.load(sys.stdin))'",
+            "curl -s x | uv run --with requests python3 -c 'import json,sys; json.load(sys.stdin)'",
+            "curl -s x | uv run --python 3.12 python -c 'import json,sys; json.load(sys.stdin)'",
+            "curl -s x | python3 -c 'from json import load\nimport sys\nprint(load(sys.stdin))'",
+            "curl -s x | python3 -c 'from json import loads as parse\nimport sys\nparse(sys.stdin.read())'",
+            "curl -s x | python3 -c 'import json as j, sys; j.load(sys.stdin)'",
+            "curl -s x | python3 -c 'import json\nfrom sys import stdin\njson.load(stdin)'",
+            "curl -s x | python3 -c 'import json\ndata = input()\njson.loads(data)'",
+            "curl -s x | python3 -c 'import json\njson.load(open(\"/dev/stdin\"))'",
+        ],
+    )
+    def test_inline_script_parsing_json_from_stdin_is_blocked(self, rules: list[CommandRule], command: str) -> None:
+        violated = _violated(rules, command)
+        assert violated is not None
+        assert "jq" in violated.message
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "curl -s x | uv run script.py",
+            "curl -s x | uv run --script parse.py",
+            "curl -s x | python3 script.py",
+            "curl -s x | uv run python script.py",
+            "curl -s x | uv run script.py -c 'json.load(sys.stdin)'",
+            "curl -s x | uv run --with requests python -c 'print(1)'",
+            "curl -s x | uv run --with python script.py -c 'json.load(sys.stdin)'",
+            "curl -s x | python3 -c 'print(\"json.load(sys.stdin)\")'",
+            "curl -s x | python3 -c 'from json import dumps\nimport sys\nprint(dumps(sys.stdin.read()))'",
+            "curl -s x | python3 -c 'import sys\nfrom foo import load\nprint(load(sys.stdin))'",
+            "python3 -c 'import json; print(json.loads(\"{}\"))'",
+            "curl -s x | python3 -c 'import json; print(json.loads(\"{}\"))'",
+            "python3 -c 'import json; json.load(open(\"a.json\"))' < out.json",
+            "curl -s x | python3 -c 'import json,sys\nprint(sys.stdin.read())\nprint(json.loads(\"[1]\"))'",
+            "curl -s x | python3 -c 'import json,sys\nprint(json.load(open(\"a.json\")), len(sys.stdin.read()))'",
+            "curl -s x | node -e 'JSON.parse(\"{}\")'",
+            "node --eval 'JSON.parse(1)' < out.json",
+            "curl -s x | node -e 'console.log(JSON.parse(\"{}\"), process.stdin.isTTY)'",
+            "curl -s x | node -e 'const data = \"{}\"; console.log(JSON.parse(data), process.stdin.isTTY)'",
+            'curl -s x | node -e \'let d = "{}"; process.stdin.on("data", c => c); JSON.parse(d)\'',
+            'curl -s x | node -e \'const t = require("fs").readFileSync("a"); process.stdin.resume(); JSON.parse(t)\'',
+            "curl -s x | node -e 'console.log(\"JSON.parse(x)\")'",
+            'curl -s x | node -e \'const data = process.stdin.isTTY ? "{}" : "[]"; JSON.parse(data)\'',
+            'curl -s x | node -e \'const live = process.stdin.readable; JSON.parse(live ? "{}" : "[]")\'',
+            'curl -s x | python3 -c \'import json,sys\ndata = "{}" if sys.stdin.isatty() else "[]"\njson.loads(data)\'',
+            'curl -s x | python3 -c \'import json\nfrom sys import stdin\njson.loads("{}" if stdin.closed else "[]")\'',
+            "curl -s x | python3 script.py -c 'json.load(sys.stdin)'",
+            "curl -s x | node script.js -e 'JSON.parse(1)'",
+            "curl -s x | python3 -m json.tool",
+            "curl -s x | python3 -c 'import sys; print(sys.stdin.read().upper())'",
+            "python3 -c 'import json; print(json.dumps({\"a\": 1}))'",
+            "python3 -c 'import json; print(json.load(open(\"out.json\")))'",
+            "node -e 'console.log(JSON.stringify({a: 1}))'",
+            "node script.js < out.json",
+            "curl -s x | jq .id",
+            "python3 - <<EOF\nimport json,sys\nprint(json.load(sys.stdin))\nEOF\n",
+            "tee notes.md <<EOF\npython3 -c 'json.load(sys.stdin)'\nEOF\n",
+            "printf %s \"curl x | python3 -c 'json.load(sys.stdin)'\"",
+            "git commit -m 'fix: replace python3 -c json.load(sys.stdin) with jq'",
+            "rg 'python3 -c .*json.load' docs",
+        ],
+    )
+    def test_scripts_tools_and_snippets_without_piped_json_parsing_are_allowed(
+        self, rules: list[CommandRule], command: str
+    ) -> None:
+        assert _violated(rules, command) is None

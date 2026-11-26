@@ -7,7 +7,7 @@ Plugins add custom command rules, build tool detection, research tools, ecosyste
 ## Bundled plugins
 
 - Build tool detection and build failure alerts
-- Shell command rules and guards, such as `rm -f`, commit messages and the push block
+- Shell command rules and guards, such as `rm -f`, commit messages, inline JSON parsing and the push block
 - Fixup guard: blocks a new commit that overlaps an unpushed one
 - Skill guard: runs a command or edit and adds the text of its required skill, or a skill part file such as `git-usage/tidy.md`, once per session
 - File structure note: a new file that brings its folder from 7 to 8 files prompts a note to use a short-named area subfolder, except at the repo root

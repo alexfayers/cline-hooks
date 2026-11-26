@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 import re
 from typing import TYPE_CHECKING
@@ -187,6 +188,213 @@ def _filters_build_output(cmd: ParsedCommand, all_commands: list[ParsedCommand])
     return not build_logs.isdisjoint(map(Path, _file_inputs(cmd)))
 
 
+_INLINE_SCRIPT_FLAGS = {"python": frozenset({"-c"}), "python3": frozenset({"-c"}), "node": frozenset({"-e", "--eval"})}
+_UV_VALUE_OPTIONS = frozenset({
+    "--with",
+    "--with-editable",
+    "--with-requirements",
+    "--python",
+    "-p",
+    "--project",
+    "--directory",
+    "--env-file",
+    "--extra",
+    "--group",
+    "--package",
+    "--index",
+})
+_PYTHON_STREAM_METADATA = frozenset({"isatty", "closed", "name", "mode", "encoding", "errors"})
+_PYTHON_JSON_PARSERS = frozenset({"load", "loads"})
+_JS_JSON_PARSE = re.compile(r"\bJSON\.parse\s*\(")
+_JS_STRING = re.compile(r"\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`")
+_JS_STDIN_PATH = "__stdin_path__"
+_JS_STDIN = re.compile(
+    rf"\bprocess\.stdin\b(?!\.(?:isTTY|isRaw|destroyed|closed|readable\w*)\b)|\b{_JS_STDIN_PATH}\b|\breadFileSync\(\s*0\b"
+)
+_JS_NAME = re.compile(r"[A-Za-z_$][\w$]*")
+_JS_ASSIGNMENT = re.compile(r"([A-Za-z_$][\w$]*)\s*\+?=(?![=>])\s*")
+_JS_FOR_OF = re.compile(r"\b(?:const|let|var)\s+([\w$]+)\s+of\s+")
+_JS_PARAMETERS = re.compile(r"\(([^()]*)\)\s*=>|([\w$]+)\s*=>|\bfunction\s*\w*\s*\(([^()]*)\)")
+
+
+def _interpreter_call(cmd: ParsedCommand) -> tuple[str, list[str]]:
+    """Return the program a command runs and its words, looking through `uv run` and its options."""
+    if cmd.name != "uv" or cmd.words[:1] != ["run"]:
+        return cmd.name, cmd.words
+    words = iter(cmd.words[1:])
+    for word in words:
+        if word in _UV_VALUE_OPTIONS:
+            next(words, None)
+        elif not word.startswith("-"):
+            return Path(word).name, list(words)
+    return "", []
+
+
+def _inline_script(cmd: ParsedCommand) -> tuple[str, str]:
+    """Return the interpreter and its `python -c` or `node -e` snippet, with an empty snippet when there is none."""
+    interpreter, words = _interpreter_call(cmd)
+    flags = _INLINE_SCRIPT_FLAGS.get(interpreter, frozenset())
+    words_iter = iter(words)
+    for word in words_iter:
+        if word in flags:
+            return interpreter, next(words_iter, "")
+        if not word.startswith("-"):
+            break
+    return interpreter, ""
+
+
+def _reads_python_stdin(node: ast.AST) -> bool:
+    """Return True when the node is a read of standard input."""
+    match node:
+        case ast.Attribute(attr="stdin") | ast.Name(id="stdin") | ast.Constant(value="/dev/stdin"):
+            return True
+        case ast.Call(func=ast.Name(id="input")):
+            return True
+        case ast.Call(func=ast.Name(id="open") | ast.Attribute(attr="fdopen"), args=[ast.Constant(value=0), *_]):
+            return True
+    return False
+
+
+def _python_json_parse_names(nodes: list[ast.AST]) -> tuple[set[str], set[str]]:
+    """Return the names bound to the json module and to its parse functions."""
+    modules = {
+        alias.asname or alias.name
+        for node in nodes
+        if isinstance(node, ast.Import)
+        for alias in node.names
+        if alias.name == "json"
+    }
+    functions = {
+        alias.asname or alias.name
+        for node in nodes
+        if isinstance(node, ast.ImportFrom) and node.module == "json"
+        for alias in node.names
+        if alias.name in _PYTHON_JSON_PARSERS
+    }
+    return modules, functions
+
+
+def _is_json_parser(func: ast.expr, modules: set[str], functions: set[str]) -> bool:
+    """Return True when the called expression is `json.load`, `json.loads` or an import of either."""
+    match func:
+        case ast.Name(id=name):
+            return name in functions
+        case ast.Attribute(value=ast.Name(id=module), attr=attr):
+            return module in modules and attr in _PYTHON_JSON_PARSERS
+    return False
+
+
+def _python_bindings(node: ast.AST) -> tuple[list[ast.expr], ast.expr | None]:
+    """Return the targets a statement binds and the expression that supplies them."""
+    match node:
+        case ast.Assign(targets=targets, value=source):
+            return targets, source
+        case ast.AnnAssign(target=target, value=source) | ast.NamedExpr(target=target, value=source):
+            return [target], source
+        case ast.For(target=target, iter=source):
+            return [target], source
+        case ast.withitem(context_expr=source, optional_vars=ast.expr() as target):
+            return [target], source
+    return [], None
+
+
+def _python_stdin_names(nodes: list[ast.AST]) -> set[str]:
+    """Return the names bound to something read from standard input."""
+    names: set[str] = set()
+    for node in nodes:
+        targets, source = _python_bindings(node)
+        if source is not None and _comes_from_python_stdin(source, names):
+            names |= {n.id for target in targets for n in ast.walk(target) if isinstance(n, ast.Name)}
+    return names
+
+
+def _comes_from_python_stdin(expression: ast.AST, stdin_names: set[str]) -> bool:
+    """Return True when the expression reads standard input data or uses a name bound to it."""
+    nodes = list(ast.walk(expression))
+    metadata_owners = {
+        id(node.value) for node in nodes if isinstance(node, ast.Attribute) and node.attr in _PYTHON_STREAM_METADATA
+    }
+    return any(
+        id(node) not in metadata_owners
+        and (_reads_python_stdin(node) or (isinstance(node, ast.Name) and node.id in stdin_names))
+        for node in nodes
+    )
+
+
+def _python_parses_json(script: str) -> bool:
+    """Return True when a Python snippet passes standard input to a json parse function."""
+    try:
+        nodes = list(ast.walk(ast.parse(script)))
+    except (SyntaxError, ValueError):
+        return False
+    modules, functions = _python_json_parse_names(nodes)
+    stdin_names = _python_stdin_names(nodes)
+    return any(
+        isinstance(node, ast.Call)
+        and _is_json_parser(node.func, modules, functions)
+        and any(_comes_from_python_stdin(argument, stdin_names) for argument in node.args)
+        for node in nodes
+    )
+
+
+def _js_expression(text: str, start: int) -> str:
+    """Return the text from `start` to the end of its expression: a top-level `;`, `,`, newline or closing bracket."""
+    depth = 0
+    for end in range(start, len(text)):
+        if text[end] in "([{":
+            depth += 1
+        elif text[end] in ")]}":
+            if not depth:
+                return text[start:end]
+            depth -= 1
+        elif not depth and text[end] in ";,\n":
+            return text[start:end]
+    return text[start:]
+
+
+def _js_comes_from_stdin(expression: str, stdin_names: set[str]) -> bool:
+    """Return True when the expression reads standard input or uses a name bound to it."""
+    return bool(_JS_STDIN.search(expression)) or not stdin_names.isdisjoint(_JS_NAME.findall(expression))
+
+
+def _js_stdin_names(script: str) -> set[str]:
+    """Return the names bound to something read from standard input, including stdin callback parameters."""
+    names = {
+        name
+        for statement in re.split(r"[;\n]", script)
+        if _JS_STDIN.search(statement)
+        for groups in _JS_PARAMETERS.findall(statement)
+        for name in _JS_NAME.findall(" ".join(groups))
+    }
+    bindings = [
+        (match.group(1), _js_expression(script, match.end()))
+        for pattern in (_JS_ASSIGNMENT, _JS_FOR_OF)
+        for match in pattern.finditer(script)
+    ]
+    while found := {name for name, source in bindings if name not in names and _js_comes_from_stdin(source, names)}:
+        names |= found
+    return names
+
+
+def _node_parses_json(script: str) -> bool:
+    """Return True when a Node snippet passes a value read from standard input to JSON.parse."""
+    emptied = _JS_STRING.sub(lambda m: _JS_STDIN_PATH if m.group()[1:-1] == "/dev/stdin" else '""', script)
+    stdin_names = _js_stdin_names(emptied)
+    return any(
+        _js_comes_from_stdin(_js_expression(emptied, match.end()), stdin_names)
+        for match in _JS_JSON_PARSE.finditer(emptied)
+    )
+
+
+_JSON_PARSE_CHECKS = {"python": _python_parses_json, "python3": _python_parses_json, "node": _node_parses_json}
+
+
+def _parses_stdin_json_inline(cmd: ParsedCommand, _all: list[ParsedCommand]) -> bool:
+    """Return True when an inline script parses JSON read from stdin."""
+    interpreter, script = _inline_script(cmd)
+    return bool(script) and _JSON_PARSE_CHECKS[interpreter](script)
+
+
 def _is_standalone(_cmd: ParsedCommand, all_commands: list[ParsedCommand]) -> bool:
     """Return True when the command is the only one (not piped into something else)."""
     return len(all_commands) == 1
@@ -288,6 +496,17 @@ class CommandRulesPlugin(HooksPlugin):
                 command="tail",
                 message="MUST read files with the Read tool, not tail.",
                 validator=_is_standalone_tail,
+            ),
+            *(
+                CommandRule(
+                    command=command,
+                    message=(
+                        "MUST parse JSON in the shell with jq, not an inline python -c or node -e script "
+                        "(e.g. `curl -s URL | jq '.field'`)."
+                    ),
+                    validator=_parses_stdin_json_inline,
+                )
+                for command in (*_INLINE_SCRIPT_FLAGS, "uv")
             ),
             CommandRule(
                 command="true",
