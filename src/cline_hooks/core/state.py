@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import dataclasses
 import hashlib
 import logging
@@ -66,7 +67,7 @@ def _live_layers(key: str, entry: dict[str, Any]) -> list[dict[str, Any]]:
 
     Args:
         key: The entry's state key.
-        entry: The raw entry: a plain state dict, or `_layers` of anchored states.
+        entry: The raw entry: a plain state dict, or `_layers` of anchored changes.
 
     Returns:
         Every layer when the call has no anchors for `key`, else the layers with
@@ -74,21 +75,52 @@ def _live_layers(key: str, entry: dict[str, Any]) -> list[dict[str, Any]]:
     """
     layers = entry.get(_LAYERS) if isinstance(entry, dict) else None
     if not isinstance(layers, list):
-        layers = [{"anchor": None, "state": entry}] if entry else []
+        layers = [{"anchor": None, "set": entry}] if isinstance(entry, dict) and entry else []
     live = _live_anchors(key)
     if live is None:
         return layers
     return [layer for layer in layers if layer.get("anchor") is None or layer.get("anchor") in live]
 
 
+def _is_count(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _applied(layers: list[dict[str, Any]]) -> dict[str, Any]:
+    """Return the raw state the layers' changes build, applied oldest first."""
+    state: dict[str, Any] = {}
+    for layer in layers:
+        state.update(layer.get("set", {}))
+        for name, step in layer.get("add", {}).items():
+            state[name] = (state[name] if _is_count(state.get(name)) else 0) + step
+        for name, tail in layer.get("extend", {}).items():
+            state[name] = [*(state[name] if isinstance(state.get(name), list) else []), *tail]
+    return copy.deepcopy(state)
+
+
+def _change(old: dict[str, Any], new: dict[str, Any]) -> dict[str, Any]:
+    """Return the change from `old` to `new`: counts as steps, lists as appended items, the rest as values."""
+    change: dict[str, dict[str, Any]] = {}
+    for name, value in new.items():
+        before = old.get(name)
+        if name in old and before == value:
+            continue
+        if _is_count(value) and _is_count(before):
+            change.setdefault("add", {})[name] = value - before
+        elif isinstance(value, list) and isinstance(before, list) and value[: len(before)] == before:
+            change.setdefault("extend", {})[name] = value[len(before) :]
+        else:
+            change.setdefault("set", {})[name] = value
+    return change
+
+
 def _visible(key: str, entry: dict[str, Any]) -> dict[str, Any]:
     """Return the raw state of an entry as the current context sees it.
 
     Returns:
-        The state of the newest live layer, or empty when none is live.
+        The state the live layers build, or empty when none is live.
     """
-    layers = _live_layers(key, entry)
-    return layers[-1]["state"] if layers else {}
+    return _applied(_live_layers(key, entry))
 
 
 def _written(key: str, entry: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
@@ -96,20 +128,21 @@ def _written(key: str, entry: dict[str, Any], state: dict[str, Any]) -> dict[str
 
     Returns:
         The plain state for a plain entry the call has no anchors for, else the
-        live layers plus the new state anchored to the current call, or for
+        live layers plus the change anchored to the current call, or for
         another agent's key, to that key's newest anchor.
     """
     layered = isinstance(entry, dict) and isinstance(entry.get(_LAYERS), list)
     if not layered and _live_anchors(key) is None:
         return state
     layers = _live_layers(key, entry)
-    if layers and layers[-1]["state"] == state:
+    if _applied(layers) == state:
         return {_LAYERS: layers}
     newest = layers[-1].get("anchor") if layers else None
     anchor = _context.anchor_id if key == _context.state_key else newest
     if layers and newest == anchor:
         layers.pop()
-    return {_LAYERS: [*layers, {"anchor": anchor, "state": state}]}
+    change = _change(_applied(layers), state)
+    return {_LAYERS: [*layers, {"anchor": anchor, **change}] if change else layers}
 
 
 class PluginStateStore[StateT: "DataclassInstance"]:

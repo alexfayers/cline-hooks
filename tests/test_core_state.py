@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import json
 import threading
 from typing import TYPE_CHECKING
@@ -154,6 +154,15 @@ class TestPluginStateStore:
         assert store.get("task-1").count == thread_count
 
 
+@dataclass
+class _ListState:
+    items: list[str] = field(default_factory=list)
+
+
+def _appender(item: str) -> Callable[[_ListState], None]:
+    return lambda state: state.items.append(item)
+
+
 def _bump(state: _SampleState) -> None:
     state.count += 1
 
@@ -215,3 +224,15 @@ class TestContextAnchors:
         store.update("task-1", _bump)
         set_hook_context("task-1", "a3", ["a0", "a1", "a2", "a3"])
         assert store.get("task-1") == _SampleState(count=2)
+
+    def test_each_write_under_a_new_anchor_stores_only_its_change(self, tmp_path: Path) -> None:
+        path = tmp_path / "list.json"
+        store = PluginStateStore("list.json", _ListState, path)
+        anchors: list[str] = []
+        for n in range(20):
+            anchors.append(f"a{n}")
+            set_hook_context("task-1", anchors[-1], anchors)
+            store.update("task-1", _appender(f"item-{n}"))
+        assert path.read_text().count('"item-0"') == 1
+        set_hook_context("task-1", "b0", [*anchors[:10], "b0"])
+        assert store.get("task-1") == _ListState([f"item-{n}" for n in range(10)])
