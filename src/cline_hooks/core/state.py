@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import contextlib
 import copy
 import dataclasses
 import hashlib
 import logging
+import time
 from typing import TYPE_CHECKING, Any, cast
 
 from cline_hooks.state.finished import finished_keys
@@ -21,6 +23,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger("hooks.state")
 
 _ANCHORS_DIR = get_data_dir() / "context-anchors"
+ANCHOR_TTL_SECONDS = 7 * 24 * 60 * 60
 _LAYERS = "_layers"
 _COUNTER = "counter"
 
@@ -35,6 +38,15 @@ class _HookContext:
 
 
 _context = _HookContext()
+
+
+def _prune_stale_anchors() -> None:
+    """Delete the anchor and lock files last written over ANCHOR_TTL_SECONDS ago."""
+    cutoff = time.time() - ANCHOR_TTL_SECONDS
+    for path in _ANCHORS_DIR.iterdir():
+        with contextlib.suppress(OSError):
+            if path.stat().st_mtime < cutoff:
+                path.unlink()
 
 
 def set_hook_context(state_key: str, anchor_id: str | None, context_anchors: list[str] | None) -> None:
@@ -54,6 +66,7 @@ def set_hook_context(state_key: str, anchor_id: str | None, context_anchors: lis
     else:
         with updated_json(path, cast("list[str]", [])) as data:
             data[:] = context_anchors
+        _prune_stale_anchors()
     live = frozenset(context_anchors) if context_anchors is not None else None
     _context = _HookContext(state_key, anchor_id, live)
 
