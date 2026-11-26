@@ -154,6 +154,8 @@ def _build_parser() -> argparse.ArgumentParser:
 
     install_parser = sub.add_parser("install", help="Install hooks")
     install_sub = install_parser.add_subparsers(dest="install_mode")
+    uninstall_parser = sub.add_parser("uninstall", help="Remove installed hooks")
+    uninstall_sub = uninstall_parser.add_subparsers(dest="uninstall_mode", required=True)
 
     for frontend in FRONTENDS:
         installer = frontend.installer
@@ -165,9 +167,10 @@ def _build_parser() -> argparse.ArgumentParser:
         frontend_parser.add_argument(
             "--force", action="store_true", help="Repoint existing cline-hook entries even where their binary exists"
         )
+        uninstall_frontend = uninstall_sub.add_parser(frontend.name, help=f"Remove {frontend.display_name} hooks")
+        if installer.argument is not None:
+            uninstall_frontend.add_argument(installer.argument.name, help=installer.argument.help)
 
-    uninstall_parser = sub.add_parser("uninstall", help="Remove hooks older versions installed for retired frontends")
-    uninstall_sub = uninstall_parser.add_subparsers(dest="uninstall_mode", required=True)
     cline_parser = uninstall_sub.add_parser("cline", help="Remove Cline hooks (symlinks/scripts)")
     cline_parser.add_argument("target_dir", help="Directory the Cline hooks were installed into")
     uninstall_sub.add_parser("copilot", help="Remove GitHub Copilot hooks from ~/.copilot/hooks/")
@@ -310,8 +313,14 @@ def main() -> NoReturn:  # ruff: ignore[too-many-branches]
     if args.command == "uninstall":
         if args.uninstall_mode == "cline":
             uninstall_cline(args.target_dir)
-        else:
+        elif args.uninstall_mode == "copilot":
             uninstall_copilot()
+        else:
+            from cline_hooks.core.frontends import FRONTENDS_BY_NAME  # ruff: ignore[import-outside-top-level]
+
+            frontend = FRONTENDS_BY_NAME[args.uninstall_mode]
+            argument = frontend.installer.argument if frontend.installer is not None else None
+            frontend.uninstall(getattr(args, argument.name) if argument is not None else None)
         sys.exit(0)
 
     if args.command == "plugins":

@@ -53,6 +53,15 @@ class Installer(ABC):
             force: Whether to repoint existing entries even where their binary exists.
         """
 
+    @abstractmethod
+    def uninstall(self, protocol_cls: type[Protocol], target: str | None) -> None:
+        """Remove only what `install` wrote, leaving other tools' entries.
+
+        Args:
+            protocol_cls: The frontend's Protocol class.
+            target: The subcommand's positional argument, if it takes one.
+        """
+
 
 def binary_names() -> tuple[str, ...]:
     """Return the platform variants of this distribution's console script name.
@@ -104,6 +113,19 @@ def write_bridge(package: str, template: str, dest: Path) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(content, encoding="utf-8")
     print(f"Wrote {dest}.")
+
+
+def remove_bridge(dest: Path) -> None:
+    """Delete a bridge script written by `write_bridge`.
+
+    Args:
+        dest: Where the bridge was written.
+    """
+    if not dest.exists():
+        print(f"{dest} does not exist.")
+        return
+    dest.unlink()
+    print(f"Removed {dest}.")
 
 
 class JsonHookInstaller(Installer):
@@ -241,3 +263,59 @@ class JsonHookInstaller(Installer):
             print(f"Updated the cline-hook path in {rewritten} hook(s) in {config_path}.")
         if not added and not rewritten:
             print(f"{config_path} already has all cline-hooks entries.")
+
+    def uninstall(self, protocol_cls: type[Protocol], target: str | None) -> None:
+        """Remove the cline-hook handlers from the frontend's JSON config.
+
+        Drops an entry left with no handler, an event left with no entry, and
+        the root key once empty. A missing or malformed file is left untouched.
+
+        Args:
+            protocol_cls: The frontend's Protocol class.
+            target: The subcommand's positional argument, if it takes one.
+        """
+        names = binary_names()
+        prefix = self.command("", protocol_cls)
+        config_path = self.config_path(target)
+        if not config_path.exists():
+            print(f"{config_path} does not exist.")
+            return
+        try:
+            config = json.loads(config_path.read_text(encoding="utf-8"))
+        except ValueError:
+            config = None
+        events = config.get(self.root_key, {}) if isinstance(config, dict) else None
+        if not isinstance(events, dict):
+            print(f"warning: {config_path} is not a valid hooks config, skipped.", file=sys.stderr)
+            return
+
+        def is_own(handler: dict[str, Any]) -> bool:
+            return Path(str(handler.get("command", "")).removeprefix(prefix)).name in names
+
+        removed = 0
+        kept_events: dict[str, Any] = {}
+        for event, entries in events.items():
+            if not isinstance(entries, list):
+                kept_events[event] = entries
+                continue
+            kept_entries = []
+            for entry in entries:
+                handlers = self.entry_handlers(entry) if isinstance(entry, dict) else []
+                own = [handler for handler in handlers if is_own(handler)]
+                removed += len(own)
+                if handlers and len(own) == len(handlers):
+                    continue
+                if own:
+                    entry["hooks"] = [handler for handler in entry["hooks"] if handler not in own]
+                kept_entries.append(entry)
+            if kept_entries or not entries:
+                kept_events[event] = kept_entries
+        if not removed:
+            print(f"{config_path} has no cline-hooks entries.")
+            return
+        if kept_events:
+            config[self.root_key] = kept_events
+        else:
+            del config[self.root_key]
+        config_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
+        print(f"Removed {removed} cline-hooks entries from {config_path}.")

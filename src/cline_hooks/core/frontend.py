@@ -69,6 +69,20 @@ class FrontendSpec:
             raise RuntimeError(msg)
         self.installer.install(self.protocol, target, force=force)
 
+    def uninstall(self, target: str | None = None) -> None:
+        """Reverse this frontend's install step.
+
+        Args:
+            target: The install subcommand's positional argument, if any.
+
+        Raises:
+            RuntimeError: If the frontend has no install step.
+        """
+        if self.installer is None:
+            msg = f"{self.name} has no install step"
+            raise RuntimeError(msg)
+        self.installer.uninstall(self.protocol, target)
+
 
 REGISTERED_FRONTENDS: dict[str, FrontendSpec] = {}
 

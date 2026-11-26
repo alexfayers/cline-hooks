@@ -24,8 +24,15 @@ _EMBEDDED = f"const BINARY: string = {json.dumps(_EXPECTED_BINARY)};"
 class Bridge:
     """One frontend's bridge installer and where it writes."""
 
-    def __init__(self, install: Callable[[], None], path: Callable[[], Path], protocol: type[Protocol]) -> None:
+    def __init__(
+        self,
+        install: Callable[[], None],
+        uninstall: Callable[[], None],
+        path: Callable[[], Path],
+        protocol: type[Protocol],
+    ) -> None:
         self.install = install
+        self.uninstall = uninstall
         self.path = path
         self.protocol = protocol
 
@@ -44,10 +51,16 @@ def bridge(request: pytest.FixtureRequest, tmp_path: Path, monkeypatch: pytest.M
         patch.object(Path, "home", return_value=tmp_path),
     ):
         if request.param == "pi":
-            yield Bridge(lambda: PiInstaller().install(PiProtocol, None), PiInstaller().extension_path, PiProtocol)
+            yield Bridge(
+                lambda: PiInstaller().install(PiProtocol, None),
+                lambda: PiInstaller().uninstall(PiProtocol, None),
+                PiInstaller().extension_path,
+                PiProtocol,
+            )
         else:
             yield Bridge(
                 lambda: OpencodeInstaller().install(OpencodeProtocol, None),
+                lambda: OpencodeInstaller().uninstall(OpencodeProtocol, None),
                 OpencodeInstaller().plugin_path,
                 OpencodeProtocol,
             )
@@ -102,3 +115,14 @@ class TestBridgeInstaller:
     def test_replaces_an_embedded_binary_that_is_gone(self, bridge: Bridge, tmp_path: Path) -> None:
         _seed_embedded_binary(bridge, tmp_path / "gone" / "cline-hook")
         assert _EMBEDDED in bridge.written()
+
+    def test_uninstall_removes_the_bridge(self, bridge: Bridge) -> None:
+        bridge.install()
+        bridge.uninstall()
+        assert not bridge.path().exists()
+
+    def test_uninstall_without_a_bridge_prints_one_line(
+        self, bridge: Bridge, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        bridge.uninstall()
+        assert len(capsys.readouterr().out.splitlines()) == 1

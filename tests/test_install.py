@@ -253,6 +253,35 @@ class TestJsonHookInstallers:
         ]
         assert timeouts == [5]
 
+    def test_uninstall_restores_the_config_and_keeps_other_sources(self, spec: FrontendSpec, home: Path) -> None:
+        installer = _installer(spec)
+        registration = next(iter(spec.protocol.supported_hooks.values()))
+        foreign = installer.build_entry(Path("/other/tool"), registration)
+        original = {"other": "value", installer.root_key: {_first_event(spec): [foreign]}}
+        config_path = _seed(spec, home, original)
+        target = _target_for(spec, home)
+        spec.install(target)
+
+        spec.uninstall(target)
+        assert json.loads(config_path.read_text(encoding="utf-8")) == original
+
+    def test_uninstall_without_entries_prints_one_line(
+        self, spec: FrontendSpec, home: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        _seed(spec, home)
+        spec.uninstall(_target_for(spec, home))
+        assert len(capsys.readouterr().out.splitlines()) == 1
+
+    def test_uninstall_warns_on_a_malformed_file(
+        self, spec: FrontendSpec, home: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        config_path = _installer(spec).config_path(_target_for(spec, home))
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text("{not json", encoding="utf-8")
+        spec.uninstall(_target_for(spec, home))
+        assert str(config_path) in capsys.readouterr().err
+        assert config_path.read_text(encoding="utf-8") == "{not json"
+
 
 class TestNestedEntryFrontends:
     """Claude Code and Codex share the nested "hook group" config shape."""
@@ -369,3 +398,5 @@ class TestEveryFrontendIsInstallable:
         )
         with pytest.raises(RuntimeError, match="no install step"):
             spec.install()
+        with pytest.raises(RuntimeError, match="no install step"):
+            spec.uninstall()
