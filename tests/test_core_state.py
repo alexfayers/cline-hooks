@@ -264,13 +264,9 @@ class TestContextAnchors:
         ("record", "recorded"),
         [
             (lambda: skills.record_skill("task-1", "tdd"), lambda: skills.is_skill_called("task-1", "tdd")),
-            (
-                lambda: memory.record_memory_write("task-1", "add_observations"),
-                lambda: memory.has_memory_writes("task-1"),
-            ),
             (lambda: agents.record_agent_use("task-1", "Agent"), lambda: agents.has_agent_use("task-1")),
         ],
-        ids=["skills", "memory", "agents"],
+        ids=["skills", "agents"],
     )
     def test_a_tracker_forgets_a_record_once_its_anchor_leaves_the_context(
         self, record: Callable[[], None], recorded: Callable[[], bool]
@@ -280,3 +276,9 @@ class TestContextAnchors:
         assert recorded()
         set_hook_context("task-1", "a2", ["a2"])
         assert not recorded()
+
+    def test_a_memory_write_record_survives_a_rewind_past_it(self) -> None:
+        set_hook_context("task-1", "a1", ["a1"])
+        memory.record_memory_write("task-1", "add_observations")
+        set_hook_context("task-1", "a2", ["a2"])
+        assert memory.has_memory_writes("task-1")

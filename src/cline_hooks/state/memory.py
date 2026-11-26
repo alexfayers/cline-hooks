@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import logging
+from typing import cast
 
-from cline_hooks.core.state import NameStore
+from cline_hooks.state.jsonfile import discard_key, discard_prefix, read_json, updated_json
+from cline_hooks.state.paths import get_data_dir
 
 logger = logging.getLogger("hooks.state.memory")
 
-_store = NameStore("memory-state.json")
+_STATE_PATH = get_data_dir() / "memory-state.json"
 
 _MEMORY_WRITE_TOOLS: frozenset[str] = frozenset({
     "create_entities",
@@ -40,7 +42,10 @@ def record_memory_write(task_id: str, tool_name: str) -> None:
         task_id: The session or task identifier.
         tool_name: The memory-write tool that was called.
     """
-    _store.add(task_id, tool_name)
+    with updated_json(_STATE_PATH, cast("dict[str, list[str]]", {})) as data:
+        writes = set(data.get(task_id, []))
+        writes.add(tool_name)
+        data[task_id] = sorted(writes)
 
 
 def has_memory_writes(task_id: str) -> bool:
@@ -52,7 +57,8 @@ def has_memory_writes(task_id: str) -> bool:
     Returns:
         True if at least one memory-write tool was called.
     """
-    return bool(_store.names(task_id))
+    data: dict[str, list[str]] = read_json(_STATE_PATH, {})
+    return bool(data.get(task_id))
 
 
 def reset(task_id: str) -> None:
@@ -61,4 +67,5 @@ def reset(task_id: str) -> None:
     Args:
         task_id: The session or task identifier.
     """
-    _store.reset(task_id)
+    discard_key(_STATE_PATH, task_id)
+    discard_prefix(_STATE_PATH, f"{task_id}:")
