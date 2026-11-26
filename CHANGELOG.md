@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.5.0](https://github.com/alexfayers/cline-hooks/compare/v0.4.0...v0.5.0) (2026-11-26)
+
+
+### Features
+
+* drop pi hook state once a rewind, /tree or compaction removes its point from the context ([#256](https://github.com/alexfayers/cline-hooks/issues/256)) ([0d99c02](https://github.com/alexfayers/cline-hooks/commit/0d99c0228129f832953de791065432f4b5eeb1f7))
+* keep state under the shared llm-prompts root, copied once from the old folder ([#254](https://github.com/alexfayers/cline-hooks/issues/254)) ([910a39a](https://github.com/alexfayers/cline-hooks/commit/910a39a3277c1c73b6d4cf31ed7cfddac790e5a8))
+* report ahead/behind counts against the cached upstream in session-start git context ([#258](https://github.com/alexfayers/cline-hooks/issues/258)) ([92447ab](https://github.com/alexfayers/cline-hooks/commit/92447abdeeb39bd3335361cc0e95466413f04771))
+
+
+### Bug Fixes
+
+* cap hook memory by data segment instead of address space ([#259](https://github.com/alexfayers/cline-hooks/issues/259)) ([52cffc2](https://github.com/alexfayers/cline-hooks/commit/52cffc26740de14ef90e868e450481b63b976f4f))
+
 ## [0.4.0](https://github.com/alexfayers/cline-hooks/compare/v0.3.2...v0.4.0) (2026-11-26)
 
 
