@@ -16,6 +16,7 @@ from cline_hooks.core.install import binary_names
 from cline_hooks.core.protocol import Protocol, RawPayload, set_protocol
 from cline_hooks.core.registry import HOOK_HANDLERS
 from cline_hooks.core.response import allow, emit
+from cline_hooks.core.state import set_hook_context
 import cline_hooks.handlers  # ruff: ignore[unused-import]
 from cline_hooks.state.paths import get_data_dir
 from cline_hooks.uninstall import uninstall_cline, uninstall_copilot
@@ -192,7 +193,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def _parse_hook(payload: RawPayload) -> tuple[Protocol, HookInput]:
-    """Detect the frontend, configure logging for it, and parse the payload.
+    """Detect the frontend, configure logging for it, parse the payload, and set the agent context state applies to.
 
     Returns:
         The detected protocol and the parsed hook input.
@@ -201,6 +202,7 @@ def _parse_hook(payload: RawPayload) -> tuple[Protocol, HookInput]:
     set_protocol(proto)
     proto.configure_logging()
     hook = proto.parse(payload)
+    set_hook_context(hook.stateKey, hook.anchorId, hook.contextAnchors)
     _invocation_filter.frontend = proto.frontend_spec.name if proto.frontend_spec else "-"
     _invocation_filter.agent = hook.agentId or hook.agentType or "main"
     return proto, hook

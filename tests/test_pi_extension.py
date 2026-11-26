@@ -256,3 +256,53 @@ def test_a_reminder_from_a_nested_hook_still_running_when_the_session_changes_is
     ]
     result = _run_steps(tmp_path, {"tool_call:inner": "REMINDER: pre"}, steps, hold_until=release)
     assert result["queued"] == []
+
+
+def _entry(entry_id: str, entry_type: str, *messages: dict[str, Any]) -> dict[str, Any]:
+    return {"sourceEntry": {"id": entry_id, "type": entry_type}, "messages": list(messages)}
+
+
+def _sent_payloads(tmp_path: Path, steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    log = tmp_path / "payloads.jsonl"
+    steps_file = tmp_path / "steps.json"
+    steps_file.write_text(json.dumps(steps), encoding="utf-8")
+    _run_harness(tmp_path, "", {}, str(steps_file), read_stdin=f"$(tee -a {log}; echo >> {log})")
+    return [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
+
+
+def test_a_tool_hook_anchors_to_its_call_and_sends_the_context_once_per_leaf(tmp_path: Path) -> None:
+    assistant = {"role": "assistant", "content": [{"type": "text", "text": "hi"}, {"type": "toolCall", "id": "c1"}]}
+    entries = [
+        _entry("e0", "message"),
+        _entry("e1", "message", {"role": "user", "content": "go"}),
+        _entry("e2", "message", assistant),
+        _entry("e3", "custom"),
+    ]
+    steps = [
+        {"session": {"leafId": "e2", "entries": entries}},
+        _step("tool_call", "c1", "read"),
+        _step("tool_result", "c1", "read"),
+        {"session": {"leafId": "e4", "entries": entries}},
+        _step("tool_call", "c2", "read"),
+    ]
+    sent = [(payload["anchor_id"], payload.get("context_anchors")) for payload in _sent_payloads(tmp_path, steps)]
+    assert sent == [("c1", ["e1", "e2", "c1", "e3"]), ("c1", None), ("c2", ["e1", "e2", "c1", "e3"])]
+
+
+def test_a_hook_outside_a_tool_call_anchors_to_the_leaf(tmp_path: Path) -> None:
+    steps: list[dict[str, Any]] = [
+        {"session": {"leafId": "e1", "entries": [_entry("e1", "message")]}},
+        {"event": "before_agent_start", "payload": {"messageType": "user", "prompt": "go"}},
+    ]
+    assert _sent_payloads(tmp_path, steps)[0]["anchor_id"] == "e1"
+
+
+def test_a_nested_call_anchors_to_its_root_call(tmp_path: Path) -> None:
+    assistant = {"role": "assistant", "content": [{"type": "toolCall", "id": "c1"}]}
+    steps = [
+        {"session": {"leafId": "e1", "entries": [_entry("e1", "message", assistant)]}},
+        _step("tool_call", "c1", "script"),
+        _step("tool_call", "c1/1", "inner", "c1"),
+        _step("tool_result", "c1/1", "inner", "c1"),
+    ]
+    assert [payload["anchor_id"] for payload in _sent_payloads(tmp_path, steps)] == ["c1", "c1", "c1"]

@@ -15,6 +15,7 @@ from cline_hooks.core.frontend import FrontendSpec
 from cline_hooks.core.models import HOOK_INPUTS, HookInput
 from cline_hooks.core.plugin import HooksPlugin, _plugin_cache, hookspec, plugins_override
 from cline_hooks.core.protocol import HookRegistration, Protocol, RawPayload, get_protocol, set_protocol
+import cline_hooks.core.state as core_state_module
 from cline_hooks.core.transcript import TranscriptReader
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
 import cline_hooks.plugins.checkout_lock as checkout_lock_module
@@ -208,11 +209,11 @@ def isolate_log_file(tmp_path_factory: pytest.TempPathFactory) -> None:
 def isolate_state_files(mocker: MockerFixture, tmp_path: Path) -> None:
     """Redirect all state file paths to tmp_path and set default protocol."""
     mocker.patch.object(state_store_module, "_STATE_PATH", tmp_path / "hook-state.json")
-    mocker.patch.object(skill_tracker_module, "_STATE_PATH", tmp_path / "skill-state.json")
+    mocker.patch.object(skill_tracker_module._store, "_path", tmp_path / "skill-state.json")
     mocker.patch.object(memory_tracker_module, "_STATE_PATH", tmp_path / "memory-state.json")
     mocker.patch.object(retrospective_module, "_STATE_PATH", tmp_path / "retrospective-state.json")
     mocker.patch.object(nudges_module._store, "_path", tmp_path / "turns-state.json")
-    mocker.patch.object(agents_tracker_module, "_STATE_PATH", tmp_path / "agents-state.json")
+    mocker.patch.object(agents_tracker_module._store, "_path", tmp_path / "agents-state.json")
     mocker.patch.object(finished_tracker_module, "_STATE_PATH", tmp_path / "finished-agents.json")
     mocker.patch.object(context_usage_module._store, "_path", tmp_path / "context-state.json")
     mocker.patch.object(plan_handoff_module._store, "_path", tmp_path / "plan-state.json")
@@ -223,6 +224,8 @@ def isolate_state_files(mocker: MockerFixture, tmp_path: Path) -> None:
     mocker.patch.object(checkout_lock_module, "_LOCKS_PATH", tmp_path / "checkout-locks.json")
     mocker.patch.object(tool_usage_module, "_USAGE_PATH", tmp_path / "tool-usage.json")
     mocker.patch.object(tool_usage_plugin_module._seen, "_path", tmp_path / "tool-usage-seen.json")
+    mocker.patch.object(core_state_module, "_ANCHORS_DIR", tmp_path / "context-anchors")
+    mocker.patch.object(core_state_module, "_context", core_state_module._HookContext())
     mocker.patch.dict(os.environ, {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": ""})
     set_protocol(CanonicalProtocol())
 

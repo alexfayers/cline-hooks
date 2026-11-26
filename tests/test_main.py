@@ -21,6 +21,7 @@ from cline_hooks._main import (
 )
 from cline_hooks.core.frontends import FRONTENDS, FRONTENDS_BY_NAME
 from cline_hooks.core.plugin import HooksPlugin, hookimpl
+import cline_hooks.core.state as core_state_module
 from cline_hooks.core.vocabulary import CanonicalHook
 from tests.conftest import CanonicalProtocol, GreeterOwner
 
@@ -90,6 +91,14 @@ _TASK_START_PAYLOAD: dict[str, object] = {
     "workspaceRoots": [],
     "taskStart": {"task": "", "source": "startup"},
 }
+
+
+class TestHookContext:
+    def test_state_reads_and_writes_apply_to_the_payload_context(self) -> None:
+        _run({**_TASK_START_PAYLOAD, "agentId": "agent-7", "anchorId": "e2", "contextAnchors": ["e1", "e2"]})
+        assert core_state_module._context == core_state_module._HookContext(
+            "task-1:agent-7", "e2", frozenset({"e1", "e2"})
+        )
 
 
 class TestInvocationContextFilter:

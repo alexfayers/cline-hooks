@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import json
 import threading
 from typing import TYPE_CHECKING
 
-from cline_hooks.core.state import PluginStateStore
+import pytest
+
+from cline_hooks.core.state import PluginStateStore, counter, set_hook_context
+from cline_hooks.state import agents, memory, skills
 from cline_hooks.state.finished import mark_finished
 
 if TYPE_CHECKING:
@@ -15,7 +18,7 @@ if TYPE_CHECKING:
 
 @dataclass
 class _SampleState:
-    count: int = 0
+    count: int = counter()
     label: str = ""
 
 
@@ -152,3 +155,130 @@ class TestPluginStateStore:
             thread.join()
 
         assert store.get("task-1").count == thread_count
+
+
+@dataclass
+class _BandState:
+    band: int | None = None
+
+
+def _band_setter(band: int) -> Callable[[_BandState], None]:
+    def apply(state: _BandState) -> None:
+        state.band = band
+
+    return apply
+
+
+@dataclass
+class _ListState:
+    items: list[str] = field(default_factory=list)
+
+
+def _appender(item: str) -> Callable[[_ListState], None]:
+    return lambda state: state.items.append(item)
+
+
+def _bump(state: _SampleState) -> None:
+    state.count += 1
+
+
+class TestContextAnchors:
+    def test_a_record_drops_once_its_anchor_leaves_the_context(self, tmp_path: Path) -> None:
+        store = PluginStateStore("sample.json", _SampleState, tmp_path / "sample.json")
+        set_hook_context("task-1", "a1", ["a1"])
+        store.update("task-1", _setter(3))
+        set_hook_context("task-1", "a2", ["a2"])
+        assert store.get("task-1") == _SampleState()
+
+    def test_a_record_is_kept_when_no_anchors_are_sent(self, tmp_path: Path) -> None:
+        store = PluginStateStore("sample.json", _SampleState, tmp_path / "sample.json")
+        set_hook_context("task-1", "a1", None)
+        store.update("task-1", _setter(3))
+        set_hook_context("task-1", "a2", None)
+        assert store.get("task-1") == _SampleState(count=3)
+
+    def test_the_last_anchors_sent_still_apply_to_a_call_that_sends_none(self, tmp_path: Path) -> None:
+        store = PluginStateStore("sample.json", _SampleState, tmp_path / "sample.json")
+        set_hook_context("task-1", "a1", ["a1"])
+        store.update("task-1", _setter(3))
+        set_hook_context("task-1", "a1", None)
+        assert store.get("task-1") == _SampleState(count=3)
+        set_hook_context("task-1", "a2", ["a2"])
+        set_hook_context("task-1", "a2", None)
+        assert store.get("task-1") == _SampleState()
+
+    def test_counters_count_only_live_anchors(self, tmp_path: Path) -> None:
+        store = PluginStateStore("sample.json", _SampleState, tmp_path / "sample.json")
+        for anchors in (["a1"], ["a1", "a2"], ["a1", "a2", "a3"]):
+            set_hook_context("task-1", anchors[-1], anchors)
+            store.update("task-1", _bump)
+        set_hook_context("task-1", "b1", ["a1", "a2", "b1"])
+        assert store.get("task-1") == _SampleState(count=2)
+        store.update("task-1", _bump)
+        assert store.get("task-1") == _SampleState(count=3)
+
+    def test_a_record_written_without_an_anchor_is_kept(self, tmp_path: Path) -> None:
+        store = PluginStateStore("sample.json", _SampleState, tmp_path / "sample.json")
+        store.update("task-1", _setter(3))
+        set_hook_context("task-1", "a1", ["a1"])
+        assert store.get("task-1") == _SampleState(count=3)
+
+    def test_another_agents_record_is_not_checked_against_this_context(self, tmp_path: Path) -> None:
+        store = PluginStateStore("sample.json", _SampleState, tmp_path / "sample.json")
+        set_hook_context("task-1:agent-a", "a1", ["a1"])
+        store.update("task-1:agent-a", _setter(3))
+        set_hook_context("task-1", "b1", ["b1"])
+        assert store.get("task-1:agent-a") == _SampleState(count=3)
+
+    def test_last_anchors_that_lack_the_calls_anchor_are_not_applied(self, tmp_path: Path) -> None:
+        store = PluginStateStore("sample.json", _SampleState, tmp_path / "sample.json")
+        set_hook_context("task-1", "a1", ["a0", "a1"])
+        store.update("task-1", _bump)
+        set_hook_context("task-1", "a0", ["a0"])
+        set_hook_context("task-1", "a2", None)
+        store.update("task-1", _bump)
+        set_hook_context("task-1", "a3", ["a0", "a1", "a2", "a3"])
+        assert store.get("task-1") == _SampleState(count=2)
+
+    def test_each_write_under_a_new_anchor_stores_only_its_change(self, tmp_path: Path) -> None:
+        path = tmp_path / "list.json"
+        store = PluginStateStore("list.json", _ListState, path)
+        anchors: list[str] = []
+        for n in range(20):
+            anchors.append(f"a{n}")
+            set_hook_context("task-1", anchors[-1], anchors)
+            store.update("task-1", _appender(f"item-{n}"))
+        assert path.read_text().count('"item-0"') == 1
+        set_hook_context("task-1", "b0", [*anchors[:10], "b0"])
+        assert store.get("task-1") == _ListState([f"item-{n}" for n in range(10)])
+
+    def test_a_plain_int_keeps_its_value_once_an_earlier_write_leaves_the_context(self, tmp_path: Path) -> None:
+        store = PluginStateStore("band.json", _BandState, tmp_path / "band.json")
+        for anchors, band in ((["a1"], 1), (["a1", "a2"], 2), (["a1", "a2", "a3"], 3)):
+            set_hook_context("task-1", anchors[-1], anchors)
+            store.update("task-1", _band_setter(band))
+        set_hook_context("task-1", "b1", ["a1", "a3", "b1"])
+        assert store.get("task-1") == _BandState(band=3)
+
+    @pytest.mark.parametrize(
+        ("record", "recorded"),
+        [
+            (lambda: skills.record_skill("task-1", "tdd"), lambda: skills.is_skill_called("task-1", "tdd")),
+            (lambda: agents.record_agent_use("task-1", "Agent"), lambda: agents.has_agent_use("task-1")),
+        ],
+        ids=["skills", "agents"],
+    )
+    def test_a_tracker_forgets_a_record_once_its_anchor_leaves_the_context(
+        self, record: Callable[[], None], recorded: Callable[[], bool]
+    ) -> None:
+        set_hook_context("task-1", "a1", ["a1"])
+        record()
+        assert recorded()
+        set_hook_context("task-1", "a2", ["a2"])
+        assert not recorded()
+
+    def test_a_memory_write_record_survives_a_rewind_past_it(self) -> None:
+        set_hook_context("task-1", "a1", ["a1"])
+        memory.record_memory_write("task-1", "add_observations")
+        set_hook_context("task-1", "a2", ["a2"])
+        assert memory.has_memory_writes("task-1")

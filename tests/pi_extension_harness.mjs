@@ -5,17 +5,25 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 
 // With steps.json (a list of { event, payload }), it instead fires those events in order and prints { queued, results } with each handler's return value.
-// A step may set `defer` (do not wait for the handler until a later { join: true } step) or `writeFile` (create that file, releasing a hook that waits for it).
+// A step may set `defer` (do not wait for the handler until a later { join: true } step), `writeFile` (create that file, releasing a hook that waits for it)
+// or `session` ({ leafId, entries }: the session leaf and projected entries later events see).
 const [script, inputFile, stepsFile] = process.argv.slice(2)
 const handlers = {}
 const queued = []
 const notified = []
+let session = { leafId: null, entries: [] }
 const pi = { on: (event, handler) => (handlers[event] = handler), sendMessage: (message) => queued.push(message.content) }
 const ctx = {
   cwd: '/work/project',
   ui: { notify: (message) => notified.push(message) },
   getContextUsage: () => undefined,
-  sessionManager: { getSessionId: () => 's1', getSessionFile: () => '', getSessionName: () => '' },
+  sessionManager: {
+    getSessionId: () => 's1',
+    getSessionFile: () => '',
+    getSessionName: () => '',
+    getLeafId: () => session.leafId,
+    buildSessionProjection: () => ({ entries: session.entries, messages: [] }),
+  },
 }
 const input = JSON.parse(readFileSync(inputFile, 'utf8'))
 const module = await import(pathToFileURL(script).href)
@@ -23,8 +31,9 @@ module.default(pi)
 if (stepsFile) {
   const results = []
   const deferred = []
-  for (const { event, payload, defer, join, writeFile } of JSON.parse(readFileSync(stepsFile, 'utf8'))) {
+  for (const { event, payload, defer, join, writeFile, session: next } of JSON.parse(readFileSync(stepsFile, 'utf8'))) {
     if (writeFile) writeFileSync(writeFile, '')
+    if (next) session = next
     if (join) await Promise.all(deferred)
     if (!event) continue
     const index = results.push(null) - 1
