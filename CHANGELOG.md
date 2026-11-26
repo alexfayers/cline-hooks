@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.4.0](https://github.com/alexfayers/cline-hooks/compare/v0.3.2...v0.4.0) (2026-11-26)
+
+
+### Features
+
+* block inline python and node scripts that parse JSON from stdin ([#253](https://github.com/alexfayers/cline-hooks/issues/253)) ([8da0348](https://github.com/alexfayers/cline-hooks/commit/8da03486e29726aa2f85c86259f48bcf20ac55ab))
+* give an oversized recursive search the workspace as its path ([#246](https://github.com/alexfayers/cline-hooks/issues/246)) ([74264d2](https://github.com/alexfayers/cline-hooks/commit/74264d229930fe78af4de55d38d076b8dfafc815))
+* give pi bash calls a default timeout ([#242](https://github.com/alexfayers/cline-hooks/issues/242)) ([82a28d6](https://github.com/alexfayers/cline-hooks/commit/82a28d62f00cb8e7f50f67cb31e7cf74efbee631))
+* move a fork's foreground watch to the background ([#251](https://github.com/alexfayers/cline-hooks/issues/251)) ([1f5d370](https://github.com/alexfayers/cline-hooks/commit/1f5d370824bcad3897fa1f56a2a8137586de8cd0))
+* redirect a filtered build's output to a log instead of blocking ([#247](https://github.com/alexfayers/cline-hooks/issues/247)) ([2897a0f](https://github.com/alexfayers/cline-hooks/commit/2897a0fe596586fcdf86a389b408dafbbe9a50e8))
+* redirect a writer's edit in the primary checkout to its worktree ([#248](https://github.com/alexfayers/cline-hooks/issues/248)) ([5abcb4b](https://github.com/alexfayers/cline-hooks/commit/5abcb4bc7fc2a75b92a0e454c1e63a42bc07d6d6))
+* run a call and add its skill text once instead of blocking ([#245](https://github.com/alexfayers/cline-hooks/issues/245)) ([92577f9](https://github.com/alexfayers/cline-hooks/commit/92577f90fa5a92153a7750b172b8f3928cb4681b))
+* send the lead's test runs, debugging and large reads to a fork ([#252](https://github.com/alexfayers/cline-hooks/issues/252)) ([6efee69](https://github.com/alexfayers/cline-hooks/commit/6efee69e54624617501709f0287e3f19bceedc02))
+
+
+### Bug Fixes
+
+* let the delegation note allow a small fix inline ([#244](https://github.com/alexfayers/cline-hooks/issues/244)) ([952457b](https://github.com/alexfayers/cline-hooks/commit/952457b9476facbaaa1aaf03cc7b406f815a51ca))
+* show a skill note once whether or not it has the reminder prefix ([#250](https://github.com/alexfayers/cline-hooks/issues/250)) ([9e82283](https://github.com/alexfayers/cline-hooks/commit/9e822837ce7329e0a0b9aeb9e1185e633381a7ca))
+
+
+### Miscellaneous Chores
+
+* sync shared files from llm-prompts-ci ([#230](https://github.com/alexfayers/cline-hooks/issues/230)) ([faa534d](https://github.com/alexfayers/cline-hooks/commit/faa534d7762ee5f84d2a3befe17d7d34d3793d4b))
+
 ## [0.3.2](https://github.com/alexfayers/cline-hooks/compare/v0.3.1...v0.3.2) (2026-11-25)
 
 
