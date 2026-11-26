@@ -6,22 +6,22 @@
 |-------------------------------------------------------- | -------: | -------: | -------: | -------: | ------: | --------: |
 | conftest.py                                             |       11 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/\_\_init\_\_.py                        |        2 |        0 |        0 |        0 |    100% |           |
-| src/cline\_hooks/\_main.py                              |      204 |       24 |       46 |        9 |     86% |159, 221-223, 240, 256-257, 283, 309, 319-325, 328-331, 339-340, 344-348 |
+| src/cline\_hooks/\_main.py                              |      206 |       24 |       46 |        9 |     86% |160, 223-225, 242, 258-259, 285, 311, 321-327, 330-333, 341-342, 346-350 |
 | src/cline\_hooks/config.py                              |       11 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/core/\_\_init\_\_.py                   |        0 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/core/frontend.py                       |       46 |        3 |        8 |        1 |     89% |   133-135 |
 | src/cline\_hooks/core/frontends.py                      |       21 |        2 |        4 |        1 |     88% |     42-43 |
 | src/cline\_hooks/core/hook\_kwargs.py                   |       45 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/core/install.py                        |      107 |        1 |       34 |        1 |     99% |       217 |
-| src/cline\_hooks/core/models.py                         |      130 |        5 |        8 |        1 |     96% |86-88, 188-189 |
+| src/cline\_hooks/core/models.py                         |      132 |        5 |        8 |        1 |     96% |88-90, 190-191 |
 | src/cline\_hooks/core/outcome.py                        |       37 |        0 |        4 |        0 |    100% |           |
 | src/cline\_hooks/core/parameters.py                     |       89 |        0 |        6 |        0 |    100% |           |
-| src/cline\_hooks/core/payload.py                        |      136 |        2 |       38 |        2 |     98% |  167, 327 |
+| src/cline\_hooks/core/payload.py                        |      138 |        2 |       38 |        2 |     98% |  169, 329 |
 | src/cline\_hooks/core/plugin.py                         |      208 |        6 |       60 |        3 |     97% |132-\>134, 195, 197, 369-372 |
 | src/cline\_hooks/core/protocol.py                       |       87 |        2 |        8 |        1 |     97% |   231-232 |
 | src/cline\_hooks/core/registry.py                       |       15 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/core/response.py                       |       34 |        0 |       12 |        0 |    100% |           |
-| src/cline\_hooks/core/state.py                          |       46 |        0 |        4 |        0 |    100% |           |
+| src/cline\_hooks/core/state.py                          |      131 |        2 |       32 |        2 |     98% |  149, 153 |
 | src/cline\_hooks/core/timing.py                         |        5 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/core/transcript.py                     |       19 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/core/user\_install.py                  |       21 |        0 |        4 |        0 |    100% |           |
@@ -54,7 +54,7 @@
 | src/cline\_hooks/frontends/pi/protocol.py               |       40 |        1 |        4 |        1 |     95% |       115 |
 | src/cline\_hooks/frontends/pi/transcript.py             |       55 |        2 |       18 |        3 |     93% |72-\>67, 93, 102 |
 | src/cline\_hooks/handlers/\_\_init\_\_.py               |        3 |        0 |        0 |        0 |    100% |           |
-| src/cline\_hooks/handlers/commands.py                   |      212 |        6 |       96 |       10 |     95% |264, 279, 306, 350, 354, 400, 407-\>405, 409-\>405, 411-\>405, 412-\>411 |
+| src/cline\_hooks/handlers/commands.py                   |      212 |        6 |       96 |        9 |     95% |264, 279, 306, 350, 354, 400, 409-\>405, 411-\>405, 412-\>411 |
 | src/cline\_hooks/handlers/context\_nudge.py             |        7 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/handlers/git\_context.py               |       45 |        2 |        8 |        0 |     96% |     33-34 |
 | src/cline\_hooks/handlers/herdr\_guard.py               |       79 |        1 |       24 |        1 |     98% |        84 |
@@ -95,21 +95,21 @@
 | src/cline\_hooks/plugins/tool\_usage.py                 |       70 |        1 |       16 |        0 |     99% |        42 |
 | src/cline\_hooks/plugins/tracking.py                    |       33 |        1 |       20 |        3 |     92% |32-\>exit, 60-\>62, 63 |
 | src/cline\_hooks/state/\_\_init\_\_.py                  |        0 |        0 |        0 |        0 |    100% |           |
-| src/cline\_hooks/state/agents.py                        |       32 |        0 |        2 |        0 |    100% |           |
+| src/cline\_hooks/state/agents.py                        |       21 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/state/finished.py                      |       24 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/state/jsonfile.py                      |       32 |        0 |        6 |        0 |    100% |           |
 | src/cline\_hooks/state/memory.py                        |       21 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/state/path\_migration.py               |       77 |       17 |       28 |        6 |     72% |53-63, 64-\>66, 67, 107, 109, 113-114, 150 |
 | src/cline\_hooks/state/paths.py                         |       27 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/state/retrospective.py                 |       29 |        0 |        4 |        0 |    100% |           |
-| src/cline\_hooks/state/skills.py                        |       94 |        0 |       26 |        0 |    100% |           |
+| src/cline\_hooks/state/skills.py                        |       88 |        0 |       26 |        0 |    100% |           |
 | src/cline\_hooks/state/store.py                         |       26 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/state/tool\_paths.py                   |       14 |        3 |        4 |        2 |     72% | 23-24, 34 |
 | src/cline\_hooks/state/tool\_usage.py                   |       19 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/state/workspace.py                     |       24 |        0 |        6 |        0 |    100% |           |
 | src/cline\_hooks/uninstall.py                           |       34 |        2 |       10 |        1 |     93% |     51-52 |
 | tests/\_\_init\_\_.py                                   |        0 |        0 |        0 |        0 |    100% |           |
-| tests/conftest.py                                       |      169 |        2 |       14 |        0 |     99% |   56, 185 |
+| tests/conftest.py                                       |      172 |        2 |       14 |        0 |     99% |   57, 186 |
 | tests/test\_agents\_tracker.py                          |       71 |        0 |        4 |        0 |    100% |           |
 | tests/test\_bookkeeping\_tools.py                       |       11 |        0 |        0 |        0 |    100% |           |
 | tests/test\_config.py                                   |       26 |        0 |        0 |        0 |    100% |           |
@@ -118,13 +118,13 @@
 | tests/test\_core\_outcome.py                            |       88 |        0 |        0 |        0 |    100% |           |
 | tests/test\_core\_parameters.py                         |       73 |        0 |        0 |        0 |    100% |           |
 | tests/test\_core\_payload.py                            |      162 |        5 |       16 |        3 |     96% |48, 51, 54, 254-\>253, 256-257, 278-\>276 |
-| tests/test\_core\_state.py                              |      121 |        0 |        4 |        0 |    100% |           |
+| tests/test\_core\_state.py                              |      218 |        0 |       10 |        0 |    100% |           |
 | tests/test\_delegation\_tracker.py                      |       22 |        0 |        0 |        0 |    100% |           |
 | tests/test\_finished\_tracker.py                        |       15 |        0 |        0 |        0 |    100% |           |
 | tests/test\_frontend\_antigravity.py                    |       96 |        0 |        0 |        0 |    100% |           |
 | tests/test\_frontend\_claude\_code\_transcript.py       |      143 |        0 |        0 |        0 |    100% |           |
 | tests/test\_frontend\_conformance.py                    |      100 |        1 |       14 |        1 |     98% |        88 |
-| tests/test\_frontend\_normalisation.py                  |      383 |        0 |        4 |        0 |    100% |           |
+| tests/test\_frontend\_normalisation.py                  |      387 |        0 |        4 |        0 |    100% |           |
 | tests/test\_frontend\_opencode.py                       |       62 |        0 |        2 |        0 |    100% |           |
 | tests/test\_frontend\_pi\_transcript.py                 |       52 |        0 |        4 |        0 |    100% |           |
 | tests/test\_handlers\_commands.py                       |       84 |        0 |        0 |        0 |    100% |           |
@@ -144,12 +144,12 @@
 | tests/test\_install\_opencode.py                        |       20 |        0 |        0 |        0 |    100% |           |
 | tests/test\_install\_pi.py                              |       39 |        0 |        2 |        0 |    100% |           |
 | tests/test\_kiro\_integration.py                        |       49 |        0 |        0 |        0 |    100% |           |
-| tests/test\_main.py                                     |      196 |        3 |        8 |        0 |     99% |161, 343, 349 |
+| tests/test\_main.py                                     |      201 |        3 |        8 |        0 |     99% |170, 352, 358 |
 | tests/test\_memory\_tracker.py                          |       66 |        0 |        4 |        0 |    100% |           |
 | tests/test\_models.py                                   |      108 |        0 |        4 |        0 |    100% |           |
 | tests/test\_models\_kiro.py                             |      213 |        0 |        2 |        0 |    100% |           |
 | tests/test\_opencode\_plugin.py                         |      152 |        0 |        8 |        0 |    100% |           |
-| tests/test\_pi\_extension.py                            |      121 |        0 |       10 |        0 |    100% |           |
+| tests/test\_pi\_extension.py                            |      142 |        0 |       10 |        0 |    100% |           |
 | tests/test\_plan.py                                     |       45 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugin.py                                   |      177 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugin\_entry\_points.py                    |       80 |        0 |        2 |        0 |    100% |           |
@@ -188,7 +188,7 @@
 | tests/test\_uninstall.py                                |       46 |        0 |        0 |        0 |    100% |           |
 | tests/test\_user\_install.py                            |       53 |        0 |        4 |        0 |    100% |           |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **14256** |  **206** | **1760** |  **117** | **98%** |           |
+| **TOTAL**                                               | **14460** |  **208** | **1792** |  **118** | **98%** |           |
 
 
 ## Setup coverage badge
