@@ -53,7 +53,7 @@
 | src/cline\_hooks/frontends/pi/protocol.py               |       40 |        1 |        4 |        1 |     95% |       115 |
 | src/cline\_hooks/frontends/pi/transcript.py             |       55 |        2 |       18 |        3 |     93% |72-\>67, 93, 102 |
 | src/cline\_hooks/handlers/\_\_init\_\_.py               |        3 |        0 |        0 |        0 |    100% |           |
-| src/cline\_hooks/handlers/commands.py                   |      212 |        6 |       96 |       10 |     95% |264, 279, 306, 350, 354, 400, 407-\>405, 409-\>405, 411-\>405, 412-\>411 |
+| src/cline\_hooks/handlers/commands.py                   |      212 |        6 |       96 |        9 |     95% |264, 279, 306, 350, 354, 400, 409-\>405, 411-\>405, 412-\>411 |
 | src/cline\_hooks/handlers/context\_nudge.py             |        7 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/handlers/git\_context.py               |       45 |        2 |        8 |        0 |     96% |     33-34 |
 | src/cline\_hooks/handlers/herdr\_guard.py               |       79 |        1 |       24 |        1 |     98% |        84 |
@@ -72,7 +72,7 @@
 | src/cline\_hooks/plugins/build\_redirect.py             |       54 |        3 |       10 |        0 |     95% |     94-96 |
 | src/cline\_hooks/plugins/build\_tools.py                |       24 |        1 |        4 |        0 |     96% |        24 |
 | src/cline\_hooks/plugins/checkout\_lock.py              |      134 |        5 |       42 |        4 |     95% |69-70, 125, 126-\>121, 128, 157 |
-| src/cline\_hooks/plugins/command\_rules.py              |      113 |        2 |       42 |        2 |     97% |30-\>24, 158, 219 |
+| src/cline\_hooks/plugins/command\_rules.py              |      224 |        7 |       90 |        5 |     96% |31-\>25, 159, 230, 293, 328-329, 352, 427 |
 | src/cline\_hooks/plugins/context\_usage.py              |       97 |        1 |       40 |        1 |     99% |       210 |
 | src/cline\_hooks/plugins/delegation.py                  |       93 |        1 |       42 |        1 |     99% |       204 |
 | src/cline\_hooks/plugins/ecosystem.py                   |       52 |        1 |       14 |        1 |     97% |44, 137-\>139 |
@@ -157,7 +157,7 @@
 | tests/test\_plugins\_build\_redirect.py                 |       95 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugins\_build\_tools.py                    |       17 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugins\_checkout\_lock.py                  |       99 |        0 |        6 |        0 |    100% |           |
-| tests/test\_plugins\_command\_rules.py                  |       54 |        0 |        0 |        0 |    100% |           |
+| tests/test\_plugins\_command\_rules.py                  |       63 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugins\_delegation.py                      |       85 |        0 |        0 |        0 |    100% |           |
 | tests/test\_plugins\_ecosystem.py                       |      112 |        0 |        2 |        0 |    100% |           |
 | tests/test\_plugins\_file\_structure.py                 |       46 |        0 |        6 |        0 |    100% |           |
@@ -185,7 +185,7 @@
 | tests/test\_uninstall.py                                |       46 |        0 |        0 |        0 |    100% |           |
 | tests/test\_user\_install.py                            |       53 |        0 |        4 |        0 |    100% |           |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **13978** |  **181** | **1678** |  **106** | **98%** |           |
+| **TOTAL**                                               | **14098** |  **186** | **1726** |  **108** | **98%** |           |
 
 
 ## Setup coverage badge
