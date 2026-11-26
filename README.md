@@ -4,6 +4,7 @@
 
 | Name                                                    |    Stmts |     Miss |   Branch |   BrPart |   Cover |   Missing |
 |-------------------------------------------------------- | -------: | -------: | -------: | -------: | ------: | --------: |
+| conftest.py                                             |       11 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/\_\_init\_\_.py                        |        2 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/\_main.py                              |      204 |       24 |       46 |        9 |     86% |159, 221-223, 240, 256-257, 283, 309, 319-325, 328-331, 339-340, 344-348 |
 | src/cline\_hooks/config.py                              |       11 |        0 |        0 |        0 |    100% |           |
@@ -98,10 +99,12 @@
 | src/cline\_hooks/state/finished.py                      |       24 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/state/jsonfile.py                      |       32 |        0 |        6 |        0 |    100% |           |
 | src/cline\_hooks/state/memory.py                        |       21 |        0 |        0 |        0 |    100% |           |
-| src/cline\_hooks/state/paths.py                         |        8 |        0 |        0 |        0 |    100% |           |
+| src/cline\_hooks/state/path\_migration.py               |       77 |       17 |       28 |        6 |     72% |53-63, 64-\>66, 67, 107, 109, 113-114, 150 |
+| src/cline\_hooks/state/paths.py                         |       27 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/state/retrospective.py                 |       29 |        0 |        4 |        0 |    100% |           |
 | src/cline\_hooks/state/skills.py                        |       94 |        0 |       26 |        0 |    100% |           |
 | src/cline\_hooks/state/store.py                         |       26 |        0 |        2 |        0 |    100% |           |
+| src/cline\_hooks/state/tool\_paths.py                   |       14 |        3 |        4 |        2 |     72% | 23-24, 34 |
 | src/cline\_hooks/state/tool\_usage.py                   |       19 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/state/workspace.py                     |       24 |        0 |        6 |        0 |    100% |           |
 | src/cline\_hooks/uninstall.py                           |       34 |        2 |       10 |        1 |     93% |     51-52 |
@@ -179,13 +182,13 @@
 | tests/test\_skill\_tracker.py                           |       86 |        0 |        8 |        0 |    100% |           |
 | tests/test\_state.py                                    |       67 |        0 |        4 |        0 |    100% |           |
 | tests/test\_state\_jsonfile.py                          |       65 |        0 |        6 |        0 |    100% |           |
-| tests/test\_state\_paths.py                             |        8 |        0 |        0 |        0 |    100% |           |
+| tests/test\_state\_paths.py                             |       45 |        0 |        0 |        0 |    100% |           |
 | tests/test\_state\_tool\_usage.py                       |       20 |        0 |        4 |        0 |    100% |           |
 | tests/test\_turns.py                                    |       57 |        1 |        6 |        0 |     98% |        22 |
 | tests/test\_uninstall.py                                |       46 |        0 |        0 |        0 |    100% |           |
 | tests/test\_user\_install.py                            |       53 |        0 |        4 |        0 |    100% |           |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **14098** |  **186** | **1726** |  **109** | **98%** |           |
+| **TOTAL**                                               | **14256** |  **206** | **1760** |  **117** | **98%** |           |
 
 
 ## Setup coverage badge
