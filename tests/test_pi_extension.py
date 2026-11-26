@@ -295,3 +295,14 @@ def test_a_hook_outside_a_tool_call_anchors_to_the_leaf(tmp_path: Path) -> None:
         {"event": "before_agent_start", "payload": {"messageType": "user", "prompt": "go"}},
     ]
     assert _sent_payloads(tmp_path, steps)[0]["anchor_id"] == "e1"
+
+
+def test_a_nested_call_anchors_to_its_root_call(tmp_path: Path) -> None:
+    assistant = {"role": "assistant", "content": [{"type": "toolCall", "id": "c1"}]}
+    steps = [
+        {"session": {"leafId": "e1", "entries": [_entry("e1", "message", assistant)]}},
+        _step("tool_call", "c1", "script"),
+        _step("tool_call", "c1/1", "inner", "c1"),
+        _step("tool_result", "c1/1", "inner", "c1"),
+    ]
+    assert [payload["anchor_id"] for payload in _sent_payloads(tmp_path, steps)] == ["c1", "c1", "c1"]

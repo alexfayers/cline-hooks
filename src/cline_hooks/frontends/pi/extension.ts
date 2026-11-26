@@ -178,7 +178,7 @@ export default function (pi: ExtensionAPI) {
     const delivery = deliveryFor(event.toolCallId, event.parentToolCallId);
     const outcome = await runHook(ctx, {
       hook_event_name: "tool_call",
-      anchor_id: event.toolCallId,
+      anchor_id: event.toolCallId.split("/")[0],
       tool_name: event.toolName,
       tool_input: event.input,
       parent_tool_call_id: event.parentToolCallId,
@@ -199,7 +199,7 @@ export default function (pi: ExtensionAPI) {
     const result = event.content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("\n");
     const { message } = await runHook(ctx, {
       hook_event_name: "tool_result",
-      anchor_id: event.toolCallId,
+      anchor_id: event.toolCallId.split("/")[0],
       tool_name: event.toolName,
       tool_input: event.input,
       parent_tool_call_id: event.parentToolCallId,
