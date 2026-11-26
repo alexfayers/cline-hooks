@@ -49,6 +49,8 @@ class HookInput(BaseModel):
     transcriptPath: str = ""
     agentType: str = ""
     agentId: str | None = None
+    anchorId: str | None = None
+    contextAnchors: list[str] | None = None
 
     @property
     def stateKey(self) -> str:  # ruff: ignore[invalid-function-name]

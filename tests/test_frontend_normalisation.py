@@ -31,6 +31,8 @@ _CLAUDE_CODE_ENVELOPE: dict[str, Any] = {
     "transcriptPath": "/home/user/.claude/projects/fixture/transcript.jsonl",
     "agentType": "",
     "agentId": None,
+    "anchorId": None,
+    "contextAnchors": None,
 }
 _KIRO_ENVELOPE: dict[str, Any] = {
     "taskId": "fixture-session-id",
@@ -38,6 +40,8 @@ _KIRO_ENVELOPE: dict[str, Any] = {
     "transcriptPath": "",
     "agentType": "",
     "agentId": None,
+    "anchorId": None,
+    "contextAnchors": None,
 }
 _ANTIGRAVITY_ENVELOPE: dict[str, Any] = {
     "taskId": "fixture-session-id",
@@ -47,6 +51,8 @@ _ANTIGRAVITY_ENVELOPE: dict[str, Any] = {
     ),
     "agentType": "gemini-3.6-flash-medium",
     "agentId": None,
+    "anchorId": None,
+    "contextAnchors": None,
 }
 _PI_ENVELOPE: dict[str, Any] = {
     "taskId": "fixture-session-id",
@@ -54,6 +60,8 @@ _PI_ENVELOPE: dict[str, Any] = {
     "transcriptPath": "/home/user/.pi/agent/sessions/fixture/session.jsonl",
     "agentType": "",
     "agentId": None,
+    "anchorId": None,
+    "contextAnchors": None,
 }
 
 _OPENCODE_ENVELOPE: dict[str, Any] = {
@@ -62,6 +70,8 @@ _OPENCODE_ENVELOPE: dict[str, Any] = {
     "transcriptPath": "",
     "agentType": "",
     "agentId": None,
+    "anchorId": None,
+    "contextAnchors": None,
 }
 
 
@@ -562,6 +572,11 @@ class TestPiNormalisation:
     ) -> None:
         hook = _parse("pi", "PreToolUse", PiProtocol, overrides=overrides)
         assert (hook.agentType, hook.agentId) == (agent_type, agent_id)
+
+    def test_the_context_anchors_come_from_the_bridge(self) -> None:
+        overrides = {"anchor_id": "call-1", "context_anchors": ["e1", "call-1"]}
+        hook = _parse("pi", "PreToolUse", PiProtocol, overrides=overrides)
+        assert (hook.anchorId, hook.contextAnchors) == ("call-1", ["e1", "call-1"])
 
     @pytest.mark.parametrize("name", ["PostToolUse", "UserPromptSubmit"])
     def test_context_usage_comes_from_the_bridge(self, name: str) -> None:

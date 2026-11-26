@@ -5,7 +5,7 @@ import json
 import threading
 from typing import TYPE_CHECKING
 
-from cline_hooks.core.state import PluginStateStore
+from cline_hooks.core.state import PluginStateStore, set_hook_context
 from cline_hooks.state.finished import mark_finished
 
 if TYPE_CHECKING:
@@ -152,3 +152,66 @@ class TestPluginStateStore:
             thread.join()
 
         assert store.get("task-1").count == thread_count
+
+
+def _bump(state: _SampleState) -> None:
+    state.count += 1
+
+
+class TestContextAnchors:
+    def test_a_record_drops_once_its_anchor_leaves_the_context(self, tmp_path: Path) -> None:
+        store = PluginStateStore("sample.json", _SampleState, tmp_path / "sample.json")
+        set_hook_context("task-1", "a1", ["a1"])
+        store.update("task-1", _setter(3))
+        set_hook_context("task-1", "a2", ["a2"])
+        assert store.get("task-1") == _SampleState()
+
+    def test_a_record_is_kept_when_no_anchors_are_sent(self, tmp_path: Path) -> None:
+        store = PluginStateStore("sample.json", _SampleState, tmp_path / "sample.json")
+        set_hook_context("task-1", "a1", None)
+        store.update("task-1", _setter(3))
+        set_hook_context("task-1", "a2", None)
+        assert store.get("task-1") == _SampleState(count=3)
+
+    def test_the_last_anchors_sent_still_apply_to_a_call_that_sends_none(self, tmp_path: Path) -> None:
+        store = PluginStateStore("sample.json", _SampleState, tmp_path / "sample.json")
+        set_hook_context("task-1", "a1", ["a1"])
+        store.update("task-1", _setter(3))
+        set_hook_context("task-1", "a1", None)
+        assert store.get("task-1") == _SampleState(count=3)
+        set_hook_context("task-1", "a2", ["a2"])
+        set_hook_context("task-1", "a2", None)
+        assert store.get("task-1") == _SampleState()
+
+    def test_counters_count_only_live_anchors(self, tmp_path: Path) -> None:
+        store = PluginStateStore("sample.json", _SampleState, tmp_path / "sample.json")
+        for anchors in (["a1"], ["a1", "a2"], ["a1", "a2", "a3"]):
+            set_hook_context("task-1", anchors[-1], anchors)
+            store.update("task-1", _bump)
+        set_hook_context("task-1", "b1", ["a1", "a2", "b1"])
+        assert store.get("task-1") == _SampleState(count=2)
+        store.update("task-1", _bump)
+        assert store.get("task-1") == _SampleState(count=3)
+
+    def test_a_record_written_without_an_anchor_is_kept(self, tmp_path: Path) -> None:
+        store = PluginStateStore("sample.json", _SampleState, tmp_path / "sample.json")
+        store.update("task-1", _setter(3))
+        set_hook_context("task-1", "a1", ["a1"])
+        assert store.get("task-1") == _SampleState(count=3)
+
+    def test_another_agents_record_is_not_checked_against_this_context(self, tmp_path: Path) -> None:
+        store = PluginStateStore("sample.json", _SampleState, tmp_path / "sample.json")
+        set_hook_context("task-1:agent-a", "a1", ["a1"])
+        store.update("task-1:agent-a", _setter(3))
+        set_hook_context("task-1", "b1", ["b1"])
+        assert store.get("task-1:agent-a") == _SampleState(count=3)
+
+    def test_last_anchors_that_lack_the_calls_anchor_are_not_applied(self, tmp_path: Path) -> None:
+        store = PluginStateStore("sample.json", _SampleState, tmp_path / "sample.json")
+        set_hook_context("task-1", "a1", ["a0", "a1"])
+        store.update("task-1", _bump)
+        set_hook_context("task-1", "a0", ["a0"])
+        set_hook_context("task-1", "a2", None)
+        store.update("task-1", _bump)
+        set_hook_context("task-1", "a3", ["a0", "a1", "a2", "a3"])
+        assert store.get("task-1") == _SampleState(count=2)

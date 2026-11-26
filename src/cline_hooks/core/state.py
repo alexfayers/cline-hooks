@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import logging
 from typing import TYPE_CHECKING, Any, cast
 
@@ -17,6 +18,98 @@ if TYPE_CHECKING:
     from _typeshed import DataclassInstance
 
 logger = logging.getLogger("hooks.state")
+
+_ANCHORS_DIR = get_data_dir() / "context-anchors"
+_LAYERS = "_layers"
+
+
+@dataclasses.dataclass(frozen=True)
+class _HookContext:
+    """The agent context the current hook call runs in."""
+
+    state_key: str = ""
+    anchor_id: str | None = None
+    live_anchors: frozenset[str] | None = None
+
+
+_context = _HookContext()
+
+
+def set_hook_context(state_key: str, anchor_id: str | None, context_anchors: list[str] | None) -> None:
+    """Set the agent context that state reads and writes for `state_key` apply to.
+
+    Args:
+        state_key: The per-agent state key of the current call.
+        anchor_id: The id of the point in the agent's context where this call fires.
+        context_anchors: The ids still in the agent's context, or None to reuse the
+            last list sent for `state_key` where it holds `anchor_id`.
+    """
+    global _context  # ruff: ignore[global-statement]
+    path = _ANCHORS_DIR / f"{hashlib.sha256(state_key.encode()).hexdigest()[:16]}.json"
+    if context_anchors is None:
+        cached: list[str] = read_json(path, [])
+        context_anchors = cached if isinstance(cached, list) and anchor_id in cached else None
+    else:
+        with updated_json(path, cast("list[str]", [])) as data:
+            data[:] = context_anchors
+    live = frozenset(context_anchors) if context_anchors is not None else None
+    _context = _HookContext(state_key, anchor_id, live)
+
+
+def _live_anchors(key: str) -> frozenset[str] | None:
+    """Return the anchors still in context for `key`, or None when the current call has none for it."""
+    return _context.live_anchors if key == _context.state_key else None
+
+
+def _live_layers(key: str, entry: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return an entry's state layers still in the current context, oldest first.
+
+    Args:
+        key: The entry's state key.
+        entry: The raw entry: a plain state dict, or `_layers` of anchored states.
+
+    Returns:
+        Every layer when the call has no anchors for `key`, else the layers with
+        no anchor or an anchor still in context.
+    """
+    layers = entry.get(_LAYERS) if isinstance(entry, dict) else None
+    if not isinstance(layers, list):
+        layers = [{"anchor": None, "state": entry}] if entry else []
+    live = _live_anchors(key)
+    if live is None:
+        return layers
+    return [layer for layer in layers if layer.get("anchor") is None or layer.get("anchor") in live]
+
+
+def _visible(key: str, entry: dict[str, Any]) -> dict[str, Any]:
+    """Return the raw state of an entry as the current context sees it.
+
+    Returns:
+        The state of the newest live layer, or empty when none is live.
+    """
+    layers = _live_layers(key, entry)
+    return layers[-1]["state"] if layers else {}
+
+
+def _written(key: str, entry: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
+    """Return the raw entry to store after the current call changed its state.
+
+    Returns:
+        The plain state for a plain entry the call has no anchors for, else the
+        live layers plus the new state anchored to the current call, or for
+        another agent's key, to that key's newest anchor.
+    """
+    layered = isinstance(entry, dict) and isinstance(entry.get(_LAYERS), list)
+    if not layered and _live_anchors(key) is None:
+        return state
+    layers = _live_layers(key, entry)
+    if layers and layers[-1]["state"] == state:
+        return {_LAYERS: layers}
+    newest = layers[-1].get("anchor") if layers else None
+    anchor = _context.anchor_id if key == _context.state_key else newest
+    if layers and newest == anchor:
+        layers.pop()
+    return {_LAYERS: [*layers, {"anchor": anchor, "state": state}]}
 
 
 class PluginStateStore[StateT: "DataclassInstance"]:
@@ -37,10 +130,10 @@ class PluginStateStore[StateT: "DataclassInstance"]:
         """Read the whole state file, returning empty on a missing or corrupt file.
 
         Returns:
-            Mapping of task IDs to their raw state field dicts.
+            Mapping of task IDs to their raw state field dicts, as the current context sees them.
         """
         data: dict[str, dict[str, Any]] = read_json(self._path, {})
-        return data if isinstance(data, dict) else {}
+        return {key: _visible(key, entry) for key, entry in data.items()} if isinstance(data, dict) else {}
 
     def _parse(self, entry: dict[str, Any]) -> StateT:
         """Build a state instance from a raw entry, falling back to defaults.
@@ -79,9 +172,10 @@ class PluginStateStore[StateT: "DataclassInstance"]:
             Whatever the mutation returned.
         """
         with updated_json(self._path, cast("dict[str, dict[str, Any]]", {})) as data:
-            state = self._parse(data.get(task_id, {}))
+            entry = data.get(task_id, {})
+            state = self._parse(_visible(task_id, entry))
             result = mutate(state)
-            data[task_id] = dataclasses.asdict(state)
+            data[task_id] = _written(task_id, entry, dataclasses.asdict(state))
         return result
 
     def update_all(self, mutate: Callable[[StateT], object]) -> None:
@@ -92,9 +186,9 @@ class PluginStateStore[StateT: "DataclassInstance"]:
         """
         with updated_json(self._path, cast("dict[str, dict[str, Any]]", {})) as data:
             for task_id, entry in data.items():
-                state = self._parse(entry)
+                state = self._parse(_visible(task_id, entry))
                 mutate(state)
-                data[task_id] = dataclasses.asdict(state)
+                data[task_id] = _written(task_id, entry, dataclasses.asdict(state))
 
     def reset(self, task_id: str) -> None:
         """Clear the state entry for a task and every per-agent entry nested under it.
@@ -126,4 +220,4 @@ class PluginStateStore[StateT: "DataclassInstance"]:
         with updated_json(self._path, cast("dict[str, dict[str, Any]]", {})) as data:
             keys = [task_id] if task_id in data else []
             keys += [key for key in data if key.startswith(prefix) and (finished is None or key in finished)]
-            return [self._parse(data.pop(key)) for key in keys]
+            return [self._parse(_visible(key, data.pop(key))) for key in keys]

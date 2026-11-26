@@ -6,10 +6,28 @@ const BINARY: string = "__CLINE_HOOK_BINARY__";
 const CUSTOM_TYPE = "cline-hooks";
 const BLOCK_EXIT_CODE = 2;
 const HOOK_TIMEOUT_MS = 35_000;
+const MESSAGE_ENTRY_TYPES = new Set(["message", "custom_message"]);
 
 interface HookOutcome {
   blocked: boolean;
   message: string;
+}
+
+let anchorsLeafId: string | null | undefined;
+
+function contextAnchors(ctx: ExtensionContext): string[] | undefined {
+  const leafId = ctx.sessionManager.getLeafId();
+  if (leafId === anchorsLeafId) return undefined;
+  anchorsLeafId = leafId;
+  return ctx.sessionManager.buildSessionProjection().entries.flatMap(({ sourceEntry, messages }) => {
+    if (!messages.length && MESSAGE_ENTRY_TYPES.has(sourceEntry.type)) return [];
+    const toolCallIds = messages.flatMap((message) =>
+      message.role === "assistant"
+        ? message.content.flatMap((part) => (part.type === "toolCall" ? [part.id] : []))
+        : [],
+    );
+    return [sourceEntry.id, ...toolCallIds];
+  });
 }
 
 function runHook(ctx: ExtensionContext, payload: Record<string, unknown>): Promise<HookOutcome> {
@@ -23,6 +41,8 @@ function runHook(ctx: ExtensionContext, payload: Record<string, unknown>): Promi
     agent_id: process.env.PI_HERDSMAN_RUN_ID ?? process.env.PI_CONTEXT_RUN_ID ?? "",
     context_window: usage?.contextWindow,
     context_tokens: usage?.tokens,
+    anchor_id: ctx.sessionManager.getLeafId(),
+    context_anchors: contextAnchors(ctx),
     ...payload,
   });
   return new Promise((resolve) => {
@@ -158,6 +178,7 @@ export default function (pi: ExtensionAPI) {
     const delivery = deliveryFor(event.toolCallId, event.parentToolCallId);
     const outcome = await runHook(ctx, {
       hook_event_name: "tool_call",
+      anchor_id: event.toolCallId,
       tool_name: event.toolName,
       tool_input: event.input,
       parent_tool_call_id: event.parentToolCallId,
@@ -178,6 +199,7 @@ export default function (pi: ExtensionAPI) {
     const result = event.content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("\n");
     const { message } = await runHook(ctx, {
       hook_event_name: "tool_result",
+      anchor_id: event.toolCallId,
       tool_name: event.toolName,
       tool_input: event.input,
       parent_tool_call_id: event.parentToolCallId,
