@@ -3,11 +3,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from cline_hooks.core.hook_kwargs import TrackToolUseKwargs
-from cline_hooks.core.parameters import ReadParameters, ShellParameters, SkillParameters
+from cline_hooks.core.parameters import McpToolUse, ReadParameters, ShellParameters, SkillParameters
 from cline_hooks.core.plugin import HooksPlugin
 from cline_hooks.core.vocabulary import SHELL_TOOLS, CanonicalTool, PluginScope
 from cline_hooks.state.agents import has_agent_start, is_agent_tool, record_agent_use
-from cline_hooks.state.memory import is_memory_write, record_memory_write
+from cline_hooks.state.memory import is_memory_write, record_mcp_call, record_memory_write
 from cline_hooks.state.skills import record_skill, skill_key, skills_in_command
 
 if TYPE_CHECKING:
@@ -59,8 +59,10 @@ class TrackingPlugin(HooksPlugin):
         kw = TrackToolUseKwargs.build(kwargs)
         if kw.tool_name != CanonicalTool.MCP:
             _record_skill_use(kw.task_id, kw.tool_name, kw.parameters)
-        if kw.mcp_tool_name is not None and is_memory_write(kw.mcp_tool_name):
-            record_memory_write(kw.task_id, kw.mcp_tool_name)
+        if kw.mcp_tool_name is not None:
+            record_mcp_call(kw.task_id, McpToolUse.build(kw.parameters).server_name, kw.mcp_tool_name)
+            if is_memory_write(kw.mcp_tool_name):
+                record_memory_write(kw.task_id, kw.mcp_tool_name)
         if is_agent_tool(kw.tool_name) and not has_agent_start(kw.task_id):
             record_agent_use(kw.task_id, kw.tool_name)
         return None

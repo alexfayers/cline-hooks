@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import threading
 
+import pytest
+
 from cline_hooks.state.jsonfile import read_json
 import cline_hooks.state.memory as memory_tracker_module
 from cline_hooks.state.memory import (
     has_memory_writes,
     is_memory_write,
+    memory_available,
+    record_mcp_call,
     record_memory_write,
     reset,
 )
@@ -96,3 +100,29 @@ class TestConcurrentWrites:
 
         data: dict[str, list[str]] = read_json(memory_tracker_module._STATE_PATH, {})
         assert sorted(data[_TASK]) == sorted(tool_names)
+
+
+class TestMemoryAvailability:
+    def test_unavailable_until_a_memory_call_succeeds(self) -> None:
+        assert not memory_available(_TASK)
+
+    @pytest.mark.parametrize(
+        ("server_name", "tool_name"), [("memory", "read_graph"), ("mcp-memory", "x"), ("s", "search_nodes")]
+    )
+    def test_memory_call_marks_available(self, server_name: str, tool_name: str) -> None:
+        record_mcp_call(_TASK, server_name, tool_name)
+        assert memory_available(_TASK)
+
+    def test_unrelated_mcp_call_does_not_mark_available(self) -> None:
+        record_mcp_call(_TASK, "github", "list_issues")
+        assert not memory_available(_TASK)
+
+    def test_subagent_shares_the_session_availability(self) -> None:
+        record_mcp_call(f"{_TASK}:agent-a", "memory", "read_graph")
+        assert memory_available(_TASK)
+        assert memory_available(f"{_TASK}:agent-b")
+
+    def test_reset_clears_availability(self) -> None:
+        record_mcp_call(_TASK, "memory", "read_graph")
+        reset(_TASK)
+        assert not memory_available(_TASK)
