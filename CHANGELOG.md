@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.0](https://github.com/alexfayers/cline-hooks/compare/v0.5.0...v0.6.0) (2026-11-27)
+
+
+### Features
+
+* add an uninstall verb for every frontend that removes only cline-hooks' own entries ([#260](https://github.com/alexfayers/cline-hooks/issues/260)) ([afb0f62](https://github.com/alexfayers/cline-hooks/commit/afb0f620e3b4f6749fedf6088c33d041087b2d98))
+* only enforce memory reminders once a memory server responds ([#263](https://github.com/alexfayers/cline-hooks/issues/263)) ([db05fab](https://github.com/alexfayers/cline-hooks/commit/db05fab8042918f8b390cb8315e403d8f5c238af))
+
+
+### Bug Fixes
+
+* delete context-anchor files not written for 7 days ([#262](https://github.com/alexfayers/cline-hooks/issues/262)) ([b0f6997](https://github.com/alexfayers/cline-hooks/commit/b0f6997129f60704eedf9dca8f5d492995759f8c))
+
 ## [0.5.0](https://github.com/alexfayers/cline-hooks/compare/v0.4.0...v0.5.0) (2026-11-26)
 
 
