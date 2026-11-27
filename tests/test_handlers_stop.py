@@ -24,7 +24,7 @@ from cline_hooks.plugins.research import (
 )
 from cline_hooks.state.agents import has_agent_use, record_agent_use
 from cline_hooks.state.finished import finished_keys, live_keys, mark_started
-from cline_hooks.state.memory import has_memory_writes, record_memory_write
+from cline_hooks.state.memory import has_memory_writes, record_mcp_call, record_memory_write
 from cline_hooks.state.skills import is_skill_called, record_skill
 from cline_hooks.state.store import TaskStateStore
 from cline_hooks.state.workspace import record_workspace, should_note_workspace_change
@@ -239,6 +239,16 @@ class TestHandleStop:
         result = _run(_stop(transcript_path="session.jsonl"))
         assert result["cancel"] is True
         assert "DISMISSED ISSUE DETECTED" in cast("str", result["errorMessage"])
+
+    @pytest.mark.parametrize("memory_up", [False, True])
+    def test_dismissal_nudge_names_memory_only_when_memory_is_up(
+        self, stub_transcript: StubTranscriptT, memory_up: bool
+    ) -> None:
+        if memory_up:
+            record_mcp_call("task-1", "memory", "read_graph")
+        stub_transcript(text="This is a pre-existing issue.")
+        result = _run(_stop(transcript_path="session.jsonl"))
+        assert ("memory" in cast("str", result["errorMessage"])) is memory_up
 
     def test_dismissal_signal_and_research_both_included(self, stub_transcript: StubTranscriptT) -> None:
         stub_transcript(text="This is a pre-existing issue.")

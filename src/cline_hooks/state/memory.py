@@ -56,6 +56,19 @@ def memory_available(task_id: str) -> bool:
     return data.get(_session_key(task_id), False)
 
 
+def memory_clause(task_id: str, clause: str) -> str:
+    """Return a memory clause for a reminder, or nothing when no memory server has responded.
+
+    Args:
+        task_id: The session or per-agent state key.
+        clause: The reminder text that asks for a memory write.
+
+    Returns:
+        The clause when memory is available, else an empty string.
+    """
+    return clause if memory_available(task_id) else ""
+
+
 def is_memory_write(tool_name: str) -> bool:
     """Check whether a tool name is a memory-write operation.
 

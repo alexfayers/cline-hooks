@@ -20,6 +20,7 @@ from cline_hooks.core.vocabulary import (
 )
 from cline_hooks.plugins.delegation import is_read_only_command
 from cline_hooks.state.agents import agent_use_count
+from cline_hooks.state.memory import memory_available, memory_clause
 from cline_hooks.state.retrospective import record_session
 from cline_hooks.state.skills import is_wrap_up_skill
 
@@ -142,7 +143,7 @@ _DISMISSAL_PATTERNS: list[re.Pattern[str]] = [
 _DISMISSAL_NUDGE = (
     "DISMISSED ISSUE DETECTED: You described a problem as pre-existing/unrelated instead of "
     "fixing it. Unless the user has explicitly told you not to, MUST log a follow-up now "
-    "(a memory task/ entity or TODO) so it isn't lost."
+    "(a {memory}TODO) so it isn't lost."
 )
 
 _CORRECTION_PATTERNS: list[re.Pattern[str]] = [
@@ -185,8 +186,7 @@ _INFO_PATTERNS: list[re.Pattern[str]] = [
 
 _CORRECTION_REMINDER = (
     "CORRECTION DETECTED: The user is correcting your behavior. "
-    "MUST persist the correction to memory silently, without mentioning it in the reply. "
-    "MUST apply it and reply briefly. "
+    "{memory}MUST apply it and reply briefly. "
     "MUST ask about a rule or skill change ONLY where the correction is a repeatable behaviour "
     "that would apply to every user."
 )
@@ -389,7 +389,8 @@ class NudgesPlugin(HooksPlugin):
         text = get_protocol().transcript.turn_assistant_text(transcript_path)
         if _contains_dismissal_signal(text):
             logger.debug("Fired dismissed-issue nudge")
-            return HookResult(notes=[_DISMISSAL_NUDGE])
+            memory = memory_clause(str(kwargs.get("task_id", "")), "memory task/ entity or ")
+            return HookResult(notes=[_DISMISSAL_NUDGE.format(memory=memory)])
         return None
 
     def _user_prompt_submit(self, logger: logging.Logger, kwargs: dict[str, object]) -> HookResult | None:
@@ -415,8 +416,15 @@ class NudgesPlugin(HooksPlugin):
             notes.append(_LATE_EARLY_WARNING)
         if _contains_correction_signal(message):
             if not is_subagent(kwargs):
-                notes.append(_CORRECTION_REMINDER)
-        elif (_contains_info_signal(message) or random.random() < _INFO_REMINDER_CHANCE) and _store.get(task_id).edited:
+                memory = memory_clause(
+                    task_id, "MUST persist the correction to memory silently, without mentioning it in the reply. "
+                )
+                notes.append(_CORRECTION_REMINDER.format(memory=memory))
+        elif (
+            (_contains_info_signal(message) or random.random() < _INFO_REMINDER_CHANCE)
+            and _store.get(task_id).edited
+            and memory_available(task_id)
+        ):
             notes.append(_INFO_REMINDER)
         if random.random() < _SIDE_REQUEST_REMINDER_CHANCE:
             notes.append(_SIDE_REQUEST_REMINDER)

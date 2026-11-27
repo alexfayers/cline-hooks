@@ -8,6 +8,7 @@ from cline_hooks.core.protocol import get_protocol
 from cline_hooks.core.state import PluginStateStore
 from cline_hooks.core.vocabulary import CanonicalHook, TaskSource
 from cline_hooks.handlers.context_nudge import with_team_clause
+from cline_hooks.state.memory import memory_clause
 
 if TYPE_CHECKING:
     import logging
@@ -87,18 +88,16 @@ _CONTEXT_NUDGE_INFO = "{status} No action needed yet."
 
 _CONTEXT_NUDGE_REDUCED = (
     f"{{status}} Accuracy degrading past {CONTEXT_REDUCED_THRESHOLD // 1000}k. MUST ask the user before "
-    "starting new planning or implementation. To continue, MUST record current state in memory."
+    "starting new planning or implementation.{memory}"
 )
 
 _CONTEXT_NUDGE_SEVERE = (
-    "{status} Context budget exhausted. MUST stop new work, record current state in memory, "
-    "and compact or hand off now."
+    "{status} Context budget exhausted. MUST stop new work{severe_memory} and compact or hand off now."
 )
 
 _CONTEXT_NUDGE_REDUCED_SUBAGENT = (
     f"{{status}} Accuracy degrading past {CONTEXT_REDUCED_THRESHOLD // 1000}k. MUST report your state to "
-    "your caller/lead before starting new planning or implementation. To continue, MUST record current state in "
-    "memory."
+    "your caller/lead before starting new planning or implementation.{memory}"
 )
 
 _CONTEXT_NUDGE_SEVERE_SUBAGENT = (
@@ -148,14 +147,16 @@ def context_note(
     if not should_nudge_context(task_id, token_count):
         return None
     status = _status(token_count, context_window)
+    memory = memory_clause(task_id, " To continue, MUST record current state in memory.")
     if token_count >= CONTEXT_DEGRADED_THRESHOLD:
         if is_subagent:
             return _CONTEXT_NUDGE_SEVERE_SUBAGENT.format(status=status)
-        return with_team_clause(_CONTEXT_NUDGE_SEVERE.format(status=status), task_id)
+        severe_memory = memory_clause(task_id, ", record current state in memory,")
+        return with_team_clause(_CONTEXT_NUDGE_SEVERE.format(status=status, severe_memory=severe_memory), task_id)
     if token_count >= CONTEXT_REDUCED_THRESHOLD:
         if is_subagent:
-            return _CONTEXT_NUDGE_REDUCED_SUBAGENT.format(status=status)
-        return with_team_clause(_CONTEXT_NUDGE_REDUCED.format(status=status), task_id)
+            return _CONTEXT_NUDGE_REDUCED_SUBAGENT.format(status=status, memory=memory)
+        return with_team_clause(_CONTEXT_NUDGE_REDUCED.format(status=status, memory=memory), task_id)
     if is_subagent and token_count >= CONTEXT_WORKER_THRESHOLD:
         return _CONTEXT_NUDGE_WORKER_SUBAGENT.format(status=status)
     return _CONTEXT_NUDGE_INFO.format(status=status)
