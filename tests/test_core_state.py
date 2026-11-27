@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import json
+import os
 import threading
+import time
 from typing import TYPE_CHECKING
 
 import pytest
 
-from cline_hooks.core.state import PluginStateStore, counter, set_hook_context
+from cline_hooks.core.state import ANCHOR_TTL_SECONDS, PluginStateStore, counter, set_hook_context
 from cline_hooks.state import agents, memory, skills
 from cline_hooks.state.finished import mark_finished
 
@@ -282,3 +284,27 @@ class TestContextAnchors:
         memory.record_memory_write("task-1", "add_observations")
         set_hook_context("task-1", "a2", ["a2"])
         assert memory.has_memory_writes("task-1")
+
+    def test_writing_anchors_prunes_other_sessions_anchor_files_past_the_ttl(self, tmp_path: Path) -> None:
+        anchors_dir = tmp_path / "context-anchors"
+        set_hook_context("task-1", "a1", ["a1"])
+        current = next(anchors_dir.glob("*.json"))
+        stale_time = time.time() - ANCHOR_TTL_SECONDS - 60
+        stale = [anchors_dir / "stale.json", anchors_dir / "stale.json.lock"]
+        for path in [*stale, anchors_dir / "fresh.json"]:
+            path.write_text("[]")
+        for path in stale:
+            os.utime(path, (stale_time, stale_time))
+        (anchors_dir / "gone.json").symlink_to(tmp_path / "missing.json")
+        (anchors_dir / "locked.json").mkdir()
+        os.utime(anchors_dir / "locked.json", (stale_time, stale_time))
+
+        set_hook_context("task-1", "a2", ["a1", "a2"])
+
+        assert sorted(path.name for path in anchors_dir.iterdir()) == sorted([
+            current.name,
+            f"{current.name}.lock",
+            "fresh.json",
+            "gone.json",
+            "locked.json",
+        ])
