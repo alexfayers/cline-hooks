@@ -23,16 +23,16 @@ from cline_hooks._main import (
 )
 from cline_hooks.config import _DEFAULT_MAX_MEMORY_MB
 from cline_hooks.core.frontends import FRONTENDS, FRONTENDS_BY_NAME
-from cline_hooks.core.plugin import HooksPlugin, hookimpl
+from cline_hooks.core.plugin import HookResult, HooksPlugin, collect_contributions, collect_hook_results, hookimpl
 import cline_hooks.core.state as core_state_module
 from cline_hooks.core.vocabulary import CanonicalHook
-from tests.conftest import CanonicalProtocol, GreeterOwner
+import cline_hooks.state.disabled_plugins as disabled_plugins_module
+from tests.conftest import CanonicalProtocol, GreeterOwner, GreeterSpec
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
     from cline_hooks.core.frontend import FrontendSpec
-    from cline_hooks.core.plugin import HookResult
     from cline_hooks.core.protocol import Protocol
 
 
@@ -400,3 +400,94 @@ class TestListPlugins:
         assert "clean" not in output
         assert "unpublished_extension_point" in output
         assert StrayContributor.__name__ in output
+
+
+class Talker(HooksPlugin):
+    def on_hook(self, hook_name: str, *, logger: logging.Logger, **kwargs: object) -> HookResult | None:
+        return HookResult(notes=[f"talker saw {hook_name}"])
+
+
+def _run_plugins_verb(*args: str) -> None:
+    with patch("sys.argv", ["cline-hook", "plugins", *args]), pytest.raises(SystemExit) as excinfo:
+        main()
+    assert excinfo.value.code == 0
+
+
+class TestPluginToggles:
+    def test_a_disabled_plugin_emits_nothing_until_re_enabled(
+        self, use_plugins: Callable[..., None], capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        use_plugins(Talker())
+
+        _run_plugins_verb("--disable", "Talker", "--reason", "too noisy")
+
+        assert collect_hook_results([Talker()], "TaskStart").notes == []
+        assert "disabled: too noisy" in _plugins_output(capsys)
+
+        _run_plugins_verb("--enable", "Talker")
+
+        assert collect_hook_results([Talker()], "TaskStart").notes == ["talker saw TaskStart"]
+        assert "enabled" in _plugins_output(capsys)
+
+    def test_a_disabled_plugin_contributes_nothing_to_extension_points(self, use_plugins: Callable[..., None]) -> None:
+        use_plugins(GreeterOwner(), Greeter())
+
+        _run_plugins_verb("--disable", "Greeter")
+
+        assert collect_contributions(GreeterSpec.greetings, list, name="Ada") == []
+
+    @pytest.mark.parametrize("content", ["null", '{"Talker": "x"}', '{"Talker": {"at": 1}}', "[]"])
+    def test_a_malformed_state_file_leaves_every_plugin_enabled(
+        self, use_plugins: Callable[..., None], capsys: pytest.CaptureFixture[str], content: str
+    ) -> None:
+        use_plugins(Talker())
+        disabled_plugins_module._STATE_PATH.write_text(content)
+
+        assert collect_hook_results([Talker()], "TaskStart").notes == ["talker saw TaskStart"]
+        assert "state:           enabled" in _plugins_output(capsys)
+
+    @pytest.mark.usefixtures("setrlimit")
+    def test_a_hook_run_from_stdin_skips_a_disabled_plugin(self, use_plugins: Callable[..., None]) -> None:
+        use_plugins(Talker())
+        assert any("talker saw TaskStart" in line for line in _run_main(_TASK_START_PAYLOAD))
+
+        _run_plugins_verb("--disable", "Talker")
+
+        assert not any("talker saw" in line for line in _run_main(_TASK_START_PAYLOAD))
+
+    @pytest.mark.parametrize("content", ["null", "[]", '{"Talker": "x"}'])
+    def test_disable_and_enable_repair_a_malformed_state_file(
+        self, use_plugins: Callable[..., None], content: str
+    ) -> None:
+        use_plugins(Talker())
+        disabled_plugins_module._STATE_PATH.write_text(content)
+
+        _run_plugins_verb("--disable", "Talker")
+        assert set(json.loads(disabled_plugins_module._STATE_PATH.read_text())) == {"Talker"}
+
+        disabled_plugins_module._STATE_PATH.write_text(content)
+        _run_plugins_verb("--enable", "Talker")
+        assert json.loads(disabled_plugins_module._STATE_PATH.read_text()) == {}
+
+    def test_names_match_case_insensitively(self, use_plugins: Callable[..., None]) -> None:
+        use_plugins(Talker())
+
+        _run_plugins_verb("--disable", "talker")
+
+        assert collect_hook_results([Talker()], "TaskStart").notes == []
+
+    def test_enable_removes_an_entry_whose_plugin_is_gone(self, use_plugins: Callable[..., None]) -> None:
+        use_plugins(Talker())
+        disabled_plugins_module.disable("RemovedPlugin")
+
+        _run_plugins_verb("--enable", "removedplugin")
+
+        assert disabled_plugins_module.disabled_plugins() == {}
+
+    def test_an_unknown_plugin_name_is_rejected(self, use_plugins: Callable[..., None]) -> None:
+        use_plugins(Talker())
+
+        with patch("sys.argv", ["cline-hook", "plugins", "--disable", "Nope"]), pytest.raises(SystemExit) as excinfo:
+            main()
+
+        assert excinfo.value.code == 2

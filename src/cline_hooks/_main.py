@@ -141,6 +141,15 @@ def _tool_name(hook: HookInput) -> str:
     return str(getattr(fields, "toolName", "-"))
 
 
+def _add_plugins_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    """Add the `plugins` subcommand, which lists plugins or disables or enables one."""
+    plugins_parser = sub.add_parser("plugins", help="List installed plugins, or disable or enable one")
+    toggle_group = plugins_parser.add_mutually_exclusive_group()
+    toggle_group.add_argument("--disable", metavar="NAME", help="Stop the named plugin running on any hook")
+    toggle_group.add_argument("--enable", metavar="NAME", help="Let a disabled plugin run again")
+    plugins_parser.add_argument("--reason", help="Why the plugin is disabled, shown in the plugin list")
+
+
 def _build_parser() -> argparse.ArgumentParser:
     """Build the CLI argument parser.
 
@@ -175,7 +184,7 @@ def _build_parser() -> argparse.ArgumentParser:
     cline_parser.add_argument("target_dir", help="Directory the Cline hooks were installed into")
     uninstall_sub.add_parser("copilot", help="Remove GitHub Copilot hooks from ~/.copilot/hooks/")
 
-    sub.add_parser("plugins", help="List installed plugins")
+    _add_plugins_parser(sub)
 
     retro_parser = sub.add_parser("retro-count", help="Read or reset the retrospective session counter")
     retro_group = retro_parser.add_mutually_exclusive_group(required=True)
@@ -246,6 +255,30 @@ def _run_hook() -> NoReturn:
     allow()
 
 
+def _plugins_command(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+    """List the plugins, or disable or enable the one `args` names, matching names case-insensitively.
+
+    `--enable` also matches a disabled plugin that is no longer loaded, so its entry can be removed.
+    """
+    from cline_hooks.core.plugin import load_plugins  # ruff: ignore[import-outside-top-level]
+    from cline_hooks.state import disabled_plugins  # ruff: ignore[import-outside-top-level]
+
+    requested = args.disable or args.enable
+    if requested is None:
+        _list_plugins()
+        return
+    names = {type(plugin).__name__ for plugin in load_plugins()}
+    if args.enable:
+        names |= disabled_plugins.disabled_plugins().keys()
+    name = next((name for name in names if name.lower() == requested.lower()), None)
+    if name is None:
+        parser.error(f"unknown plugin: {requested}. Run `cline-hook plugins` to list them.")
+    elif args.disable:
+        disabled_plugins.disable(name, args.reason)
+    else:
+        disabled_plugins.enable(name)
+
+
 def _list_plugins() -> None:
     """Print all loaded plugins and their capabilities."""
     import pluggy  # ruff: ignore[import-outside-top-level]
@@ -256,6 +289,7 @@ def _list_plugins() -> None:
         list_extension_points,
         load_plugins,
     )
+    from cline_hooks.state.disabled_plugins import disabled_plugins  # ruff: ignore[import-outside-top-level]
 
     plugins = load_plugins()
     if not plugins:
@@ -264,6 +298,7 @@ def _list_plugins() -> None:
 
     manager = get_plugin_manager()
     extension_points = list_extension_points(plugins)
+    disabled = disabled_plugins()
 
     for plugin in plugins:
         name = type(plugin).__name__
@@ -280,6 +315,12 @@ def _list_plugins() -> None:
             print(f"    {line}")  # ruff: ignore[print]
         print(f"  contributes to:  {', '.join(contributions) if contributions else 'none'}")  # ruff: ignore[print]
         print(f"  on_hook:         {'overridden' if overrides_on_hook else 'not overridden'}")  # ruff: ignore[print]
+        if name in disabled:
+            entry = disabled[name]
+            state = f"disabled: {entry['reason'] or 'no reason given'} (since {entry['at']})"
+        else:
+            state = "enabled"
+        print(f"  state:           {state}")  # ruff: ignore[print]
 
     try:
         manager.check_pending()
@@ -296,7 +337,8 @@ def main() -> NoReturn:  # ruff: ignore[too-many-branches]
         _limit_resources()
         _run_hook()
 
-    args = _build_parser().parse_args()
+    parser = _build_parser()
+    args = parser.parse_args()
 
     if args.command == "install":
         from cline_hooks.core.frontends import FRONTENDS_BY_NAME  # ruff: ignore[import-outside-top-level]
@@ -324,7 +366,7 @@ def main() -> NoReturn:  # ruff: ignore[too-many-branches]
         sys.exit(0)
 
     if args.command == "plugins":
-        _list_plugins()
+        _plugins_command(parser, args)
         sys.exit(0)
 
     if args.command == "retro-count":

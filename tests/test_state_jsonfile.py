@@ -18,6 +18,11 @@ class TestReadJson:
         path.write_text("not json")
         assert read_json(path, {"count": 0}) == {"count": 0}
 
+    def test_returns_default_when_contents_are_another_type(self, tmp_path: Path) -> None:
+        path = tmp_path / "state.json"
+        path.write_text("null")
+        assert read_json(path, {"count": 0}) == {"count": 0}
+
     def test_returns_parsed_contents(self, tmp_path: Path) -> None:
         path = tmp_path / "state.json"
         path.write_text(json.dumps({"count": 5}))

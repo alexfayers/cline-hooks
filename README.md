@@ -32,7 +32,8 @@ Kiro takes a path: `cline-hook install kiro ~/.kiro/agents/my-agent.json`. `clin
 Other commands:
 
 - `cline-hook uninstall <assistant>` removes only the cline-hooks entries, leaving other tools' hooks
-- `cline-hook plugins` lists loaded plugins
+- `cline-hook plugins` lists loaded plugins and whether each is enabled
+- `cline-hook plugins --disable <Name> [--reason <text>]` / `--enable <Name>` turns a plugin off or on for every session
 - `cline-hook retro-count --get` / `--reset` shows or resets the retrospective session counter
 - `cline-hook handoff-ack --clear` releases sessions blocked on a handoff acknowledgement
 

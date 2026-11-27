@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 def read_json[StateT](path: Path, default: StateT) -> StateT:
-    """Read a JSON state file, returning the default on a missing or corrupt file.
+    """Read a JSON state file, returning the default on a missing or corrupt file, or one of another type.
 
     Args:
         path: The state file path.
@@ -23,9 +23,10 @@ def read_json[StateT](path: Path, default: StateT) -> StateT:
         The parsed file contents, or the default.
     """
     try:
-        return cast("StateT", json.loads(path.read_text(encoding="utf-8")))
+        data = json.loads(path.read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError, TypeError, ValueError, OSError):
         return default
+    return data if isinstance(data, type(default)) else default
 
 
 @contextmanager
