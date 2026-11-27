@@ -21,7 +21,7 @@
 | src/cline\_hooks/core/protocol.py                       |       87 |        2 |        8 |        1 |     97% |   231-232 |
 | src/cline\_hooks/core/registry.py                       |       15 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/core/response.py                       |       34 |        0 |       12 |        0 |    100% |           |
-| src/cline\_hooks/core/state.py                          |      131 |        2 |       32 |        2 |     98% |  149, 153 |
+| src/cline\_hooks/core/state.py                          |      141 |        2 |       36 |        2 |     98% |  162, 166 |
 | src/cline\_hooks/core/timing.py                         |        5 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/core/transcript.py                     |       19 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/core/user\_install.py                  |       21 |        0 |        4 |        0 |    100% |           |
@@ -118,7 +118,7 @@
 | tests/test\_core\_outcome.py                            |       88 |        0 |        0 |        0 |    100% |           |
 | tests/test\_core\_parameters.py                         |       73 |        0 |        0 |        0 |    100% |           |
 | tests/test\_core\_payload.py                            |      162 |        5 |       16 |        3 |     96% |48, 51, 54, 254-\>253, 256-257, 278-\>276 |
-| tests/test\_core\_state.py                              |      218 |        0 |       10 |        0 |    100% |           |
+| tests/test\_core\_state.py                              |      235 |        0 |       14 |        0 |    100% |           |
 | tests/test\_delegation\_tracker.py                      |       22 |        0 |        0 |        0 |    100% |           |
 | tests/test\_finished\_tracker.py                        |       15 |        0 |        0 |        0 |    100% |           |
 | tests/test\_frontend\_antigravity.py                    |       96 |        0 |        0 |        0 |    100% |           |
@@ -188,7 +188,7 @@
 | tests/test\_uninstall.py                                |       54 |        0 |        0 |        0 |    100% |           |
 | tests/test\_user\_install.py                            |       53 |        0 |        4 |        0 |    100% |           |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **14612** |  **213** | **1826** |  **123** | **98%** |           |
+| **TOTAL**                                               | **14639** |  **213** | **1834** |  **123** | **98%** |           |
 
 
 ## Setup coverage badge
