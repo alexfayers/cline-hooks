@@ -27,6 +27,7 @@ import cline_hooks.plugins.plan_handoff as plan_handoff_module
 import cline_hooks.plugins.research as research_module
 import cline_hooks.plugins.tool_usage as tool_usage_plugin_module
 import cline_hooks.state.agents as agents_tracker_module
+import cline_hooks.state.disabled_plugins as disabled_plugins_module
 import cline_hooks.state.finished as finished_tracker_module
 import cline_hooks.state.memory as memory_tracker_module
 import cline_hooks.state.retrospective as retrospective_module
@@ -213,6 +214,7 @@ def isolate_state_files(mocker: MockerFixture, tmp_path: Path) -> None:
     mocker.patch.object(memory_tracker_module, "_STATE_PATH", tmp_path / "memory-state.json")
     mocker.patch.object(memory_tracker_module, "_AVAILABLE_PATH", tmp_path / "memory-available.json")
     mocker.patch.object(retrospective_module, "_STATE_PATH", tmp_path / "retrospective-state.json")
+    mocker.patch.object(disabled_plugins_module, "_STATE_PATH", tmp_path / "disabled_plugins.json")
     mocker.patch.object(nudges_module._store, "_path", tmp_path / "turns-state.json")
     mocker.patch.object(agents_tracker_module._store, "_path", tmp_path / "agents-state.json")
     mocker.patch.object(finished_tracker_module, "_STATE_PATH", tmp_path / "finished-agents.json")

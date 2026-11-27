@@ -14,6 +14,7 @@ import pluggy
 
 from cline_hooks.core.payload import rewritten_parameters
 import cline_hooks.plugins as _plugins_pkg
+from cline_hooks.state.disabled_plugins import disabled_plugins
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Mapping, Sequence
@@ -121,10 +122,13 @@ def collect_hook_results(plugins: list[HooksPlugin], hook_name: str, **kwargs: o
     Returns:
         A merged HookResult with all notes, the final input and the first block reason found.
         Each plugin sees the `parameters` (and `command`) as the earlier plugins rewrote them.
+        Disabled plugins are skipped.
     """
     kwargs.setdefault("agent", _agent_info(kwargs))
     merged = HookResult()
-    for plugin in sorted(plugins, key=lambda plugin: plugin.runs_last):
+    disabled = disabled_plugins()
+    enabled = [plugin for plugin in plugins if type(plugin).__name__ not in disabled]
+    for plugin in sorted(enabled, key=lambda plugin: plugin.runs_last):
         plugin_logger = plugin.logger.getChild(hook_name)
         result = plugin.on_hook(hook_name, logger=plugin_logger, **kwargs)
         if result is None:
@@ -416,13 +420,17 @@ def collect_contributions[T](spec: Callable[..., object], expected: type[T], **k
         **kwargs: The spec's parameters by name.
 
     Returns:
-        One result per contributor, tryfirst first and then last-registered first; empty if the owner is not loaded.
+        One result per enabled contributor, tryfirst first and then last-registered first; empty if the owner is not
+        loaded.
     """
     hook = getattr(get_plugin_manager().hook, spec.__name__, None)
     if hook is None or not hook.has_spec():
         return []
     contributions: list[T] = []
+    disabled = disabled_plugins()
     for impl in reversed(hook.get_hookimpls()):
+        if type(impl.plugin).__name__ in disabled:
+            continue
         contributor_logger = impl.plugin.logger.getChild(spec.__name__)
         try:
             result = impl.function(*(kwargs[name] for name in impl.argnames))
