@@ -11,6 +11,7 @@ from cline_hooks.plugins.ecosystem import EcosystemPlugin
 from cline_hooks.plugins.handback_rescue import HandbackRescuePlugin
 from cline_hooks.plugins.nudges import _RETRO_THRESHOLD, NudgesPlugin, _store, mark_edited
 from cline_hooks.plugins.persistence import PersistencePlugin
+from cline_hooks.state.memory import record_mcp_call
 from cline_hooks.state.retrospective import get_count, record_session
 from cline_hooks.state.workspace import record_workspace
 
@@ -80,6 +81,7 @@ def test_nested_wrap_up_skill_counts_the_session_and_keeps_the_retrospective_rem
 
 def test_nested_session_end_keeps_the_memory_warning() -> None:
     mark_edited("t")
+    record_mcp_call("t", "memory", "read_graph")
     result = PersistencePlugin().on_hook(
         CanonicalHook.POST_TOOL_USE,
         logger=logging.getLogger("test"),

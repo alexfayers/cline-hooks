@@ -13,6 +13,7 @@ from cline_hooks.core.vocabulary import (
     PluginScope,
 )
 from cline_hooks.handlers.context_nudge import with_team_clause
+from cline_hooks.state.memory import memory_clause
 
 if TYPE_CHECKING:
     import logging
@@ -88,9 +89,9 @@ def reset(task_id: str) -> None:
 
 _PLAN_HANDOFF_NUDGE = (
     "PLAN COMPLETE: A plan was just finalized this session. SHOULD hand off implementation to a fresh "
-    "session so planning and full implementation do not consume one long context. MUST persist the plan to memory "
-    "(rather than a heavy handoff doc) and capture any queued follow-on tasks as TODOs so a fresh session can "
-    "pick up cleanly. MAY continue implementing here - this is a default, not a block."
+    "session so planning and full implementation do not consume one long context. MUST {memory}capture any queued "
+    "follow-on tasks as TODOs so a fresh session can pick up cleanly. "
+    "MAY continue implementing here - this is a default, not a block."
 )
 
 
@@ -104,7 +105,8 @@ def _consumed_nudge(task_id: str) -> HookResult | None:
         A HookResult carrying the nudge note, or None when none is pending.
     """
     if consume_plan_nudge(task_id):
-        return HookResult(notes=[with_team_clause(_PLAN_HANDOFF_NUDGE, task_id)])
+        memory = memory_clause(task_id, "persist the plan to memory (rather than a heavy handoff doc) and ")
+        return HookResult(notes=[with_team_clause(_PLAN_HANDOFF_NUDGE.format(memory=memory), task_id)])
     return None
 
 

@@ -1,4 +1,4 @@
-"""Track whether memory-write MCP tools were called during a session."""
+"""Track memory-server availability and memory-write MCP tool calls during a session."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from cline_hooks.state.paths import get_data_dir
 logger = logging.getLogger("hooks.state.memory")
 
 _STATE_PATH = get_data_dir() / "memory-state.json"
+_AVAILABLE_PATH = get_data_dir() / "memory-available.json"
 
 _MEMORY_WRITE_TOOLS: frozenset[str] = frozenset({
     "create_entities",
@@ -21,6 +22,51 @@ _MEMORY_WRITE_TOOLS: frozenset[str] = frozenset({
     "delete_observations",
     "delete_relation",
 })
+
+_MEMORY_TOOLS: frozenset[str] = _MEMORY_WRITE_TOOLS | {"read_graph", "search_nodes", "get_entity_with_relations"}
+
+
+def _session_key(task_id: str) -> str:
+    return task_id.split(":", 1)[0]
+
+
+def record_mcp_call(task_id: str, server_name: str, tool_name: str) -> None:
+    """Mark the memory server available for a session when a successful MCP call reached it.
+
+    Args:
+        task_id: The session or per-agent state key.
+        server_name: The MCP server name.
+        tool_name: The normalised MCP tool name.
+    """
+    if "memory" in server_name.lower() or tool_name in _MEMORY_TOOLS:
+        with updated_json(_AVAILABLE_PATH, cast("dict[str, bool]", {})) as data:
+            data[_session_key(task_id)] = True
+
+
+def memory_available(task_id: str) -> bool:
+    """Check whether a memory server has responded in a session, so memory reminders apply.
+
+    Args:
+        task_id: The session or per-agent state key.
+
+    Returns:
+        True once a memory MCP call has succeeded in the session.
+    """
+    data: dict[str, bool] = read_json(_AVAILABLE_PATH, {})
+    return data.get(_session_key(task_id), False)
+
+
+def memory_clause(task_id: str, clause: str) -> str:
+    """Return a memory clause for a reminder, or nothing when no memory server has responded.
+
+    Args:
+        task_id: The session or per-agent state key.
+        clause: The reminder text that asks for a memory write.
+
+    Returns:
+        The clause when memory is available, else an empty string.
+    """
+    return clause if memory_available(task_id) else ""
 
 
 def is_memory_write(tool_name: str) -> bool:
@@ -69,3 +115,4 @@ def reset(task_id: str) -> None:
     """
     discard_key(_STATE_PATH, task_id)
     discard_prefix(_STATE_PATH, f"{task_id}:")
+    discard_key(_AVAILABLE_PATH, task_id)

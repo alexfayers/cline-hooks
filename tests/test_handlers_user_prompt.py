@@ -30,6 +30,7 @@ from cline_hooks.plugins.nudges import (
 )
 from cline_hooks.plugins.plan_handoff import record_plan_exit
 from cline_hooks.state.agents import record_agent_use
+from cline_hooks.state.memory import record_mcp_call
 from tests.conftest import CanonicalProtocol, StubTranscript
 
 if TYPE_CHECKING:
@@ -285,6 +286,7 @@ class TestHandleUserPromptSubmit:
 
     def test_info_signal_fires_info_reminder(self) -> None:
         mark_edited("task-1")
+        record_mcp_call("task-1", "memory", "read_graph")
         with patch("cline_hooks.plugins.nudges.random.random", return_value=1.0):
             result = _run("Actually, the deadline is Friday")
         assert result is not None
@@ -293,6 +295,7 @@ class TestHandleUserPromptSubmit:
 
     def test_neutral_message_with_low_random_fires_info_reminder(self) -> None:
         mark_edited("task-1")
+        record_mcp_call("task-1", "memory", "read_graph")
         with patch("cline_hooks.plugins.nudges.random.random", return_value=0.0):
             result = _run("Can you implement this feature?")
         assert result is not None
@@ -483,6 +486,7 @@ class TestTimeNote:
         assert "late" in context.lower()
 
     def test_no_reminder_prefix_when_co_firing_note(self) -> None:
+        record_mcp_call("task-1", "memory", "read_graph")
         with patch("cline_hooks.plugins.nudges.random.random", return_value=1.0):
             result = _run("You should always run lint first")
         assert result is not None
@@ -536,6 +540,7 @@ def _pi_edit(**payload: object) -> None:
 
 class TestInfoReminderWaitsForFirstFileEdit:
     def _info_reminder_fires(self, message: str = "Actually, the deadline is Friday") -> bool:
+        record_mcp_call("task-1", "memory", "read_graph")
         with patch("cline_hooks.plugins.nudges.random.random", return_value=0.0):
             result = _run(message)
         return "persist to memory" in cast("str", (result or {}).get("contextModification", "")).lower()
@@ -658,6 +663,31 @@ class TestPlanHandoffNudge:
             second = _run("neutral")
         if second is not None:
             assert "PLAN COMPLETE" not in cast("str", second.get("contextModification", ""))
+
+
+class TestMemoryReminderGate:
+    def _context(self, message: str = "neutral", token_count: int | None = None) -> str:
+        with (
+            patch("cline_hooks.plugins.nudges.random.random", return_value=0.0),
+            patch("cline_hooks.plugins.nudges.local_now", return_value=_dt(12)),
+        ):
+            result = _run(message) if token_count is None else _run_with_transcript(token_count)
+        return cast("str", (result or {}).get("contextModification", ""))
+
+    @pytest.mark.parametrize("memory_up", [False, True])
+    def test_memory_nudges_follow_memory_availability(self, memory_up: bool) -> None:
+        if memory_up:
+            record_mcp_call("task-1", "memory", "read_graph")
+        record_plan_exit("task-1")
+        notes = [self._context()]
+        mark_edited("task-1")
+        notes += [
+            self._context("Actually, the deadline is Friday"),
+            self._context("You should always use type hints"),
+            self._context(token_count=_JUST_ABOVE_REDUCED),
+            self._context(token_count=_JUST_ABOVE_SEVERE),
+        ]
+        assert ["memory" in note for note in notes] == [memory_up] * len(notes)
 
 
 class TestTeamActiveClause:

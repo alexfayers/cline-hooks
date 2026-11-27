@@ -20,8 +20,13 @@ from cline_hooks.plugins.nudges import _RETRO_THRESHOLD, NudgesPlugin, mark_edit
 from cline_hooks.plugins.persistence import PersistencePlugin
 from cline_hooks.plugins.plan_handoff import consume_plan_nudge, record_plan_exit
 from cline_hooks.plugins.research import ResearchPlugin, get_research
+from cline_hooks.plugins.tracking import TrackingPlugin
 from cline_hooks.state.agents import agent_use_count, record_agent_start, record_agent_use
-from cline_hooks.state.memory import record_memory_write
+from cline_hooks.state.memory import (
+    record_mcp_call,
+    record_memory_write,
+    reset as reset_memory,
+)
 from cline_hooks.state.retrospective import get_count, record_session
 from tests.conftest import CanonicalProtocol
 
@@ -73,6 +78,11 @@ def _make_hook(  # ruff: ignore[too-many-arguments, too-many-positional-argument
     hook = parse_data(json.dumps(data))
     assert isinstance(hook, HookInputPostToolUse)
     return hook
+
+
+@pytest.fixture(autouse=True)
+def memory_up() -> None:
+    record_mcp_call("task-1", "memory", "read_graph")
 
 
 @pytest.fixture
@@ -730,6 +740,36 @@ class TestMemoryWarningOnSessionEnd:
         if result is not None:
             context = str(result.get("contextModification", ""))
             assert "No memory writes" not in context
+
+
+class TestMemoryReminderGate:
+    @pytest.fixture(autouse=True)
+    def memory_down(self) -> None:
+        reset_memory("task-1")
+
+    def test_no_session_end_warning_without_a_memory_server(self, use_plugins: Callable[..., None]) -> None:
+        use_plugins(NudgesPlugin(), PersistencePlugin())
+        mark_edited("task-1")
+        result = _run(_make_hook("use_skill", parameters={"skill": "session-end"}))
+        assert "No memory writes" not in str((result or {}).get("contextModification", ""))
+
+    def test_session_end_warning_once_a_memory_call_succeeds(self, use_plugins: Callable[..., None]) -> None:
+        use_plugins(NudgesPlugin(), PersistencePlugin(), TrackingPlugin())
+        mark_edited("task-1")
+        _run(_make_hook("use_mcp_tool", parameters={"server_name": "memory", "tool_name": "read_graph"}))
+        result = _run(_make_hook("use_skill", parameters={"skill": "session-end"}))
+        assert "No memory writes" in str((result or {}).get("contextModification", ""))
+
+    def test_failed_memory_call_does_not_mark_memory_up(self, use_plugins: Callable[..., None]) -> None:
+        use_plugins(NudgesPlugin(), PersistencePlugin(), TrackingPlugin())
+        mark_edited("task-1")
+        _run(_make_hook("use_mcp_tool", success=False, parameters={"server_name": "memory", "tool_name": "x"}))
+        result = _run(_make_hook("use_skill", parameters={"skill": "session-end"}))
+        assert "No memory writes" not in str((result or {}).get("contextModification", ""))
+
+    def test_no_failure_persist_note_without_a_memory_server(self) -> None:
+        result = _run(_make_hook("replace_in_file", success=False))
+        assert "persist" not in str((result or {}).get("contextModification", "")).lower()
 
 
 class TestRetrospectiveCounter:
