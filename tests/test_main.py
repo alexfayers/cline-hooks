@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from importlib.metadata import version
 import io
 import json
 import logging
@@ -25,6 +26,7 @@ from cline_hooks._main import (
 )
 from cline_hooks.config import _DEFAULT_MAX_MEMORY_MB
 from cline_hooks.core.frontends import FRONTENDS, FRONTENDS_BY_NAME
+from cline_hooks.core.install import binary_names
 from cline_hooks.core.plugin import HookResult, HooksPlugin, collect_contributions, collect_hook_results, hookimpl
 import cline_hooks.core.state as core_state_module
 from cline_hooks.core.vocabulary import CanonicalHook
@@ -399,6 +401,14 @@ class StrayContributor(HooksPlugin):
     @hookimpl
     def unpublished_extension_point(self) -> list[str]:
         return []
+
+
+def test_version_flag_prints_the_installed_version(capsys: pytest.CaptureFixture[str]) -> None:
+    prog = binary_names()[0]
+    with patch("sys.argv", [prog, "--version"]), pytest.raises(SystemExit) as excinfo:
+        main()
+    assert excinfo.value.code == 0
+    assert capsys.readouterr().out == f"{prog} {version('cline-hooks')}\n"
 
 
 def _plugins_output(capsys: pytest.CaptureFixture[str]) -> str:
