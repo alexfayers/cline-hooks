@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/alexfayers/cline-hooks/compare/v0.7.0...v0.7.1) (2026-11-28)
+
+
+### Miscellaneous Chores
+
+* **deps:** update all non-major dependencies ([#279](https://github.com/alexfayers/cline-hooks/issues/279)) ([f130dd0](https://github.com/alexfayers/cline-hooks/commit/f130dd0371fe9fa56d91612623202e2188861c29))
+
 ## [0.7.0](https://github.com/alexfayers/cline-hooks/compare/v0.6.0...v0.7.0) (2026-11-28)
 
 
