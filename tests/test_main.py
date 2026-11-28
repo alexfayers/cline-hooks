@@ -4,6 +4,7 @@ import io
 import json
 import logging
 import os
+import pkgutil
 import resource
 import shutil
 import signal
@@ -14,6 +15,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+import cline_hooks
 from cline_hooks._main import (
     _build_parser,
     _invocation_filter,
@@ -296,11 +298,30 @@ import cline_hooks
 print(logging.root.handlers == before)
 """
 
+_IMPORT_LOADS_CLI = """
+import sys
+import cline_hooks
+print("cline_hooks._main" in sys.modules)
+"""
+
 
 class TestImportSideEffects:
     def test_importing_the_package_leaves_root_logging_unchanged(self) -> None:
         out = subprocess.run([sys.executable, "-c", _IMPORT_PACKAGE], capture_output=True, text=True, check=True)
         assert out.stdout.strip() == "True"
+
+    def test_importing_the_package_does_not_import_the_cli(self) -> None:
+        out = subprocess.run([sys.executable, "-c", _IMPORT_LOADS_CLI], capture_output=True, text=True, check=True)
+        assert out.stdout.strip() == "False"
+
+    def test_every_module_imports_in_a_fresh_interpreter(self) -> None:
+        runs = {
+            name: subprocess.Popen([sys.executable, "-c", f"import {name}"], stderr=subprocess.PIPE, text=True)
+            for _, name, _ in pkgutil.walk_packages(cline_hooks.__path__, "cline_hooks.")
+        }
+        errors = {name: run.communicate()[1] for name, run in runs.items()}
+        failed = {name: errors[name] for name, run in runs.items() if run.returncode}
+        assert not failed, "\n".join(failed.values())
 
 
 class TestParserProgramName:

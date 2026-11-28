@@ -17,7 +17,12 @@ from cline_hooks.core.protocol import Protocol, RawPayload, set_protocol
 from cline_hooks.core.registry import HOOK_HANDLERS
 from cline_hooks.core.response import allow, emit
 from cline_hooks.core.state import set_hook_context
-import cline_hooks.handlers  # ruff: ignore[unused-import]
+import cline_hooks.handlers.post_tool_use  # ruff: ignore[unused-import]
+import cline_hooks.handlers.pre_compact  # ruff: ignore[unused-import]
+import cline_hooks.handlers.pre_tool_use  # ruff: ignore[unused-import]
+import cline_hooks.handlers.stop  # ruff: ignore[unused-import]
+import cline_hooks.handlers.task_lifecycle  # ruff: ignore[unused-import]
+import cline_hooks.handlers.user_prompt  # ruff: ignore[unused-import]
 from cline_hooks.state.paths import get_data_dir
 from cline_hooks.uninstall import uninstall_cline, uninstall_copilot
 

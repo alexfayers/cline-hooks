@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+import cline_hooks._main  # ruff: ignore[unused-import]
 from cline_hooks.core.frontend import FrontendSpec, select_protocol
 from cline_hooks.core.frontends import (
     DETECTION_ORDER,
