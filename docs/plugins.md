@@ -2,7 +2,7 @@
 
 Plugins add custom command rules, build tool detection, research tools, ecosystem tooling notes, and hook-driven notes or blocks. Core knows only plugins and their callers: each extension point is published by an owning plugin, and other plugins contribute to it.
 
-`cline-hook plugins` lists the loaded plugins and the extension points each owns and contributes to.
+`cline-hook plugins` lists the loaded plugins and the extension points each owns and contributes to. It exits 1 and names each plugin that failed to load on stderr.
 
 ## Bundled plugins
 

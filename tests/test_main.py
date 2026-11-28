@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.metadata
 from importlib.metadata import version
 import io
 import json
@@ -431,6 +432,19 @@ class TestListPlugins:
         assert "clean" not in output
         assert "unpublished_extension_point" in output
         assert StrayContributor.__name__ in output
+
+    @pytest.mark.usefixtures("fresh_plugin_cache")
+    def test_exits_non_zero_naming_a_plugin_that_failed_to_load(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        entry_point = importlib.metadata.EntryPoint("missing", "fakeep_missing:MissingPlugin", "cline_hooks")
+        monkeypatch.setattr(importlib.metadata, "entry_points", lambda **_kwargs: (entry_point,))
+
+        with patch("sys.argv", ["cline-hook", "plugins"]), pytest.raises(SystemExit) as excinfo:
+            main()
+
+        assert excinfo.value.code == 1
+        assert "External plugin missing failed to load" in capsys.readouterr().err
 
 
 class Talker(HooksPlugin):
