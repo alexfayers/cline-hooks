@@ -2,10 +2,14 @@ name: CI
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize, ready_for_review, edited, labeled, unlabeled]
+    types: [opened, reopened, synchronize, ready_for_review, labeled, unlabeled]
   push:
     branches:
       - main
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
   lint:
@@ -64,8 +68,7 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --locked
-      - run: just test
-      - run: uv run pytest --cov=.
+      - run: uv run pytest -vv --nf --cov=.
       - uses: py-cov-action/python-coverage-comment-action@v4.7
         with:
           GITHUB_TOKEN: ${{ github.token }}
@@ -83,16 +86,6 @@ jobs:
           enable-cache: true
       - run: uv sync --locked
       - run: just test
-
-  pr-template-check:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    permissions:
-      issues: write
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@v7
-      - uses: alexfayers/llm-prompts-ci/.github/actions/pr-template@main
 
   prompt-checks:
     permissions:
