@@ -6,7 +6,7 @@
 |-------------------------------------------------------- | -------: | -------: | -------: | -------: | ------: | --------: |
 | conftest.py                                             |       11 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/\_\_init\_\_.py                        |        0 |        0 |        0 |        0 |    100% |           |
-| src/cline\_hooks/\_main.py                              |      251 |       23 |       60 |        9 |     89% |179, 243-245, 262, 303-304, 364, 380-386, 389-392, 400-401, 405-409 |
+| src/cline\_hooks/\_main.py                              |      254 |       23 |       62 |        9 |     89% |179, 243-245, 262, 314-315, 376, 391-397, 400-403, 411-412, 416-420 |
 | src/cline\_hooks/config.py                              |       11 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/core/\_\_init\_\_.py                   |        0 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/core/frontend.py                       |       51 |        3 |       10 |        1 |     90% |   147-149 |
@@ -17,7 +17,7 @@
 | src/cline\_hooks/core/outcome.py                        |       37 |        0 |        4 |        0 |    100% |           |
 | src/cline\_hooks/core/parameters.py                     |       89 |        0 |        6 |        0 |    100% |           |
 | src/cline\_hooks/core/payload.py                        |      138 |        2 |       38 |        2 |     98% |  169, 329 |
-| src/cline\_hooks/core/plugin.py                         |      214 |        6 |       62 |        3 |     97% |136-\>138, 199, 201, 373-376 |
+| src/cline\_hooks/core/plugin.py                         |      224 |        6 |       62 |        3 |     97% |136-\>138, 199, 201, 395-398 |
 | src/cline\_hooks/core/protocol.py                       |       87 |        2 |        8 |        1 |     97% |   231-232 |
 | src/cline\_hooks/core/registry.py                       |       15 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/core/response.py                       |       34 |        0 |       12 |        0 |    100% |           |
@@ -145,7 +145,7 @@
 | tests/test\_install\_opencode.py                        |       20 |        0 |        0 |        0 |    100% |           |
 | tests/test\_install\_pi.py                              |       39 |        0 |        2 |        0 |    100% |           |
 | tests/test\_kiro\_integration.py                        |       49 |        0 |        0 |        0 |    100% |           |
-| tests/test\_main.py                                     |      293 |        4 |       10 |        1 |     98% |184, 262, 397, 403 |
+| tests/test\_main.py                                     |      302 |        4 |       10 |        1 |     98% |185, 263, 398, 404 |
 | tests/test\_memory\_tracker.py                          |       85 |        0 |        4 |        0 |    100% |           |
 | tests/test\_models.py                                   |      108 |        0 |        4 |        0 |    100% |           |
 | tests/test\_models\_kiro.py                             |      213 |        0 |        2 |        0 |    100% |           |
@@ -189,7 +189,7 @@
 | tests/test\_uninstall.py                                |       54 |        0 |        0 |        0 |    100% |           |
 | tests/test\_user\_install.py                            |       53 |        0 |        4 |        0 |    100% |           |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **14941** |  **212** | **1874** |  **122** | **98%** |           |
+| **TOTAL**                                               | **14963** |  **212** | **1876** |  **122** | **98%** |           |
 
 
 ## Setup coverage badge
