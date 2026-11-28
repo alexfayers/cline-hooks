@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.7.0](https://github.com/alexfayers/cline-hooks/compare/v0.6.0...v0.7.0) (2026-11-28)
+
+
+### Features
+
+* add a --version flag to cline-hook ([#276](https://github.com/alexfayers/cline-hooks/issues/276)) ([4f9b96a](https://github.com/alexfayers/cline-hooks/commit/4f9b96af3a17e7a34541ae1e4a4cc73a84132a40))
+* add a plugins verb that disables or enables a plugin for every session ([#266](https://github.com/alexfayers/cline-hooks/issues/266)) ([ae88079](https://github.com/alexfayers/cline-hooks/commit/ae880795fbe1f553613cad52c313dce54102d370))
+* add cline-hook serve ([#278](https://github.com/alexfayers/cline-hooks/issues/278)) ([464c461](https://github.com/alexfayers/cline-hooks/commit/464c4616198ffe63f24a61f3cb652ea537f500d3))
+* block gh posts whose body holds a truncation marker ([#275](https://github.com/alexfayers/cline-hooks/issues/275)) ([ab1b5da](https://github.com/alexfayers/cline-hooks/commit/ab1b5da4a2f444c6c3037d96e4474366b457f354))
+* exit non-zero from cline-hook plugins when a plugin fails to load ([#277](https://github.com/alexfayers/cline-hooks/issues/277)) ([9f88c49](https://github.com/alexfayers/cline-hooks/commit/9f88c49cebfe1b4e5254d7fd4a36c31a725ffa9e))
+
+
+### Miscellaneous Chores
+
+* **deps:** update all non-major dependencies ([#264](https://github.com/alexfayers/cline-hooks/issues/264)) ([6b3e54d](https://github.com/alexfayers/cline-hooks/commit/6b3e54d9320755714cc694b3ee54cd3b33534442))
+* **deps:** update all non-major dependencies ([#267](https://github.com/alexfayers/cline-hooks/issues/267)) ([c37142a](https://github.com/alexfayers/cline-hooks/commit/c37142ac77913c5fd4fbf5e0e74582b8a66e74a6))
+
 ## [0.6.0](https://github.com/alexfayers/cline-hooks/compare/v0.5.0...v0.6.0) (2026-11-27)
 
 
