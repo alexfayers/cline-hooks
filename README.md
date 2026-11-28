@@ -5,8 +5,8 @@
 | Name                                                    |    Stmts |     Miss |   Branch |   BrPart |   Cover |   Missing |
 |-------------------------------------------------------- | -------: | -------: | -------: | -------: | ------: | --------: |
 | conftest.py                                             |       11 |        0 |        0 |        0 |    100% |           |
-| src/cline\_hooks/\_\_init\_\_.py                        |        2 |        0 |        0 |        0 |    100% |           |
-| src/cline\_hooks/\_main.py                              |      244 |       23 |       60 |        9 |     89% |172, 236-238, 255, 296-297, 357, 373-379, 382-385, 393-394, 398-402 |
+| src/cline\_hooks/\_\_init\_\_.py                        |        0 |        0 |        0 |        0 |    100% |           |
+| src/cline\_hooks/\_main.py                              |      249 |       23 |       60 |        9 |     89% |177, 241-243, 260, 301-302, 362, 378-384, 387-390, 398-399, 403-407 |
 | src/cline\_hooks/config.py                              |       11 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/core/\_\_init\_\_.py                   |        0 |        0 |        0 |        0 |    100% |           |
 | src/cline\_hooks/core/frontend.py                       |       51 |        3 |       10 |        1 |     90% |   147-149 |
@@ -53,8 +53,8 @@
 | src/cline\_hooks/frontends/pi/models.py                 |       63 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/frontends/pi/protocol.py               |       40 |        1 |        4 |        1 |     95% |       115 |
 | src/cline\_hooks/frontends/pi/transcript.py             |       55 |        2 |       18 |        3 |     93% |72-\>67, 93, 102 |
-| src/cline\_hooks/handlers/\_\_init\_\_.py               |        3 |        0 |        0 |        0 |    100% |           |
-| src/cline\_hooks/handlers/commands.py                   |      212 |        6 |       96 |       10 |     95% |264, 279, 306, 350, 354, 400, 407-\>405, 409-\>405, 411-\>405, 412-\>411 |
+| src/cline\_hooks/handlers/\_\_init\_\_.py               |        0 |        0 |        0 |        0 |    100% |           |
+| src/cline\_hooks/handlers/commands.py                   |      212 |        6 |       96 |        9 |     95% |264, 279, 306, 350, 354, 400, 409-\>405, 411-\>405, 412-\>411 |
 | src/cline\_hooks/handlers/context\_nudge.py             |        7 |        0 |        2 |        0 |    100% |           |
 | src/cline\_hooks/handlers/git\_context.py               |       54 |        3 |       12 |        1 |     94% | 33-34, 89 |
 | src/cline\_hooks/handlers/herdr\_guard.py               |       79 |        1 |       24 |        1 |     98% |        84 |
@@ -124,7 +124,7 @@
 | tests/test\_finished\_tracker.py                        |       15 |        0 |        0 |        0 |    100% |           |
 | tests/test\_frontend\_antigravity.py                    |       96 |        0 |        0 |        0 |    100% |           |
 | tests/test\_frontend\_claude\_code\_transcript.py       |      143 |        0 |        0 |        0 |    100% |           |
-| tests/test\_frontend\_conformance.py                    |      100 |        1 |       14 |        1 |     98% |        88 |
+| tests/test\_frontend\_conformance.py                    |      101 |        1 |       14 |        1 |     98% |        89 |
 | tests/test\_frontend\_normalisation.py                  |      387 |        0 |        4 |        0 |    100% |           |
 | tests/test\_frontend\_opencode.py                       |       62 |        0 |        2 |        0 |    100% |           |
 | tests/test\_frontend\_pi\_transcript.py                 |       52 |        0 |        4 |        0 |    100% |           |
@@ -145,7 +145,7 @@
 | tests/test\_install\_opencode.py                        |       20 |        0 |        0 |        0 |    100% |           |
 | tests/test\_install\_pi.py                              |       39 |        0 |        2 |        0 |    100% |           |
 | tests/test\_kiro\_integration.py                        |       49 |        0 |        0 |        0 |    100% |           |
-| tests/test\_main.py                                     |      274 |        4 |       10 |        1 |     98% |180, 258, 374, 380 |
+| tests/test\_main.py                                     |      285 |        4 |       10 |        1 |     98% |182, 260, 395, 401 |
 | tests/test\_memory\_tracker.py                          |       85 |        0 |        4 |        0 |    100% |           |
 | tests/test\_models.py                                   |      108 |        0 |        4 |        0 |    100% |           |
 | tests/test\_models\_kiro.py                             |      213 |        0 |        2 |        0 |    100% |           |
@@ -189,7 +189,7 @@
 | tests/test\_uninstall.py                                |       54 |        0 |        0 |        0 |    100% |           |
 | tests/test\_user\_install.py                            |       53 |        0 |        4 |        0 |    100% |           |
 | tests/test\_workspace.py                                |       80 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                               | **14864** |  **212** | **1856** |  **122** | **98%** |           |
+| **TOTAL**                                               | **14876** |  **212** | **1856** |  **121** | **98%** |           |
 
 
 ## Setup coverage badge
