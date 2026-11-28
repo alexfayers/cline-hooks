@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
+import re
 from typing import TYPE_CHECKING, cast
 
 from cline_hooks.core.plugin import HookResult, HooksPlugin
 from cline_hooks.core.vocabulary import PluginScope
-from cline_hooks.handlers.commands import extract_commands, is_git_push, parse_command
+from cline_hooks.handlers.commands import extract_commands, gh_post_body_sources, is_git_push, parse_command
 from cline_hooks.handlers.herdr_guard import removed_worktree_paths, workspace_linking
 from cline_hooks.handlers.push_guard import marker_above_repo
 from cline_hooks.handlers.search_scope import (
@@ -20,16 +22,45 @@ if TYPE_CHECKING:
 
     from pydantic import JsonValue
 
+    from cline_hooks.handlers.commands import ParsedCommand
+
+_TRUNCATION_MARKERS = {
+    "[more: offset": re.compile(r"^\[more: offset \d+\]$", re.MULTILINE),
+    "[capped:": re.compile(r"^\[capped: \d+ chars, ref \S+; result_fetch\(", re.MULTILINE),
+}
+
+
+def _read_body_file(path: str, cwd: str) -> str:
+    """Return a body file's text, or an empty string for stdin or an unreadable file."""
+    if path == "-":
+        return ""
+    try:
+        return (Path(cwd) / path).read_text(errors="replace")
+    except OSError:
+        return ""
+
+
+def _truncation_marker(commands: list[ParsedCommand], cwd: str) -> str | None:
+    """Return the first truncation marker in a gh post body or body file, else None."""
+    bodies: list[str] = []
+    for cmd in commands:
+        inline, files = gh_post_body_sources(cmd)
+        bodies += [*inline, *(_read_body_file(path, cwd) for path in files)]
+    return next(
+        (marker for marker, pattern in _TRUNCATION_MARKERS.items() for body in bodies if pattern.search(body)), None
+    )
+
 
 def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | None:
-    """Block a git push inside a managed workspace, a linked worktree removal, or an oversized recursive search.
+    """Block a git push in a managed workspace, a linked worktree removal, a truncated gh post, or an oversized search.
 
     Args:
         logger: This plugin's hook-scoped child logger.
         **kwargs: The PreShell dispatch kwargs (command, workspace_roots).
 
     Returns:
-        A blocking HookResult for a blocked push, a linked worktree removal or an oversized search, or None.
+        A blocking HookResult for a blocked push, a linked worktree removal, a truncated gh post or an oversized search,
+        or None.
     """
     command = cast("str", kwargs.get("command") or "")
     workspace_roots = cast("list[str]", kwargs.get("workspace_roots") or [])
@@ -56,6 +87,16 @@ def _pre_shell_guard(logger: logging.Logger, **kwargs: object) -> HookResult | N
             )
 
     session_cwd = workspace_roots[0] if workspace_roots else os.getcwd()  # ruff: ignore[os-getcwd]
+    truncation_marker = _truncation_marker(commands, session_cwd)
+    if truncation_marker:
+        logger.debug("Blocked gh post: its body holds a truncation marker")
+        return HookResult(
+            block=(
+                f"gh post blocked: its body holds the truncation marker `{truncation_marker}`. "
+                f"MUST fetch the full text and post that."
+            )
+        )
+
     workspace_id = workspace_linking(removed_worktree_paths(commands), session_cwd)
     if workspace_id:
         logger.debug("Blocked git worktree remove: a Herdr workspace links the path")

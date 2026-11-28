@@ -164,3 +164,42 @@ class TestHerdrWorktreeGuard:
         mocker.patch("cline_hooks.handlers.herdr_guard.shutil.which", return_value=None)
         assert _pre_shell("git worktree remove /wt/linked", ["/repo"]) is None
         herdr_output.assert_not_called()
+
+
+class TestTruncatedBodyGuard:
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "gh pr comment 3 --body 'text\n[more: offset 6000]'",
+            "gh issue create --title t -b 'head\n[capped: 9000 chars, ref r1; result_fetch({ref, offset?})]\ntail'",
+            "gh -R o/r issue edit 3 --body='text\n[more: offset 6000]\n'",
+        ],
+    )
+    def test_blocks_an_inline_body_holding_a_truncation_marker(self, command: str) -> None:
+        result = _pre_shell(command, [])
+        assert result is not None
+        assert result.block is not None
+        assert ("[more: offset" in result.block) or ("[capped:" in result.block)
+
+    @pytest.mark.parametrize("option", ["--body-file ", "--body-file=", "-F ", "-F"])
+    def test_blocks_a_body_file_holding_a_truncation_marker(self, tmp_path: Path, option: str) -> None:
+        (tmp_path / "body.md").write_text("text\n[more: offset 6000]\n")
+        result = _pre_shell(f"gh pr create --title t {option}body.md", [str(tmp_path)])
+        assert result is not None
+        assert result.block is not None
+        assert "[more: offset" in result.block
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "gh pr comment 3 --body 'full text'",
+            "gh pr comment 3 --body-file missing.md",
+            "gh pr comment 3 --body-file -",
+            "gh pr view 3 --comments",
+            "echo 'text\n[more: offset 6000]'",
+            "gh issue create -b 'The comment ends with `[more: offset 6000]`, so text is lost.'",
+            "gh pr edit 3 --body 'Blocks a marker such as `[more: offset` or `[capped:`.'",
+        ],
+    )
+    def test_allows_a_post_without_a_truncation_marker(self, tmp_path: Path, command: str) -> None:
+        assert _pre_shell(command, [str(tmp_path)]) is None
