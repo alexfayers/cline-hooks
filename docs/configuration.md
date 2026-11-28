@@ -20,7 +20,7 @@
 | `cline-hook` (no arguments) | Reads one hook payload from stdin. This is what the assistants run. |
 | `cline-hook install <assistant> [target] [--force]` | Registers the hooks. |
 | `cline-hook uninstall <assistant> [target]` | Removes only the cline-hooks entries, leaving other tools' hooks. |
-| `cline-hook plugins` | Lists loaded plugins, the extension points each owns and contributes to, whether each is enabled, and whether the plugin set validates. |
+| `cline-hook plugins` | Lists loaded plugins, the extension points each owns and contributes to, whether each is enabled, and whether the plugin set validates. It exits 1 and names each plugin that failed to load on stderr. |
 | `cline-hook plugins --disable <Name> [--reason <text>]` | Stops the named plugin running on any hook in every session. The reason and time show in the plugin list. Names match case-insensitively. |
 | `cline-hook plugins --enable <Name>` | Lets a disabled plugin run again. It also removes the entry of a disabled plugin that is no longer installed. |
 | `cline-hook retro-count --get` / `--reset` | Prints or resets the count of sessions since the last retrospective. |

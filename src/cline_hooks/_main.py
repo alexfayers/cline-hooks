@@ -262,18 +262,20 @@ def _run_hook() -> NoReturn:
     allow()
 
 
-def _plugins_command(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+def _plugins_command(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
     """List the plugins, or disable or enable the one `args` names, matching names case-insensitively.
 
     `--enable` also matches a disabled plugin that is no longer loaded, so its entry can be removed.
+
+    Returns:
+        The exit code: 1 when listing finds a plugin that failed to load, else 0.
     """
     from cline_hooks.core.plugin import load_plugins  # ruff: ignore[import-outside-top-level]
     from cline_hooks.state import disabled_plugins  # ruff: ignore[import-outside-top-level]
 
     requested = args.disable or args.enable
     if requested is None:
-        _list_plugins()
-        return
+        return _list_plugins()
     names = {type(plugin).__name__ for plugin in load_plugins()}
     if args.enable:
         names |= disabled_plugins.disabled_plugins().keys()
@@ -284,14 +286,20 @@ def _plugins_command(parser: argparse.ArgumentParser, args: argparse.Namespace) 
         disabled_plugins.disable(name, args.reason)
     else:
         disabled_plugins.enable(name)
+    return 0
 
 
-def _list_plugins() -> None:
-    """Print all loaded plugins and their capabilities."""
+def _list_plugins() -> int:
+    """Print all loaded plugins and their capabilities, then each plugin that failed to load to stderr.
+
+    Returns:
+        1 if any plugin failed to load, else 0.
+    """
     import pluggy  # ruff: ignore[import-outside-top-level]
 
     from cline_hooks.core.plugin import (  # ruff: ignore[import-outside-top-level]
         HooksPlugin,
+        get_plugin_load_failures,
         get_plugin_manager,
         list_extension_points,
         load_plugins,
@@ -299,9 +307,12 @@ def _list_plugins() -> None:
     from cline_hooks.state.disabled_plugins import disabled_plugins  # ruff: ignore[import-outside-top-level]
 
     plugins = load_plugins()
+    load_failures = get_plugin_load_failures()
+    for failure in load_failures:
+        print(failure, file=sys.stderr)  # ruff: ignore[print]
     if not plugins:
         print("No plugins loaded.")  # ruff: ignore[print]
-        return
+        return int(bool(load_failures))
 
     manager = get_plugin_manager()
     extension_points = list_extension_points(plugins)
@@ -335,6 +346,7 @@ def _list_plugins() -> None:
         print(f"check_pending: failed - {error}")  # ruff: ignore[print]
     else:
         print("check_pending: clean")  # ruff: ignore[print]
+    return int(bool(load_failures))
 
 
 def main() -> NoReturn:  # ruff: ignore[too-many-branches]
@@ -373,8 +385,7 @@ def main() -> NoReturn:  # ruff: ignore[too-many-branches]
         sys.exit(0)
 
     if args.command == "plugins":
-        _plugins_command(parser, args)
-        sys.exit(0)
+        sys.exit(_plugins_command(parser, args))
 
     if args.command == "retro-count":
         from cline_hooks.state import retrospective  # ruff: ignore[import-outside-top-level]
