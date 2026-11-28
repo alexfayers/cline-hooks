@@ -4,6 +4,7 @@ from typing import cast
 
 import pytest
 
+import cline_hooks._main  # ruff: ignore[unused-import]
 from cline_hooks.core.outcome import Outcome
 from cline_hooks.core.registry import (
     HOOK_HANDLERS,
@@ -12,7 +13,6 @@ from cline_hooks.core.registry import (
     tool_handler,
 )
 from cline_hooks.core.vocabulary import CanonicalHook, CanonicalTool
-import cline_hooks.handlers  # ruff: ignore[unused-import]
 
 
 class TestHookHandler:
