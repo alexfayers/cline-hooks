@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-cline-hook = "cline_hooks._main:main"
+cline-hook = "cline_hooks.__main__:main"
 
 [project.entry-points."llm_prompts"]
 hooks = "cline_hooks"

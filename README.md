@@ -36,6 +36,7 @@ Other commands:
 - `cline-hook plugins --disable <Name> [--reason <text>]` / `--enable <Name>` turns a plugin off or on for every session
 - `cline-hook retro-count --get` / `--reset` shows or resets the retrospective session counter
 - `cline-hook handoff-ack --clear` releases sessions blocked on a handoff acknowledgement
+- `cline-hook serve` / `serve --stop` starts or stops the hook server on Linux, which nothing starts yet
 
 ## Configuration
 

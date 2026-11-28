@@ -26,3 +26,5 @@
 | `cline-hook retro-count --get` / `--reset` | Prints or resets the count of sessions since the last retrospective. |
 | `cline-hook unlock [path]` | Drops the session's file and working tree locks, or only the lock on `path`. |
 | `cline-hook handoff-ack --clear` | Releases sessions blocked on a handoff acknowledgement. |
+| `cline-hook serve` | Runs the hook server on Linux. It answers hook requests on `hook.sock` in `$XDG_RUNTIME_DIR/cline-hooks`, else `~/.cache/cline-hooks/run`, and runs each one in a forked child. Only one server runs per user. It stops after 30 idle minutes, or when a request finds newer installed code. Nothing starts it yet. |
+| `cline-hook serve --stop` | Stops the running hook server. |
