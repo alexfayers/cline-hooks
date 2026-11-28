@@ -281,6 +281,33 @@ def is_read_only_gh(cmd: ParsedCommand) -> bool:
     return group == "status" or bool(words and words[0] in _READ_ONLY_GH_ACTIONS)
 
 
+_GH_POSTING_GROUPS = frozenset({"issue", "pr"})
+_GH_POSTING_ACTIONS = frozenset({"create", "comment", "edit"})
+_GH_BODY_OPTIONS = {"--body": "-b", "--body-file": "-F"}
+
+
+def gh_post_body_sources(cmd: ParsedCommand) -> tuple[list[str], list[str]]:
+    """Return the inline bodies and body files of a `gh issue` or `gh pr` create, comment or edit call.
+
+    Returns:
+        The --body/-b values and the --body-file/-F paths, both empty for any other command.
+    """
+    if cmd.name != "gh":
+        return [], []
+    group, words = _split_subcommand(cmd.words, _GH_OPTIONS_TAKING_A_VALUE)
+    if group not in _GH_POSTING_GROUPS or not words or words[0] not in _GH_POSTING_ACTIONS:
+        return [], []
+    sources: dict[str, list[str]] = {long: [] for long in _GH_BODY_OPTIONS}
+    remaining = iter(words[1:])
+    for word in remaining:
+        for long, short in _GH_BODY_OPTIONS.items():
+            if word in {long, short}:
+                sources[long].append(next(remaining, ""))
+            elif word.startswith((f"{long}=", short)):
+                sources[long].append(word.removeprefix(f"{long}=").removeprefix(short))
+    return sources["--body"], sources["--body-file"]
+
+
 _TIDY_REBASE_FLAGS = frozenset({"-i", "--interactive", "--autosquash"})
 
 
