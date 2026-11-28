@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+from importlib.metadata import version
 import logging
 from logging.handlers import RotatingFileHandler
 import os
@@ -164,6 +165,7 @@ def _build_parser() -> argparse.ArgumentParser:
     from cline_hooks.core.frontends import FRONTENDS  # ruff: ignore[import-outside-top-level]
 
     parser = argparse.ArgumentParser(prog=binary_names()[0], description="AI coding assistant lifecycle hooks")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {version('cline-hooks')}")
     sub = parser.add_subparsers(dest="command")
 
     install_parser = sub.add_parser("install", help="Install hooks")
