@@ -209,6 +209,9 @@ def _build_parser() -> argparse.ArgumentParser:
     unlock_parser.add_argument("path", nargs="?", help="Unlock only this file, default every lock the session holds")
     unlock_parser.add_argument("--session", required=True, help="The session whose locks are dropped")
 
+    serve_parser = sub.add_parser("serve", help="Run the hook server, which answers hook requests on a local socket")
+    serve_parser.add_argument("--stop", action="store_true", help="Stop the running hook server")
+
     return parser
 
 
@@ -407,6 +410,11 @@ def main() -> NoReturn:  # ruff: ignore[too-many-branches]
 
         release(args.session, args.path)
         sys.exit(0)
+
+    if args.command == "serve":
+        from cline_hooks import server  # ruff: ignore[import-outside-top-level]
+
+        sys.exit(server.stop() if args.stop else server.serve())
 
     _limit_resources()
     _run_hook()
